@@ -29,8 +29,12 @@ struct SlideshowChrome: View {
             Spacer()
             bottomBar
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.horizontal, 32)
+        // The slideshow hides the status bar and home indicator for the whole run, so the
+        // safe-area insets the chrome used to lean on collapse to ~0 on iPad. Inset the bars
+        // explicitly so the round controls always clear the physical screen edges in every
+        // orientation instead of crowding/clipping at the top and bottom.
+        .padding(.vertical, 44)
         .tint(.white)
     }
 

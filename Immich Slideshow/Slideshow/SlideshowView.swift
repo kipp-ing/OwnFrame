@@ -67,29 +67,30 @@ struct SlideshowView: View {
     private static let chromeAutoHide: Duration = .seconds(4.5)
 
     var body: some View {
-        // The chrome owns the layout and is laid out against a stable full-screen,
-        // safe-area-respecting frame; the letterboxed/filled image rides along as its
-        // background. A `.background` is sized to the host and never feeds its size
-        // back up, so switching the image between fit and fill framing (the latter
-        // forced by Ken Burns) no longer drags the chrome's safe-area inset around
-        // (Bug 2). The image still owns the gestures and covers the whole screen,
-        // incl. under the hidden status bar, via `.ignoresSafeArea()`.
-        chromeOverlay
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                phaseContent
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    // Tap toggles the chrome; a horizontal swipe advances without revealing it.
-                    // (Reset lives on the chrome's exit button — no long-press recognizer here,
-                    // which kept the tap-to-reveal unambiguous.)
-                    .onTapGesture { toggleChrome() }
-                    .gesture(swipeGesture)
-            }
-        // Status bar + home indicator follow the chrome: hidden in the calm default
-        // (fixes the always-visible iPad clock/battery), revealed with the controls.
-        .statusBarHidden(!chromeVisible)
-        .persistentSystemOverlays(chromeVisible ? .automatic : .hidden)
+        ZStack {
+            // The letterboxed image fills the whole screen and owns the gestures so
+            // tap/swipe cover everything (incl. under the hidden status bar).
+            phaseContent
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                // Tap toggles the chrome; a horizontal swipe advances without revealing it.
+                // (Reset lives on the chrome's exit button — no long-press recognizer here,
+                // which kept the tap-to-reveal unambiguous.)
+                .onTapGesture { toggleChrome() }
+                .gesture(swipeGesture)
+
+            // Chrome sits inside the safe area (sibling, not safe-area-ignoring) so the
+            // bars don't collide with the screen edges / home indicator.
+            chromeOverlay
+        }
+        // Status bar + home indicator stay hidden for the whole slideshow — even while the
+        // chrome is revealed. The chrome owns its own exit/transport controls, so there's no
+        // need for the system clock/battery; keeping them tied to the chrome made them pop
+        // back on every tap and, worse, toggled the safe-area insets, which re-laid-out the
+        // photo (a visible jump) and reset the Ken Burns pan/zoom. Pinning both hidden keeps
+        // the calm photo-frame look and a stable frame (300/US4-AS1).
+        .statusBarHidden(true)
+        .persistentSystemOverlays(.hidden)
         // The image swap is animated per the chosen transition; "none" disables the
         // animation entirely so there is no residual fade (008/US2, review R5).
         .animation(swapAnimation, value: viewModel.currentAssetID)
