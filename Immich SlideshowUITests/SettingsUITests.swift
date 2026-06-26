@@ -39,21 +39,22 @@ final class SettingsUITests: XCTestCase {
         // transition/Ken Burns/fit/quality are now live (008); the clock overlay is the
         // remaining placeholder until US4.
         let plannedRow = app.descendants(matching: .any)
-            .matching(identifier: "settings.row.Uhr-Overlay").firstMatch
+            .matching(identifier: "settings.row.Clock overlay").firstMatch
         XCTAssertTrue(plannedRow.exists, "the clock-overlay option should be previewed")
 
         // Dismiss back to the slideshow.
-        app.buttons["Fertig"].tap()
+        app.buttons["Done"].tap()
         XCTAssertTrue(image.waitForExistence(timeout: 3))
         let dismissed = NSPredicate(format: "isHittable == false")
         expectation(for: dismissed, evaluatedWith: slider)
         waitForExpectations(timeout: 3)
     }
 
-    /// Connection (009) and MQTT/broker (006) are folded into Settings as collapsible
-    /// sections that default to collapsed, keeping the calm default (010, FR-009/010/014).
+    /// MQTT/broker (006) is a collapsed section; Connection (009/210, FR-210-29) is now a
+    /// pushed row that opens the shared connection editor. Neither shows its fields inline,
+    /// keeping the calm default (010, FR-009/010/014).
     @MainActor
-    func testConnectionAndMqttAppearAsCollapsedSections() throws {
+    func testConnectionPushesEditorAndMqttStaysCollapsed() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
         app.launch()
@@ -66,18 +67,22 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
         settingsButton.tap()
 
-        // Both advanced sections are present (scrolled into view — they sit below the
-        // brightness/display sections).
+        // Both rows are present (scrolled into view — they sit below the brightness/display
+        // sections), and neither renders its fields inline.
         let connection = app.descendants(matching: .any)
             .matching(identifier: "settings.connection").firstMatch
-        XCTAssertTrue(scrollToElement(connection, in: app), "Connection section should be present")
+        XCTAssertTrue(scrollToElement(connection, in: app), "Connection row should be present")
         let mqtt = app.descendants(matching: .any)
             .matching(identifier: "settings.mqtt").firstMatch
         XCTAssertTrue(scrollToElement(mqtt, in: app), "MQTT section should be present")
-
-        // Collapsed by default: their inner fields are not rendered until expanded.
-        XCTAssertFalse(app.textFields["connection.url"].exists, "Connection fields hidden until expanded")
+        XCTAssertFalse(app.textFields["connection.url"].exists, "Connection fields hidden until the editor is opened")
         XCTAssertFalse(app.textFields["broker.host"].exists, "MQTT fields hidden until expanded")
+
+        // Tapping Connection pushes the shared editor, revealing its fields.
+        connection.tap()
+        XCTAssertTrue(app.textFields["connection.url"].waitForExistence(timeout: 3),
+                      "tapping Connection should push the shared connection editor")
+        XCTAssertTrue(app.buttons["connection.save"].exists, "the pushed editor shows Save")
     }
 
     /// The settings form must scroll so every section — including the folded-in

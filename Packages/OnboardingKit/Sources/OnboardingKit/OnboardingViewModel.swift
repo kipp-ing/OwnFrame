@@ -2,6 +2,12 @@ import Foundation
 import ImmichClient
 import Observation
 
+/// The user's selection on the first-run choice screen (210, US1).
+public enum OnboardingPathChoice: Sendable, Equatable {
+    case sharedLink
+    case server
+}
+
 @Observable public final class OnboardingViewModel {
     public var step: OnboardingStep = .connection
     public var serverURLInput: String = ""
@@ -38,6 +44,45 @@ import Observation
         self.connectionRetryLimit = connectionRetryLimit
         self.connectionRetryDelay = connectionRetryDelay
         self.sleep = sleep
+    }
+
+    /// Route from the first-run choice screen: the shared-link path goes to the in-place
+    /// link entry (no API key needed); the server path goes to the connection form (210, US1).
+    public func choosePath(_ choice: OnboardingPathChoice) {
+        errorMessage = nil
+        switch choice {
+        case .sharedLink:
+            step = .sharedLinkSetup
+        case .server:
+            step = .connection
+        }
+    }
+
+    /// Whether the current step has a previous step to return to. False on the first step
+    /// (`.choice`) and once onboarding is `.done` (FR-210-26).
+    public var canGoBack: Bool {
+        switch step {
+        case .choice, .done: false
+        case .sharedLinkSetup, .connection, .source, .confirm: true
+        }
+    }
+
+    /// Step back to the immediately preceding onboarding screen in-place, without restarting
+    /// the app and without discarding entered configuration (FR-210-26). The shared-link and
+    /// server paths both fold back to the choice screen; the source/confirm steps fold back
+    /// toward connection. `.choice` (and `.done`) have nowhere to go.
+    public func back() {
+        errorMessage = nil
+        switch step {
+        case .sharedLinkSetup, .connection:
+            step = .choice
+        case .source:
+            step = .connection
+        case .confirm:
+            step = .source
+        case .choice, .done:
+            break
+        }
     }
 
     public func submitConnection() async {

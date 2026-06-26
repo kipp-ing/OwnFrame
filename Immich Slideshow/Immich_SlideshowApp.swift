@@ -62,6 +62,12 @@ struct Immich_SlideshowApp: App {
         // Persists a newly chosen album to the config after a connection change left the
         // previously selected album absent (009, FR-013), without re-onboarding.
         let saveSelectedAlbum: @MainActor @Sendable (String) -> Void
+        // Consume a pending shared link handed in by the Share Extension via the App Group
+        // (210, US2). Returns the non-secret URL once, then clears it; nil if none.
+        let takePendingLink: @MainActor @Sendable () -> URL?
+        // The current source library, used to route an incoming link (unconfigured ⇒ prefill
+        // onboarding; configured ⇒ switch/add+activate) without touching a secret (210, US2).
+        let loadLibrary: @MainActor @Sendable () -> SourceLibrary
     }
 
     init() {
@@ -78,6 +84,10 @@ struct Immich_SlideshowApp: App {
             let sourceStore = InMemorySourceLibraryStore()
             let secretStore = InMemorySharedLinkSecretStore()
             let resolver = UITestSharedLinkResolver()
+            // 210 US2: seed a pending shared link (as the Share Extension would) so the host's
+            // incoming-link consumption is testable without the system Share Sheet. The value
+            // is the launch argument following `--uitest-pending-link`.
+            let pendingLinkStore = InMemoryPendingSharedLinkStore(pendingURL: UITestSupport.pendingLinkURL)
 
             let uitestViewModel = OnboardingViewModel(
                 api: { _ in StubImmichAPI() },
@@ -100,6 +110,13 @@ struct Immich_SlideshowApp: App {
                 config.saveBaseURL(URL(string: "https://photos.example.test")!)
                 try? keychain.save("uitest-key")
                 uitestViewModel.step = .source
+            } else if ProcessInfo.processInfo.arguments.contains("--uitest-onboarding-choice") {
+                // 210 US1: a blank install opens on the first-run choice screen. Stores
+                // stay empty so the shared-link path drives the first (and only) source.
+                uitestViewModel.step = .choice
+            } else if ProcessInfo.processInfo.arguments.contains("--uitest-shared-link-only") {
+                // 210 US1: jump straight to the shared-link-only entry screen (no API key).
+                uitestViewModel.step = .sharedLinkSetup
             }
             _viewModel = State(initialValue: uitestViewModel)
             let switchActiveSource: @MainActor @Sendable (String) -> SourceRestartStrategy? = { id in
@@ -122,7 +139,9 @@ struct Immich_SlideshowApp: App {
                 makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
                 makeCoordinator: { @MainActor @Sendable _, _ in nil },
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
-                saveSelectedAlbum: { @MainActor @Sendable _ in }
+                saveSelectedAlbum: { @MainActor @Sendable _ in },
+                takePendingLink: { pendingLinkStore.takePendingURL() },
+                loadLibrary: { sourceStore.load() }
             )
             return
         }
@@ -136,6 +155,9 @@ struct Immich_SlideshowApp: App {
         let sourceStore = UserDefaultsSourceLibraryStore()
         let secretStore = KeychainSharedLinkSecretStore()
         let sharedLinkResolver = SharedLinkResolver()
+        // The Share Extension writes an incoming share URL here (App Group, URL only); the
+        // host consumes it on launch/foreground/open-URL (210, US2).
+        let pendingLinkStore = AppGroupPendingSharedLinkStore()
         let brokerStore = KeychainBrokerSettingsStore()
         let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "immich-slideshow-device"
         let brokerProvider = BrokerConfigProvider(settingsStore: brokerStore, deviceID: deviceID)
@@ -157,11 +179,13 @@ struct Immich_SlideshowApp: App {
         // client here; they are never logged or persisted elsewhere (Konstitution III).
         // nil when state is incomplete or the active source fails to resolve.
         let resolveActiveSource: @MainActor @Sendable () async -> ResolvedSource? = {
-            guard let baseURL = config.loadBaseURL(), let apiKey = keychain.read(),
-                  let active = sourceStore.load().active else { return nil }
+            // A shared-link active source resolves with no API key / album base URL — a
+            // shared-link-only setup has neither (FR-210-03/04). The album credentials are
+            // passed through (optional) and only required for an album active source.
+            guard let active = sourceStore.load().active else { return nil }
             let resolver = ActiveSourceResolver(
-                albumBaseURL: baseURL,
-                apiKey: apiKey,
+                albumBaseURL: config.loadBaseURL(),
+                apiKey: keychain.read(),
                 secretStore: secretStore,
                 sharedLinkResolver: sharedLinkResolver
             )
@@ -274,7 +298,9 @@ struct Immich_SlideshowApp: App {
             makePowerManager: makePowerManager,
             makeCoordinator: makeCoordinator,
             makeConnectionSettingsViewModel: makeConnectionSettingsViewModel,
-            saveSelectedAlbum: saveSelectedAlbum
+            saveSelectedAlbum: saveSelectedAlbum,
+            takePendingLink: { pendingLinkStore.takePendingURL() },
+            loadLibrary: { sourceStore.load() }
         )
     }
 
@@ -299,6 +325,11 @@ private struct RootView: View {
     @State private var slideshow: SlideshowViewModel?
     @State private var powerManager: PowerManager?
     @State private var api: (any ImmichAPI)?
+    @Environment(\.scenePhase) private var scenePhase
+    // A shared link handed in while unconfigured pre-fills the onboarding setup field;
+    // handed into the configured app it drives the resolve-and-activate sheet (210, US2).
+    @State private var incomingPrefill = ""
+    @State private var incomingSheet: IncomingSheetContext?
     // One shared settings store for the lifetime of the slideshow: the engine reads
     // live preferences from it and the settings UI binds the same concrete instance
     // (008). UI tests run against an isolated, cleared suite so a fresh launch starts
@@ -311,6 +342,24 @@ private struct RootView: View {
     @State private var showAlbumReselect = false
 
     var body: some View {
+        content
+            // Consume a pending shared link on launch, when returning to the foreground, and
+            // when the Share Extension opens the host scheme (210, US2). Each path takes the
+            // URL once and routes it; a no-op when there is none.
+            .task { consumePendingLink() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { consumePendingLink() }
+            }
+            .onOpenURL { _ in consumePendingLink() }
+            .sheet(item: $incomingSheet) { context in
+                IncomingLinkSheet(sourceLibrary: context.viewModel, url: context.url) {
+                    incomingSheet = nil
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if onboarding.step == .done {
             if let slideshow, let powerManager, let api {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
@@ -349,6 +398,7 @@ private struct RootView: View {
             // callback is a no-op (120, US2).
             OnboardingFlowView(
                 viewModel: onboarding,
+                sharedLinkPrefill: incomingPrefill,
                 makeSourceLibrary: { factories.makeSourceLibraryViewModel { _ in } }
             )
         }
@@ -391,6 +441,48 @@ private struct RootView: View {
         }
     }
 
+    /// Take any pending shared link and route it (210, US2). Unconfigured ⇒ pre-fill the
+    /// onboarding setup field; configured ⇒ switch to the matching source instantly, or open
+    /// the resolve-and-activate sheet (which also surfaces an invalid link as an error). The
+    /// URL only — no secret — ever crosses this boundary (Constitution III).
+    private func consumePendingLink() {
+        guard let url = factories.takePendingLink() else { return }
+        let library = factories.loadLibrary()
+
+        guard library.active != nil else {
+            // Unconfigured: route into the shared-link setup, pre-filled. A malformed link
+            // still pre-fills so its error surfaces when the user taps Start.
+            incomingPrefill = url.absoluteString
+            onboarding.step = .sharedLinkSetup
+            return
+        }
+
+        switch IncomingSharedLink.route(url, library: library, isConfigured: true) {
+        case let .switchToExisting(sourceID):
+            switchSource(id: sourceID)
+        case .addAndActivate, .invalid:
+            // Resolve-and-activate over the running slideshow; the sheet's engine validates
+            // the link, asks for a password only when required, then switches the active
+            // source. An invalid link errors inside the sheet — nothing is persisted.
+            incomingSheet = IncomingSheetContext(
+                url: url.absoluteString,
+                viewModel: factories.makeSourceLibraryViewModel { id in switchSource(id: id) }
+            )
+        case .prefillOnboarding:
+            // Unreachable while configured; pre-fill defensively.
+            incomingPrefill = url.absoluteString
+            onboarding.step = .sharedLinkSetup
+        }
+    }
+
+    /// Identifies a presented incoming-link sheet. The per-presentation SourceLibraryViewModel
+    /// drives the resolve engine and restarts the slideshow on activation (via `switchSource`).
+    struct IncomingSheetContext: Identifiable {
+        let id = UUID()
+        let url: String
+        let viewModel: SourceLibraryViewModel
+    }
+
     private static func makeThemeStore() -> UserDefaultsThemeStore {
         #if DEBUG
         if UITestSupport.isActive {
@@ -424,6 +516,36 @@ private struct RootView: View {
 enum UITestSupport {
     static var isActive: Bool {
         ProcessInfo.processInfo.arguments.contains("--uitest")
+    }
+
+    /// The shared link seeded as "pending" for the incoming-link test (210, US2): the launch
+    /// argument immediately following `--uitest-pending-link`. nil when the flag is absent.
+    static var pendingLinkURL: URL? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let flagIndex = args.firstIndex(of: "--uitest-pending-link"),
+              flagIndex + 1 < args.count else { return nil }
+        return URL(string: args[flagIndex + 1])
+    }
+
+    /// 60 stub albums with date + count metadata for the searchable-picker UI test (210,
+    /// US3). Includes a diacritic name ("München Trip") so a folded-search assertion is
+    /// meaningful, and varied years/counts so name/year/count search all narrow the list.
+    nonisolated static func manyAlbums() -> [Album] {
+        func midYear(_ year: Int) -> Date {
+            Date(timeIntervalSince1970: TimeInterval(year - 1970) * 31_557_600 + 15_552_000)
+        }
+        var albums = [
+            Album(id: "album-munich", name: "München Trip", assetCount: 99,
+                  startDate: midYear(2024), endDate: midYear(2024))
+        ]
+        for index in 1...59 {
+            let year = 2018 + (index % 7) // 2018…2024
+            albums.append(
+                Album(id: "album-\(index)", name: "Album \(index)", assetCount: index * 3,
+                      startDate: midYear(year), endDate: midYear(year))
+            )
+        }
+        return albums
     }
 
     /// One album source ("Wohnzimmer" → album a1), active. The Sources-manager UITest
@@ -487,7 +609,11 @@ private struct StubImmichAPI: ImmichAPI {
     func serverVersion() async throws -> String { "1.0.0" }
 
     func albums() async throws -> [Album] {
-        [Album(id: "a1", name: "Wohnzimmer"), Album(id: "a2", name: "Urlaub 2026")]
+        // 210 US3: a large, metadata-bearing list drives the searchable-picker UI test.
+        if ProcessInfo.processInfo.arguments.contains("--uitest-albums-many") {
+            return UITestSupport.manyAlbums()
+        }
+        return [Album(id: "a1", name: "Wohnzimmer"), Album(id: "a2", name: "Urlaub 2026")]
     }
 
     func assets(albumID: String) async throws -> [Asset] {
@@ -581,9 +707,21 @@ private final class InMemoryKeychainStore: KeychainStore, @unchecked Sendable {
 
 // Resolves any shared link to album a2 so the hermetic Sources-manager test can add a
 // shared-link source and see the stub slideshow switch to a different album's photos.
+// Two reserved slugs drive the 210 shared-link onboarding paths deterministically:
+// `protected` requires the password "letmein" (otherwise `passwordRequired`/`wrongPassword`)
+// and `missing` is an invalid link.
 private struct UITestSharedLinkResolver: SharedLinkResolving {
     func resolve(baseURL: URL, slug: String, password: String?) async throws -> SharedLinkResolution {
-        SharedLinkResolution(key: "uitest-key", albumID: "a2", expiresAt: nil)
+        switch slug {
+        case "protected":
+            guard let password else { throw ImmichError.passwordRequired }
+            guard password == "letmein" else { throw ImmichError.wrongPassword }
+        case "missing":
+            throw ImmichError.invalidShareLink
+        default:
+            break
+        }
+        return SharedLinkResolution(key: "uitest-key", albumID: "a2", expiresAt: nil)
     }
 }
 #endif

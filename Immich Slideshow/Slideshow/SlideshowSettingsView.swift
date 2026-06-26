@@ -37,9 +37,8 @@ struct SlideshowSettingsView: View {
     @State private var connectionViewModel: ConnectionSettingsViewModel?
     @State private var sourceLibraryViewModel: SourceLibraryViewModel?
     @State private var brokerViewModel: BrokerSetupViewModel
-    // Advanced sections collapse by default (Constitution VII). UI tests pre-expand a
-    // section via a launch argument so its fields are reachable without a tap.
-    @State private var connectionExpanded: Bool
+    // The MQTT section collapses by default (Constitution VII). UI tests pre-expand it via a
+    // launch argument so its fields are reachable without a tap. Connection is a pushed editor.
     @State private var mqttExpanded: Bool
 
     init(
@@ -63,7 +62,6 @@ struct SlideshowSettingsView: View {
         broker.load()
         _brokerViewModel = State(initialValue: broker)
         let args = ProcessInfo.processInfo.arguments
-        _connectionExpanded = State(initialValue: args.contains("--uitest-connection"))
         _mqttExpanded = State(initialValue: args.contains("--uitest-broker"))
     }
 
@@ -78,17 +76,17 @@ struct SlideshowSettingsView: View {
                         Image(systemName: "sun.max").foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Helligkeit")
+                    Text("Brightness")
                 } footer: {
-                    Text("Wirkt nur im Vordergrund, solange die Diashow läuft.")
+                    Text("Only takes effect in the foreground while the slideshow is running.")
                 }
 
                 Section {
                     Picker(selection: $themeStore.settings.order) {
-                        Text("Zufällig").tag(PlayOrder.shuffle)
-                        Text("Der Reihe nach").tag(PlayOrder.sequential)
+                        Text("Shuffle").tag(PlayOrder.shuffle)
+                        Text("Sequential").tag(PlayOrder.sequential)
                     } label: {
-                        Label("Reihenfolge", systemImage: "shuffle")
+                        Label("Order", systemImage: "shuffle")
                     }
                     .accessibilityIdentifier("settings.order")
 
@@ -97,17 +95,17 @@ struct SlideshowSettingsView: View {
                             Text(Self.durationLabel(duration)).tag(duration)
                         }
                     } label: {
-                        Label("Anzeigedauer", systemImage: "timer")
+                        Label("Duration", systemImage: "timer")
                     }
                     .accessibilityIdentifier("settings.duration")
 
                     Picker(selection: $themeStore.settings.transition) {
-                        Text("Überblenden").tag(Transition.crossfade)
-                        Text("Schieben").tag(Transition.slide)
-                        Text("Auflösen").tag(Transition.dissolve)
-                        Text("Ohne").tag(Transition.none)
+                        Text("Crossfade").tag(Transition.crossfade)
+                        Text("Slide").tag(Transition.slide)
+                        Text("Dissolve").tag(Transition.dissolve)
+                        Text("None").tag(Transition.none)
                     } label: {
-                        Label("Übergang", systemImage: "wand.and.stars")
+                        Label("Transition", systemImage: "wand.and.stars")
                     }
                     .accessibilityIdentifier("settings.transition")
 
@@ -117,26 +115,26 @@ struct SlideshowSettingsView: View {
                     .accessibilityIdentifier("settings.kenBurns")
 
                     Picker(selection: $themeStore.settings.fit) {
-                        Text("Einpassen").tag(ImageFit.fit)
-                        Text("Ausfüllen").tag(ImageFit.fill)
+                        Text("Fit").tag(ImageFit.fit)
+                        Text("Fill").tag(ImageFit.fill)
                     } label: {
-                        Label("Bildanpassung", systemImage: "aspectratio")
+                        Label("Image fit", systemImage: "aspectratio")
                     }
                     .accessibilityIdentifier("settings.fit")
 
                     Picker(selection: $themeStore.settings.quality) {
-                        Text("Vorschau").tag(ImageQuality.preview)
+                        Text("Preview").tag(ImageQuality.preview)
                         Text("Original").tag(ImageQuality.original)
                     } label: {
-                        Label("Qualität", systemImage: "photo")
+                        Label("Quality", systemImage: "photo")
                     }
                     .accessibilityIdentifier("settings.quality")
 
-                    placeholderRow("Uhr-Overlay", value: "Aus", systemImage: "clock")
+                    placeholderRow("Clock overlay", value: "Off", systemImage: "clock")
                 } header: {
-                    Text("Anzeige")
+                    Text("Display")
                 } footer: {
-                    Text("Reihenfolge und Anzeigedauer wirken sofort. Weitere Optionen folgen.")
+                    Text("Order and duration take effect immediately. More options to follow.")
                 }
 
                 if let sourceLibraryViewModel {
@@ -144,32 +142,39 @@ struct SlideshowSettingsView: View {
                         NavigationLink {
                             SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI)
                         } label: {
-                            Label("Quellen", systemImage: "photo.stack")
+                            Label("Sources", systemImage: "photo.stack")
                                 .accessibilityIdentifier("settings.sources")
                         }
                     } header: {
-                        Text("Diashow")
+                        Text("Slideshow")
                     } footer: {
-                        Text("Alben und geteilte Links verwalten und die aktive Quelle wählen.")
+                        Text("Manage albums and shared links and choose the active source.")
                     }
                 }
 
-                Section {
-                    DisclosureGroup(isExpanded: $connectionExpanded) {
-                        if let connectionViewModel {
-                            ConnectionSettingsSection(viewModel: connectionViewModel) { outcome in
+                if let connectionViewModel {
+                    Section {
+                        NavigationLink {
+                            ConnectionSettingsView(viewModel: connectionViewModel, showsCancelButton: false) { outcome in
                                 onConnectionChanged(outcome)
-                                connectionExpanded = false
                             }
-                        }
-                    } label: {
-                        Label("Verbindung", systemImage: "server.rack")
+                        } label: {
+                            HStack {
+                                Label("Connection", systemImage: "server.rack")
+                                Spacer()
+                                Text(connectionViewModel.serverURLInput)
+                                    .foregroundStyle(.secondary)
+                                    .font(.footnote)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
                             .accessibilityIdentifier("settings.connection")
+                        }
+                    } header: {
+                        Text("Server")
+                    } footer: {
+                        Text("Change the server address and API key.")
                     }
-                } header: {
-                    Text("Server")
-                } footer: {
-                    Text("Server-Adresse und API-Schlüssel ändern.")
                 }
 
                 Section {
@@ -182,14 +187,14 @@ struct SlideshowSettingsView: View {
                 } header: {
                     Text("Home Assistant")
                 } footer: {
-                    Text("MQTT-Broker für die Fernsteuerung über Home Assistant.")
+                    Text("MQTT broker for remote control via Home Assistant.")
                 }
             }
-            .navigationTitle("Einstellungen")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Fertig") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
         }
@@ -233,61 +238,3 @@ struct SlideshowSettingsView: View {
     }
 }
 
-/// Inline connection editor rendered inside the Settings "Verbindung" disclosure
-/// section (010). Reuses the 009 `ConnectionSettingsViewModel`: validate before
-/// persist, apply live on save, and never display the stored key. The standalone
-/// `ConnectionSettingsView` sheet is kept for the slideshow's error-recovery path.
-private struct ConnectionSettingsSection: View {
-    @Bindable var viewModel: ConnectionSettingsViewModel
-    var onSaved: (ConnectionValidationOutcome) -> Void
-
-    var body: some View {
-        Group {
-            TextField("https://photos.example.com", text: $viewModel.serverURLInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .accessibilityIdentifier("connection.url")
-
-            SecureField("Neuer API-Schlüssel", text: $viewModel.apiKeyInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("connection.apiKey")
-
-            if viewModel.keyIsSet {
-                Label("Schlüssel ist gesetzt", systemImage: "key.fill")
-                    .foregroundStyle(.secondary)
-                    .font(.footnote)
-                    .accessibilityIdentifier("connection.keySet")
-            }
-
-            if let errorMessage = viewModel.errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("connection.error")
-            }
-
-            if viewModel.isBusy {
-                ProgressView()
-            } else {
-                Button("Verbindung speichern", action: save)
-                    .disabled(viewModel.serverURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityIdentifier("connection.save")
-            }
-        }
-    }
-
-    private func save() {
-        Task {
-            let outcome = await viewModel.save()
-            switch outcome {
-            case .success, .albumMissing:
-                onSaved(outcome)
-            default:
-                // A failure leaves the prior connection intact; the inline error shows
-                // and the section stays open so the user can correct it.
-                break
-            }
-        }
-    }
-}

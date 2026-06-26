@@ -30,7 +30,7 @@ struct SlideshowErrorView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("slideshow.retry")
             if let onFixConnection {
-                Button("Verbindung bearbeiten", action: onFixConnection)
+                Button("Edit connection", action: onFixConnection)
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("slideshow.fixConnection")
             }

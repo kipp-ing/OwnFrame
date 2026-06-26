@@ -3,6 +3,120 @@ import Testing
 @testable import OnboardingKit
 import ImmichClient
 
+@Test func choosePathRoutesSharedLinkToSetup() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .choice
+
+    vm.choosePath(.sharedLink)
+
+    #expect(vm.step == .sharedLinkSetup)
+    #expect(vm.errorMessage == nil)
+}
+
+@Test func choosePathRoutesServerToConnection() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .choice
+
+    vm.choosePath(.server)
+
+    #expect(vm.step == .connection)
+}
+
+// Finding 3 (FR-210-26): every step after the choice screen can step back in-place, without
+// an app restart and without discarding entered configuration.
+@Test func backFromSharedLinkSetupReturnsToChoice() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .sharedLinkSetup
+
+    vm.back()
+
+    #expect(vm.step == .choice)
+}
+
+@Test func backFromConnectionReturnsToChoice() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .connection
+
+    vm.back()
+
+    #expect(vm.step == .choice)
+}
+
+@Test func backFromSourceReturnsToConnection() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .source
+
+    vm.back()
+
+    #expect(vm.step == .connection)
+}
+
+@Test func backFromConfirmReturnsToSource() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .confirm
+
+    vm.back()
+
+    #expect(vm.step == .source)
+}
+
+@Test func backFromChoiceIsNoOp() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.step = .choice
+
+    vm.back()
+
+    #expect(vm.step == .choice)
+}
+
+@Test func canGoBackIsFalseOnlyAtChoiceAndDone() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+
+    vm.step = .choice
+    #expect(vm.canGoBack == false)
+    vm.step = .done
+    #expect(vm.canGoBack == false)
+    vm.step = .sharedLinkSetup
+    #expect(vm.canGoBack == true)
+    vm.step = .connection
+    #expect(vm.canGoBack == true)
+    vm.step = .source
+    #expect(vm.canGoBack == true)
+    vm.step = .confirm
+    #expect(vm.canGoBack == true)
+}
+
+@Test func backPreservesEnteredConnectionInputs() {
+    let vm = makeVM(api: AlbumsAPI(result: .success([])))
+    vm.serverURLInput = "https://immich.example.test"
+    vm.apiKeyInput = "secret-key"
+    vm.step = .source
+
+    vm.back()
+
+    #expect(vm.step == .connection)
+    #expect(vm.serverURLInput == "https://immich.example.test")
+    #expect(vm.apiKeyInput == "secret-key")
+}
+
+@Test func finishFromSharedLinkOnlyPathCompletesWithoutAPIKeyOrConfig() {
+    // The low-friction path: the resolve engine has already made a shared link the active
+    // source. Finishing routes to the slideshow with no API key and no AppConfiguration.
+    let config = InMemoryConfigStore()
+    let keychain = InMemoryKeychainStore()
+    var library = SourceLibrary()
+    library.add(Source(label: "Korsika", kind: .sharedLink(baseURL: URL(string: "https://bilder.example.test")!, slug: "korsika")))
+    let sourceStore = InMemorySourceLibraryStore(library: library)
+    let vm = makeVM(api: AlbumsAPI(result: .success([])), config: config, keychain: keychain, sourceStore: sourceStore)
+    vm.step = .sharedLinkSetup
+
+    vm.finish()
+
+    #expect(vm.step == .done)
+    #expect(keychain.read() == nil)
+    #expect(config.load() == nil)
+}
+
 @Test func rejectsNonHTTPSURL() async {
     let api = AlbumsAPI(result: .failure(ImmichError.unreachable))
     let vm = makeVM(api: api)

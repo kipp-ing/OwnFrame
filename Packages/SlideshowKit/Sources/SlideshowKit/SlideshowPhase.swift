@@ -3,9 +3,9 @@
 public enum SlideshowPhase: Sendable, Equatable {
     /// Assetliste wird geladen.
     case loading
-    /// Mindestens ein anzeigbares Bild vorhanden; Diashow läuft.
+    /// At least one displayable image is available; the slideshow is running.
     case playing
-    /// Album enthält keine anzeigbaren Bilder (FR-009).
+    /// The album contains no displayable images (FR-009).
     case empty
     /// Assetliste nicht abrufbar bzw. kein Bild ladbar (FR-010); erlaubt `retry()`.
     case failed

@@ -27,11 +27,11 @@ struct AlbumBrowserView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Alben")
+                .navigationTitle("Albums")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Fertig") { dismiss() }
+                        Button("Done") { dismiss() }
                     }
                 }
         }
@@ -45,11 +45,11 @@ struct AlbumBrowserView: View {
             ProgressView().controlSize(.large)
         case .failed:
             ContentUnavailableView(
-                "Alben konnten nicht geladen werden",
+                "Couldn't load albums",
                 systemImage: "wifi.exclamationmark"
             )
         case .loaded where albums.isEmpty:
-            ContentUnavailableView("Keine Alben", systemImage: "photo.on.rectangle")
+            ContentUnavailableView("No albums", systemImage: "photo.on.rectangle")
         case .loaded:
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
@@ -103,7 +103,7 @@ private struct AlbumCard: View {
                 .font(.headline)
                 .lineLimit(1)
             if isCurrent {
-                Text("Aktiv")
+                Text("Active")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tint)
             }
@@ -139,11 +139,11 @@ private struct AlbumThumbnailGrid: View {
             ProgressView().controlSize(.large)
         case .failed:
             ContentUnavailableView(
-                "Fotos konnten nicht geladen werden",
+                "Couldn't load photos",
                 systemImage: "wifi.exclamationmark"
             )
         case .loaded where assets.isEmpty:
-            ContentUnavailableView("Keine Fotos", systemImage: "photo")
+            ContentUnavailableView("No photos", systemImage: "photo")
         case .loaded:
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 8) {

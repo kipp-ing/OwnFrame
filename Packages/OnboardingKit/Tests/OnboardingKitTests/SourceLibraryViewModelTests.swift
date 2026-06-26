@@ -40,65 +40,17 @@ import Testing
     #expect(viewModel.errorMessage != nil)
 }
 
-@MainActor
-@Test func sourceLibraryViewModelAddSharedLinkResolvesStoresPasswordAndPersists() async {
-    let store = InMemorySourceLibraryStore()
-    let secretStore = InMemorySharedLinkSecretStore()
-    let resolver = StubResolver(result: .success(SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil)))
-    let viewModel = makeViewModel(store: store, secretStore: secretStore, resolver: resolver)
-
-    await viewModel.addSharedLinkSource(urlString: "https://bilder.kippings.de/s/geo2026", password: "pw", label: "Geo")
-
-    #expect(viewModel.errorMessage == nil)
-    #expect(viewModel.sources.count == 1)
-    #expect(viewModel.sources[0].kind == .sharedLink(baseURL: URL(string: "https://bilder.kippings.de")!, slug: "geo2026"))
-    #expect(secretStore.readPassword(forSourceID: viewModel.sources[0].id) == "pw")
-    #expect(resolver.requests.first?.slug == "geo2026")
-    #expect(store.load().sources.count == 1)
-}
-
-@MainActor
-@Test func sourceLibraryViewModelAddSharedLinkWithoutPasswordStoresNoSecret() async {
-    let secretStore = InMemorySharedLinkSecretStore()
-    let viewModel = makeViewModel(secretStore: secretStore, resolver: StubResolver())
-
-    await viewModel.addSharedLinkSource(urlString: "https://bilder.kippings.de/s/geo2026", password: nil, label: "Geo")
-
-    #expect(viewModel.sources.count == 1)
-    #expect(secretStore.readPassword(forSourceID: viewModel.sources[0].id) == nil)
-}
-
-@MainActor
-@Test func sourceLibraryViewModelAddSharedLinkRejectsInvalidURL() async {
-    let viewModel = makeViewModel(resolver: StubResolver())
-
-    await viewModel.addSharedLinkSource(urlString: "not a url", password: nil, label: "Bad")
-
-    #expect(viewModel.sources.isEmpty)
-    #expect(viewModel.errorMessage != nil)
-}
-
-@MainActor
-@Test func sourceLibraryViewModelAddSharedLinkSurfacesResolveErrorAndPersistsNothing() async {
-    let store = InMemorySourceLibraryStore()
-    let secretStore = InMemorySharedLinkSecretStore()
-    let resolver = StubResolver(result: .failure(ImmichError.wrongPassword))
-    let viewModel = makeViewModel(store: store, secretStore: secretStore, resolver: resolver)
-
-    await viewModel.addSharedLinkSource(urlString: "https://bilder.kippings.de/s/geo2026", password: "bad", label: "Geo")
-
-    #expect(viewModel.sources.isEmpty)
-    #expect(viewModel.errorMessage == ConnectionError.message(for: .wrongPassword))
-    #expect(store.load().sources.isEmpty)
-}
-
+// The shared-link add path is the two-phase resolve flow (210, US4) — see the
+// "Two-phase resolve" section below. Removing such a source must delete its secret.
 @MainActor
 @Test func sourceLibraryViewModelRemoveSharedLinkDeletesPassword() async {
     let store = InMemorySourceLibraryStore()
     let secretStore = InMemorySharedLinkSecretStore()
-    let viewModel = makeViewModel(store: store, secretStore: secretStore, resolver: StubResolver())
-    await viewModel.addSharedLinkSource(urlString: "https://bilder.kippings.de/s/geo2026", password: "pw", label: "Geo")
+    let viewModel = makeViewModel(store: store, secretStore: secretStore, resolver: PasswordGatedResolver(correctPassword: "pw"))
+    await viewModel.resolveSharedLink(urlString: geoURL, label: "Geo")
+    await viewModel.confirmSharedLinkPassword("pw")
     let id = viewModel.sources[0].id
+    #expect(secretStore.readPassword(forSourceID: id) == "pw")
 
     viewModel.remove(id: id)
 
@@ -156,13 +108,123 @@ import Testing
     #expect(switched.isEmpty)
 }
 
+// MARK: - Two-phase resolve (210, US1/US4)
+
+private let geoURL = "https://bilder.kippings.de/s/geo2026"
+private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
+
+@MainActor
+@Test func resolveSharedLinkWithoutPasswordPersistsAndResolves() async {
+    let store = InMemorySourceLibraryStore()
+    let secretStore = InMemorySharedLinkSecretStore()
+    let vm = makeViewModel(store: store, secretStore: secretStore, resolver: PasswordGatedResolver(correctPassword: nil))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    #expect(vm.addState == .resolved(sourceID: vm.sources[0].id))
+    #expect(vm.sources.count == 1)
+    #expect(vm.sources[0].kind == .sharedLink(baseURL: geoBaseURL, slug: "geo2026"))
+    #expect(secretStore.readPassword(forSourceID: vm.sources[0].id) == nil)
+    #expect(store.load().sources.count == 1)
+}
+
+@MainActor
+@Test func resolveSharedLinkRequiringPasswordAsksAndPersistsNothing() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: PasswordGatedResolver(correctPassword: "pw"))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    #expect(vm.addState == .needsPassword)
+    #expect(vm.sources.isEmpty)
+    #expect(store.load().sources.isEmpty)
+}
+
+@MainActor
+@Test func confirmSharedLinkPasswordPersistsSourceAndStoresSecret() async {
+    let store = InMemorySourceLibraryStore()
+    let secretStore = InMemorySharedLinkSecretStore()
+    let vm = makeViewModel(store: store, secretStore: secretStore, resolver: PasswordGatedResolver(correctPassword: "pw"))
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    await vm.confirmSharedLinkPassword("pw")
+
+    #expect(vm.addState == .resolved(sourceID: vm.sources[0].id))
+    #expect(vm.sources.count == 1)
+    #expect(secretStore.readPassword(forSourceID: vm.sources[0].id) == "pw")
+    #expect(store.load().sources.count == 1)
+}
+
+@MainActor
+@Test func confirmSharedLinkWrongPasswordErrorsAndPersistsNothing() async {
+    let store = InMemorySourceLibraryStore()
+    let secretStore = InMemorySharedLinkSecretStore()
+    let vm = makeViewModel(store: store, secretStore: secretStore, resolver: PasswordGatedResolver(correctPassword: "pw"))
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    await vm.confirmSharedLinkPassword("bad")
+
+    #expect(vm.addState == .error(ConnectionError.message(for: .wrongPassword)))
+    #expect(vm.sources.isEmpty)
+    #expect(store.load().sources.isEmpty)
+}
+
+@MainActor
+@Test func resolveSharedLinkMalformedURLErrorsWithoutNetwork() async {
+    let resolver = PasswordGatedResolver(correctPassword: nil)
+    let vm = makeViewModel(resolver: resolver)
+
+    await vm.resolveSharedLink(urlString: "http://insecure.example", label: "Bad")
+
+    if case .error = vm.addState {} else { Issue.record("expected .error, got \(vm.addState)") }
+    #expect(resolver.requests.isEmpty) // HTTPS-only guard short-circuits before any request
+    #expect(vm.sources.isEmpty)
+}
+
+@MainActor
+@Test func resolveSharedLinkSurfacesResolverErrorAndPersistsNothing() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: StubResolver(result: .failure(ImmichError.invalidShareLink)))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    #expect(vm.addState == .error(ConnectionError.message(for: .invalidShareLink)))
+    #expect(vm.sources.isEmpty)
+    #expect(store.load().sources.isEmpty)
+}
+
+@MainActor
+@Test func confirmSharedLinkPasswordIsNoOpUnlessNeedsPassword() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: PasswordGatedResolver(correctPassword: nil))
+
+    await vm.confirmSharedLinkPassword("pw") // addState is .idle
+
+    #expect(vm.addState == .idle)
+    #expect(store.load().sources.isEmpty)
+}
+
+@MainActor
+@Test func resolveSharedLinkDedupsByBaseURLAndSlug() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: PasswordGatedResolver(correctPassword: nil))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+    let firstID = vm.sources[0].id
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo again")
+
+    #expect(vm.sources.count == 1)
+    #expect(vm.addState == .resolved(sourceID: firstID))
+    #expect(store.load().sources.count == 1)
+}
+
 // MARK: - Helpers
 
 @MainActor
 private func makeViewModel(
     store: InMemorySourceLibraryStore = InMemorySourceLibraryStore(),
     secretStore: InMemorySharedLinkSecretStore = InMemorySharedLinkSecretStore(),
-    resolver: StubResolver = StubResolver(),
+    resolver: any SharedLinkResolving = StubResolver(),
     onSwitchActive: @escaping (String) -> Void = { _ in }
 ) -> SourceLibraryViewModel {
     SourceLibraryViewModel(
@@ -171,6 +233,28 @@ private func makeViewModel(
         resolver: resolver,
         onSwitchActive: onSwitchActive
     )
+}
+
+/// Resolver modelling a password-gated link: `correctPassword == nil` ⇒ no password
+/// needed (any resolve succeeds); otherwise a `nil` password ⇒ `.passwordRequired`, the
+/// correct password ⇒ success, any other password ⇒ `.wrongPassword`.
+private final class PasswordGatedResolver: SharedLinkResolving, @unchecked Sendable {
+    let correctPassword: String?
+    private(set) var requests: [(baseURL: URL, slug: String, password: String?)] = []
+
+    init(correctPassword: String? = nil) {
+        self.correctPassword = correctPassword
+    }
+
+    func resolve(baseURL: URL, slug: String, password: String?) async throws -> SharedLinkResolution {
+        requests.append((baseURL, slug, password))
+        guard let correctPassword else {
+            return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil)
+        }
+        guard let password else { throw ImmichError.passwordRequired }
+        guard password == correctPassword else { throw ImmichError.wrongPassword }
+        return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil)
+    }
 }
 
 private final class StubResolver: SharedLinkResolving, @unchecked Sendable {

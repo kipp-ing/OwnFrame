@@ -29,16 +29,16 @@ struct BrokerSettingsSection: View {
                 .keyboardType(.numberPad)
                 .accessibilityIdentifier("broker.port")
 
-            TextField("Benutzername", text: $viewModel.username)
+            TextField("Username", text: $viewModel.username)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("broker.username")
 
-            SecureField(viewModel.passwordIsSet ? "Neues Passwort" : "Passwort", text: $viewModel.password)
+            SecureField(viewModel.passwordIsSet ? "New password" : "Password", text: $viewModel.password)
                 .accessibilityIdentifier("broker.password")
 
             if viewModel.passwordIsSet {
-                Text("Passwort ist gesetzt — zum Ändern neu eingeben.")
+                Text("Password is set — re-enter to change it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("broker.passwordHint")
@@ -50,7 +50,7 @@ struct BrokerSettingsSection: View {
                     .accessibilityIdentifier("broker.validation")
             }
 
-            Button("Speichern") {
+            Button("Save") {
                 // On success, reload from the store so the password masks itself again
                 // and the "password is set" hint / remove action appear (FR-013).
                 if viewModel.save() { viewModel.load() }
@@ -58,7 +58,7 @@ struct BrokerSettingsSection: View {
             .accessibilityIdentifier("broker.save")
 
             if viewModel.passwordIsSet {
-                Button("Entfernen", role: .destructive) { viewModel.remove() }
+                Button("Remove", role: .destructive) { viewModel.remove() }
                     .accessibilityIdentifier("broker.remove")
             }
         }
@@ -67,13 +67,13 @@ struct BrokerSettingsSection: View {
     private nonisolated static func message(for error: BrokerValidationError) -> String {
         switch error {
         case .emptyHost:
-            "Bitte gib einen Broker-Host ein."
+            "Please enter a broker host."
         case .invalidPort:
-            "Bitte gib einen Port zwischen 1 und 65535 ein."
+            "Please enter a port between 1 and 65535."
         case .emptyUsername:
-            "Bitte gib einen Benutzernamen ein."
+            "Please enter a username."
         case .emptyPassword:
-            "Bitte gib ein Passwort ein."
+            "Please enter a password."
         }
     }
 }

@@ -52,6 +52,47 @@ import Testing
     #expect(resolved.albumID == "resolved-album")
 }
 
+// FR-210-03/04 (device black-screen bug): a shared-link active source is a complete config on
+// its own — it MUST resolve with no album API key / base URL (a shared-link-only setup has
+// neither).
+@Test func activeSourceResolverResolvesSharedLinkWithoutAlbumCredentials() async throws {
+    let source = Source(
+        id: "source-1",
+        label: "Shared",
+        kind: .sharedLink(baseURL: URL(string: "https://shared.example.test")!, slug: "summer")
+    )
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: nil,
+        apiKey: nil,
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver(
+            result: .success(SharedLinkResolution(key: "share-key", albumID: "resolved-album", expiresAt: nil))
+        )
+    )
+
+    let resolved = try await resolver.resolve(source)
+
+    #expect(resolved.serverConfig.baseURL == URL(string: "https://shared.example.test")!)
+    #expect(resolved.serverConfig.auth == .shareKey("share-key"))
+    #expect(resolved.albumID == "resolved-album")
+}
+
+// An album source still needs the server credentials; without them it fails rather than
+// silently producing a bad config.
+@Test func activeSourceResolverThrowsForAlbumSourceWithoutCredentials() async {
+    let source = Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1"))
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: nil,
+        apiKey: nil,
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver()
+    )
+
+    await #expect(throws: ImmichError.unauthorized) {
+        _ = try await resolver.resolve(source)
+    }
+}
+
 @Test func activeSourceResolverPropagatesSharedLinkResolverImmichError() async {
     let source = Source(
         id: "source-1",

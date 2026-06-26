@@ -2,10 +2,11 @@
 //  SourceLibraryView.swift
 //  Immich Slideshow
 //
-//  Settings → Quellen (120, US2): manage the saved slideshow sources (Immich albums
+//  Settings → Sources (120, US2): manage the saved slideshow sources (Immich albums
 //  and shared links). Tap a source to make it active — the running slideshow restarts
 //  from it (the view model delegates to the app-level switch). Swipe to rename/remove,
-//  reorder via the edit button, and add a new album (picker) or shared link (form).
+//  reorder via the edit button, and add a new album (picker) or shared link (resolve-first;
+//  a password is asked for only when the link needs one — 210, US4).
 //
 
 import ImmichClient
@@ -34,13 +35,13 @@ struct SourceLibraryView: View {
                         Button(role: .destructive) {
                             viewModel.remove(id: source.id)
                         } label: {
-                            Label("Löschen", systemImage: "trash")
+                            Label("Delete", systemImage: "trash")
                         }
                         Button {
                             renameText = source.label
                             renameTarget = source
                         } label: {
-                            Label("Umbenennen", systemImage: "pencil")
+                            Label("Rename", systemImage: "pencil")
                         }
                         .tint(.blue)
                     }
@@ -48,13 +49,13 @@ struct SourceLibraryView: View {
                 .onMove { viewModel.move(from: $0, to: $1) }
             } footer: {
                 if viewModel.sources.isEmpty {
-                    Text("Noch keine Quelle. Füge ein Album oder einen geteilten Link hinzu.")
+                    Text("No source yet. Add an album or a shared link.")
                 } else {
-                    Text("Tippe eine Quelle an, um sie zu aktivieren.")
+                    Text("Tap a source to make it active.")
                 }
             }
         }
-        .navigationTitle("Quellen")
+        .navigationTitle("Sources")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -73,11 +74,11 @@ struct SourceLibraryView: View {
         .sheet(isPresented: $showAddSheet) {
             AddSourceView(viewModel: viewModel, makeServerAPI: makeServerAPI)
         }
-        .alert("Umbenennen", isPresented: renameAlertPresented, presenting: renameTarget) { source in
+        .alert("Rename", isPresented: renameAlertPresented, presenting: renameTarget) { source in
             TextField("Name", text: $renameText)
                 .accessibilityIdentifier("sources.rename.field")
-            Button("Sichern") { viewModel.rename(id: source.id, to: renameText) }
-            Button("Abbrechen", role: .cancel) {}
+            Button("Save") { viewModel.rename(id: source.id, to: renameText) }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -90,7 +91,7 @@ struct SourceLibraryView: View {
 }
 
 /// One row in the source list: a kind icon, the label, a subtitle locator, and an
-/// "Aktiv" marker on the active source (also surfaced in the accessibility label).
+/// "Active" marker on the active source (also surfaced in the accessibility label).
 private struct SourceRow: View {
     let source: Source
     let isActive: Bool
@@ -110,7 +111,7 @@ private struct SourceRow: View {
             }
             Spacer()
             if isActive {
-                Text("Aktiv")
+                Text("Active")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tint)
                 Image(systemName: "checkmark")
@@ -119,62 +120,90 @@ private struct SourceRow: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(isActive ? "\(source.label), aktiv" : source.label)
+        .accessibilityLabel(isActive ? "\(source.label), active" : source.label)
     }
 }
 
-/// Add-source sheet: pick the kind (album picker or shared-link form), then add. The
-/// album picker lists the server's albums via the API key; the shared-link form
-/// validates the link (and password, if any) before saving anything.
+/// Add-source sheet: pick the kind, then confirm. The album tab uses the same searchable,
+/// subscrollable `AlbumPickerView` as onboarding (210, FR-210-27/28): tap albums to add them
+/// (select-then-confirm) and Done to finish; the shared-link form validates the link (and
+/// password, if any) before saving anything.
 private struct AddSourceView: View {
     @Bindable var viewModel: SourceLibraryViewModel
     var makeServerAPI: () async -> (any ImmichAPI)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var kind: Kind = .album
+    /// Source count when the sheet opened, so the Done bar can report how many were added
+    /// in this pass rather than the library total.
+    @State private var initialSourceCount: Int?
 
     enum Kind: Hashable { case album, sharedLink }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Picker("Typ", selection: $kind) {
+            VStack(spacing: 0) {
+                Picker("Type", selection: $kind) {
                     Text("Album").tag(Kind.album)
-                    Text("Geteilter Link").tag(Kind.sharedLink)
+                    Text("Shared link").tag(Kind.sharedLink)
                 }
                 .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
                 .accessibilityIdentifier("sources.add.type")
 
-                if let errorMessage = viewModel.errorMessage {
+                // Album-add errors surface here; the shared-link form reports its own
+                // resolve / password errors inline (210, US4).
+                if kind == .album, let errorMessage = viewModel.errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
+                        .font(.callout)
                         .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
                         .accessibilityIdentifier("sources.add.error")
                 }
 
                 switch kind {
                 case .album:
-                    AddAlbumSection(viewModel: viewModel, makeServerAPI: makeServerAPI) { dismiss() }
+                    AddAlbumPicker(viewModel: viewModel, makeServerAPI: makeServerAPI)
                 case .sharedLink:
-                    AddSharedLinkSection(viewModel: viewModel) { dismiss() }
+                    Form {
+                        SharedLinkAddForm(
+                            sourceLibrary: viewModel,
+                            idPrefix: "sources.add",
+                            submitIDSuffix: "submit"
+                        ) { dismiss() }
+                    }
                 }
             }
-            .navigationTitle("Quelle hinzufügen")
+            .navigationTitle("Add source")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbrechen") { dismiss() }
+                    Button("Cancel") { dismiss() }
                         .accessibilityIdentifier("sources.add.cancel")
                 }
             }
+            // Albums add on tap; Done finishes. The shared-link tab finishes via its own Add
+            // button, so the pinned Done is album-only (210, FR-210-28).
+            .safeAreaInset(edge: .bottom) {
+                if kind == .album {
+                    AddAlbumDoneBar(addedCount: viewModel.sources.count - (initialSourceCount ?? viewModel.sources.count)) {
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear { if initialSourceCount == nil { initialSourceCount = viewModel.sources.count } }
         }
     }
 }
 
-/// Lists the server's albums; tapping one adds it as a source (label = album name).
-private struct AddAlbumSection: View {
+/// Loads the connected server's albums, then shows the shared `AlbumPickerView`. Tapping a
+/// row adds the album to the library; the pinned Done in `AddSourceView` finishes.
+private struct AddAlbumPicker: View {
     @Bindable var viewModel: SourceLibraryViewModel
     var makeServerAPI: () async -> (any ImmichAPI)?
-    var onAdded: () -> Void
 
     @State private var albums: [Album] = []
     @State private var phase: Phase = .loading
@@ -182,29 +211,21 @@ private struct AddAlbumSection: View {
     enum Phase { case loading, loaded, failed }
 
     var body: some View {
-        Section {
+        Group {
             switch phase {
             case .loading:
                 ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed:
-                Label("Alben konnten nicht geladen werden", systemImage: "wifi.exclamationmark")
-                    .foregroundStyle(.secondary)
-            case .loaded where albums.isEmpty:
-                Label("Keine Alben", systemImage: "photo.on.rectangle")
-                    .foregroundStyle(.secondary)
-            case .loaded:
-                ForEach(albums, id: \.id) { album in
-                    Button {
-                        viewModel.addAlbumSource(albumID: album.id, label: album.name.isEmpty ? album.id : album.name)
-                        if viewModel.errorMessage == nil { onAdded() }
-                    } label: {
-                        Text(album.name.isEmpty ? album.id : album.name)
-                    }
-                    .accessibilityIdentifier("sources.album.\(album.id)")
+                ContentUnavailableView {
+                    Label("Couldn't load albums", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text("Add a shared link instead.")
                 }
+                .frame(maxHeight: .infinity)
+            case .loaded:
+                AlbumPickerView(albums: albums, sourceLibrary: viewModel, idPrefix: "sources.album")
             }
-        } header: {
-            Text("Album wählen")
         }
         .task {
             guard let api = await makeServerAPI() else { phase = .failed; return }
@@ -218,47 +239,27 @@ private struct AddAlbumSection: View {
     }
 }
 
-/// Shared-link form: URL + optional password + a label. Validates before saving.
-private struct AddSharedLinkSection: View {
-    @Bindable var viewModel: SourceLibraryViewModel
-    var onAdded: () -> Void
-
-    @State private var urlText = ""
-    @State private var passwordText = ""
-    @State private var labelText = ""
+/// The pinned bottom bar on the album tab: a Done action that finishes adding, annotated with
+/// how many albums were added in this pass (210, FR-210-28).
+private struct AddAlbumDoneBar: View {
+    let addedCount: Int
+    let onDone: () -> Void
 
     var body: some View {
-        Section {
-            TextField("https://host/s/slug", text: $urlText)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .accessibilityIdentifier("sources.add.url")
-            SecureField("Passwort (optional)", text: $passwordText)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("sources.add.password")
-            TextField("Name", text: $labelText)
-                .accessibilityIdentifier("sources.add.label")
-        } header: {
-            Text("Geteilter Link")
-        } footer: {
-            if viewModel.isBusy {
-                ProgressView()
-            } else {
-                Button("Hinzufügen") {
-                    Task {
-                        await viewModel.addSharedLinkSource(
-                            urlString: urlText,
-                            password: passwordText,
-                            label: labelText
-                        )
-                        if viewModel.errorMessage == nil { onAdded() }
-                    }
-                }
-                .disabled(urlText.trimmingCharacters(in: .whitespaces).isEmpty || labelText.trimmingCharacters(in: .whitespaces).isEmpty)
-                .accessibilityIdentifier("sources.add.submit")
-            }
+        Button(action: onDone) {
+            Text(doneLabel).frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .padding()
+        .background(.bar)
+        .accessibilityIdentifier("sources.add.done")
+    }
+
+    private var doneLabel: String {
+        switch addedCount {
+        case ..<1: "Done"
+        case 1: "Done · 1 added"
+        default: "Done · \(addedCount) added"
         }
     }
 }
@@ -276,7 +277,7 @@ private extension SourceKind {
         case .album:
             "Album"
         case let .sharedLink(baseURL, _):
-            baseURL.host ?? "Geteilter Link"
+            baseURL.host ?? "Shared link"
         }
     }
 }

@@ -11,7 +11,9 @@ official Immich client — and uses Immich purely as a photo source over its RES
 
 ## What it does (and will do)
 
-- **Onboarding** — connect to your server in three steps: server URL → API key → album. ✅ done
+- **Onboarding** — start from just a **shared link** (no account or API key) or connect to your
+  server (URL + API key) to pick an album. You can also share an Immich link into the app from the
+  iOS **Share Sheet** to set it up or switch sources. ✅ done
 - **Slideshow** — full-screen, one photo at a time, with gentle cross-fades, reveal-on-tap
   controls, an album browser, and a photo-info overlay. ✅ done
 - **Display & power** — keep the screen awake and dim brightness for ambient display. ✅ done
@@ -23,23 +25,27 @@ official Immich client — and uses Immich purely as a photo source over its RES
 - An iPad running **iPadOS 18** or later.
 - An **Immich server reachable over HTTPS with a valid TLS certificate.**
   (Self-signed / local certificates are not supported yet.)
-- An Immich **API key** (Immich → Account Settings → API Keys). It is stored in the
-  iOS **Keychain** — never in plain settings or logs.
+- An Immich **API key** (Immich → Account Settings → API Keys) **only if you connect to your
+  server** to browse albums — stored in the iOS **Keychain**, never in plain settings or logs.
+  A **shared-link-only** setup needs no API key.
 
 ## Getting started
 
-1. Launch the app on your iPad.
-2. Enter your Immich server address (HTTPS).
-3. Paste your API key.
-4. Pick an album to display.
+On first launch, choose how to connect:
 
-That's it — the app remembers your setup and skips straight to the slideshow on the
-next launch. You can reset everything from the main screen to start over.
+- **Use a shared link** — paste an Immich share link (or share one into the app from another app).
+  No account or API key needed; you're asked for a password only if the link has one.
+- **Connect to a server** — enter your server address (HTTPS) and API key, then pick an album from
+  a searchable list.
+
+That's it — the app remembers your setup and skips straight to the slideshow on the next launch.
+You can change the server connection (**Settings → Connection**), manage sources, or reset
+everything to start over.
 
 ## Privacy & security
 
-- Your API key lives only in the device Keychain and is sent solely as the
-  `x-api-key` header to **your** server.
+- Your API key and any shared-link password live only in the device Keychain. The API key is
+  sent solely as the `x-api-key` header to **your** server; shared links use their own key.
 - The app talks only to the Immich server you configure — no third parties.
 - TLS is always validated; the app never disables certificate checks.
 

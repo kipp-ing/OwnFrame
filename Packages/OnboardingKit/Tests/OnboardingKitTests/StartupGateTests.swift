@@ -4,46 +4,64 @@ import Testing
 
 private let url = URL(string: "https://photos.example.test")!
 
-private func activeLibrary() -> InMemorySourceLibraryStore {
+private func albumLibrary() -> InMemorySourceLibraryStore {
     var library = SourceLibrary()
     library.add(Source(label: "Wohnzimmer", kind: .album(albumID: "a1")))
     return InMemorySourceLibraryStore(library: library)
 }
 
-@Test func startupGateReturnsDoneForConnectionAndActiveSource() {
+private func sharedLinkLibrary() -> InMemorySourceLibraryStore {
+    var library = SourceLibrary()
+    library.add(Source(label: "Korsika", kind: .sharedLink(baseURL: url, slug: "korsika")))
+    return InMemorySourceLibraryStore(library: library)
+}
+
+@Test func startupGateReturnsDoneForConnectionAndActiveAlbumSource() {
     let config = InMemoryConfigStore(
         configuration: AppConfiguration(baseURL: url, selectedAlbumID: "a1")
     )
     let keychain = InMemoryKeychainStore(apiKey: "key")
-    let gate = StartupGate(config: config, keychain: keychain, sourceStore: activeLibrary())
+    let gate = StartupGate(config: config, keychain: keychain, sourceStore: albumLibrary())
 
     #expect(gate.initialStep() == .done)
 }
 
-@Test func startupGateReturnsConnectionWithoutAPIKey() {
+@Test func startupGateReturnsDoneForSharedLinkSourceWithoutAPIKeyOrBaseURL() {
+    // A shared link authenticates itself — onboarding is complete with no API key and no
+    // separately saved base URL (210, D2).
+    let config = InMemoryConfigStore()
+    let keychain = InMemoryKeychainStore()
+    let gate = StartupGate(config: config, keychain: keychain, sourceStore: sharedLinkLibrary())
+
+    #expect(gate.initialStep() == .done)
+}
+
+@Test func startupGateReturnsConnectionForAlbumSourceWithoutAPIKey() {
     let config = InMemoryConfigStore(
         configuration: AppConfiguration(baseURL: url, selectedAlbumID: "a1")
     )
     let keychain = InMemoryKeychainStore()
-    let gate = StartupGate(config: config, keychain: keychain, sourceStore: activeLibrary())
+    let gate = StartupGate(config: config, keychain: keychain, sourceStore: albumLibrary())
 
     #expect(gate.initialStep() == .connection)
 }
 
-@Test func startupGateReturnsConnectionWithoutBaseURL() {
+@Test func startupGateReturnsConnectionForAlbumSourceWithoutBaseURL() {
     let config = InMemoryConfigStore()
     let keychain = InMemoryKeychainStore(apiKey: "key")
-    let gate = StartupGate(config: config, keychain: keychain, sourceStore: activeLibrary())
+    let gate = StartupGate(config: config, keychain: keychain, sourceStore: albumLibrary())
 
     #expect(gate.initialStep() == .connection)
 }
 
-@Test func startupGateReturnsConnectionWithoutConfigAndWithoutAPIKey() {
+@Test func startupGateReturnsChoiceWhenEmpty() {
+    // A blank install opens on the choice screen (shared link vs server), not at the
+    // server-connection form (210).
     let config = InMemoryConfigStore()
     let keychain = InMemoryKeychainStore()
     let gate = StartupGate(config: config, keychain: keychain, sourceStore: InMemorySourceLibraryStore())
 
-    #expect(gate.initialStep() == .connection)
+    #expect(gate.initialStep() == .choice)
 }
 
 @Test func startupGateReturnsSourceWhenConnectedButLibraryEmpty() {

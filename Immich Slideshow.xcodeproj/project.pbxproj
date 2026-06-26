@@ -18,6 +18,7 @@
 		3DAA01000000000000000017 /* HAControlMQTT in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000016 /* HAControlMQTT */; };
 		3DAA0100000000000000001A /* BrokerSetupKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000019 /* BrokerSetupKit */; };
 		3DAA0100000000000000001B /* ThemeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA0100000000000000001C /* ThemeKit */; };
+		5E000000000000000000000B /* Immich SlideshowShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,13 +36,45 @@
 			remoteGlobalIDString = 3DDA115D2FE2D16C0059B8FD;
 			remoteInfo = "Immich Slideshow";
 		};
+		5E000000000000000000000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DDA11562FE2D16C0059B8FD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5E0000000000000000000002;
+			remoteInfo = "Immich SlideshowShareExtension";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5E000000000000000000000A /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5E000000000000000000000B /* Immich SlideshowShareExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		3DDA115E2FE2D16C0059B8FD /* Immich Slideshow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Immich Slideshow.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DDA116B2FE2D16E0059B8FD /* Immich SlideshowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Immich SlideshowTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DDA11752FE2D16E0059B8FD /* Immich SlideshowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Immich SlideshowUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Immich SlideshowShareExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5E000000000000000000000E /* Exceptions for "Immich SlideshowShareExtension" folder in "Immich SlideshowShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5E0000000000000000000002 /* Immich SlideshowShareExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3DDA11602FE2D16C0059B8FD /* Immich Slideshow */ = {
@@ -57,6 +90,14 @@
 		3DDA11782FE2D16E0059B8FD /* Immich SlideshowUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Immich SlideshowUITests";
+			sourceTree = "<group>";
+		};
+		5E0000000000000000000009 /* Immich SlideshowShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5E000000000000000000000E /* Exceptions for "Immich SlideshowShareExtension" folder in "Immich SlideshowShareExtension" target */,
+			);
+			path = "Immich SlideshowShareExtension";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -94,6 +135,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5E0000000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -103,6 +151,7 @@
 				3DDA11602FE2D16C0059B8FD /* Immich Slideshow */,
 				3DDA116E2FE2D16E0059B8FD /* Immich SlideshowTests */,
 				3DDA11782FE2D16E0059B8FD /* Immich SlideshowUITests */,
+				5E0000000000000000000009 /* Immich SlideshowShareExtension */,
 				3DDA115F2FE2D16C0059B8FD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -113,6 +162,7 @@
 				3DDA115E2FE2D16C0059B8FD /* Immich Slideshow.app */,
 				3DDA116B2FE2D16E0059B8FD /* Immich SlideshowTests.xctest */,
 				3DDA11752FE2D16E0059B8FD /* Immich SlideshowUITests.xctest */,
+				5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -127,10 +177,12 @@
 				3DDA115A2FE2D16C0059B8FD /* Sources */,
 				3DDA115B2FE2D16C0059B8FD /* Frameworks */,
 				3DDA115C2FE2D16C0059B8FD /* Resources */,
+				5E000000000000000000000A /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5E000000000000000000000D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				3DDA11602FE2D16C0059B8FD /* Immich Slideshow */,
@@ -199,6 +251,28 @@
 			productReference = 3DDA11752FE2D16E0059B8FD /* Immich SlideshowUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		5E0000000000000000000002 /* Immich SlideshowShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E0000000000000000000006 /* Build configuration list for PBXNativeTarget "Immich SlideshowShareExtension" */;
+			buildPhases = (
+				5E0000000000000000000003 /* Sources */,
+				5E0000000000000000000004 /* Frameworks */,
+				5E0000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E0000000000000000000009 /* Immich SlideshowShareExtension */,
+			);
+			name = "Immich SlideshowShareExtension";
+			packageProductDependencies = (
+			);
+			productName = "Immich SlideshowShareExtension";
+			productReference = 5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -219,6 +293,9 @@
 					3DDA11742FE2D16E0059B8FD = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 3DDA115D2FE2D16C0059B8FD;
+					};
+					5E0000000000000000000002 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -249,6 +326,7 @@
 				3DDA115D2FE2D16C0059B8FD /* Immich Slideshow */,
 				3DDA116A2FE2D16E0059B8FD /* Immich SlideshowTests */,
 				3DDA11742FE2D16E0059B8FD /* Immich SlideshowUITests */,
+				5E0000000000000000000002 /* Immich SlideshowShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -269,6 +347,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		3DDA11732FE2D16E0059B8FD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E0000000000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -299,6 +384,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5E0000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -311,6 +403,11 @@
 			isa = PBXTargetDependency;
 			target = 3DDA115D2FE2D16C0059B8FD /* Immich Slideshow */;
 			targetProxy = 3DDA11762FE2D16E0059B8FD /* PBXContainerItemProxy */;
+		};
+		5E000000000000000000000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5E0000000000000000000002 /* Immich SlideshowShareExtension */;
+			targetProxy = 5E000000000000000000000C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -438,6 +535,7 @@
 				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = ImmichSlideshowIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Immich Slideshow/Immich Slideshow.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
@@ -486,6 +584,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = ImmichSlideshowIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Immich Slideshow/Immich Slideshow.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
@@ -630,6 +729,70 @@
 			};
 			name = Release;
 		};
+		5E0000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Immich SlideshowShareExtension/Immich SlideshowShareExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Immich SlideshowShareExtension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Immich Slideshow";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ing.kipp.Immich-Slideshow.ShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5E0000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Immich SlideshowShareExtension/Immich SlideshowShareExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Immich SlideshowShareExtension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Immich Slideshow";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ing.kipp.Immich-Slideshow.ShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -665,6 +828,15 @@
 			buildConfigurations = (
 				3DDA11862FE2D16E0059B8FD /* Debug */,
 				3DDA11872FE2D16E0059B8FD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E0000000000000000000006 /* Build configuration list for PBXNativeTarget "Immich SlideshowShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0000000000000000000007 /* Debug */,
+				5E0000000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

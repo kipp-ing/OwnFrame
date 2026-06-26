@@ -3,7 +3,9 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
-@Test func resolverRequestsSharedLinkMeWithSlugAndPasswordAndReturnsResolution() async throws {
+@Test func resolverRequestsSharedLinkMeWithKeyFirstAndPasswordAndReturnsResolution() async throws {
+    // A `/share/<X>` identifier is the share KEY; the resolver must query `key=` first
+    // (querying `slug=` on a key returns 401 "Invalid share key" — the false-password bug).
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let responseData = try #require("""
     {
@@ -26,9 +28,61 @@ import ImmichClientTestSupport
     let request = try await #require(transport.recordedRequests.only)
     #expect(request.httpMethod == "GET")
     #expect(request.url?.path == "/api/shared-links/me")
-    #expect(queryValue("slug", in: request.url) == "summer")
+    #expect(queryValue("key", in: request.url) == "summer")
+    #expect(queryValue("slug", in: request.url) == nil)
     #expect(queryValue("password", in: request.url) == "secret-password")
     #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
+}
+
+// FR-210-06/07 (Finding 1): an "Invalid share key/slug" 401 means the identifier was not
+// found — NOT that a password is required. A non-protected `/share/<key>` link must never
+// prompt for a password.
+@Test func resolverMapsInvalidShareKeyOrSlug401ToInvalidShareLinkNotPasswordRequired() async throws {
+    let baseURL = try #require(URL(string: "https://photos.example.test"))
+    let transport = MockTransport(sequence: [
+        .success((errorBody("Invalid share key"), httpResponse(url: baseURL, statusCode: 401))),
+        .success((errorBody("Invalid share slug"), httpResponse(url: baseURL, statusCode: 401))),
+    ])
+    let resolver = SharedLinkResolver(transport: transport)
+
+    await #expect(throws: ImmichError.invalidShareLink) {
+        _ = try await resolver.resolve(baseURL: baseURL, slug: "not-a-real-link", password: nil)
+    }
+}
+
+// A custom `/s/<slug>` link: the key attempt 401s "Invalid share key"; the resolver falls
+// back to `slug=` and resolves.
+@Test func resolverFallsBackToSlugWhenKeyIsInvalid() async throws {
+    let baseURL = try #require(URL(string: "https://photos.example.test"))
+    let okBody = try #require("""
+    { "key": "real-key", "album": { "id": "album-7" }, "expiresAt": null }
+    """.data(using: .utf8))
+    let transport = MockTransport(sequence: [
+        .success((errorBody("Invalid share key"), httpResponse(url: baseURL, statusCode: 401))),
+        .success((okBody, httpResponse(url: baseURL, statusCode: 200))),
+    ])
+    let resolver = SharedLinkResolver(transport: transport)
+
+    let resolution = try await resolver.resolve(baseURL: baseURL, slug: "my-trip", password: nil)
+    #expect(resolution.key == "real-key")
+    #expect(resolution.albumID == "album-7")
+
+    let requests = await transport.recordedRequests
+    #expect(requests.count == 2)
+    #expect(queryValue("key", in: requests.first?.url) == "my-trip")
+    #expect(queryValue("slug", in: requests.last?.url) == "my-trip")
+}
+
+// A genuine password challenge (401 whose message is not an invalid-identifier message) is
+// still classified as password-required, regardless of the exact server wording.
+@Test func resolverMapsPasswordChallenge401ToPasswordRequired() async throws {
+    let baseURL = try #require(URL(string: "https://photos.example.test"))
+    let transport = MockTransport(result: .success((errorBody("Invalid password"), httpResponse(url: baseURL, statusCode: 401))))
+    let resolver = SharedLinkResolver(transport: transport)
+
+    await #expect(throws: ImmichError.passwordRequired) {
+        _ = try await resolver.resolve(baseURL: baseURL, slug: "protected", password: nil)
+    }
 }
 
 @Test func resolverMapsMissingPasswordUnauthorizedToPasswordRequired() async throws {
@@ -92,6 +146,12 @@ private func expectResolverError(
 
 private func httpResponse(url: URL, statusCode: Int) -> HTTPURLResponse {
     HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
+}
+
+/// An Immich error envelope (`{"message": ...}`) — the body the resolver inspects to tell an
+/// invalid-identifier 401 from a password 401.
+private func errorBody(_ message: String) -> Data {
+    (try? JSONSerialization.data(withJSONObject: ["message": message, "error": "Unauthorized", "statusCode": 401])) ?? Data()
 }
 
 private func queryValue(_ name: String, in url: URL?) -> String? {

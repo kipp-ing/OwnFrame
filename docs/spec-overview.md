@@ -30,6 +30,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 110 | [shared-album-link](../specs/110-shared-album-link/spec.md)       | ImmichClient     | *(sub-spec of 100)* Play a shared/public Immich link (+ optional password) as a source.  | Scheduled |
 | 120 | [source-library](../specs/120-source-library/spec.md)             | ImmichClient     | *(sub-spec of 100)* Save several switchable sources (albums + shared links); one active. | Scheduled |
 | 200 | [connection-onboarding](../specs/200-connection-onboarding/spec.md) | OnboardingKit  | First-run setup, in-place connection editing, and the Settings-screen structure.         | Active   |
+| 210 | [shared-link-onboarding](../specs/210-shared-link-onboarding/spec.md) | OnboardingKit | *(sub-spec of 200)* Choice-first onboarding, shared-link-only setup (no API key), iOS Share Sheet acceptance, resolve-first/password-when-needed, one searchable/subscrollable album picker shared by onboarding + Settings. | Active |
 | 300 | [slideshow](../specs/300-slideshow/spec.md)                       | SlideshowKit     | Fullscreen playback engine + Liquid Glass UI: chrome, gestures, album browser, info.     | Active   |
 | 400 | [power-manager](../specs/400-power-manager/spec.md)               | PowerKit         | Keep the display awake and dim brightness while the slideshow runs in the foreground.     | Active   |
 | 500 | [display-options](../specs/500-display-options/spec.md)           | ThemeKit         | User-configurable order/duration/transition/Ken Burns/fit/quality/clock, applied live.   | Active   |
@@ -54,6 +55,9 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 
 - **200** owns the Settings-screen surface; it *surfaces* the 600 (Broker) and 500 (Display)
   sections and the 400 (brightness) control without re-specifying their behavior.
+- **210** evolves 200's onboarding (choice-first entry, shared-link-only path, Share Sheet, the
+  searchable album picker) and *reuses* 120's source library + shared-link secret store and 100/110's
+  shared-link resolution; it adds no new backend behavior.
 - **300** *consumes* 500 (option values), 400 (brightness), 100/110 (sources) and *delegates*
   reset to 200 — it does not redefine them.
 
@@ -85,5 +89,7 @@ overhaul so every Active requirement maps to real, tested code):
 - Auto-retry with backoff (topic 300).
 - Periodic source refresh (topic 300).
 - Rendered clock overlay — settings are stored (500), renderer deferred (topic 300).
-- Settings/onboarding source management — onboarding placeholder exists; the full add/manage/switch
-  surface is now owned by `120` (topic 200 amended there).
+- Settings/onboarding source management — now built: `120` owns the source library and `210`
+  delivers the choice-first onboarding, shared-link-only setup, iOS Share Sheet acceptance, and the
+  shared searchable album picker (onboarding + Settings). Remaining 210 work is polish + a device
+  Share-Sheet pass, not new surface.

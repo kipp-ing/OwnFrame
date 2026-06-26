@@ -10,17 +10,27 @@ public struct StartupGate: Sendable {
     }
 
     public func initialStep() -> OnboardingStep {
-        // Server URL and API key are collected on one screen (.connection), so any state
-        // without the API key or the server base URL starts there. With the connection in
-        // place, the active source — not a single selectedAlbumID — decides the rest (120):
-        // a saved active source routes straight to the slideshow; otherwise resume at the
-        // add-source step. `load()` migrates a legacy selectedAlbumID into a one-entry
-        // library, so existing installs still resolve to `.done`.
-        guard keychain.read() != nil else { return .connection }
-        guard config.loadBaseURL() != nil else { return .connection }
-        if sourceStore.load().active != nil {
-            return .done
+        // The active source — not a single selectedAlbumID — decides the rest (120).
+        // `load()` migrates a legacy selectedAlbumID into a one-entry album library, so
+        // existing installs still resolve through the album branch below.
+        if let active = sourceStore.load().active {
+            switch active.kind {
+            case .sharedLink:
+                // A shared link authenticates itself — complete with no API key and no
+                // separately saved base URL (210, D2).
+                return .done
+            case .album:
+                // Album sources still need the authenticated client: API key + base URL.
+                guard keychain.read() != nil, config.loadBaseURL() != nil else { return .connection }
+                return .done
+            }
         }
-        return .source
+
+        // No active source yet. A validated connection (key + base URL) resumes at the
+        // add-source step; a blank install opens on the choice screen (210, US1).
+        if keychain.read() != nil, config.loadBaseURL() != nil {
+            return .source
+        }
+        return .choice
     }
 }

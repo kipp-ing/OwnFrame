@@ -10,6 +10,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/scripts/check-english-only.sh",
+            "timeout": 30,
+            "statusMessage": "Checking English-only"
+          }
+        ]
+      }
     ]
   }
 }

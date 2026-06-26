@@ -12,14 +12,17 @@ public struct ResolvedSource: Sendable {
 }
 
 public struct ActiveSourceResolver: Sendable {
-    private let albumBaseURL: URL
-    private let apiKey: String
+    // Optional because a shared-link-only setup has no server API key or album base URL — and a
+    // shared-link active source resolves without them (FR-210-03/04). Required only to resolve an
+    // album active source.
+    private let albumBaseURL: URL?
+    private let apiKey: String?
     private let secretStore: any SharedLinkSecretStore
     private let sharedLinkResolver: any SharedLinkResolving
 
     public init(
-        albumBaseURL: URL,
-        apiKey: String,
+        albumBaseURL: URL?,
+        apiKey: String?,
         secretStore: any SharedLinkSecretStore,
         sharedLinkResolver: any SharedLinkResolving
     ) {
@@ -32,6 +35,11 @@ public struct ActiveSourceResolver: Sendable {
     public func resolve(_ source: Source) async throws -> ResolvedSource {
         switch source.kind {
         case let .album(albumID):
+            // An album source needs the server API key + base URL; a shared-link-only setup has
+            // neither (but also never has an album active source).
+            guard let albumBaseURL, let apiKey else {
+                throw ImmichError.unauthorized
+            }
             return ResolvedSource(
                 serverConfig: ServerConfig(baseURL: albumBaseURL, auth: .apiKey(apiKey)),
                 albumID: albumID

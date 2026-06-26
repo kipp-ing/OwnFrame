@@ -30,12 +30,12 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
         XCTAssertTrue(order.waitForExistence(timeout: 5), "order picker should exist")
         let duration = app.descendants(matching: .any).matching(identifier: "settings.duration").firstMatch
         XCTAssertTrue(duration.waitForExistence(timeout: 2), "duration picker should exist")
-        XCTAssertTrue(app.staticTexts["Zufällig"].firstMatch.exists, "order defaults to shuffle")
+        XCTAssertTrue(app.staticTexts["Shuffle"].firstMatch.exists, "order defaults to shuffle")
         XCTAssertTrue(app.staticTexts["15 s"].firstMatch.exists, "duration defaults to 15 s")
 
         // Change order shuffle -> sequential via the menu picker.
         order.tap()
-        app.buttons["Der Reihe nach"].firstMatch.tap()
+        app.buttons["Sequential"].firstMatch.tap()
 
         // Change duration 15 s -> 30 s.
         duration.tap()
@@ -53,7 +53,7 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
             .matching(identifier: "settings.order").firstMatch
         XCTAssertTrue(orderAfter.waitForExistence(timeout: 5), "settings reopen after relaunch")
         XCTAssertTrue(
-            relaunch.staticTexts["Der Reihe nach"].firstMatch.waitForExistence(timeout: 2),
+            relaunch.staticTexts["Sequential"].firstMatch.waitForExistence(timeout: 2),
             "sequential order should persist across relaunch"
         )
         XCTAssertTrue(
@@ -79,14 +79,14 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
 
         // Change transition crossfade -> slide; enable Ken Burns.
         transition.tap()
-        app.buttons["Schieben"].firstMatch.tap()
+        app.buttons["Slide"].firstMatch.tap()
         // Tap the switch control on the row's trailing edge (a center tap lands on the
         // label in a Form row and doesn't flip the toggle).
         kenBurns.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
         XCTAssertEqual(kenBurns.value as? String, "1", "tapping the toggle should turn Ken Burns on")
 
         // Dismiss the sheet (a natural settle so the writes flush) before relaunch.
-        app.buttons["Fertig"].tap()
+        app.buttons["Done"].tap()
         let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
         XCTAssertTrue(image.waitForExistence(timeout: 3))
 
@@ -103,7 +103,7 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
                 .waitForExistence(timeout: 5)
         )
         XCTAssertTrue(
-            relaunch.staticTexts["Schieben"].firstMatch.waitForExistence(timeout: 2),
+            relaunch.staticTexts["Slide"].firstMatch.waitForExistence(timeout: 2),
             "slide transition should persist across relaunch"
         )
         XCTAssertEqual(

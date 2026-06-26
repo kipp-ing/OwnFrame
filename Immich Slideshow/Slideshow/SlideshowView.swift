@@ -164,9 +164,11 @@ struct SlideshowView: View {
         }
         .sheet(isPresented: $showErrorConnection) {
             if let errorConnectionViewModel {
-                ConnectionSettingsView(viewModel: errorConnectionViewModel) { outcome in
-                    showErrorConnection = false
-                    onConnectionChanged(outcome)
+                NavigationStack {
+                    ConnectionSettingsView(viewModel: errorConnectionViewModel) { outcome in
+                        showErrorConnection = false
+                        onConnectionChanged(outcome)
+                    }
                 }
             }
         }
