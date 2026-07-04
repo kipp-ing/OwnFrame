@@ -117,10 +117,10 @@ empty attributes; oversized images downscale or skip.
 - [x] T016 [US2] Implement `HAPublishOptions.swift` (value type + protocol + UserDefaults impl +
   in-memory fake) in `Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift` to green
   T015
-- [ ] T017 [P] [US2] Red tests for `MetadataCache`'s bounded LRU (evicts least-recently-used past
+- [x] T017 [P] [US2] Red tests for `MetadataCache`'s bounded LRU (evicts least-recently-used past
   its limit; a fetch failure is never cached) in
   `Packages/HAControlKit/Tests/HAControlKitTests/MetadataCacheTests.swift` (NEW)
-- [ ] T018 [US2] Implement `MetadataCache.swift` (mirrors `SlideshowKit.ImageCache`'s shape) in
+- [x] T018 [US2] Implement `MetadataCache.swift` (mirrors `SlideshowKit.ImageCache`'s shape) in
   `Packages/HAControlKit/Sources/HAControlKit/MetadataCache.swift` to green T017
 - [ ] T019 [P] [US2] Red tests for `SlideshowRemoteControlAdapter`'s `PhotoReporting` conformance —
   a `currentAssetID` change produces a `PhotoReport` (metadata via cache + `assetInfo`, image
