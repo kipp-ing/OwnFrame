@@ -35,14 +35,23 @@ public struct KeychainAPIKeyStore: KeychainStore {
     }
 
     public func save(_ apiKey: String) throws {
-        // Idempotent overwrite: remove the existing item, then add it again.
-        SecItemDelete(baseQuery as CFDictionary)
-
-        var attributes = baseQuery
-        attributes[kSecValueData as String] = Data(apiKey.utf8)
-        let status = SecItemAdd(attributes as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainError.unexpectedStatus(status)
+        // Atomic overwrite: update in place, only falling back to add when no item exists yet.
+        // Avoids the delete-then-add gap where a crash between the two calls loses the key.
+        let updateStatus = SecItemUpdate(
+            baseQuery as CFDictionary,
+            [kSecValueData as String: Data(apiKey.utf8)] as CFDictionary
+        )
+        if updateStatus == errSecItemNotFound {
+            var attributes = baseQuery
+            attributes[kSecValueData as String] = Data(apiKey.utf8)
+            let addStatus = SecItemAdd(attributes as CFDictionary, nil)
+            guard addStatus == errSecSuccess else {
+                throw KeychainError.unexpectedStatus(addStatus)
+            }
+            return
+        }
+        guard updateStatus == errSecSuccess else {
+            throw KeychainError.unexpectedStatus(updateStatus)
         }
     }
 
