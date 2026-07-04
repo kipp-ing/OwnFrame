@@ -12,7 +12,7 @@ public final class HAControlCoordinator {
     private let log = Logger(subsystem: "ing.kipp.Immich-Slideshow", category: "HAControl")
 
     private let transport: any MQTTTransport
-    private let control: any RemoteControlling
+    private let control: any PlaybackControlling
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
@@ -22,7 +22,7 @@ public final class HAControlCoordinator {
 
     public init(
         transport: any MQTTTransport,
-        control: any RemoteControlling,
+        control: any PlaybackControlling,
         configStore: any BrokerConfigStore,
         deviceName: String,
         enabledEntities: Set<HAEntity> = [.playback]

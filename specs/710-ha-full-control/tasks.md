@@ -46,7 +46,7 @@ Foundational are shared prerequisites.
 - [x] T003 Implement the `HAEntity` and `HATopics` extensions in
   `Packages/HAControlKit/Sources/HAControlKit/HAEntityState.swift` and
   `Packages/HAControlKit/Sources/HAControlKit/HATopics.swift` to green T002
-- [ ] T004 Refactor `RemoteControlling` into `PlaybackControlling` / `SettingsControlling` /
+- [x] T004 Refactor `RemoteControlling` into `PlaybackControlling` / `SettingsControlling` /
   `PhotoReporting` (behavior-preserving) plus the new `ThemeSettingsSnapshot` and `PhotoReport`
   value types, in `Packages/HAControlKit/Sources/HAControlKit/RemoteControlling.swift` and
   `Packages/HAControlKit/Sources/HAControlKit/PhotoReport.swift` (NEW); update

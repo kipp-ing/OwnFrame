@@ -12,7 +12,7 @@ import SlideshowKit
 /// `SlideshowViewModel`, brightness onto the foreground-gated `PowerManager`, and
 /// album selection onto the slideshow's runtime album switch.
 @MainActor
-public final class SlideshowRemoteControlAdapter: RemoteControlling {
+public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     private let slideshow: SlideshowViewModel
     private let powerManager: PowerManager
     private let albums: [Album]

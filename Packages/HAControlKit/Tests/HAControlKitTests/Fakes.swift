@@ -54,7 +54,7 @@ final class FakeMQTTTransport: MQTTTransport, @unchecked Sendable {
 }
 
 @MainActor
-final class FakeRemoteControl: RemoteControlling {
+final class FakeRemoteControl: PlaybackControlling {
     var playbackState: PlaybackState = .playing
     var brightness: Double = 0.5
     var albumOptions: [String] = []
