@@ -86,10 +86,10 @@ re-echo the actual value.
 - [x] T010 [US1] Implement `SettingsControlling` on `SlideshowRemoteControlAdapter`
   (`ThemeSettingsSnapshot` ↔ `ThemeSettings` mapping, suppress-flag) in
   `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` to green T009
-- [ ] T011 [P] [US1] Red tests: a local settings change echoes only the changed entity (not all
+- [x] T011 [P] [US1] Red tests: a local settings change echoes only the changed entity (not all
   9); N rapid repeated commands on one entity coalesce to last-wins with ≤ N+1 publishes
   (SC-710-02) in `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
-- [ ] T012 [US1] Wire `onSettingsChange` to a scoped, coalesced echo in
+- [x] T012 [US1] Wire `onSettingsChange` to a scoped, coalesced echo in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T011
 - [ ] T013 [US1] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as
   `SettingsControlling`, expand `enabledEntities` to the 9 settings entities, in

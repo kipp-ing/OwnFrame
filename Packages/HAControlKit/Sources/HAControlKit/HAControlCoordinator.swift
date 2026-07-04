@@ -20,6 +20,8 @@ public final class HAControlCoordinator {
     private var deviceID: String?
     private var incomingTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
+    private var settingsEchoTask: Task<Void, Never>?
+    private var lastSettingsSnapshot: ThemeSettingsSnapshot?
 
     public init(
         transport: any MQTTTransport,
@@ -70,8 +72,10 @@ public final class HAControlCoordinator {
     public func stop() async {
         incomingTask?.cancel()
         connectionTask?.cancel()
+        settingsEchoTask?.cancel()
         incomingTask = nil
         connectionTask = nil
+        settingsEchoTask = nil
         await transport.disconnect()
         connection = .disconnected
     }
@@ -103,10 +107,18 @@ public final class HAControlCoordinator {
             log.info("announce: published discovery + subscribed \(entity.rawValue, privacy: .public)")
         }
 
+        // announce() just echoed every enabled entity — that is the baseline the
+        // scoped settings diff compares against.
+        lastSettingsSnapshot = settings?.themeSettings
+
         control.onLocalChange = { [weak self] in
             Task { @MainActor in
                 await self?.echoAll()
             }
+        }
+
+        settings?.onSettingsChange = { [weak self] in
+            self?.scheduleSettingsEcho()
         }
     }
 
@@ -151,6 +163,11 @@ public final class HAControlCoordinator {
             // Always echo the actual state — even for invalid/unknown commands —
             // so HA mirrors the real app state (FR-009/FR-011/FR-013/FR-015).
             await echo(entity)
+            if isSettingsEntity(entity) {
+                // The command's echo is the fresh truth; without this, the
+                // suppressed-callback diff would re-echo the same change.
+                lastSettingsSnapshot = settings?.themeSettings
+            }
             return
         }
     }
@@ -211,6 +228,69 @@ public final class HAControlCoordinator {
     internal func echoAll() async {
         for entity in orderedEnabledEntities {
             await echo(entity)
+        }
+        lastSettingsSnapshot = settings?.themeSettings
+    }
+
+    // MARK: - Scoped, coalesced settings echo (SC-710-02)
+
+    /// A burst of local changes collapses into one pending echo task; the task
+    /// reads the store when it runs, so the last value wins by construction.
+    private func scheduleSettingsEcho() {
+        guard settingsEchoTask == nil else { return }
+        settingsEchoTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self else { return }
+            self.settingsEchoTask = nil
+            await self.echoChangedSettings()
+        }
+    }
+
+    /// Echo only entities whose value differs from the last echoed snapshot —
+    /// a local change to one setting must not republish the other eight.
+    private func echoChangedSettings() async {
+        guard let settings else { return }
+        let current = settings.themeSettings
+        defer { lastSettingsSnapshot = current }
+        for entity in orderedEnabledEntities where isSettingsEntity(entity) {
+            let previous = lastSettingsSnapshot.map { settingValue(entity, in: $0) }
+            if previous != settingValue(entity, in: current) {
+                await echo(entity)
+            }
+        }
+    }
+
+    private func isSettingsEntity(_ entity: HAEntity) -> Bool {
+        switch entity {
+        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
+            true
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            false
+        }
+    }
+
+    private func settingValue(_ entity: HAEntity, in snapshot: ThemeSettingsSnapshot) -> String {
+        switch entity {
+        case .order:
+            snapshot.order.rawValue
+        case .duration:
+            String(snapshot.durationSeconds)
+        case .transition:
+            snapshot.transition.rawValue
+        case .kenBurns:
+            snapshot.kenBurns ? "ON" : "OFF"
+        case .fit:
+            snapshot.fit.rawValue
+        case .quality:
+            snapshot.quality.rawValue
+        case .clock:
+            snapshot.clockOn ? "ON" : "OFF"
+        case .clockCorner:
+            snapshot.clockCorner.rawValue
+        case .clockDate:
+            snapshot.clockDate ? "ON" : "OFF"
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            ""
         }
     }
 

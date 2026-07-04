@@ -590,6 +590,58 @@ extension HAControlCoordinatorTests {
             }
         }
     }
+
+    // MARK: - T011: scoped, coalesced settings echo (SC-710-02)
+
+    @Test
+    func localSettingsChangeEchoesOnlyTheChangedEntity() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate]
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: entities)
+
+        await coordinator.start()
+        let baseline = transport.published.count
+
+        settings.themeSettings.kenBurns = true
+        settings.onSettingsChange?()
+        try await Task.sleep(for: .milliseconds(20))
+
+        let newMessages = transport.published.dropFirst(baseline)
+        #expect(newMessages.count == 1, "expected exactly one scoped echo, got \(newMessages.count)")
+        #expect(newMessages.first?.topic == HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns))
+        #expect(newMessages.first?.payload.string == "ON")
+
+        await coordinator.stop()
+    }
+
+    @Test
+    func rapidRepeatedLocalChangesOnOneEntityCoalesceToLastWins() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.duration])
+
+        await coordinator.start()
+        let baseline = transport.published.count
+
+        // N rapid changes on one entity, no drain between them (a settings-slider burst).
+        let burst = [20, 25, 30, 35, 40]
+        for value in burst {
+            settings.themeSettings.durationSeconds = value
+            settings.onSettingsChange?()
+        }
+        try await Task.sleep(for: .milliseconds(50))
+
+        let durationTopic = HATopics.stateTopic(deviceID: "dev1", entity: .duration)
+        let echoes = transport.published.dropFirst(baseline).filter { $0.topic == durationTopic }
+        #expect(echoes.count <= burst.count + 1, "burst of \(burst.count) must coalesce to <= \(burst.count + 1) publishes, got \(echoes.count)")
+        #expect(echoes.count < burst.count, "coalescing must merge at least part of the burst, got \(echoes.count) for \(burst.count) changes")
+        #expect(echoes.last?.payload.string == "40", "last-wins: final echo must carry the latest value")
+
+        await coordinator.stop()
+    }
 }
 
 // MARK: - Settings Coordinator Helper
