@@ -36,6 +36,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 500 | [display-options](../specs/500-display-options/spec.md)           | ThemeKit         | User-configurable order/duration/transition/Ken Burns/fit/quality/clock, applied live.   | Active   |
 | 600 | [broker-setup](../specs/600-broker-setup/spec.md)                 | BrokerSetupKit   | Enter and persist MQTT broker credentials (Keychain) so 700 has something to connect to. | Active   |
 | 700 | [ha-control](../specs/700-ha-control/spec.md)                     | HAControlKit     | Remote control via MQTT/HA: availability + pause/play + brightness + album (730 deferred). | Active   |
+| 710 | [ha-full-control](../specs/710-ha-full-control/spec.md)           | HAControlKit     | *(sub-spec of 700)* Read/set every display setting, next/previous, current-photo image + metadata, and diagnostics over MQTT. | Scheduled |
 
 ## How they connect
 
@@ -50,6 +51,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 
 600 Broker Setup ──> 700 HA Control (MQTT remote control)
                               ├─ active: pause/play, brightness, source-select (120)
+                              ├─ scheduled: 710 full control (settings, photo, diagnostics)
                               └─ reserved: 730 sleep/wake
 ```
 
@@ -69,14 +71,16 @@ read it only to understand the reserved shared-link seam in `100`/`200`.
 
 ## Reserved / deferred (roadmap)
 
-Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120` are now scheduled (see
-below); the rest remain unscheduled.
+Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120`/`710` are now scheduled
+(see below); the rest remain unscheduled.
 
 **Scheduled (not deferred):**
 - `120` Source library — save several switchable sources (albums + shared links), one active at a
   time; surfaced in `200` and `700`. Spec approved; shared-link mechanics verified against Immich 2.7.5.
 - `110` Shared album link source (+ optional password) — a source kind feeding `120`; both unprotected
   and password-protected paths verified against Immich 2.7.5.
+- `710` HA full control — every `ThemeSettings` field, next/previous, current-photo image +
+  metadata, and diagnostics over MQTT, built on `700`'s discovery/echo/availability model.
 
 **Reserved sub-specs / future sources:**
 - `730` HA sleep/wake driven by an HA presence signal (pairs with the 400 sleep/wake roadmap item).
