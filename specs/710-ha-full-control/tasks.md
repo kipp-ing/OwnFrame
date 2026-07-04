@@ -128,10 +128,10 @@ empty attributes; oversized images downscale or skip.
   fails) in `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift`
 - [ ] T020 [US2] Implement `PhotoReporting` on `SlideshowRemoteControlAdapter` in
   `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` to green T019
-- [ ] T021 [P] [US2] Red tests for discovery of `current_photo` (sensor: `value_template` +
+- [x] T021 [P] [US2] Red tests for discovery of `current_photo` (sensor: `value_template` +
   `json_attributes_topic` on the same topic) and `current_photo_image` (image: `content_type`, not
   retained) in `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
-- [ ] T022 [US2] Implement the two discovery payloads in
+- [x] T022 [US2] Implement the two discovery payloads in
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift` to green T021
 - [ ] T023 [P] [US2] Red tests: `HAControlCoordinator` publishes both photo topics on
   `onPhotoChange`; `phase != .playing` publishes the cleared/null form on both; the image publish

@@ -183,4 +183,44 @@ struct HADiscoveryTests {
     private static func object(from data: Data) throws -> [String: Any] {
         try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
+
+    @Test
+    func currentPhotoDiscoveryHasNoCommandTopicWithValueTemplate() throws {
+        let data = HADiscovery.config(for: .currentPhoto, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        // Sensor entity: NO command_topic
+        #expect(json["command_topic"] == nil)
+        #expect(json["state_topic"] as? String == "immichslideshow/dev1/current_photo/state")
+        #expect(json["value_template"] as? String == "{{ value_json.id }}")
+        #expect(json["json_attributes_topic"] as? String == "immichslideshow/dev1/current_photo/state")
+
+        #expect(json["unique_id"] as? String == "dev1_current_photo")
+        #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
+        #expect(json["name"] as? String == "Slideshow Current Photo")
+
+        let device = try #require(json["device"] as? [String: Any])
+        #expect(device["identifiers"] as? [String] == ["dev1"])
+        #expect(device["name"] as? String == "Slideshow")
+    }
+
+    @Test
+    func currentPhotoImageDiscoveryHasNoCommandOrStateTopicWithImageTopic() throws {
+        let data = HADiscovery.config(for: .currentPhotoImage, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        // Image entity: NO command_topic, NO state_topic
+        #expect(json["command_topic"] == nil)
+        #expect(json["state_topic"] == nil)
+        #expect(json["image_topic"] as? String == "immichslideshow/dev1/current_photo_image/state")
+        #expect(json["content_type"] as? String == "image/jpeg")
+
+        #expect(json["unique_id"] as? String == "dev1_current_photo_image")
+        #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
+        #expect(json["name"] as? String == "Slideshow Current Photo Image")
+
+        let device = try #require(json["device"] as? [String: Any])
+        #expect(device["identifiers"] as? [String] == ["dev1"])
+        #expect(device["name"] as? String == "Slideshow")
+    }
 }

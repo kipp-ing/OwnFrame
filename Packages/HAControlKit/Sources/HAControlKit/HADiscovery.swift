@@ -58,7 +58,18 @@ public enum HADiscovery {
             json["payload_off"] = "OFF"
         case .clockCorner:
             json["options"] = ClockCornerSetting.allCases.map(\.rawValue)
-        case .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .next, .previous, .phase, .photoCount, .version:
+            break
+        case .currentPhoto:
+            json["command_topic"] = nil
+            json["state_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
+            json["value_template"] = "{{ value_json.id }}"
+            json["json_attributes_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
+        case .currentPhotoImage:
+            json["command_topic"] = nil
+            json["state_topic"] = nil
+            json["image_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
+            json["content_type"] = "image/jpeg"
             break
         }
 
