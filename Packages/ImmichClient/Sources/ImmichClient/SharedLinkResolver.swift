@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public struct SharedLinkResolution: Sendable, Equatable {
     public let key: String
@@ -17,6 +18,7 @@ public protocol SharedLinkResolving: Sendable {
 }
 
 public struct SharedLinkResolver: SharedLinkResolving {
+    private let log = Logger(subsystem: "ing.kipp.Immich-Slideshow", category: "SharedLinkResolver")
     private let transport: HTTPTransport
     private let now: @Sendable () -> Date
 
@@ -85,6 +87,7 @@ public struct SharedLinkResolver: SharedLinkResolving {
             case 410:
                 throw ImmichError.shareLinkExpired
             default:
+                log.error("Unexpected HTTP status \(httpResponse.statusCode, privacy: .public) for path \(request.url?.path ?? "<unknown>", privacy: .public)")
                 throw ImmichError.invalidResponse
             }
         } catch let error as ImmichError {
@@ -136,6 +139,7 @@ public struct SharedLinkResolver: SharedLinkResolving {
         } catch let error as ImmichError {
             throw error
         } catch {
+            log.error("Failed to decode SharedLinkResolution: \(error.localizedDescription, privacy: .public)")
             throw ImmichError.invalidResponse
         }
     }

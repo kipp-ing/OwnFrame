@@ -1,6 +1,8 @@
 import Foundation
+import os
 
 public struct ImmichClient: ImmichAPI {
+    private let log = Logger(subsystem: "ing.kipp.Immich-Slideshow", category: "ImmichClient")
     private let config: ServerConfig
     private let transport: HTTPTransport
 
@@ -100,6 +102,7 @@ public struct ImmichClient: ImmichAPI {
             case 401:
                 throw ImmichError.unauthorized
             default:
+                log.error("Unexpected HTTP status \(httpResponse.statusCode, privacy: .public) for path \(request.url?.path ?? "<unknown>", privacy: .public)")
                 throw ImmichError.invalidResponse
             }
         } catch let error as ImmichError {
@@ -115,6 +118,7 @@ public struct ImmichClient: ImmichAPI {
         } catch let error as ImmichError {
             throw error
         } catch {
+            log.error("Failed to decode \(String(describing: type), privacy: .public): \(error.localizedDescription, privacy: .public)")
             throw ImmichError.invalidResponse
         }
     }
