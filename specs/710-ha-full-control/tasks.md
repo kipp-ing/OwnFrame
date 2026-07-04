@@ -64,14 +64,14 @@ Foundational are shared prerequisites.
 settings change echoes without an inbound command; invalid payloads leave state unchanged and
 re-echo the actual value.
 
-- [ ] T005 [P] [US1] Red tests for the generic command validation matrix in
+- [x] T005 [P] [US1] Red tests for the generic command validation matrix in
   `HAControlCoordinator` (select enum membership, `duration` 3–600 range, switch ON/OFF — valid
   → apply + echo once; invalid → unchanged + re-echo actual) against a fake `SettingsControlling`;
   include an explicit assertion that every one of the 9 settings entities' echoed state publish
   has `retain == true` (FR-710-11's general rule, as distinct from the two documented exceptions
   covered in T023), in
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
-- [ ] T006 [US1] Implement the generic `applySetting(entity:payload:)` path + validation matrix in
+- [x] T006 [US1] Implement the generic `applySetting(entity:payload:)` path + validation matrix in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T005
 - [ ] T007 [P] [US1] Red tests for discovery payloads of the 9 settings entities (select
   `options`, `duration`'s min/max/step/unit, switch `payload_on`/`payload_off`) in

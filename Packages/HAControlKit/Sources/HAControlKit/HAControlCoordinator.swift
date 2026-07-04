@@ -13,6 +13,7 @@ public final class HAControlCoordinator {
 
     private let transport: any MQTTTransport
     private let control: any PlaybackControlling
+    private let settings: (any SettingsControlling)?
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
@@ -23,12 +24,14 @@ public final class HAControlCoordinator {
     public init(
         transport: any MQTTTransport,
         control: any PlaybackControlling,
+        settings: (any SettingsControlling)? = nil,
         configStore: any BrokerConfigStore,
         deviceName: String,
         enabledEntities: Set<HAEntity> = [.playback]
     ) {
         self.transport = transport
         self.control = control
+        self.settings = settings
         self.configStore = configStore
         self.deviceName = deviceName
         self.enabledEntities = enabledEntities
@@ -139,7 +142,9 @@ public final class HAControlCoordinator {
                 if control.albumOptions.contains(payload) {
                     control.selectAlbum(payload)
                 }
-            case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
+                applySetting(entity, payload: payload)
+            case .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
                 break
             }
 
@@ -174,7 +179,25 @@ public final class HAControlCoordinator {
             payload = String(Int((control.brightness * 255).rounded()))
         case .album:
             payload = control.currentAlbum ?? ""
-        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .order:
+            payload = settings?.themeSettings.order.rawValue ?? ""
+        case .duration:
+            payload = settings.map { String($0.themeSettings.durationSeconds) } ?? ""
+        case .transition:
+            payload = settings?.themeSettings.transition.rawValue ?? ""
+        case .kenBurns:
+            payload = switchPayload(settings?.themeSettings.kenBurns)
+        case .fit:
+            payload = settings?.themeSettings.fit.rawValue ?? ""
+        case .quality:
+            payload = settings?.themeSettings.quality.rawValue ?? ""
+        case .clock:
+            payload = switchPayload(settings?.themeSettings.clockOn)
+        case .clockCorner:
+            payload = settings?.themeSettings.clockCorner.rawValue ?? ""
+        case .clockDate:
+            payload = switchPayload(settings?.themeSettings.clockDate)
+        case .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
             payload = ""
         }
 
@@ -189,6 +212,65 @@ public final class HAControlCoordinator {
         for entity in orderedEnabledEntities {
             await echo(entity)
         }
+    }
+
+    private func applySetting(_ entity: HAEntity, payload: String) {
+        guard let settings else {
+            return
+        }
+
+        var snapshot = settings.themeSettings
+        switch entity {
+        case .order:
+            guard let value = PlayOrderSetting(rawValue: payload) else { return }
+            snapshot.order = value
+        case .duration:
+            guard let value = Int(payload), (3...600).contains(value) else { return }
+            snapshot.durationSeconds = value
+        case .transition:
+            guard let value = TransitionSetting(rawValue: payload) else { return }
+            snapshot.transition = value
+        case .kenBurns:
+            guard let value = switchBool(payload) else { return }
+            snapshot.kenBurns = value
+        case .fit:
+            guard let value = FitSetting(rawValue: payload) else { return }
+            snapshot.fit = value
+        case .quality:
+            guard let value = QualitySetting(rawValue: payload) else { return }
+            snapshot.quality = value
+        case .clock:
+            guard let value = switchBool(payload) else { return }
+            snapshot.clockOn = value
+        case .clockCorner:
+            guard let value = ClockCornerSetting(rawValue: payload) else { return }
+            snapshot.clockCorner = value
+        case .clockDate:
+            guard let value = switchBool(payload) else { return }
+            snapshot.clockDate = value
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            return
+        }
+
+        settings.apply(snapshot)
+    }
+
+    private func switchBool(_ payload: String) -> Bool? {
+        switch payload.uppercased() {
+        case "ON":
+            true
+        case "OFF":
+            false
+        default:
+            nil
+        }
+    }
+
+    private func switchPayload(_ value: Bool?) -> String {
+        guard let value else {
+            return ""
+        }
+        return value ? "ON" : "OFF"
     }
 
     private var orderedEnabledEntities: [HAEntity] {

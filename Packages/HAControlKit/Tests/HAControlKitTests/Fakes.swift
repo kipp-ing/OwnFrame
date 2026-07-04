@@ -91,3 +91,25 @@ struct FakeBrokerConfigStore: BrokerConfigStore {
         config
     }
 }
+
+@MainActor
+final class FakeSettingsControl: SettingsControlling {
+    var themeSettings: ThemeSettingsSnapshot = ThemeSettingsSnapshot(
+        order: .shuffle,
+        durationSeconds: 15,
+        transition: .crossfade,
+        kenBurns: false,
+        fit: .fit,
+        quality: .preview,
+        clockOn: false,
+        clockCorner: .bottomTrailing,
+        clockDate: false
+    )
+    private(set) var applyCount = 0
+    var onSettingsChange: (@MainActor () -> Void)?
+
+    func apply(_ settings: ThemeSettingsSnapshot) {
+        themeSettings = settings
+        applyCount += 1
+    }
+}
