@@ -55,7 +55,7 @@ struct Immich_SlideshowApp: App {
         // Backed by the live screen in production, a fake under `--uitest` so the
         // hermetic test never touches real device brightness.
         let makePowerManager: @MainActor @Sendable () -> PowerManager
-        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager) async -> HAControlCoordinator?
+        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore) async -> HAControlCoordinator?
         // Builds the in-app connection editor view model (009): same config/Keychain
         // seams as the slideshow, validating against a freshly built ImmichClient.
         let makeConnectionSettingsViewModel: @MainActor @Sendable () -> ConnectionSettingsViewModel?
@@ -137,7 +137,7 @@ struct Immich_SlideshowApp: App {
                     SourceLibraryViewModel(store: sourceStore, secretStore: secretStore, resolver: resolver, onSwitchActive: onSwitchActive)
                 },
                 makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
-                makeCoordinator: { @MainActor @Sendable _, _ in nil },
+                makeCoordinator: { @MainActor @Sendable _, _, _ in nil },
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
                 saveSelectedAlbum: { @MainActor @Sendable _ in },
                 takePendingLink: { pendingLinkStore.takePendingURL() },
@@ -243,7 +243,7 @@ struct Immich_SlideshowApp: App {
         let makePowerManager: @MainActor @Sendable () -> PowerManager = {
             PowerManager(screen: UIScreenController())
         }
-        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager) async -> HAControlCoordinator? = { slideshow, powerManager in
+        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore) async -> HAControlCoordinator? = { slideshow, powerManager, themeStore in
             guard let brokerConfig = brokerProvider.load() else { return nil }
 
             // Best-effort album list for the HA select entity; empty on failure so
@@ -258,15 +258,21 @@ struct Immich_SlideshowApp: App {
                 slideshow: slideshow,
                 powerManager: powerManager,
                 albums: albums,
-                currentAlbumID: config.load()?.selectedAlbumID
+                currentAlbumID: config.load()?.selectedAlbumID,
+                themeStore: themeStore
             )
             let transport = NIOMQTTTransport(config: brokerConfig)
             return HAControlCoordinator(
                 transport: transport,
                 control: adapter,
+                settings: adapter,
                 configStore: brokerProvider,
                 deviceName: "Immich Slideshow",
-                enabledEntities: [.playback, .brightness, .album]
+                enabledEntities: [
+                    .playback, .brightness, .album,
+                    .order, .duration, .transition, .kenBurns, .fit, .quality,
+                    .clock, .clockCorner, .clockDate,
+                ]
             )
         }
 
@@ -364,7 +370,7 @@ private struct RootView: View {
             if let slideshow, let powerManager, let api {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
                               themeStore: themeStore,
-                              makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager) },
+                              makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager, themeStore) },
                               onReset: {
                     self.slideshow = nil
                     self.powerManager = nil

@@ -91,10 +91,10 @@ re-echo the actual value.
   (SC-710-02) in `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
 - [x] T012 [US1] Wire `onSettingsChange` to a scoped, coalesced echo in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T011
-- [ ] T013 [US1] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as
+- [x] T013 [US1] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as
   `SettingsControlling`, expand `enabledEntities` to the 9 settings entities, in
   `Immich Slideshow/Immich_SlideshowApp.swift`
-- [ ] T014 [US1] Verify via XcodeBuildMCP: `swift test` green for `HAControlKit`; app builds; a
+- [x] T014 [US1] Verify via XcodeBuildMCP: `swift test` green for `HAControlKit`; app builds; a
   full settings round-trip (coordinator + adapter + real `ThemeSettingsStore`) is host-testable
   end-to-end
 
