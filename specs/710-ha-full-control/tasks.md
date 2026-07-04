@@ -78,12 +78,12 @@ re-echo the actual value.
   `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
 - [x] T008 [US1] Implement the 9 settings discovery payloads in
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift` to green T007
-- [ ] T009 [P] [US1] Red tests for `SlideshowRemoteControlAdapter`'s `SettingsControlling`
+- [x] T009 [P] [US1] Red tests for `SlideshowRemoteControlAdapter`'s `SettingsControlling`
   conformance — all 9 fields map both directions through `ThemeSettingsStore`; a suppress-flag
   prevents `onSettingsChange` firing on a remote-applied change; a genuinely local
   `ThemeSettingsStore` mutation fires it normally — in
   `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift` (NEW)
-- [ ] T010 [US1] Implement `SettingsControlling` on `SlideshowRemoteControlAdapter`
+- [x] T010 [US1] Implement `SettingsControlling` on `SlideshowRemoteControlAdapter`
   (`ThemeSettingsSnapshot` ↔ `ThemeSettings` mapping, suppress-flag) in
   `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` to green T009
 - [ ] T011 [P] [US1] Red tests: a local settings change echoes only the changed entity (not all
