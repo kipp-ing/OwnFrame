@@ -67,13 +67,31 @@ cat <<EOF
 
 Run in the package directory \`$VERIFY_PACKAGE\` and confirm success:
 
-    swift build
-    swift test
+    swift build --disable-sandbox
+    swift test --disable-sandbox
 
-The ImmichClient module is Foundation-only and runs without a simulator on the host.
+(\`--disable-sandbox\` turns off SwiftPM's own inner sandbox, which cannot
+nest inside the executor sandbox; your executor sandbox still applies.)
+
+The package's unit tests run without a simulator on the host.
 No UI/integration tests that need a simulator or a real server/broker — the
 orchestrator (Claude) covers those via XcodeBuildMCP.
 EOF
+
+if [ "${LOCAL_EXECUTOR:-0}" = "1" ]; then
+cat <<'EOF'
+
+## Local-Executor Rules (additional, binding)
+
+- **Act, don't announce.** Make every change with your editing tools. A reply
+  that only describes an intended change counts as a failed round.
+- **No unverified claims.** If the verify command cannot run in your sandbox,
+  say exactly that and report the raw error; never assert compile or test
+  status you have not observed in this run's output.
+- **Keep the turn focused.** One task, the listed files, the verify command —
+  then report and stop.
+EOF
+fi
 
 cat <<'EOF'
 
