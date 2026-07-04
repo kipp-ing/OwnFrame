@@ -139,6 +139,8 @@ public final class HAControlCoordinator {
                 if control.albumOptions.contains(payload) {
                     control.selectAlbum(payload)
                 }
+            case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+                break
             }
 
             // Always echo the actual state — even for invalid/unknown commands —
@@ -172,6 +174,8 @@ public final class HAControlCoordinator {
             payload = String(Int((control.brightness * 255).rounded()))
         case .album:
             payload = control.currentAlbum ?? ""
+        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            payload = ""
         }
 
         try? await transport.publish(MQTTMessage(

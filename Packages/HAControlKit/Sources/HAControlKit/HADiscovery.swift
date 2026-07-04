@@ -34,6 +34,8 @@ public enum HADiscovery {
             json["payload_off"] = "OFF"
         case .album:
             json["options"] = albumOptions
+        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            break
         }
 
         return (try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])) ?? Data()
@@ -47,6 +49,38 @@ public enum HADiscovery {
             "Slideshow Brightness"
         case .album:
             "Slideshow Album"
+        case .order:
+            "Slideshow Order"
+        case .duration:
+            "Slideshow Duration"
+        case .transition:
+            "Slideshow Transition"
+        case .kenBurns:
+            "Slideshow Ken Burns"
+        case .fit:
+            "Slideshow Fit"
+        case .quality:
+            "Slideshow Quality"
+        case .clock:
+            "Slideshow Clock"
+        case .clockCorner:
+            "Slideshow Clock Corner"
+        case .clockDate:
+            "Slideshow Clock Date"
+        case .next:
+            "Slideshow Next"
+        case .previous:
+            "Slideshow Previous"
+        case .currentPhoto:
+            "Slideshow Current Photo"
+        case .currentPhotoImage:
+            "Slideshow Current Photo Image"
+        case .phase:
+            "Slideshow Phase"
+        case .photoCount:
+            "Slideshow Photo Count"
+        case .version:
+            "Slideshow Version"
         }
     }
 }

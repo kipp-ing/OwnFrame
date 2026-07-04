@@ -30,7 +30,7 @@ Foundational are shared prerequisites.
 
 ## Phase 1: Setup
 
-- [ ] T001 Establish a green host baseline: run `swift test` for `HAControlKit`, `ThemeKit`,
+- [x] T001 Establish a green host baseline: run `swift test` for `HAControlKit`, `ThemeKit`,
   `SlideshowKit`, `ImmichClient` before any change; record the passing baseline.
 
 ---
@@ -39,11 +39,11 @@ Foundational are shared prerequisites.
 
 **Entity/topic surface + protocol shape only. No new runtime behavior yet.**
 
-- [ ] T002 [P] Red tests for the extended `HAEntity` raw values and `HATopics` component/topic
+- [x] T002 [P] Red tests for the extended `HAEntity` raw values and `HATopics` component/topic
   mapping covering every new case (select/number/switch/button/image/sensor, incl. the two
   `current_photo`/`current_photo_image` topics) in
   `Packages/HAControlKit/Tests/HAControlKitTests/HATopicsTests.swift` (NEW)
-- [ ] T003 Implement the `HAEntity` and `HATopics` extensions in
+- [x] T003 Implement the `HAEntity` and `HATopics` extensions in
   `Packages/HAControlKit/Sources/HAControlKit/HAEntityState.swift` and
   `Packages/HAControlKit/Sources/HAControlKit/HATopics.swift` to green T002
 - [ ] T004 Refactor `RemoteControlling` into `PlaybackControlling` / `SettingsControlling` /
