@@ -85,6 +85,9 @@ cat <<'EOF'
 
 - **Act, don't announce.** Make every change with your editing tools. A reply
   that only describes an intended change counts as a failed round.
+- **No narration between steps.** Any assistant message without a tool call
+  ends your turn immediately — emit NO text until the single final report
+  after the last verify run. Chain tool calls silently through all steps.
 - **No unverified claims.** If the verify command cannot run in your sandbox,
   say exactly that and report the raw error; never assert compile or test
   status you have not observed in this run's output.

@@ -111,10 +111,10 @@ image publishing, with zero added delay to the visible slide transition.
 image (if enabled) and metadata; a metadata fetch failure still publishes the asset ID with
 empty attributes; oversized images downscale or skip.
 
-- [ ] T015 [P] [US2] Red tests for `HAPublishOptions`/`HAPublishOptionsStore` (UserDefaults
+- [x] T015 [P] [US2] Red tests for `HAPublishOptions`/`HAPublishOptionsStore` (UserDefaults
   round-trip; default `imageEnabled == false`; in-memory fake) in
   `Packages/HAControlKit/Tests/HAControlKitTests/HAPublishOptionsTests.swift` (NEW)
-- [ ] T016 [US2] Implement `HAPublishOptions.swift` (value type + protocol + UserDefaults impl +
+- [x] T016 [US2] Implement `HAPublishOptions.swift` (value type + protocol + UserDefaults impl +
   in-memory fake) in `Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift` to green
   T015
 - [ ] T017 [P] [US2] Red tests for `MetadataCache`'s bounded LRU (evicts least-recently-used past
