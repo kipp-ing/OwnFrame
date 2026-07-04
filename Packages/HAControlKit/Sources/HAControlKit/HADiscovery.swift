@@ -34,7 +34,31 @@ public enum HADiscovery {
             json["payload_off"] = "OFF"
         case .album:
             json["options"] = albumOptions
-        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .order:
+            json["options"] = PlayOrderSetting.allCases.map(\.rawValue)
+        case .duration:
+            json["min"] = 3
+            json["max"] = 600
+            json["step"] = 1
+            json["unit_of_measurement"] = "s"
+        case .transition:
+            json["options"] = TransitionSetting.allCases.map(\.rawValue)
+        case .kenBurns:
+            json["payload_on"] = "ON"
+            json["payload_off"] = "OFF"
+        case .fit:
+            json["options"] = FitSetting.allCases.map(\.rawValue)
+        case .quality:
+            json["options"] = QualitySetting.allCases.map(\.rawValue)
+        case .clock:
+            json["payload_on"] = "ON"
+            json["payload_off"] = "OFF"
+        case .clockDate:
+            json["payload_on"] = "ON"
+            json["payload_off"] = "OFF"
+        case .clockCorner:
+            json["options"] = ClockCornerSetting.allCases.map(\.rawValue)
+        case .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
             break
         }
 

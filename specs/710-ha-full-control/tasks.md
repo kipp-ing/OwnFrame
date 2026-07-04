@@ -73,10 +73,10 @@ re-echo the actual value.
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
 - [x] T006 [US1] Implement the generic `applySetting(entity:payload:)` path + validation matrix in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T005
-- [ ] T007 [P] [US1] Red tests for discovery payloads of the 9 settings entities (select
+- [x] T007 [P] [US1] Red tests for discovery payloads of the 9 settings entities (select
   `options`, `duration`'s min/max/step/unit, switch `payload_on`/`payload_off`) in
   `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
-- [ ] T008 [US1] Implement the 9 settings discovery payloads in
+- [x] T008 [US1] Implement the 9 settings discovery payloads in
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift` to green T007
 - [ ] T009 [P] [US1] Red tests for `SlideshowRemoteControlAdapter`'s `SettingsControlling`
   conformance — all 9 fields map both directions through `ThemeSettingsStore`; a suppress-flag

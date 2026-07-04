@@ -64,6 +64,122 @@ struct HADiscoveryTests {
         #expect(json["pass"] == nil)
     }
 
+    @Test
+    func orderDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .order, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_order")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .order))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .order))
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["shuffle", "sequential"])
+    }
+
+    @Test
+    func durationDiscoveryHasMinMaxStepAndUnit() throws {
+        let data = HADiscovery.config(for: .duration, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_duration")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .duration))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .duration))
+
+        #expect(json["min"] as? Int == 3)
+        #expect(json["max"] as? Int == 600)
+        #expect(json["step"] as? Int == 1)
+        #expect(json["unit_of_measurement"] as? String == "s")
+    }
+
+    @Test
+    func transitionDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .transition, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_transition")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .transition))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .transition))
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["crossfade", "slide", "dissolve", "none"])
+    }
+
+    @Test
+    func kenBurnsDiscoveryHasPayloadOnOff() throws {
+        let data = HADiscovery.config(for: .kenBurns, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_ken_burns")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .kenBurns))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns))
+        #expect(json["payload_on"] as? String == "ON")
+        #expect(json["payload_off"] as? String == "OFF")
+    }
+
+    @Test
+    func fitDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .fit, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_fit")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .fit))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .fit))
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["fit", "fill"])
+    }
+
+    @Test
+    func qualityDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .quality, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_quality")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .quality))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .quality))
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["preview", "original"])
+    }
+
+    @Test
+    func clockDiscoveryHasPayloadOnOff() throws {
+        let data = HADiscovery.config(for: .clock, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_clock")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clock))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clock))
+        #expect(json["payload_on"] as? String == "ON")
+        #expect(json["payload_off"] as? String == "OFF")
+    }
+
+    @Test
+    func clockDateDiscoveryHasPayloadOnOff() throws {
+        let data = HADiscovery.config(for: .clockDate, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_clock_date")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockDate))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockDate))
+        #expect(json["payload_on"] as? String == "ON")
+        #expect(json["payload_off"] as? String == "OFF")
+    }
+
+    @Test
+    func clockCornerDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .clockCorner, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_clock_corner")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockCorner))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner))
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["topLeading", "topTrailing", "bottomLeading", "bottomTrailing"])
+    }
+
     private static func object(from data: Data) throws -> [String: Any] {
         try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
