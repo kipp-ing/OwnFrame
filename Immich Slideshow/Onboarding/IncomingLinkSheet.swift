@@ -84,7 +84,7 @@ struct IncomingLinkSheet: View {
     private var passwordSection: some View {
         Group {
             Section {
-                SecureField("Password", text: $passwordText)
+                AppSecureField("Password", text: $passwordText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("incomingLink.password")

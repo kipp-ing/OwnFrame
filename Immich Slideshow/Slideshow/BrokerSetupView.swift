@@ -45,7 +45,7 @@ struct BrokerSettingsSection: View {
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("broker.username")
 
-            SecureField(viewModel.passwordIsSet ? "New password" : "Password", text: $viewModel.password)
+            AppSecureField(viewModel.passwordIsSet ? "New password" : "Password", text: $viewModel.password)
                 .accessibilityIdentifier("broker.password")
 
             if viewModel.passwordIsSet {

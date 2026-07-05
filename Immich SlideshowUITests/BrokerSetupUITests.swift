@@ -40,7 +40,7 @@ final class BrokerSetupUITests: XCTestCase {
 
         // The stored password is never prefilled in cleartext; a "set" hint stands in
         // for it instead (FR-013).
-        let password = app.secureTextFields["broker.password"]
+        let password = app.textFields["broker.password"]
         XCTAssertTrue(scrollToElement(password, in: app), "password field should be reachable")
         XCTAssertNotEqual(password.value as? String, "secret-pass", "password must not be prefilled")
         // Scroll the hint into view before asserting: the form lazily drops off-screen
