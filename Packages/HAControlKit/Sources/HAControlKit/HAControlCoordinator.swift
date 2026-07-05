@@ -225,7 +225,11 @@ public final class HAControlCoordinator {
                 }
             case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
                 applySetting(entity, payload: payload)
-            case .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            case .next:
+                await photoReporter?.showNext()
+            case .previous:
+                await photoReporter?.showPrevious()
+            case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
                 break
             }
 

@@ -58,7 +58,11 @@ public enum HADiscovery {
             json["payload_off"] = "OFF"
         case .clockCorner:
             json["options"] = ClockCornerSetting.allCases.map(\.rawValue)
-        case .next, .previous, .phase, .photoCount, .version:
+        case .next, .previous:
+            // Stateless HA button: command topic + payload_press, no state topic.
+            json["state_topic"] = nil
+            json["payload_press"] = "PRESS"
+        case .phase, .photoCount, .version:
             break
         case .currentPhoto:
             json["command_topic"] = nil

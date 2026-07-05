@@ -157,17 +157,17 @@ added slide-transition delay (SC-710-04/05).
 **Independent test**: fake transport; pressing each button runs `showNext`/`showPrevious`; works
 while paused without resuming; timer resets to a full interval.
 
-- [ ] T026 [P] [US3] Red tests for discovery of `next`/`previous` (button, `payload_press`) in
+- [x] T026 [P] [US3] Red tests for discovery of `next`/`previous` (button, `payload_press`) in
   `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
-- [ ] T027 [US3] Implement button discovery in
+- [x] T027 [US3] Implement button discovery in
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift` to green T026
-- [ ] T028 [P] [US3] Red tests: `next`/`previous` commands call `PhotoReporting.showNext()`/
+- [x] T028 [P] [US3] Red tests: `next`/`previous` commands call `PhotoReporting.showNext()`/
   `showPrevious()`; works while paused without resuming; the auto-advance timer restarts at a
   full interval, in
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
-- [ ] T029 [US3] Wire button command handling in `HAControlCoordinator.handleIncoming` in
+- [x] T029 [US3] Wire button command handling in `HAControlCoordinator.handleIncoming` in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T028
-- [ ] T030 [US3] Verify via XcodeBuildMCP (host test): the button path exercises
+- [x] T030 [US3] Verify via XcodeBuildMCP (host test): the button path exercises
   `SlideshowViewModel`'s existing works-while-paused/timer-reset semantics end-to-end (confirms
   wiring only — no new `SlideshowKit` behavior needed)
 

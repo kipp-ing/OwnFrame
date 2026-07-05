@@ -791,4 +791,26 @@ extension HAControlCoordinatorTests {
         await settle()
         #expect(!transport.published.isEmpty)
     }
+
+    @Test func nextButtonCommandCallsShowNext() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .next, .previous])
+        await coordinator.handleIncoming(message("PRESS", entity: .next))
+        #expect(reporter.showNextCount == 1)
+        #expect(reporter.showPreviousCount == 0)
+    }
+
+    @Test func previousButtonCommandCallsShowPrevious() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .next, .previous])
+        await coordinator.handleIncoming(message("PRESS", entity: .previous))
+        #expect(reporter.showPreviousCount == 1)
+        #expect(reporter.showNextCount == 0)
+    }
 }

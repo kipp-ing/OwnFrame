@@ -223,4 +223,26 @@ struct HADiscoveryTests {
         #expect(device["identifiers"] as? [String] == ["dev1"])
         #expect(device["name"] as? String == "Slideshow")
     }
+
+    @Test
+    func nextButtonDiscoveryHasPayloadPressAndNoStateTopic() throws {
+        let data = HADiscovery.config(for: .next, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+        #expect(json["unique_id"] as? String == "dev1_next")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .next))
+        #expect(json["payload_press"] as? String == "PRESS")
+        #expect(json["state_topic"] == nil)
+        #expect(json["name"] as? String == "Slideshow Next")
+    }
+
+    @Test
+    func previousButtonDiscoveryHasPayloadPressAndNoStateTopic() throws {
+        let data = HADiscovery.config(for: .previous, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+        #expect(json["unique_id"] as? String == "dev1_previous")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .previous))
+        #expect(json["payload_press"] as? String == "PRESS")
+        #expect(json["state_topic"] == nil)
+        #expect(json["name"] as? String == "Slideshow Previous")
+    }
 }
