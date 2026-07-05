@@ -3,6 +3,9 @@ import Foundation
 @MainActor
 public protocol PhotoReporting: AnyObject {
     var currentPhotoReport: PhotoReport { get }
+    /// App version string for the diagnostic `version` sensor (FR-710-07). Constant
+    /// for the process lifetime, so it lives on the reporter rather than each report.
+    var version: String { get }
     func showNext() async
     func showPrevious() async
     var onPhotoChange: (@MainActor (PhotoReport) -> Void)? { get set }

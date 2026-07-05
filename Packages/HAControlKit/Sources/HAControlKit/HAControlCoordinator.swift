@@ -134,31 +134,40 @@ public final class HAControlCoordinator {
     private func schedulePhotoPublish(_ report: PhotoReport) {
         // Detached from the caller so a slide advance returns immediately (SC-710-04).
         Task { [weak self] in
-            await self?.publishPhoto(report)
+            guard let self else { return }
+            await self.publishPhoto(report)
+            // The phase / photo-count diagnostics track the same change (entering
+            // empty/failed, a new album's count), so refresh them here too.
+            if self.enabledEntities.contains(.phase) { await self.echo(.phase) }
+            if self.enabledEntities.contains(.photoCount) { await self.echo(.photoCount) }
         }
     }
 
     private func publishPhoto(_ report: PhotoReport) async {
-        guard let deviceID = ensureDeviceID() else { return }
-        let metaTopic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhoto)
-        let imageTopic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhotoImage)
+        await publishPhotoMetadata(report)
+        await publishPhotoImage(report)
+    }
 
+    /// current_photo metadata (JSON), NOT retained (FR-710-11 privacy carve-out).
+    /// Cleared to the all-null form when the show isn't playing.
+    private func publishPhotoMetadata(_ report: PhotoReport) async {
+        guard let deviceID = ensureDeviceID() else { return }
+        let topic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhoto)
+        let payload = report.phase == .playing ? Self.photoMetadata(for: report) : Self.clearedPhotoMetadata
+        try? await transport.publish(MQTTMessage(topic: topic, payload: payload, retain: false))
+    }
+
+    /// current_photo_image bytes, NOT retained. Cleared (empty) when not playing;
+    /// skipped + logged while playing if there is no image (disabled or over cap).
+    private func publishPhotoImage(_ report: PhotoReport) async {
+        guard let deviceID = ensureDeviceID() else { return }
+        let topic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhotoImage)
         guard report.phase == .playing else {
-            // Not playing: clear both topics. Both are published NOT retained so
-            // neither the last photo nor what it depicted lingers (FR-710-11).
-            try? await transport.publish(MQTTMessage(
-                topic: metaTopic, payload: Self.clearedPhotoMetadata, retain: false))
-            try? await transport.publish(MQTTMessage(
-                topic: imageTopic, payload: Data(), retain: false))
+            try? await transport.publish(MQTTMessage(topic: topic, payload: Data(), retain: false))
             return
         }
-
-        try? await transport.publish(MQTTMessage(
-            topic: metaTopic, payload: Self.photoMetadata(for: report), retain: false))
-
         if let image = report.imageData {
-            try? await transport.publish(MQTTMessage(
-                topic: imageTopic, payload: image, retain: false))
+            try? await transport.publish(MQTTMessage(topic: topic, payload: image, retain: false))
         } else {
             log.info("photo: image publish skipped — no image data (asset=\(report.assetID ?? "nil", privacy: .public))")
         }
@@ -261,6 +270,22 @@ public final class HAControlCoordinator {
             return
         }
 
+        // Entities that don't use the uniform retained-string state topic:
+        switch entity {
+        case .currentPhoto:
+            // JSON metadata, not retained — republished so HA recovers the current
+            // photo on (re)announce without relying on a retained message (FR-710-13).
+            if let report = photoReporter?.currentPhotoReport { await publishPhotoMetadata(report) }
+            return
+        case .currentPhotoImage:
+            if let report = photoReporter?.currentPhotoReport { await publishPhotoImage(report) }
+            return
+        case .next, .previous:
+            return  // stateless buttons — nothing to echo
+        default:
+            break
+        }
+
         let payload: String
         switch entity {
         case .playback:
@@ -287,8 +312,14 @@ public final class HAControlCoordinator {
             payload = settings?.themeSettings.clockCorner.rawValue ?? ""
         case .clockDate:
             payload = switchPayload(settings?.themeSettings.clockDate)
-        case .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
-            payload = ""
+        case .phase:
+            payload = photoReporter?.currentPhotoReport.phase.rawValue ?? ""
+        case .photoCount:
+            payload = photoReporter.map { String($0.currentPhotoReport.photoCount) } ?? ""
+        case .version:
+            payload = photoReporter?.version ?? ""
+        case .next, .previous, .currentPhoto, .currentPhotoImage:
+            payload = ""  // routed above; kept for switch exhaustiveness
         }
 
         try? await transport.publish(MQTTMessage(

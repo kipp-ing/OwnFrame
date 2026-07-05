@@ -119,6 +119,7 @@ final class FakeSettingsControl: SettingsControlling {
 @MainActor
 final class FakePhotoReporting: PhotoReporting {
     var currentPhotoReport: PhotoReport
+    var version: String = "1.2.3-test"
     var onPhotoChange: (@MainActor (PhotoReport) -> Void)?
     private(set) var showNextCount = 0
     private(set) var showPreviousCount = 0

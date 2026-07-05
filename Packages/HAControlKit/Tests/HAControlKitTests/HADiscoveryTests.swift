@@ -245,4 +245,15 @@ struct HADiscoveryTests {
         #expect(json["state_topic"] == nil)
         #expect(json["name"] as? String == "Slideshow Previous")
     }
+
+    @Test
+    func diagnosticSensorsAreReadOnlyAndDiagnosticCategory() throws {
+        for entity in [HAEntity.phase, .photoCount, .version] {
+            let data = HADiscovery.config(for: entity, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+            let json = try Self.object(from: data)
+            #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: entity))
+            #expect(json["entity_category"] as? String == "diagnostic")
+            #expect(json["command_topic"] == nil)
+        }
+    }
 }
