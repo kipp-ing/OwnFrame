@@ -87,6 +87,41 @@ final class BrokerSetupUITests: XCTestCase {
         XCTAssertEqual(hostAfter.value as? String, "edited-host.example.com")
     }
 
+    @MainActor
+    func testImagePublishTogglePersistsAcrossRelaunch() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--uitest", "--uitest-slideshow", "--uitest-chrome",
+            "--uitest-broker", "--uitest-reset-publish-options",
+        ]
+        app.launch()
+
+        // The image-publish toggle sits at the bottom of the MQTT section.
+        let toggle = app.switches["broker.imageEnabled"]
+        XCTAssertTrue(scrollToElement(toggle, in: app), "image-publish toggle should be reachable in the MQTT section")
+        XCTAssertEqual(toggle.value as? String, "0", "image publishing must be off by default (FR-710-15)")
+
+        // Ensure the switch is fully on-screen (it's the last row) before tapping.
+        var tries = 0
+        while !toggle.isHittable && tries < 4 { app.swipeUp(); tries += 1 }
+        // Center-tapping a Form Toggle can land on its (long) label; tap the trailing
+        // edge where the switch control sits. Then wait for the value to flip —
+        // SwiftUI reflects the @State change asynchronously.
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        let isOn = NSPredicate(format: "value == %@", "1")
+        expectation(for: isOn, evaluatedWith: toggle)
+        waitForExpectations(timeout: 3)
+
+        // Relaunch WITHOUT the reset arg — the persisted preference should survive.
+        app.terminate()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-broker"]
+        app.launch()
+
+        let toggleAfter = app.switches["broker.imageEnabled"]
+        XCTAssertTrue(scrollToElement(toggleAfter, in: app), "toggle should be reachable after relaunch")
+        XCTAssertEqual(toggleAfter.value as? String, "1", "the image-publish toggle should persist across relaunch")
+    }
+
     /// Swipes up until the element exists (or the swipe budget is exhausted). The
     /// folded-in MQTT section is below the fold of the settings form.
     @MainActor

@@ -206,17 +206,17 @@ republishes discovery + availability + every enabled entity's state.
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T035 [P] Add the image-publishing toggle + byte-cap control to
+- [x] T035 [P] Add the image-publishing toggle + byte-cap control to
   `Immich Slideshow/Slideshow/BrokerSetupView.swift`, surfacing `HAPublishOptionsStore`, off by
   default (FR-710-15)
-- [ ] T036 [P] Red XCUITest: the broker-setup image toggle persists across relaunch, extending
+- [x] T036 [P] Red XCUITest: the broker-setup image toggle persists across relaunch, extending
   `Immich SlideshowUITests/BrokerSetupUITests.swift`
-- [ ] T037 Green T036 via XcodeBuildMCP/XCUITest; screenshot the new toggle
-- [ ] T038 Run the full XCUITest suite via XcodeBuildMCP (`test_sim`) — must stay green before
+- [x] T037 Green T036 via XcodeBuildMCP/XCUITest; screenshot the new toggle
+- [x] T038 Run the full XCUITest suite via XcodeBuildMCP (`test_sim`) — must stay green before
   merge (screenshots alone miss UI-test regressions)
-- [ ] T039 [P] README privacy note: document that photo metadata (and, if enabled, the photo
+- [x] T039 [P] README privacy note: document that photo metadata (and, if enabled, the photo
   image) are published to the broker by design
-- [ ] T040 Secret grep over the new test suite + a manual log check: no broker credential, API
+- [x] T040 Secret grep over the new test suite + a manual log check: no broker credential, API
   key, or share-link password in any new log line, fixture, or UserDefaults key added by this
   feature
 - [ ] T041 Once this feature is built and merged: move `710` from "Scheduled" to "Active" in

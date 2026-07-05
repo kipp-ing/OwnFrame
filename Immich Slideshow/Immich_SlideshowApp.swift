@@ -263,7 +263,7 @@ struct Immich_SlideshowApp: App {
             // Photo publishing prefs (image off by default, FR-710-07). The same
             // store gates both the adapter's image fetch and the image entity's
             // discovery below.
-            let publishOptions = UserDefaultsHAPublishOptionsStore()
+            let publishOptions = HAPublishOptionsStoreFactory.make()
 
             let adapter = SlideshowRemoteControlAdapter(
                 slideshow: slideshow,
