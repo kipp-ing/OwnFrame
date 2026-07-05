@@ -4,10 +4,10 @@ A full-screen photo **slideshow app for iPad**, powered by your own
 [Immich](https://immich.app) server. It is a standalone app — **not** a fork of the
 official Immich client — and uses Immich purely as a photo source over its REST API.
 
-> ⚠️ **Active development.** Onboarding, the full-screen slideshow, display/power control,
-> and Home Assistant remote control are built; theme/display options (transitions, Ken Burns,
-> clock overlay) are the next milestone. Home Assistant control is verified against an
-> automated TLS broker test — live Home-Assistant confirmation is still pending.
+> ⚠️ **Active development.** Onboarding, the full-screen slideshow, display & power control,
+> display options, and Home Assistant remote control are built. Home Assistant control is
+> verified against an automated TLS broker test — live Home-Assistant confirmation is still
+> pending. Deferred: rendered clock overlay, disk image cache, automatic retry/refresh.
 
 ## What it does (and will do)
 
@@ -17,12 +17,14 @@ official Immich client — and uses Immich purely as a photo source over its RES
 - **Slideshow** — full-screen, one photo at a time, with gentle cross-fades, reveal-on-tap
   controls, an album browser, and a photo-info overlay. ✅ done
 - **Display & power** — keep the screen awake and dim brightness for ambient display. ✅ done
-- **Home Assistant control** — adjust brightness, album, and play/pause over MQTT (TLS). ✅ done
-- **Theme & display options** — transitions, Ken Burns, clock overlay, image fit. 🚧 planned
+- **Display options** — order, duration, transitions, Ken Burns, image fit, quality — applied
+  live from Settings. ✅ done (clock overlay: settings stored, renderer deferred)
+- **Home Assistant control** — play/pause, brightness, album, every display setting,
+  next/previous, current-photo metadata (image opt-in), and diagnostics over MQTT (TLS). ✅ done
 
 ## Requirements
 
-- An iPad running **iPadOS 18** or later.
+- An iPad running **iPadOS 26** or later.
 - An **Immich server reachable over HTTPS with a valid TLS certificate.**
   (Self-signed / local certificates are not supported yet.)
 - An Immich **API key** (Immich → Account Settings → API Keys) **only if you connect to your

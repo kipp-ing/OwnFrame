@@ -16,6 +16,10 @@ final class AlbumSearchUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // Never inherit a rotation leaked by an earlier test on the same simulator
+        // clone — a launch during a stale landscape state positions the chrome
+        // off-screen. Tests that need landscape rotate themselves (and restore).
+        MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
     /// Portrait: search narrows the list (diacritic-insensitive), a no-match shows the empty

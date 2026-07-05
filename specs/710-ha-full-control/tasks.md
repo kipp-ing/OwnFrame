@@ -219,7 +219,7 @@ republishes discovery + availability + every enabled entity's state.
 - [x] T040 Secret grep over the new test suite + a manual log check: no broker credential, API
   key, or share-link password in any new log line, fixture, or UserDefaults key added by this
   feature
-- [ ] T041 Once this feature is built and merged: move `710` from "Scheduled" to "Active" in
+- [x] T041 Once this feature is built and merged: move `710` from "Scheduled" to "Active" in
   `specs/700-ha-control/spec.md`'s cross-reference and in `docs/spec-overview.md` (end-of-work
   housekeeping — do not do this now)
 
