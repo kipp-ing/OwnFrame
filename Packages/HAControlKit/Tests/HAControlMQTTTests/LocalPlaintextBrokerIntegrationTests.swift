@@ -66,7 +66,8 @@ struct LocalPlaintextBrokerIntegrationTests {
         // --- Build the transport for PLAINTEXT -------------------------------
         let deviceID = "immich-slideshow-localtest-\(UUID().uuidString.prefix(8))"
         let transport = NIOMQTTTransport(
-            config: BrokerConfig(host: "127.0.0.1", port: 11883, username: "car", password: "carx1234", deviceID: deviceID),
+            // Dummy creds: the local listener is anonymous, so any value connects.
+            config: BrokerConfig(host: "127.0.0.1", port: 11883, username: "test-user", password: "test-pass", deviceID: deviceID),
             tlsConfiguration: nil,
             useSSL: false
         )

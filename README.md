@@ -48,6 +48,12 @@ everything to start over.
   sent solely as the `x-api-key` header to **your** server; shared links use their own key.
 - The app talks only to the Immich server you configure — no third parties.
 - TLS is always validated; the app never disables certificate checks.
+- **Home Assistant publishing (by design):** when the MQTT broker is configured, the app
+  publishes the current photo's **metadata** (asset ID, capture date, location, album) to your
+  broker so Home Assistant can display it. The photo **image** itself is published **only if you
+  turn on "Publish photo image to Home Assistant"** in Settings → MQTT — it is **off by default**.
+  Both photo topics are sent **not retained**, so neither the last photo nor what it depicted
+  lingers on the broker. Broker credentials live only in the Keychain, never in logs.
 
 ## For contributors
 

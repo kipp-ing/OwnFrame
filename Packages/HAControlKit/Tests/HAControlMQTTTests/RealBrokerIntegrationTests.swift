@@ -5,7 +5,7 @@ import HAControlKit
 @testable import HAControlMQTT
 
 // Integration test against a REAL, already-running MQTT broker that has a valid
-// public TLS certificate (e.g. home.kippings.de:8883). Unlike
+// public TLS certificate (e.g. mqtt.example.com:8883). Unlike
 // `NIOMQTTTransportIntegrationTests` (which spawns a local mosquitto and pins a
 // test CA), this one exercises the exact PRODUCTION path: the convenience
 // initializer with `tlsConfiguration == nil`, i.e. full certificate verification
@@ -14,7 +14,7 @@ import HAControlKit
 // Gated behind `MQTT_REAL=1` and never run in CI. Credentials come from the
 // environment ONLY — never the repository (constitution III: no secrets in code):
 //   MQTT_REAL=1            enable the suite
-//   MQTT_HOST             broker host (e.g. home.kippings.de)
+//   MQTT_HOST             broker host (e.g. mqtt.example.com)
 //   MQTT_PORT             TLS port (default 8883)
 //   MQTT_USER / MQTT_PASS broker credentials
 //
