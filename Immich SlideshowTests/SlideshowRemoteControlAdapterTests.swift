@@ -11,6 +11,7 @@
 
 import Foundation
 import Testing
+import UIKit
 import HAControlKit
 import ImmichClient
 import PowerKit
@@ -121,6 +122,140 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(fired == 1)
     }
 
+    // MARK: - PhotoReporting (US2)
+
+    @Test func currentAssetChangeReportsMetadataFromAssetInfo() async throws {
+        let taken = Date(timeIntervalSince1970: 1_600_000_000)
+        let fixture = try makePhotoFixture(
+            suite: "photo.metadata",
+            info: ["asset-1": AssetInfo(id: "asset-1", takenAt: taken, city: "Berlin", state: "BE", country: "DE")],
+            image: makeJPEG()
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+
+        var reports: [PhotoReport] = []
+        fixture.adapter.onPhotoChange = { reports.append($0) }
+
+        await fixture.slideshow.start()
+        await settle()
+
+        #expect(!reports.isEmpty)
+        let report = fixture.adapter.currentPhotoReport
+        #expect(report.assetID == "asset-1")
+        #expect(report.phase == .playing)
+        #expect(report.takenAt == taken)
+        #expect(report.city == "Berlin")
+        #expect(report.state == "BE")
+        #expect(report.country == "DE")
+        #expect(report.albumID == "album-1")
+        #expect(report.albumName == "Family")
+    }
+
+    @Test func metadataFetchFailureStillReportsAssetIDWithNilMetadata() async throws {
+        let fixture = try makePhotoFixture(suite: "photo.metaFail", failAdapterInfo: true, image: makeJPEG())
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+
+        var reports: [PhotoReport] = []
+        fixture.adapter.onPhotoChange = { reports.append($0) }
+
+        await fixture.slideshow.start()
+        await settle()
+
+        #expect(!reports.isEmpty)
+        let report = fixture.adapter.currentPhotoReport
+        #expect(report.assetID == "asset-1")
+        #expect(report.takenAt == nil)
+        #expect(report.city == nil)
+        #expect(report.state == nil)
+        #expect(report.country == nil)
+    }
+
+    @Test func imageDisabledYieldsNilImageData() async throws {
+        let fixture = try makePhotoFixture(
+            suite: "photo.imgOff",
+            options: HAPublishOptions(imageEnabled: false),
+            image: makeJPEG()
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle()
+
+        #expect(fixture.adapter.currentPhotoReport.imageData == nil)
+    }
+
+    @Test func imageEnabledYieldsDownscaledJPEGUnderCap() async throws {
+        let cap = 20_000
+        let fixture = try makePhotoFixture(
+            suite: "photo.imgOn",
+            options: HAPublishOptions(imageEnabled: true, imageSource: .preview, byteCap: cap),
+            image: makeJPEG(size: CGSize(width: 512, height: 512))
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle()
+
+        let data = try #require(fixture.adapter.currentPhotoReport.imageData)
+        #expect(data.count <= cap)
+        #expect(UIImage(data: data) != nil)
+    }
+
+    @Test func imageFetchFailureYieldsNilImageData() async throws {
+        let fixture = try makePhotoFixture(
+            suite: "photo.imgFail",
+            options: HAPublishOptions(imageEnabled: true, imageSource: .thumbnail, byteCap: 512_000),
+            failAdapterImage: true,
+            image: makeJPEG()
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle()
+
+        #expect(fixture.adapter.currentPhotoReport.imageData == nil)
+        #expect(fixture.adapter.currentPhotoReport.assetID == "asset-1")
+    }
+
+    @Test func imageOverCapAfterDownscaleYieldsNil() async throws {
+        let fixture = try makePhotoFixture(
+            suite: "photo.overCap",
+            options: HAPublishOptions(imageEnabled: true, imageSource: .preview, byteCap: 10),
+            image: makeJPEG(size: CGSize(width: 256, height: 256))
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle()
+
+        #expect(fixture.adapter.currentPhotoReport.imageData == nil)
+    }
+
+    @Test func revisitingAssetUsesCachedMetadata() async throws {
+        let fixture = try makePhotoFixture(
+            suite: "photo.cache",
+            info: ["asset-1": AssetInfo(id: "asset-1", takenAt: nil, city: "Berlin", state: nil, country: nil)],
+            image: makeJPEG()
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()      // shows asset-1
+        await settle()
+        await fixture.adapter.showNext()     // -> asset-2
+        await settle()
+        await fixture.adapter.showPrevious() // back to asset-1 (cached)
+        await settle()
+
+        let calls = await fixture.haAPI.assetInfoCalls
+        #expect(calls["asset-1"] == 1)
+        #expect(calls["asset-2"] == 1)
+    }
+
     // MARK: - Fixture
 
     private struct Fixture {
@@ -162,6 +297,92 @@ struct SlideshowRemoteControlAdapterTests {
             await Task.yield()
         }
     }
+
+    // MARK: - Photo fixture
+
+    private struct PhotoFixture {
+        let adapter: SlideshowRemoteControlAdapter
+        let slideshow: SlideshowViewModel
+        let haAPI: FakeAPI
+        let store: UserDefaultsThemeStore
+        let defaults: UserDefaults
+        let suiteName: String
+
+        func cleanUp() {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+    }
+
+    /// Builds an adapter wired for photo reporting over a *real* running
+    /// `SlideshowViewModel`. The view model plays on its own always-succeeding API
+    /// while the adapter reports through a separate `FakeAPI` (`haAPI`) whose
+    /// metadata/image behaviour is independently configurable — so an adapter image
+    /// failure never stops playback. A blocking ticker keeps the auto-advance
+    /// parked, making manual `showNext()`/`showPrevious()` steps deterministic.
+    private func makePhotoFixture(
+        suite: String,
+        assets: [Asset] = [Asset(id: "asset-1", type: "IMAGE"), Asset(id: "asset-2", type: "IMAGE")],
+        info: [String: AssetInfo] = [:],
+        options: HAPublishOptions = HAPublishOptions(),
+        failAdapterImage: Bool = false,
+        failAdapterInfo: Bool = false,
+        image: Data
+    ) throws -> PhotoFixture {
+        let suiteName = "de.kippings.ImmichSlideshow.tests.\(suite)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let store = UserDefaultsThemeStore(defaults: defaults)
+        store.settings.order = .sequential
+        store.settings.quality = .preview
+
+        let vmAPI = FakeAPI(assets: assets, info: [:], image: image)
+        let haAPI = FakeAPI(
+            assets: assets, info: info, image: image,
+            failImage: failAdapterImage, failInfo: failAdapterInfo
+        )
+
+        let slideshow = SlideshowViewModel(
+            api: vmAPI,
+            albumID: "album-1",
+            ticker: BlockingTicker(),
+            settingsStore: store
+        )
+        let powerManager = PowerManager(screen: StubScreen())
+        let optionsStore = InMemoryHAPublishOptionsStore()
+        optionsStore.options = options
+
+        let adapter = SlideshowRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: powerManager,
+            albums: [Album(id: "album-1", name: "Family")],
+            themeStore: store,
+            api: haAPI,
+            metadataCache: MetadataCache(limit: 64),
+            publishOptions: optionsStore
+        )
+        return PhotoFixture(
+            adapter: adapter, slideshow: slideshow, haAPI: haAPI,
+            store: store, defaults: defaults, suiteName: suiteName
+        )
+    }
+
+    /// The photo-report build is deferred to a main-actor task chain (observe
+    /// re-arm → async metadata/image fetch); yield generously so it completes.
+    private func settle() async {
+        for _ in 0..<50 {
+            await Task.yield()
+        }
+    }
+
+    private func makeJPEG(size: CGSize = CGSize(width: 64, height: 64)) -> Data {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in
+            UIColor.systemBlue.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+        return image.jpegData(compressionQuality: 0.9) ?? Data()
+    }
 }
 
 // MARK: - Stubs
@@ -177,6 +398,63 @@ private struct StubTicker: SlideshowTicker {
     func waitForNextTick(duration: Duration) async throws {
         try await Task.sleep(for: .milliseconds(1))
     }
+}
+
+/// A ticker that never fires (until cancelled), parking the view model's
+/// auto-advance so photo-report tests step the current asset deterministically.
+private struct BlockingTicker: SlideshowTicker {
+    func waitForNextTick(duration: Duration) async throws {
+        try await Task.sleep(for: .seconds(3_600))
+    }
+}
+
+private enum FakeError: Error { case boom }
+
+/// Configurable, call-counting `ImmichAPI`. `assetInfo`/`thumbnail`/`preview` are
+/// never touched by the view model's playback path (it loads via `preview`/
+/// `original` for display only, and never fetches `assetInfo`), so the counters
+/// isolate the adapter's own reporting fetches.
+private actor FakeAPI: ImmichAPI {
+    private let assetList: [Asset]
+    private let info: [String: AssetInfo]
+    private let image: Data
+    private let failImage: Bool
+    private let failInfo: Bool
+    private(set) var assetInfoCalls: [String: Int] = [:]
+    private(set) var thumbnailCalls = 0
+    private(set) var previewCalls = 0
+
+    init(assets: [Asset], info: [String: AssetInfo], image: Data, failImage: Bool = false, failInfo: Bool = false) {
+        self.assetList = assets
+        self.info = info
+        self.image = image
+        self.failImage = failImage
+        self.failInfo = failInfo
+    }
+
+    func serverVersion() async throws -> String { "test" }
+    func albums() async throws -> [Album] { [] }
+    func assets(albumID: String) async throws -> [Asset] { assetList }
+
+    func assetInfo(assetID: String) async throws -> AssetInfo {
+        assetInfoCalls[assetID, default: 0] += 1
+        if failInfo { throw FakeError.boom }
+        return info[assetID] ?? AssetInfo(id: assetID, takenAt: nil, city: nil, state: nil, country: nil)
+    }
+
+    func preview(assetID: String) async throws -> Data {
+        previewCalls += 1
+        if failImage { throw FakeError.boom }
+        return image
+    }
+
+    func thumbnail(assetID: String) async throws -> Data {
+        thumbnailCalls += 1
+        if failImage { throw FakeError.boom }
+        return image
+    }
+
+    func original(assetID: String) async throws -> Data { image }
 }
 
 @MainActor

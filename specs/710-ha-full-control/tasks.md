@@ -122,11 +122,11 @@ empty attributes; oversized images downscale or skip.
   `Packages/HAControlKit/Tests/HAControlKitTests/MetadataCacheTests.swift` (NEW)
 - [x] T018 [US2] Implement `MetadataCache.swift` (mirrors `SlideshowKit.ImageCache`'s shape) in
   `Packages/HAControlKit/Sources/HAControlKit/MetadataCache.swift` to green T017
-- [ ] T019 [P] [US2] Red tests for `SlideshowRemoteControlAdapter`'s `PhotoReporting` conformance —
+- [x] T019 [P] [US2] Red tests for `SlideshowRemoteControlAdapter`'s `PhotoReporting` conformance —
   a `currentAssetID` change produces a `PhotoReport` (metadata via cache + `assetInfo`, image
   bytes via `thumbnail()` downscaled/capped when enabled, `nil` image when disabled or a fetch
   fails) in `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift`
-- [ ] T020 [US2] Implement `PhotoReporting` on `SlideshowRemoteControlAdapter` in
+- [x] T020 [US2] Implement `PhotoReporting` on `SlideshowRemoteControlAdapter` in
   `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` to green T019
 - [x] T021 [P] [US2] Red tests for discovery of `current_photo` (sensor: `value_template` +
   `json_attributes_topic` on the same topic) and `current_photo_image` (image: `content_type`, not
