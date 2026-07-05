@@ -65,3 +65,7 @@ spec-driven, test-first workflow.
 - [docs/testing.md](docs/testing.md) — how the project is tested and how to run each layer.
 - [docs/engineering-notes.md](docs/engineering-notes.md) — learnings, gotchas, and conventions.
 - [CLAUDE.md](CLAUDE.md) — architecture, modules, constraints, and the working agreement.
+
+## License
+
+[MIT](LICENSE) © 2026 Jan Kipping
