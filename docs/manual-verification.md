@@ -76,3 +76,38 @@ Confirm SC-001…SC-006 from [specs/006-broker-setup/quickstart.md](../specs/006
 on the simulator. The host-side criteria are already covered by `BrokerSetupKit` tests; this step is the
 simulator-side confirmation (form validation hints, persistence, secret boundary). US2's change/remove UI
 (SC-005/SC-006/FR-009) is already covered automatically by `BrokerSetupUITests`.
+
+---
+
+## Topic 710 — HA Full Control (live Home Assistant)
+
+**Merged 2026-07-05 (PR #10).** All host units, XCUITests, and env-gated broker transport tests are
+green; what remains is confirming the full entity surface against a **real Home Assistant** (which
+also retires the open 700 checks above — T019/T023/T027 use the same session).
+
+### Prerequisites
+Same as topic 700 above (TLS broker + HA MQTT integration + saved credentials + slideshow in the
+foreground). Photo image publishing: Settings → MQTT → "Publish photo image to Home Assistant"
+(off by default, FR-710-07).
+
+### Checklist
+1. **Discovery**: the "Immich Slideshow" device shows all entities from
+   [the 710 contract](../specs/710-ha-full-control/contracts/ha-mqtt-entities.md) — the 3 existing
+   (playback switch, brightness light, album select) plus order/transition/fit/quality/clock-corner
+   selects, duration number, Ken Burns/clock/clock-date switches, next/previous buttons, and the
+   current-photo sensor. The image entity appears only while the image toggle is on. *(SC-710-01)*
+2. **Settings round-trip**: change each of the 9 settings from HA → the running slideshow applies it
+   and HA shows the echoed state exactly once (no echo loops). Change the same settings in the app →
+   HA follows. *(SC-710-02/03)*
+3. **Validation**: send an out-of-range duration or unknown select option → no-op, state unchanged.
+4. **Next/Previous**: button presses advance/rewind the photo. *(SC-710-04)*
+5. **Current photo**: the sensor updates per photo with asset ID + metadata attributes; with the
+   image toggle on, the image entity shows the downscaled photo. Both topics are **not retained** —
+   after the app goes offline, no photo lingers on the broker (check with `mosquitto_sub -v`).
+   *(SC-710-05/06, FR-710-13)*
+6. **Reconnect republish**: restart the broker (or drop the connection) → after reconnect the full
+   state (all settings + current photo) is republished without duplicate devices. *(US4)*
+7. **Diagnostics**: the diagnostics surface reflects the connection state per spec 710 US4.
+
+When all pass: tick this section, tick 700's T019/T023/T027 above, and remove the "live
+Home-Assistant confirmation is still pending" caveat from the README banner.
