@@ -182,21 +182,21 @@ every reconnect, so HA never shows stale values.
 **Independent test**: fake transport; diagnostics echo real values; a simulated reconnect
 republishes discovery + availability + every enabled entity's state.
 
-- [ ] T031 [P] [US4] Red tests: `phase`/`photo_count`/`version` sensors echo actual values with
+- [x] T031 [P] [US4] Red tests: `phase`/`photo_count`/`version` sensors echo actual values with
   `retain == true` (FR-710-11's general rule); `photo_count` updates when the active album
   changes; discovery marks all three `entity_category: diagnostic`, in
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift` and
   `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
-- [ ] T032 [US4] Implement diagnostics sourcing + discovery in
+- [x] T032 [US4] Implement diagnostics sourcing + discovery in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift`,
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift`, and
   `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` (photo count/version surfaced
   through `PhotoReporting`) to green T031
-- [ ] T033 [P] [US4] Red test: on reconnect, `announce()` republishes discovery + availability +
+- [x] T033 [P] [US4] Red test: on reconnect, `announce()` republishes discovery + availability +
   the state of every enabled entity (all 19, incl. `current_photo`/`current_photo_image`),
   overwriting any stale retained value left by a prior connection (SC-710-03), in
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
-- [ ] T034 [US4] Extend `HAControlCoordinator.announce()`/`handleConnection(_:)` to the full
+- [x] T034 [US4] Extend `HAControlCoordinator.announce()`/`handleConnection(_:)` to the full
   entity set including photo republish, in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T033
 

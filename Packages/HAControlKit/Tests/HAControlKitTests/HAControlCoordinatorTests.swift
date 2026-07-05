@@ -813,4 +813,71 @@ extension HAControlCoordinatorTests {
         #expect(reporter.showPreviousCount == 1)
         #expect(reporter.showNextCount == 0)
     }
+
+    // MARK: - US4 diagnostics + reconnect
+
+    @Test func diagnosticSensorsEchoActualValuesRetained() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting(report: PhotoReport(
+            assetID: "a1", imageData: nil, takenAt: nil, city: nil, state: nil, country: nil,
+            albumID: "alb", albumName: "Album", phase: .playing, photoCount: 42))
+        reporter.version = "9.9.9"
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .phase, .photoCount, .version])
+
+        await coordinator.start()
+
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .phase), payload: "playing", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "42", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .version), payload: "9.9.9", retain: true))
+
+        await coordinator.stop()
+    }
+
+    @Test func photoChangeReEchoesPhaseAndPhotoCount() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .phase, .photoCount, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        // Entering .empty: phase reflects it, photo topics clear (scenario 3), and
+        // the new album's count re-echoes (scenario 2).
+        reporter.emit(PhotoReport(
+            assetID: "a2", imageData: nil, takenAt: nil, city: nil, state: nil, country: nil,
+            albumID: "alb2", albumName: "Album2", phase: .empty, photoCount: 7))
+        await settle()
+
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .phase), payload: "empty", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "7", retain: true))
+    }
+
+    @Test func reconnectRepublishesDiagnosticsAndPhotoState() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting(report: PhotoReport(
+            assetID: "a3", imageData: Data([0x01]), takenAt: nil, city: nil, state: nil, country: nil,
+            albumID: "alb", albumName: "Album", phase: .playing, photoCount: 5))
+        reporter.version = "2.0.0"
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .phase, .photoCount, .version, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        await coordinator.handleConnection(false)
+        transport.published.removeAll()
+
+        await coordinator.handleConnection(true)
+
+        #expect(transport.published.containsMessage(topic: HATopics.availability(deviceID: "dev1"), payload: "online", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .phase), payload: "playing", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "5", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .version), payload: "2.0.0", retain: true))
+        #expect(transport.published.contains { $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: .currentPhoto) && !$0.retain })
+        #expect(transport.published.contains { $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: .currentPhotoImage) && $0.payload == Data([0x01]) && !$0.retain })
+        #expect(transport.published.contains { $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .phase) })
+
+        await coordinator.stop()
+    }
 }

@@ -71,7 +71,7 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
             albumID: slideshow.albumID,
             albumName: albums.first { $0.id == slideshow.albumID }?.name,
             phase: Self.mapPhase(slideshow.phase),
-            photoCount: 0
+            photoCount: albums.first { $0.id == slideshow.albumID }?.assetCount ?? 0
         )
         observeThemeSettings()
         observeCurrentPhoto()
@@ -159,13 +159,14 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         let albumID = slideshow.albumID
         let albumName = albums.first { $0.id == albumID }?.name
         let phase = Self.mapPhase(slideshow.phase)
+        let count = albumPhotoCount(albumID)
 
         guard let assetID, let api else {
             return PhotoReport(
                 assetID: assetID, imageData: nil,
                 takenAt: nil, city: nil, state: nil, country: nil,
                 albumID: albumID, albumName: albumName,
-                phase: phase, photoCount: 0
+                phase: phase, photoCount: count
             )
         }
 
@@ -176,8 +177,15 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
             assetID: assetID, imageData: image,
             takenAt: meta?.takenAt, city: meta?.city, state: meta?.state, country: meta?.country,
             albumID: albumID, albumName: albumName,
-            phase: phase, photoCount: 0
+            phase: phase, photoCount: count
         )
+    }
+
+    /// Photo count for the `photo_count` diagnostic sensor (FR-710-07): the active
+    /// album's asset count as reported by Immich, or 0 when the album isn't in the
+    /// (best-effort) list.
+    private func albumPhotoCount(_ albumID: String) -> Int {
+        albums.first { $0.id == albumID }?.assetCount ?? 0
     }
 
     /// Metadata via the bounded LRU cache; a fetch failure yields `nil` (never
@@ -252,6 +260,10 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
 
 extension SlideshowRemoteControlAdapter: PhotoReporting {
     public var currentPhotoReport: PhotoReport { _currentPhotoReport }
+
+    public var version: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    }
 
     public func showNext() async {
         await slideshow.showNext()

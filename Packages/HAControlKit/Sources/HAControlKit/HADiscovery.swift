@@ -63,7 +63,10 @@ public enum HADiscovery {
             json["state_topic"] = nil
             json["payload_press"] = "PRESS"
         case .phase, .photoCount, .version:
-            break
+            // Read-only diagnostic sensors: no command topic, marked diagnostic so
+            // HA files them under the device's diagnostics (FR-710-07).
+            json["command_topic"] = nil
+            json["entity_category"] = "diagnostic"
         case .currentPhoto:
             json["command_topic"] = nil
             json["state_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
