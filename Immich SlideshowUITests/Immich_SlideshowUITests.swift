@@ -12,6 +12,10 @@ final class Immich_SlideshowUITests: XCTestCase {
     override func setUpWithError() throws {
         // Stop at the first failure so a broken step doesn't cascade into noise.
         continueAfterFailure = false
+        // Never inherit a rotation leaked by an earlier test on the same simulator
+        // clone — a launch during a stale landscape state positions the chrome
+        // off-screen. Tests that need landscape rotate themselves (and restore).
+        MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
     /// Launches the hermetic `--uitest` build (stub API + in-memory stores) and

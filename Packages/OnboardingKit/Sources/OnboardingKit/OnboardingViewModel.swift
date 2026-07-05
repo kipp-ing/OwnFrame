@@ -8,7 +8,7 @@ public enum OnboardingPathChoice: Sendable, Equatable {
     case server
 }
 
-@Observable public final class OnboardingViewModel {
+@MainActor @Observable public final class OnboardingViewModel {
     public var step: OnboardingStep = .connection
     public var serverURLInput: String = ""
     public var apiKeyInput: String = ""

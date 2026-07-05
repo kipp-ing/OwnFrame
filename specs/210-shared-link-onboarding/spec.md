@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-25
 
-**Status**: Draft
+**Status**: Active — built and merged to main (PR #9, 2026-06-26); remaining polish tracked in tasks.md Phase 8
 
 **Input**: User description: "Onboarding & shared-link UX overhaul. Choice-first onboarding (shared link vs server); shared-link-only setup (no API key); concise step descriptions; searchable album picker (name + date + photo count) for 50+ albums; subscrollable album list with an always-reachable primary action; iOS Share Sheet acceptance so an Immich share link can be sent into the app and auto-starts or asks for a password; ask for a shared-link password only when the link needs one. Ease of use is a primary goal."
 

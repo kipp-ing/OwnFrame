@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  package-tests:
+    name: Package unit tests (host)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          # Newest Xcode 16.x on the runner image; packages need swift-tools 6.0.
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          swift --version
+
+      - name: Run all package test suites
+        run: |
+          set -euo pipefail
+          for package in Packages/*/; do
+            echo "::group::${package}"
+            swift test --package-path "${package}"
+            echo "::endgroup::"
+          done
