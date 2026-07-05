@@ -141,7 +141,7 @@ empty attributes; oversized images downscale or skip.
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
 - [x] T024 [US2] Implement the photo-report publish path in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T023
-- [ ] T025 [US2] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as `PhotoReporting` +
+- [x] T025 [US2] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as `PhotoReporting` +
   `HAPublishOptionsStore`, add `current_photo`/`current_photo_image` to `enabledEntities` (image
   gated by `HAPublishOptions.imageEnabled`, off by default) in
   `Immich Slideshow/Immich_SlideshowApp.swift`
