@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-04
 
-**Status**: Draft
+**Status**: Active — built on feat/710 (PR #10); 40/41 tasks done, live-HA confirmation tracked in docs/manual-verification.md
 
 **Input**: Extends `specs/700-ha-control`. Home Assistant can read and set everything over
 MQTT — all display settings, playback, the active album, and the currently shown photo (image +
