@@ -12,23 +12,31 @@ public final class HAControlCoordinator {
     private let log = Logger(subsystem: "ing.kipp.Immich-Slideshow", category: "HAControl")
 
     private let transport: any MQTTTransport
-    private let control: any RemoteControlling
+    private let control: any PlaybackControlling
+    private let settings: (any SettingsControlling)?
+    private let photoReporter: (any PhotoReporting)?
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
     private var deviceID: String?
     private var incomingTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
+    private var settingsEchoTask: Task<Void, Never>?
+    private var lastSettingsSnapshot: ThemeSettingsSnapshot?
 
     public init(
         transport: any MQTTTransport,
-        control: any RemoteControlling,
+        control: any PlaybackControlling,
+        settings: (any SettingsControlling)? = nil,
+        photoReporter: (any PhotoReporting)? = nil,
         configStore: any BrokerConfigStore,
         deviceName: String,
         enabledEntities: Set<HAEntity> = [.playback]
     ) {
         self.transport = transport
         self.control = control
+        self.settings = settings
+        self.photoReporter = photoReporter
         self.configStore = configStore
         self.deviceName = deviceName
         self.enabledEntities = enabledEntities
@@ -67,8 +75,10 @@ public final class HAControlCoordinator {
     public func stop() async {
         incomingTask?.cancel()
         connectionTask?.cancel()
+        settingsEchoTask?.cancel()
         incomingTask = nil
         connectionTask = nil
+        settingsEchoTask = nil
         await transport.disconnect()
         connection = .disconnected
     }
@@ -100,12 +110,95 @@ public final class HAControlCoordinator {
             log.info("announce: published discovery + subscribed \(entity.rawValue, privacy: .public)")
         }
 
+        // announce() just echoed every enabled entity — that is the baseline the
+        // scoped settings diff compares against.
+        lastSettingsSnapshot = settings?.themeSettings
+
         control.onLocalChange = { [weak self] in
             Task { @MainActor in
                 await self?.echoAll()
             }
         }
+
+        settings?.onSettingsChange = { [weak self] in
+            self?.scheduleSettingsEcho()
+        }
+
+        photoReporter?.onPhotoChange = { [weak self] report in
+            self?.schedulePhotoPublish(report)
+        }
     }
+
+    // MARK: - Photo publish (US2)
+
+    private func schedulePhotoPublish(_ report: PhotoReport) {
+        // Detached from the caller so a slide advance returns immediately (SC-710-04).
+        Task { [weak self] in
+            guard let self else { return }
+            await self.publishPhoto(report)
+            // The phase / photo-count diagnostics track the same change (entering
+            // empty/failed, a new album's count), so refresh them here too.
+            if self.enabledEntities.contains(.phase) { await self.echo(.phase) }
+            if self.enabledEntities.contains(.photoCount) { await self.echo(.photoCount) }
+        }
+    }
+
+    private func publishPhoto(_ report: PhotoReport) async {
+        await publishPhotoMetadata(report)
+        await publishPhotoImage(report)
+    }
+
+    /// current_photo metadata (JSON), NOT retained (FR-710-11 privacy carve-out).
+    /// Cleared to the all-null form when the show isn't playing.
+    private func publishPhotoMetadata(_ report: PhotoReport) async {
+        guard let deviceID = ensureDeviceID() else { return }
+        let topic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhoto)
+        let payload = report.phase == .playing ? Self.photoMetadata(for: report) : Self.clearedPhotoMetadata
+        try? await transport.publish(MQTTMessage(topic: topic, payload: payload, retain: false))
+    }
+
+    /// current_photo_image bytes, NOT retained. Cleared (empty) when not playing;
+    /// skipped + logged while playing if there is no image (disabled or over cap).
+    private func publishPhotoImage(_ report: PhotoReport) async {
+        guard let deviceID = ensureDeviceID() else { return }
+        let topic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhotoImage)
+        guard report.phase == .playing else {
+            try? await transport.publish(MQTTMessage(topic: topic, payload: Data(), retain: false))
+            return
+        }
+        if let image = report.imageData {
+            try? await transport.publish(MQTTMessage(topic: topic, payload: image, retain: false))
+        } else {
+            log.info("photo: image publish skipped — no image data (asset=\(report.assetID ?? "nil", privacy: .public))")
+        }
+    }
+
+    /// Metadata JSON for the `current_photo` sensor: its state (`value_json.id`)
+    /// plus the `json_attributes` on the same topic (FR-710-06). `.sortedKeys`
+    /// for deterministic output; nil fields serialize as JSON `null`.
+    private static func photoMetadata(for report: PhotoReport) -> Data {
+        func orNull(_ value: String?) -> Any { value.map { $0 as Any } ?? NSNull() }
+        let object: [String: Any] = [
+            "id": orNull(report.assetID),
+            "taken_at": orNull(report.takenAt?.ISO8601Format()),
+            "city": orNull(report.city),
+            "state": orNull(report.state),
+            "country": orNull(report.country),
+            "album_id": orNull(report.albumID),
+            "album_name": orNull(report.albumName),
+        ]
+        return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]))
+            ?? Data("{}".utf8)
+    }
+
+    private static let clearedPhotoMetadata: Data = {
+        let object: [String: Any] = [
+            "id": NSNull(), "taken_at": NSNull(), "city": NSNull(), "state": NSNull(),
+            "country": NSNull(), "album_id": NSNull(), "album_name": NSNull(),
+        ]
+        return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]))
+            ?? Data("{}".utf8)
+    }()
 
     internal func handleIncoming(_ message: MQTTMessage) async {
         guard let deviceID = ensureDeviceID() else {
@@ -139,11 +232,24 @@ public final class HAControlCoordinator {
                 if control.albumOptions.contains(payload) {
                     control.selectAlbum(payload)
                 }
+            case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
+                applySetting(entity, payload: payload)
+            case .next:
+                await photoReporter?.showNext()
+            case .previous:
+                await photoReporter?.showPrevious()
+            case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+                break
             }
 
             // Always echo the actual state — even for invalid/unknown commands —
             // so HA mirrors the real app state (FR-009/FR-011/FR-013/FR-015).
             await echo(entity)
+            if isSettingsEntity(entity) {
+                // The command's echo is the fresh truth; without this, the
+                // suppressed-callback diff would re-echo the same change.
+                lastSettingsSnapshot = settings?.themeSettings
+            }
             return
         }
     }
@@ -164,6 +270,22 @@ public final class HAControlCoordinator {
             return
         }
 
+        // Entities that don't use the uniform retained-string state topic:
+        switch entity {
+        case .currentPhoto:
+            // JSON metadata, not retained — republished so HA recovers the current
+            // photo on (re)announce without relying on a retained message (FR-710-13).
+            if let report = photoReporter?.currentPhotoReport { await publishPhotoMetadata(report) }
+            return
+        case .currentPhotoImage:
+            if let report = photoReporter?.currentPhotoReport { await publishPhotoImage(report) }
+            return
+        case .next, .previous:
+            return  // stateless buttons — nothing to echo
+        default:
+            break
+        }
+
         let payload: String
         switch entity {
         case .playback:
@@ -172,6 +294,32 @@ public final class HAControlCoordinator {
             payload = String(Int((control.brightness * 255).rounded()))
         case .album:
             payload = control.currentAlbum ?? ""
+        case .order:
+            payload = settings?.themeSettings.order.rawValue ?? ""
+        case .duration:
+            payload = settings.map { String($0.themeSettings.durationSeconds) } ?? ""
+        case .transition:
+            payload = settings?.themeSettings.transition.rawValue ?? ""
+        case .kenBurns:
+            payload = switchPayload(settings?.themeSettings.kenBurns)
+        case .fit:
+            payload = settings?.themeSettings.fit.rawValue ?? ""
+        case .quality:
+            payload = settings?.themeSettings.quality.rawValue ?? ""
+        case .clock:
+            payload = switchPayload(settings?.themeSettings.clockOn)
+        case .clockCorner:
+            payload = settings?.themeSettings.clockCorner.rawValue ?? ""
+        case .clockDate:
+            payload = switchPayload(settings?.themeSettings.clockDate)
+        case .phase:
+            payload = photoReporter?.currentPhotoReport.phase.rawValue ?? ""
+        case .photoCount:
+            payload = photoReporter.map { String($0.currentPhotoReport.photoCount) } ?? ""
+        case .version:
+            payload = photoReporter?.version ?? ""
+        case .next, .previous, .currentPhoto, .currentPhotoImage:
+            payload = ""  // routed above; kept for switch exhaustiveness
         }
 
         try? await transport.publish(MQTTMessage(
@@ -185,6 +333,128 @@ public final class HAControlCoordinator {
         for entity in orderedEnabledEntities {
             await echo(entity)
         }
+        lastSettingsSnapshot = settings?.themeSettings
+    }
+
+    // MARK: - Scoped, coalesced settings echo (SC-710-02)
+
+    /// A burst of local changes collapses into one pending echo task; the task
+    /// reads the store when it runs, so the last value wins by construction.
+    private func scheduleSettingsEcho() {
+        guard settingsEchoTask == nil else { return }
+        settingsEchoTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self else { return }
+            self.settingsEchoTask = nil
+            await self.echoChangedSettings()
+        }
+    }
+
+    /// Echo only entities whose value differs from the last echoed snapshot —
+    /// a local change to one setting must not republish the other eight.
+    private func echoChangedSettings() async {
+        guard let settings else { return }
+        let current = settings.themeSettings
+        defer { lastSettingsSnapshot = current }
+        for entity in orderedEnabledEntities where isSettingsEntity(entity) {
+            let previous = lastSettingsSnapshot.map { settingValue(entity, in: $0) }
+            if previous != settingValue(entity, in: current) {
+                await echo(entity)
+            }
+        }
+    }
+
+    private func isSettingsEntity(_ entity: HAEntity) -> Bool {
+        switch entity {
+        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
+            true
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            false
+        }
+    }
+
+    private func settingValue(_ entity: HAEntity, in snapshot: ThemeSettingsSnapshot) -> String {
+        switch entity {
+        case .order:
+            snapshot.order.rawValue
+        case .duration:
+            String(snapshot.durationSeconds)
+        case .transition:
+            snapshot.transition.rawValue
+        case .kenBurns:
+            snapshot.kenBurns ? "ON" : "OFF"
+        case .fit:
+            snapshot.fit.rawValue
+        case .quality:
+            snapshot.quality.rawValue
+        case .clock:
+            snapshot.clockOn ? "ON" : "OFF"
+        case .clockCorner:
+            snapshot.clockCorner.rawValue
+        case .clockDate:
+            snapshot.clockDate ? "ON" : "OFF"
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            ""
+        }
+    }
+
+    private func applySetting(_ entity: HAEntity, payload: String) {
+        guard let settings else {
+            return
+        }
+
+        var snapshot = settings.themeSettings
+        switch entity {
+        case .order:
+            guard let value = PlayOrderSetting(rawValue: payload) else { return }
+            snapshot.order = value
+        case .duration:
+            guard let value = Int(payload), (3...600).contains(value) else { return }
+            snapshot.durationSeconds = value
+        case .transition:
+            guard let value = TransitionSetting(rawValue: payload) else { return }
+            snapshot.transition = value
+        case .kenBurns:
+            guard let value = switchBool(payload) else { return }
+            snapshot.kenBurns = value
+        case .fit:
+            guard let value = FitSetting(rawValue: payload) else { return }
+            snapshot.fit = value
+        case .quality:
+            guard let value = QualitySetting(rawValue: payload) else { return }
+            snapshot.quality = value
+        case .clock:
+            guard let value = switchBool(payload) else { return }
+            snapshot.clockOn = value
+        case .clockCorner:
+            guard let value = ClockCornerSetting(rawValue: payload) else { return }
+            snapshot.clockCorner = value
+        case .clockDate:
+            guard let value = switchBool(payload) else { return }
+            snapshot.clockDate = value
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            return
+        }
+
+        settings.apply(snapshot)
+    }
+
+    private func switchBool(_ payload: String) -> Bool? {
+        switch payload.uppercased() {
+        case "ON":
+            true
+        case "OFF":
+            false
+        default:
+            nil
+        }
+    }
+
+    private func switchPayload(_ value: Bool?) -> String {
+        guard let value else {
+            return ""
+        }
+        return value ? "ON" : "OFF"
     }
 
     private var orderedEnabledEntities: [HAEntity] {

@@ -31,7 +31,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         connect(app)
         openSharedLinkTab(app)
 
-        XCTAssertFalse(app.secureTextFields["onboarding.sharedLink.password"].exists,
+        XCTAssertFalse(app.textFields["onboarding.sharedLink.password"].exists,
                        "no upfront password field should be shown")
 
         enterURL(app, prefix: "onboarding.sharedLink", "https://demo.example.com/s/abc123")
@@ -40,7 +40,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         // The added source surfaces the pinned Continue bar; no password was ever asked.
         XCTAssertTrue(app.buttons["onboarding.source.continue"].waitForExistence(timeout: 10),
                       "a non-protected link should add straight away")
-        XCTAssertFalse(app.secureTextFields["onboarding.sharedLink.password"].exists,
+        XCTAssertFalse(app.textFields["onboarding.sharedLink.password"].exists,
                        "a non-protected link must not prompt for a password")
     }
 
@@ -59,7 +59,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         app.buttons["onboarding.sharedLink.add"].tap()
 
         // Wrong password → distinct error, still on the prompt, nothing added.
-        let password = app.secureTextFields["onboarding.sharedLink.password"]
+        let password = app.textFields["onboarding.sharedLink.password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5), "a protected link should prompt for a password")
         password.tap()
         password.typeText("nope")
@@ -73,7 +73,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         // Cancel and retry with the correct password → the source is added.
         app.buttons["onboarding.sharedLink.password.cancel"].tap()
         app.buttons["onboarding.sharedLink.add"].tap()
-        let retry = app.secureTextFields["onboarding.sharedLink.password"]
+        let retry = app.textFields["onboarding.sharedLink.password"]
         XCTAssertTrue(retry.waitForExistence(timeout: 5))
         retry.tap()
         retry.typeText("letmein")
@@ -97,7 +97,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
 
         openSourcesAddSharedLink(app)
 
-        XCTAssertFalse(app.secureTextFields["sources.add.password"].exists,
+        XCTAssertFalse(app.textFields["sources.add.password"].exists,
                        "no upfront password field should be shown in Settings")
 
         enterURL(app, prefix: "sources.add", "https://demo.example.com/s/abc123")
@@ -127,7 +127,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         enterURL(app, prefix: "sources.add", "https://demo.example.com/s/protected")
         app.buttons["sources.add.submit"].tap()
 
-        let password = app.secureTextFields["sources.add.password"]
+        let password = app.textFields["sources.add.password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5), "a protected link should prompt for a password")
         password.tap()
         password.typeText("nope")
@@ -149,7 +149,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         serverField.tap()
         serverField.typeText("https://demo.example.com")
 
-        let keyField = app.secureTextFields["onboarding.apiKey"]
+        let keyField = app.textFields["onboarding.apiKey"]
         XCTAssertTrue(keyField.waitForExistence(timeout: 5), "API key field should appear")
         keyField.tap()
         keyField.typeText("dummy-key")

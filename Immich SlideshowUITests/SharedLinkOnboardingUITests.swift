@@ -34,7 +34,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         app.buttons["onboarding.sharedLink.start"].tap()
 
         // No password prompt for a non-protected link — it goes straight to the slideshow.
-        XCTAssertFalse(app.secureTextFields["onboarding.sharedLink.password"].waitForExistence(timeout: 2),
+        XCTAssertFalse(app.textFields["onboarding.sharedLink.password"].waitForExistence(timeout: 2),
                        "a non-protected link must not prompt for a password")
 
         assertSlideshowPlays(app, assets: ["asset-4", "asset-5", "asset-6"])
@@ -51,7 +51,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         enterLink(app, "https://demo.example.com/s/protected")
         app.buttons["onboarding.sharedLink.start"].tap()
 
-        let password = app.secureTextFields["onboarding.sharedLink.password"]
+        let password = app.textFields["onboarding.sharedLink.password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5), "a protected link should prompt for a password")
         password.tap()
         password.typeText("letmein")

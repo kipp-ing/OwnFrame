@@ -46,8 +46,7 @@ struct ConnectionFieldsView: View {
         }
 
         Section {
-            SecureField(apiKeyPlaceholder, text: $apiKey)
-                .textContentType(.password)
+            AppSecureField(apiKeyPlaceholder, text: $apiKey)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .disabled(isBusy)
