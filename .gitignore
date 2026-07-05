@@ -38,11 +38,19 @@ Packages/*
 !Packages/BrokerSetupKit/
 !Packages/ThemeKit/
 Package.pins
-Package.resolved
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
+# Track the workspace's SPM pin file (reproducible dependency versions) and the
+# workspace data, but nothing else inside project.xcworkspace (user state).
+!*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/*
 !*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+*.xcodeproj/project.xcworkspace/xcshareddata/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 !*.xcworkspace/contents.xcworkspacedata
 
 # CocoaPods
@@ -68,3 +76,6 @@ Design/Frames/AppleReference/
 
 # Affinity Designer transient lock files
 *~lock~
+
+# Session scratch files (reviews, spec copies) — never part of the repo
+tmp/
