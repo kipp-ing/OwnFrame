@@ -31,7 +31,7 @@ final class Immich_SlideshowUITests: XCTestCase {
         serverField.tap()
         serverField.typeText("https://demo.example.com")
 
-        let keyField = app.secureTextFields["onboarding.apiKey"]
+        let keyField = app.textFields["onboarding.apiKey"]
         XCTAssertTrue(keyField.waitForExistence(timeout: 5), "API key field should appear")
         keyField.tap()
         keyField.typeText("dummy-key")
@@ -70,7 +70,7 @@ final class Immich_SlideshowUITests: XCTestCase {
         app.launchArguments = ["--uitest"]
         app.launch()
         XCTAssertTrue(app.textFields["onboarding.serverURL"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.secureTextFields["onboarding.apiKey"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["onboarding.apiKey"].waitForExistence(timeout: 5))
     }
 
     @MainActor

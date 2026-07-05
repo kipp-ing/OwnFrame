@@ -117,7 +117,7 @@ struct SharedLinkAddForm: View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Password", text: $passwordText)
+                    AppSecureField("Password", text: $passwordText)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .disabled(isResolving)
