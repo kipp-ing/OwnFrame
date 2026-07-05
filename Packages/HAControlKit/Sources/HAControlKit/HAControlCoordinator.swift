@@ -14,6 +14,7 @@ public final class HAControlCoordinator {
     private let transport: any MQTTTransport
     private let control: any PlaybackControlling
     private let settings: (any SettingsControlling)?
+    private let photoReporter: (any PhotoReporting)?
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
@@ -27,6 +28,7 @@ public final class HAControlCoordinator {
         transport: any MQTTTransport,
         control: any PlaybackControlling,
         settings: (any SettingsControlling)? = nil,
+        photoReporter: (any PhotoReporting)? = nil,
         configStore: any BrokerConfigStore,
         deviceName: String,
         enabledEntities: Set<HAEntity> = [.playback]
@@ -34,6 +36,7 @@ public final class HAControlCoordinator {
         self.transport = transport
         self.control = control
         self.settings = settings
+        self.photoReporter = photoReporter
         self.configStore = configStore
         self.deviceName = deviceName
         self.enabledEntities = enabledEntities
@@ -120,7 +123,73 @@ public final class HAControlCoordinator {
         settings?.onSettingsChange = { [weak self] in
             self?.scheduleSettingsEcho()
         }
+
+        photoReporter?.onPhotoChange = { [weak self] report in
+            self?.schedulePhotoPublish(report)
+        }
     }
+
+    // MARK: - Photo publish (US2)
+
+    private func schedulePhotoPublish(_ report: PhotoReport) {
+        // Detached from the caller so a slide advance returns immediately (SC-710-04).
+        Task { [weak self] in
+            await self?.publishPhoto(report)
+        }
+    }
+
+    private func publishPhoto(_ report: PhotoReport) async {
+        guard let deviceID = ensureDeviceID() else { return }
+        let metaTopic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhoto)
+        let imageTopic = HATopics.stateTopic(deviceID: deviceID, entity: .currentPhotoImage)
+
+        guard report.phase == .playing else {
+            // Not playing: clear both topics. Both are published NOT retained so
+            // neither the last photo nor what it depicted lingers (FR-710-11).
+            try? await transport.publish(MQTTMessage(
+                topic: metaTopic, payload: Self.clearedPhotoMetadata, retain: false))
+            try? await transport.publish(MQTTMessage(
+                topic: imageTopic, payload: Data(), retain: false))
+            return
+        }
+
+        try? await transport.publish(MQTTMessage(
+            topic: metaTopic, payload: Self.photoMetadata(for: report), retain: false))
+
+        if let image = report.imageData {
+            try? await transport.publish(MQTTMessage(
+                topic: imageTopic, payload: image, retain: false))
+        } else {
+            log.info("photo: image publish skipped — no image data (asset=\(report.assetID ?? "nil", privacy: .public))")
+        }
+    }
+
+    /// Metadata JSON for the `current_photo` sensor: its state (`value_json.id`)
+    /// plus the `json_attributes` on the same topic (FR-710-06). `.sortedKeys`
+    /// for deterministic output; nil fields serialize as JSON `null`.
+    private static func photoMetadata(for report: PhotoReport) -> Data {
+        func orNull(_ value: String?) -> Any { value.map { $0 as Any } ?? NSNull() }
+        let object: [String: Any] = [
+            "id": orNull(report.assetID),
+            "taken_at": orNull(report.takenAt?.ISO8601Format()),
+            "city": orNull(report.city),
+            "state": orNull(report.state),
+            "country": orNull(report.country),
+            "album_id": orNull(report.albumID),
+            "album_name": orNull(report.albumName),
+        ]
+        return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]))
+            ?? Data("{}".utf8)
+    }
+
+    private static let clearedPhotoMetadata: Data = {
+        let object: [String: Any] = [
+            "id": NSNull(), "taken_at": NSNull(), "city": NSNull(), "state": NSNull(),
+            "country": NSNull(), "album_id": NSNull(), "album_name": NSNull(),
+        ]
+        return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]))
+            ?? Data("{}".utf8)
+    }()
 
     internal func handleIncoming(_ message: MQTTMessage) async {
         guard let deviceID = ensureDeviceID() else {

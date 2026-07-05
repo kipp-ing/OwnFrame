@@ -669,3 +669,126 @@ extension HAControlCoordinatorTests {
         )
     }
 }
+
+// MARK: - T023/T024: photo publish tests
+
+extension HAControlCoordinatorTests {
+    private func settle() async {
+        for _ in 0..<50 { await Task.yield() }
+    }
+
+    private var photoMetaTopic: String { "immichslideshow/dev1/current_photo/state" }
+    private var photoImageTopic: String { "immichslideshow/dev1/current_photo_image/state" }
+
+    private func makeCoordinator(
+        transport: FakeMQTTTransport,
+        control: FakeRemoteControl = FakeRemoteControl(),
+        photoReporter: FakePhotoReporting,
+        entities: Set<HAEntity>
+    ) -> HAControlCoordinator {
+        HAControlCoordinator(
+            transport: transport,
+            control: control,
+            photoReporter: photoReporter,
+            configStore: FakeBrokerConfigStore(config: BrokerConfig(
+                host: "broker.local", port: 8883,
+                username: "secret-user", password: "secret-pass", deviceID: "dev1")),
+            deviceName: "Slideshow",
+            enabledEntities: entities
+        )
+    }
+
+    @Test func onPhotoChangePublishesMetadataAndImageWhenPlaying() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        reporter.emit(PhotoReport(
+            assetID: "asset-1", imageData: Data([0xFF, 0xD8, 0xFF]),
+            takenAt: Date(timeIntervalSince1970: 1_600_000_000),
+            city: "Berlin", state: "BE", country: "DE",
+            albumID: "album-1", albumName: "Family", phase: .playing, photoCount: 3))
+        await settle()
+
+        let meta = try #require(transport.published.first { $0.topic == photoMetaTopic })
+        #expect(meta.retain == false)
+        let json = try JSONSerialization.jsonObject(with: meta.payload) as? [String: Any]
+        #expect(json?["id"] as? String == "asset-1")
+        #expect(json?["city"] as? String == "Berlin")
+        #expect(json?["album_name"] as? String == "Family")
+        #expect((json?["taken_at"] as? String)?.isEmpty == false)
+
+        let image = try #require(transport.published.first { $0.topic == photoImageTopic })
+        #expect(image.retain == false)
+        #expect(image.payload == Data([0xFF, 0xD8, 0xFF]))
+    }
+
+    @Test func onPhotoChangePublishesClearedFormWhenNotPlaying() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        // Even with an asset + image bytes present, phase != .playing clears both.
+        reporter.emit(PhotoReport(
+            assetID: "asset-9", imageData: Data([0xAA]), takenAt: Date(),
+            city: "Somewhere", state: nil, country: nil,
+            albumID: "a", albumName: "A", phase: .empty, photoCount: 0))
+        await settle()
+
+        let meta = try #require(transport.published.first { $0.topic == photoMetaTopic })
+        let json = try JSONSerialization.jsonObject(with: meta.payload) as? [String: Any]
+        #expect(json?["id"] is NSNull)
+        let image = try #require(transport.published.first { $0.topic == photoImageTopic })
+        #expect(image.payload.isEmpty)
+        #expect(image.retain == false)
+    }
+
+    @Test func imagePublishSkippedWhenImageDataNilWhilePlaying() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        reporter.emit(PhotoReport(
+            assetID: "asset-2", imageData: nil, takenAt: nil,
+            city: nil, state: nil, country: nil,
+            albumID: "a", albumName: "A", phase: .playing, photoCount: 1))
+        await settle()
+
+        #expect(transport.published.contains { $0.topic == photoMetaTopic })
+        #expect(!transport.published.contains { $0.topic == photoImageTopic })
+        let meta = try #require(transport.published.first { $0.topic == photoMetaTopic })
+        let json = try JSONSerialization.jsonObject(with: meta.payload) as? [String: Any]
+        #expect(json?["id"] as? String == "asset-2")
+    }
+
+    @Test func onPhotoChangePublishesViaDetachedTaskWithoutBlockingCaller() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        reporter.emit(PhotoReport(
+            assetID: "asset-3", imageData: Data([0x01]), takenAt: nil,
+            city: nil, state: nil, country: nil,
+            albumID: "a", albumName: "A", phase: .playing, photoCount: 1))
+        // emit() returned synchronously; the publish is deferred to a task.
+        #expect(transport.published.isEmpty)
+        await settle()
+        #expect(!transport.published.isEmpty)
+    }
+}

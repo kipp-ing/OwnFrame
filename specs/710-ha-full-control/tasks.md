@@ -133,13 +133,13 @@ empty attributes; oversized images downscale or skip.
   retained) in `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
 - [x] T022 [US2] Implement the two discovery payloads in
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift` to green T021
-- [ ] T023 [P] [US2] Red tests: `HAControlCoordinator` publishes both photo topics on
+- [x] T023 [P] [US2] Red tests: `HAControlCoordinator` publishes both photo topics on
   `onPhotoChange`; `phase != .playing` publishes the cleared/null form on both; the image publish
   is skipped (logged) whenever `PhotoReport.imageData == nil` — i.e. disabled, or still over cap
   after the adapter's own downscale attempt (the coordinator does not downscale itself, see T019);
   the publish runs as a detached `Task` adding no delay to the caller (SC-710-04) in
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
-- [ ] T024 [US2] Implement the photo-report publish path in
+- [x] T024 [US2] Implement the photo-report publish path in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T023
 - [ ] T025 [US2] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as `PhotoReporting` +
   `HAPublishOptionsStore`, add `current_photo`/`current_photo_image` to `enabledEntities` (image
