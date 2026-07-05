@@ -3,7 +3,7 @@ import Testing
 @testable import OnboardingKit
 import ImmichClient
 
-@Test func choosePathRoutesSharedLinkToSetup() {
+@MainActor @Test func choosePathRoutesSharedLinkToSetup() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .choice
 
@@ -13,7 +13,7 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
-@Test func choosePathRoutesServerToConnection() {
+@MainActor @Test func choosePathRoutesServerToConnection() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .choice
 
@@ -24,7 +24,7 @@ import ImmichClient
 
 // Finding 3 (FR-210-26): every step after the choice screen can step back in-place, without
 // an app restart and without discarding entered configuration.
-@Test func backFromSharedLinkSetupReturnsToChoice() {
+@MainActor @Test func backFromSharedLinkSetupReturnsToChoice() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .sharedLinkSetup
 
@@ -33,7 +33,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
-@Test func backFromConnectionReturnsToChoice() {
+@MainActor @Test func backFromConnectionReturnsToChoice() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .connection
 
@@ -42,7 +42,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
-@Test func backFromSourceReturnsToConnection() {
+@MainActor @Test func backFromSourceReturnsToConnection() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .source
 
@@ -51,7 +51,7 @@ import ImmichClient
     #expect(vm.step == .connection)
 }
 
-@Test func backFromConfirmReturnsToSource() {
+@MainActor @Test func backFromConfirmReturnsToSource() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .confirm
 
@@ -60,7 +60,7 @@ import ImmichClient
     #expect(vm.step == .source)
 }
 
-@Test func backFromChoiceIsNoOp() {
+@MainActor @Test func backFromChoiceIsNoOp() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .choice
 
@@ -69,7 +69,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
-@Test func canGoBackIsFalseOnlyAtChoiceAndDone() {
+@MainActor @Test func canGoBackIsFalseOnlyAtChoiceAndDone() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
 
     vm.step = .choice
@@ -86,7 +86,7 @@ import ImmichClient
     #expect(vm.canGoBack == true)
 }
 
-@Test func backPreservesEnteredConnectionInputs() {
+@MainActor @Test func backPreservesEnteredConnectionInputs() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.serverURLInput = "https://immich.example.test"
     vm.apiKeyInput = "secret-key"
@@ -99,7 +99,7 @@ import ImmichClient
     #expect(vm.apiKeyInput == "secret-key")
 }
 
-@Test func finishFromSharedLinkOnlyPathCompletesWithoutAPIKeyOrConfig() {
+@MainActor @Test func finishFromSharedLinkOnlyPathCompletesWithoutAPIKeyOrConfig() {
     // The low-friction path: the resolve engine has already made a shared link the active
     // source. Finishing routes to the slideshow with no API key and no AppConfiguration.
     let config = InMemoryConfigStore()
@@ -117,7 +117,7 @@ import ImmichClient
     #expect(config.load() == nil)
 }
 
-@Test func rejectsNonHTTPSURL() async {
+@MainActor @Test func rejectsNonHTTPSURL() async {
     let api = AlbumsAPI(result: .failure(ImmichError.unreachable))
     let vm = makeVM(api: api)
     vm.serverURLInput = "http://foo"
@@ -130,7 +130,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 0)
 }
 
-@Test func advancesToSourceWhenReachableAndAuthorized() async throws {
+@MainActor @Test func advancesToSourceWhenReachableAndAuthorized() async throws {
     let keychain = InMemoryKeychainStore()
     let config = InMemoryConfigStore()
     let api = AlbumsAPI(result: .success([Album(id: "a1", name: "Fam")]))
@@ -149,7 +149,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
-@Test func advancesToSourceEvenWhenAlbumListEmpty() async throws {
+@MainActor @Test func advancesToSourceEvenWhenAlbumListEmpty() async throws {
     // An empty album list still proves the connection works; the user can add a shared
     // link on the source step, so onboarding advances instead of erroring (120, US2).
     let keychain = InMemoryKeychainStore()
@@ -168,7 +168,7 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
-@Test func finishWithActiveAlbumSourcePersistsConfigurationAndCompletes() async throws {
+@MainActor @Test func finishWithActiveAlbumSourcePersistsConfigurationAndCompletes() async throws {
     let config = InMemoryConfigStore()
     var library = SourceLibrary()
     library.add(Source(label: "Fam", kind: .album(albumID: "a1")))
@@ -185,7 +185,7 @@ import ImmichClient
     #expect(saved?.baseURL.host == "photos.example.test")
 }
 
-@Test func finishWithActiveSharedLinkSourceCompletesWithoutSelectedAlbum() async throws {
+@MainActor @Test func finishWithActiveSharedLinkSourceCompletesWithoutSelectedAlbum() async throws {
     let config = InMemoryConfigStore()
     var library = SourceLibrary()
     library.add(Source(label: "Korsika", kind: .sharedLink(baseURL: URL(string: "https://bilder.example.test")!, slug: "korsika")))
@@ -202,7 +202,7 @@ import ImmichClient
     #expect(config.loadBaseURL()?.host == "photos.example.test")
 }
 
-@Test func retriesUnreachableThenAdvancesWhenPermissionGranted() async {
+@MainActor @Test func retriesUnreachableThenAdvancesWhenPermissionGranted() async {
     // The iOS Local Network prompt makes the first connection fail on a fresh install;
     // once the user grants access the retry succeeds. A bounded auto-retry rides that
     // out so onboarding advances instead of dead-ending on "server not available" the
@@ -225,7 +225,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 2)
 }
 
-@Test func surfacesUnreachableAfterExhaustingRetries() async {
+@MainActor @Test func surfacesUnreachableAfterExhaustingRetries() async {
     // A genuinely unreachable server still errors out — bounded, not an infinite loop.
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.unreachable))
@@ -242,7 +242,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 3)
 }
 
-@Test func doesNotRetryDeterministicErrors() async {
+@MainActor @Test func doesNotRetryDeterministicErrors() async {
     // Auth failures won't change on retry, so they surface immediately without burning
     // the retry budget (the retry is scoped to `.unreachable`).
     let keychain = InMemoryKeychainStore()
@@ -258,7 +258,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
-@Test func staysWhenServerUnreachable() async {
+@MainActor @Test func staysWhenServerUnreachable() async {
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.unreachable))
     let vm = makeVM(api: api, keychain: keychain)
@@ -273,7 +273,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
-@Test func staysWhenUnauthorized() async {
+@MainActor @Test func staysWhenUnauthorized() async {
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.unauthorized))
     let vm = makeVM(api: api, keychain: keychain)
@@ -291,7 +291,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
-@Test func staysWhenInvalidResponsePreservesConnectionInputsAndClassifiesError() async {
+@MainActor @Test func staysWhenInvalidResponsePreservesConnectionInputsAndClassifiesError() async {
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.invalidResponse))
     let vm = makeVM(api: api, keychain: keychain)
@@ -311,7 +311,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
-@Test func staysWhenKeychainSaveFails() async {
+@MainActor @Test func staysWhenKeychainSaveFails() async {
     let keychain = InMemoryKeychainStore(failSave: true)
     let api = AlbumsAPI(result: .success([Album(id: "a1", name: "Fam")]))
     let vm = makeVM(api: api, keychain: keychain)
@@ -325,7 +325,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
-@Test func resetReturnsToConnectionAndClearsLibrary() {
+@MainActor @Test func resetReturnsToConnectionAndClearsLibrary() {
     let config = InMemoryConfigStore(configuration: AppConfiguration(
         baseURL: URL(string: "https://photos.example.test")!,
         selectedAlbumID: "a1"
@@ -353,7 +353,7 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
-private func makeVM(
+@MainActor private func makeVM(
     api: any ImmichAPI,
     config: InMemoryConfigStore = .init(),
     keychain: InMemoryKeychainStore = .init(),
