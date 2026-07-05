@@ -107,11 +107,11 @@ From the chrome, the user can toggle an info overlay showing only capture date/t
 
 ### User Story 7 - Reach settings, brightness, reset, and localization (Priority: P3)
 
-From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from the exit button. All slideshow UI strings ship in English and German. (A rendered clock overlay is deferred — see Roadmap.)
+From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from the exit button. All slideshow UI strings ship in English through localizable string catalogs; other device languages fall back to English. (German translations and a rendered clock overlay are deferred — see Roadmap.)
 
 **Why this priority**: These controls round out a usable frame while keeping feature ownership clear and the default overlay-free.
 
-**Independent Test**: Open Settings from chrome, adjust brightness and verify the control is live through topic 400, change display options and verify the slideshow applies them through topic 500, invoke reset from the exit path, and run with English and German device languages.
+**Independent Test**: Open Settings from chrome, adjust brightness and verify the control is live through topic 400, change display options and verify the slideshow applies them through topic 500, invoke reset from the exit path, and confirm a non-English device language falls back to English strings.
 
 **Acceptance Scenarios**:
 
@@ -119,7 +119,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 2. **Given** Settings is open, **When** the brightness slider changes, **Then** screen brightness changes immediately in the foreground through topic 400.
 3. **Given** Settings is open, **When** the user changes display options, **Then** those topic 500 options persist and apply to the running slideshow.
 4. **Given** the user chooses the chrome exit action, **When** reset is selected, **Then** reset is reachable without a long-press and delegates connection clearing to topic 200.
-5. **Given** the device language is English or German, **When** the slideshow UI is shown, **Then** all visible strings use that language through localizable resources.
+5. **Given** any device language, **When** the slideshow UI is shown, **Then** all visible strings come from localizable resources and render in English until further languages ship (see Roadmap).
 
 ### Edge Cases
 
@@ -167,7 +167,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **FR-300-26**: Settings MUST be reachable from chrome with a live brightness slider whose behavior is owned by topic 400.
 - **FR-300-27**: Settings MUST surface topic 500 display-option controls, and those changes MUST affect the running slideshow.
 - **FR-300-28**: Reset MUST be reachable through the chrome exit action rather than a long-press and MUST delegate connection clearing to topic 200.
-- **FR-300-30**: All slideshow UI strings MUST be localizable and the app MUST ship English and German strings that follow the device language.
+- **FR-300-30**: All slideshow UI strings MUST be localizable (string catalog, no hardcoded user-facing strings in views); the app ships English. Additional languages (German first) are deferred — see Roadmap.
 - **FR-300-31**: Slideshow state, timers, image loading, cache, and data access MUST remain testable behind injected protocols, with no real server, clock, cache, or display hardware required for unit tests.
 - **FR-300-32**: The UI MUST never reveal or log API keys, broker credentials, shared-link passwords, or other secrets.
 
@@ -193,6 +193,9 @@ Spec Kit feature.
   unreachable; the disk cache stays within its size limit; Clear empties it.
 - **Auto-retry with backoff** (was FR-300-11): load/connection failures auto-retry with backoff for
   unattended recovery, beyond the existing manual retry.
+- **German translations** (part of FR-300-30): a `de` localization for the string catalogs. All
+  source strings stay English (repo policy: English-only source); German ships as a translation
+  pass over the existing catalogs once scheduled.
 - **Periodic source refresh** (was FR-300-12): the active source asset list refreshes periodically
   so newly added Immich photos enter rotation without an app restart.
 - **Rendered clock overlay** (was FR-300-29): render the optional clock (corner + optional date)
@@ -220,7 +223,7 @@ Spec Kit feature.
 - **SC-300-09**: Selecting a different album and photo in the browser resumes fullscreen playback at that photo in the now-active album.
 - **SC-300-10**: The info overlay shows date and location when EXIF exists and nothing when it is absent.
 - **SC-300-11**: Brightness, display options, and reset entry points are reachable from chrome and apply through their owning topics.
-- **SC-300-12**: English and German device languages show localized slideshow UI strings with no hardcoded user-facing strings in views.
+- **SC-300-12**: Every user-facing slideshow string resolves through the string catalog (no hardcoded strings in views); non-English device languages fall back to English.
 
 ## Assumptions
 

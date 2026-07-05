@@ -27,8 +27,8 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | #   | Spec                                                              | Package          | Purpose                                                                                  | Status   |
 |-----|-------------------------------------------------------------------|------------------|------------------------------------------------------------------------------------------|----------|
 | 100 | [immich-client](../specs/100-immich-client/spec.md)               | ImmichClient     | REST data access: albums, album assets, preview/original/thumbnail image data, errors.   | Active   |
-| 110 | [shared-album-link](../specs/110-shared-album-link/spec.md)       | ImmichClient     | *(sub-spec of 100)* Play a shared/public Immich link (+ optional password) as a source.  | Scheduled |
-| 120 | [source-library](../specs/120-source-library/spec.md)             | ImmichClient     | *(sub-spec of 100)* Save several switchable sources (albums + shared links); one active. | Scheduled |
+| 110 | [shared-album-link](../specs/110-shared-album-link/spec.md)       | ImmichClient     | *(sub-spec of 100)* Play a shared/public Immich link (+ optional password) as a source.  | Active |
+| 120 | [source-library](../specs/120-source-library/spec.md)             | ImmichClient     | *(sub-spec of 100)* Save several switchable sources (albums + shared links); one active. | Active |
 | 200 | [connection-onboarding](../specs/200-connection-onboarding/spec.md) | OnboardingKit  | First-run setup, in-place connection editing, and the Settings-screen structure.         | Active   |
 | 210 | [shared-link-onboarding](../specs/210-shared-link-onboarding/spec.md) | OnboardingKit | *(sub-spec of 200)* Choice-first onboarding, shared-link-only setup (no API key), iOS Share Sheet acceptance, resolve-first/password-when-needed, one searchable/subscrollable album picker shared by onboarding + Settings. | Active |
 | 300 | [slideshow](../specs/300-slideshow/spec.md)                       | SlideshowKit     | Fullscreen playback engine + Liquid Glass UI: chrome, gestures, album browser, info.     | Active   |
@@ -36,7 +36,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 500 | [display-options](../specs/500-display-options/spec.md)           | ThemeKit         | User-configurable order/duration/transition/Ken Burns/fit/quality/clock, applied live.   | Active   |
 | 600 | [broker-setup](../specs/600-broker-setup/spec.md)                 | BrokerSetupKit   | Enter and persist MQTT broker credentials (Keychain) so 700 has something to connect to. | Active   |
 | 700 | [ha-control](../specs/700-ha-control/spec.md)                     | HAControlKit     | Remote control via MQTT/HA: availability + pause/play + brightness + album (730 deferred). | Active   |
-| 710 | [ha-full-control](../specs/710-ha-full-control/spec.md)           | HAControlKit     | *(sub-spec of 700)* Read/set every display setting, next/previous, current-photo image + metadata, and diagnostics over MQTT. | Scheduled |
+| 710 | [ha-full-control](../specs/710-ha-full-control/spec.md)           | HAControlKit     | *(sub-spec of 700)* Read/set every display setting, next/previous, current-photo image + metadata, and diagnostics over MQTT. | Active |
 
 ## How they connect
 
@@ -51,7 +51,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 
 600 Broker Setup ──> 700 HA Control (MQTT remote control)
                               ├─ active: pause/play, brightness, source-select (120)
-                              ├─ scheduled: 710 full control (settings, photo, diagnostics)
+                              ├─ active: 710 full control (settings, photo, diagnostics)
                               └─ reserved: 730 sleep/wake
 ```
 
@@ -66,21 +66,13 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 ## Reading order
 
 Core path: **100 → 200 → 300**, then **400 / 500** as the slideshow's foreground-power and
-display layers, then **600 → 700** for the Home Assistant remote-control path. `110` is deferred —
-read it only to understand the reserved shared-link seam in `100`/`200`.
+display layers, then **600 → 700 → 710** for the Home Assistant remote-control path. `110` feeds `120`'s
+source kinds — read it alongside `120`.
 
 ## Reserved / deferred (roadmap)
 
-Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120`/`710` are now scheduled
-(see below); the rest remain unscheduled.
-
-**Scheduled (not deferred):**
-- `120` Source library — save several switchable sources (albums + shared links), one active at a
-  time; surfaced in `200` and `700`. Spec approved; shared-link mechanics verified against Immich 2.7.5.
-- `110` Shared album link source (+ optional password) — a source kind feeding `120`; both unprotected
-  and password-protected paths verified against Immich 2.7.5.
-- `710` HA full control — every `ThemeSettings` field, next/previous, current-photo image +
-  metadata, and diagnostics over MQTT, built on `700`'s discovery/echo/availability model.
+Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120`/`710` shipped and are
+Active above; the rest remain unscheduled.
 
 **Reserved sub-specs / future sources:**
 - `730` HA sleep/wake driven by an HA presence signal (pairs with the 400 sleep/wake roadmap item).

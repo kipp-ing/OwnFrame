@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-24
 
-**Status**: Scheduled — approved 2026-06-24 (active development target)
+**Status**: Active — built and merged to main (feat/120, 2026-06-25); US flows covered by host units + XCUITests
 
 **Input**: User request: save several slideshow sources (Immich albums and shared/public album
 links) as one library, switch which one is playing, and expose that switch in the Home Assistant

@@ -6,7 +6,7 @@
 
 **Updated**: 2026-06-24
 
-**Status**: Scheduled — a source kind feeding `120` (source library). Both the unprotected and the
+**Status**: Active — built and merged with `120`/`210`. Both the unprotected and the
 password-protected paths are verified against the running server (Immich 2.7.5).
 
 **Input**: Reserved sub-spec distilled from `specs/011-shared-album-link/spec.md`: Immich
