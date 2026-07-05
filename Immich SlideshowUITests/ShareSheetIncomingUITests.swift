@@ -17,6 +17,10 @@ final class ShareSheetIncomingUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // Never inherit a rotation leaked by an earlier test on the same simulator
+        // clone — a launch during a stale landscape state positions the chrome
+        // off-screen. Tests that need landscape rotate themselves (and restore).
+        MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
     /// Unconfigured: a shared link arriving on a blank install routes to the shared-link

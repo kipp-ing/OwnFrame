@@ -13,6 +13,10 @@ final class SettingsUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // Never inherit a rotation leaked by an earlier test on the same simulator
+        // clone — a launch during a stale landscape state positions the chrome
+        // off-screen. Tests that need landscape rotate themselves (and restore).
+        MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
     @MainActor
@@ -103,7 +107,7 @@ final class SettingsUITests: XCTestCase {
         settingsButton.tap()
 
         // Portrait: the bottom-most section (MQTT) scrolls into view.
-        XCUIDevice.shared.orientation = .portrait
+        MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
         let mqtt = app.descendants(matching: .any).matching(identifier: "settings.mqtt").firstMatch
         XCTAssertTrue(scrollToElement(mqtt, in: app), "MQTT section reachable in portrait")
 

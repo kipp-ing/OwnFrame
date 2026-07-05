@@ -14,6 +14,7 @@ import Testing
 import ImmichClient
 import OnboardingKit
 
+@MainActor
 struct OnboardingResetTests {
 
     @Test func resetClearsRealConfigAndKeychainAndReturnsToConnection() throws {
