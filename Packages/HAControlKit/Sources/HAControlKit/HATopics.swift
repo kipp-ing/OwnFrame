@@ -29,6 +29,38 @@ public enum HATopics {
             "light"
         case .album:
             "select"
+        case .order:
+            "select"
+        case .duration:
+            "number"
+        case .transition:
+            "select"
+        case .kenBurns:
+            "switch"
+        case .fit:
+            "select"
+        case .quality:
+            "select"
+        case .clock:
+            "switch"
+        case .clockCorner:
+            "select"
+        case .clockDate:
+            "switch"
+        case .next:
+            "button"
+        case .previous:
+            "button"
+        case .currentPhoto:
+            "sensor"
+        case .currentPhotoImage:
+            "image"
+        case .phase:
+            "sensor"
+        case .photoCount:
+            "sensor"
+        case .version:
+            "sensor"
         }
     }
 }

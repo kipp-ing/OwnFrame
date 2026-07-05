@@ -2,7 +2,9 @@ import Foundation
 @testable import HAControlKit
 
 final class FakeMQTTTransport: MQTTTransport, @unchecked Sendable {
-    private(set) var published: [MQTTMessage] = []
+    // Not `private(set)`: photo-publish tests clear this between announce() and the
+    // fired report to isolate the change from discovery/echo noise.
+    var published: [MQTTMessage] = []
     private(set) var subscriptions: [String] = []
     private(set) var will: MQTTMessage?
     private(set) var connectCount = 0
@@ -54,7 +56,7 @@ final class FakeMQTTTransport: MQTTTransport, @unchecked Sendable {
 }
 
 @MainActor
-final class FakeRemoteControl: RemoteControlling {
+final class FakeRemoteControl: PlaybackControlling {
     var playbackState: PlaybackState = .playing
     var brightness: Double = 0.5
     var albumOptions: [String] = []
@@ -89,5 +91,52 @@ struct FakeBrokerConfigStore: BrokerConfigStore {
 
     func load() -> BrokerConfig? {
         config
+    }
+}
+
+@MainActor
+final class FakeSettingsControl: SettingsControlling {
+    var themeSettings: ThemeSettingsSnapshot = ThemeSettingsSnapshot(
+        order: .shuffle,
+        durationSeconds: 15,
+        transition: .crossfade,
+        kenBurns: false,
+        fit: .fit,
+        quality: .preview,
+        clockOn: false,
+        clockCorner: .bottomTrailing,
+        clockDate: false
+    )
+    private(set) var applyCount = 0
+    var onSettingsChange: (@MainActor () -> Void)?
+
+    func apply(_ settings: ThemeSettingsSnapshot) {
+        themeSettings = settings
+        applyCount += 1
+    }
+}
+
+@MainActor
+final class FakePhotoReporting: PhotoReporting {
+    var currentPhotoReport: PhotoReport
+    var version: String = "1.2.3-test"
+    var onPhotoChange: (@MainActor (PhotoReport) -> Void)?
+    private(set) var showNextCount = 0
+    private(set) var showPreviousCount = 0
+
+    init(report: PhotoReport = PhotoReport(
+        assetID: nil, imageData: nil, takenAt: nil, city: nil, state: nil,
+        country: nil, albumID: nil, albumName: nil, phase: .loading, photoCount: 0
+    )) {
+        self.currentPhotoReport = report
+    }
+
+    func showNext() async { showNextCount += 1 }
+    func showPrevious() async { showPreviousCount += 1 }
+
+    /// Test lever: fire the coordinator's hook exactly as the real adapter would.
+    func emit(_ report: PhotoReport) {
+        currentPhotoReport = report
+        onPhotoChange?(report)
     }
 }

@@ -38,7 +38,13 @@ public final class NIOMQTTTransport: MQTTTransport, @unchecked Sendable {
     /// only so the integration test can pin a *local* test CA as an additional trust
     /// anchor while keeping verification fully enabled (it never sets
     /// `certificateVerification = .none`).
-    init(config: BrokerConfig, tlsConfiguration: MQTTClient.TLSConfigurationType?) {
+    ///
+    /// `useSSL` defaults to `true` and the only public entry point
+    /// (`init(config:)`) leaves it there, so production traffic is *always* TLS.
+    /// It is `internal` and exists solely so an integration test can connect to a
+    /// local, no-TLS mosquitto (`useSSL: false`); it is never a runtime downgrade
+    /// of the real, valid-certificate broker.
+    init(config: BrokerConfig, tlsConfiguration: MQTTClient.TLSConfigurationType?, useSSL: Bool = true) {
         self.config = config
         self.client = MQTTClient(
             host: config.host,
@@ -50,7 +56,7 @@ public final class NIOMQTTTransport: MQTTTransport, @unchecked Sendable {
                 keepAliveInterval: .seconds(30),
                 userName: config.username,
                 password: config.password,
-                useSSL: true,
+                useSSL: useSSL,
                 tlsConfiguration: tlsConfiguration
             )
         )

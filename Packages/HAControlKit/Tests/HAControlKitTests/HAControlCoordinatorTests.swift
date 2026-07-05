@@ -291,3 +291,593 @@ private extension Sequence where Element == MQTTMessage {
         }
     }
 }
+
+// MARK: - Settings Control Tests
+
+@MainActor
+extension HAControlCoordinatorTests {
+    @Test
+    func settingsOrderValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.order])
+
+        await coordinator.handleIncoming(message("sequential", entity: .order))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.order == .sequential)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .order), payload: "sequential", retain: true))
+    }
+
+    @Test
+    func settingsOrderInvalidCommandDoesNotApplyAndReEchoesActualState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.order])
+
+        await coordinator.handleIncoming(message("random", entity: .order))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.order == .shuffle)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .order), payload: "shuffle", retain: true))
+    }
+
+    @Test
+    func settingsTransitionValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.transition])
+
+        await coordinator.handleIncoming(message("slide", entity: .transition))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.transition == .slide)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .transition), payload: "slide", retain: true))
+    }
+
+    @Test
+    func settingsFitValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.fit])
+
+        await coordinator.handleIncoming(message("fill", entity: .fit))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.fit == .fill)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .fit), payload: "fill", retain: true))
+    }
+
+    @Test
+    func settingsQualityValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.quality])
+
+        await coordinator.handleIncoming(message("original", entity: .quality))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.quality == .original)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .quality), payload: "original", retain: true))
+    }
+
+    @Test
+    func settingsClockCornerValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockCorner])
+
+        await coordinator.handleIncoming(message("topLeading", entity: .clockCorner))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockCorner == .topLeading)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner), payload: "topLeading", retain: true))
+    }
+
+    @Test
+    func settingsDurationValidCommandAppliesAndEchoesValue() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.duration])
+
+        await coordinator.handleIncoming(message("42", entity: .duration))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.durationSeconds == 42)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "42", retain: true))
+    }
+
+    @Test
+    func settingsDurationBelowRangeDoesNotApplyAndReEchoesActual() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.duration])
+
+        await coordinator.handleIncoming(message("2", entity: .duration))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.durationSeconds == 15)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "15", retain: true))
+    }
+
+    @Test
+    func settingsDurationAboveRangeDoesNotApplyAndReEchoesActual() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.duration])
+
+        await coordinator.handleIncoming(message("601", entity: .duration))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.durationSeconds == 15)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "15", retain: true))
+    }
+
+    @Test
+    func settingsDurationNonNumericDoesNotApplyAndReEchoesActual() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.duration])
+
+        await coordinator.handleIncoming(message("abc", entity: .duration))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.durationSeconds == 15)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "15", retain: true))
+    }
+
+    @Test
+    func settingsKenBurnsONAppliesTrueAndPublishesState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.kenBurns])
+
+        await coordinator.handleIncoming(message("ON", entity: .kenBurns))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.kenBurns == true)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns), payload: "ON", retain: true))
+    }
+
+    @Test
+    func settingsKenBurnsOFFAppliesFalseAndPublishesState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.kenBurns])
+
+        await coordinator.handleIncoming(message("OFF", entity: .kenBurns))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.kenBurns == false)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns), payload: "OFF", retain: true))
+    }
+
+    @Test
+    func settingsKenBurnsInvalidDoesNotApplyAndReEchoesActual() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.kenBurns])
+
+        await coordinator.handleIncoming(message("MAYBE", entity: .kenBurns))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.kenBurns == false)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns), payload: "OFF", retain: true))
+    }
+
+    @Test
+    func settingsClockONAppliesTrueAndPublishesState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clock])
+
+        await coordinator.handleIncoming(message("ON", entity: .clock))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockOn == true)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clock), payload: "ON", retain: true))
+    }
+
+    @Test
+    func settingsClockOFFAppliesFalseAndPublishesState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clock])
+
+        await coordinator.handleIncoming(message("OFF", entity: .clock))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockOn == false)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clock), payload: "OFF", retain: true))
+    }
+
+    @Test
+    func settingsClockInvalidDoesNotApplyAndReEchoesActual() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clock])
+
+        await coordinator.handleIncoming(message("MAYBE", entity: .clock))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.clockOn == false)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clock), payload: "OFF", retain: true))
+    }
+
+    @Test
+    func settingsClockDateONAppliesTrueAndPublishesState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockDate])
+
+        await coordinator.handleIncoming(message("ON", entity: .clockDate))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockDate == true)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockDate), payload: "ON", retain: true))
+    }
+
+    @Test
+    func settingsClockDateOFFAppliesFalseAndPublishesState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockDate])
+
+        await coordinator.handleIncoming(message("OFF", entity: .clockDate))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockDate == false)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockDate), payload: "OFF", retain: true))
+    }
+
+    @Test
+    func settingsClockDateInvalidDoesNotApplyAndReEchoesActual() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockDate])
+
+        await coordinator.handleIncoming(message("MAYBE", entity: .clockDate))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.clockDate == false)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockDate), payload: "OFF", retain: true))
+    }
+
+    @Test
+    func allSettingsEntitiesValidCommandPublishesStateWithRetainTrue() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate]
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: entities)
+
+        // Send valid command for each entity
+        await coordinator.handleIncoming(message("sequential", entity: .order))
+        await coordinator.handleIncoming(message("42", entity: .duration))
+        await coordinator.handleIncoming(message("slide", entity: .transition))
+        await coordinator.handleIncoming(message("ON", entity: .kenBurns))
+        await coordinator.handleIncoming(message("fill", entity: .fit))
+        await coordinator.handleIncoming(message("original", entity: .quality))
+        await coordinator.handleIncoming(message("ON", entity: .clock))
+        await coordinator.handleIncoming(message("topLeading", entity: .clockCorner))
+        await coordinator.handleIncoming(message("ON", entity: .clockDate))
+
+        // Every entity echoes exactly once per command, retained (SC-710-02 / FR-710-11).
+        for entity in entities {
+            let messages = transport.published.filter { $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: entity) }
+            #expect(messages.count == 1, "expected exactly one state publish for \(entity.rawValue), got \(messages.count)")
+            for message in messages {
+                #expect(message.retain == true, "State message for \(entity.rawValue) should have retain=true")
+            }
+        }
+    }
+
+    // MARK: - T011: scoped, coalesced settings echo (SC-710-02)
+
+    @Test
+    func localSettingsChangeEchoesOnlyTheChangedEntity() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate]
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: entities)
+
+        await coordinator.start()
+        let baseline = transport.published.count
+
+        settings.themeSettings.kenBurns = true
+        settings.onSettingsChange?()
+        try await Task.sleep(for: .milliseconds(20))
+
+        let newMessages = transport.published.dropFirst(baseline)
+        #expect(newMessages.count == 1, "expected exactly one scoped echo, got \(newMessages.count)")
+        #expect(newMessages.first?.topic == HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns))
+        #expect(newMessages.first?.payload.string == "ON")
+
+        await coordinator.stop()
+    }
+
+    @Test
+    func rapidRepeatedLocalChangesOnOneEntityCoalesceToLastWins() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.duration])
+
+        await coordinator.start()
+        let baseline = transport.published.count
+
+        // N rapid changes on one entity, no drain between them (a settings-slider burst).
+        let burst = [20, 25, 30, 35, 40]
+        for value in burst {
+            settings.themeSettings.durationSeconds = value
+            settings.onSettingsChange?()
+        }
+        try await Task.sleep(for: .milliseconds(50))
+
+        let durationTopic = HATopics.stateTopic(deviceID: "dev1", entity: .duration)
+        let echoes = transport.published.dropFirst(baseline).filter { $0.topic == durationTopic }
+        #expect(echoes.count <= burst.count + 1, "burst of \(burst.count) must coalesce to <= \(burst.count + 1) publishes, got \(echoes.count)")
+        #expect(echoes.count < burst.count, "coalescing must merge at least part of the burst, got \(echoes.count) for \(burst.count) changes")
+        #expect(echoes.last?.payload.string == "40", "last-wins: final echo must carry the latest value")
+
+        await coordinator.stop()
+    }
+}
+
+// MARK: - Settings Coordinator Helper
+
+extension HAControlCoordinatorTests {
+    private func makeCoordinator(
+        transport: FakeMQTTTransport,
+        control: FakeRemoteControl,
+        settings: FakeSettingsControl? = nil,
+        entities: Set<HAEntity> = [.playback]
+    ) -> HAControlCoordinator {
+        HAControlCoordinator(
+            transport: transport,
+            control: control,
+            settings: settings,
+            configStore: FakeBrokerConfigStore(config: BrokerConfig(
+                host: "broker.local",
+                port: 8883,
+                username: "secret-user",
+                password: "secret-pass",
+                deviceID: "dev1"
+            )),
+            deviceName: "Slideshow",
+            enabledEntities: entities
+        )
+    }
+}
+
+// MARK: - T023/T024: photo publish tests
+
+extension HAControlCoordinatorTests {
+    private func settle() async {
+        for _ in 0..<50 { await Task.yield() }
+    }
+
+    private var photoMetaTopic: String { "immichslideshow/dev1/current_photo/state" }
+    private var photoImageTopic: String { "immichslideshow/dev1/current_photo_image/state" }
+
+    private func makeCoordinator(
+        transport: FakeMQTTTransport,
+        control: FakeRemoteControl = FakeRemoteControl(),
+        photoReporter: FakePhotoReporting,
+        entities: Set<HAEntity>
+    ) -> HAControlCoordinator {
+        HAControlCoordinator(
+            transport: transport,
+            control: control,
+            photoReporter: photoReporter,
+            configStore: FakeBrokerConfigStore(config: BrokerConfig(
+                host: "broker.local", port: 8883,
+                username: "secret-user", password: "secret-pass", deviceID: "dev1")),
+            deviceName: "Slideshow",
+            enabledEntities: entities
+        )
+    }
+
+    @Test func onPhotoChangePublishesMetadataAndImageWhenPlaying() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        reporter.emit(PhotoReport(
+            assetID: "asset-1", imageData: Data([0xFF, 0xD8, 0xFF]),
+            takenAt: Date(timeIntervalSince1970: 1_600_000_000),
+            city: "Berlin", state: "BE", country: "DE",
+            albumID: "album-1", albumName: "Family", phase: .playing, photoCount: 3))
+        await settle()
+
+        let meta = try #require(transport.published.first { $0.topic == photoMetaTopic })
+        #expect(meta.retain == false)
+        let json = try JSONSerialization.jsonObject(with: meta.payload) as? [String: Any]
+        #expect(json?["id"] as? String == "asset-1")
+        #expect(json?["city"] as? String == "Berlin")
+        #expect(json?["album_name"] as? String == "Family")
+        #expect((json?["taken_at"] as? String)?.isEmpty == false)
+
+        let image = try #require(transport.published.first { $0.topic == photoImageTopic })
+        #expect(image.retain == false)
+        #expect(image.payload == Data([0xFF, 0xD8, 0xFF]))
+    }
+
+    @Test func onPhotoChangePublishesClearedFormWhenNotPlaying() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        // Even with an asset + image bytes present, phase != .playing clears both.
+        reporter.emit(PhotoReport(
+            assetID: "asset-9", imageData: Data([0xAA]), takenAt: Date(),
+            city: "Somewhere", state: nil, country: nil,
+            albumID: "a", albumName: "A", phase: .empty, photoCount: 0))
+        await settle()
+
+        let meta = try #require(transport.published.first { $0.topic == photoMetaTopic })
+        let json = try JSONSerialization.jsonObject(with: meta.payload) as? [String: Any]
+        #expect(json?["id"] is NSNull)
+        let image = try #require(transport.published.first { $0.topic == photoImageTopic })
+        #expect(image.payload.isEmpty)
+        #expect(image.retain == false)
+    }
+
+    @Test func imagePublishSkippedWhenImageDataNilWhilePlaying() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        reporter.emit(PhotoReport(
+            assetID: "asset-2", imageData: nil, takenAt: nil,
+            city: nil, state: nil, country: nil,
+            albumID: "a", albumName: "A", phase: .playing, photoCount: 1))
+        await settle()
+
+        #expect(transport.published.contains { $0.topic == photoMetaTopic })
+        #expect(!transport.published.contains { $0.topic == photoImageTopic })
+        let meta = try #require(transport.published.first { $0.topic == photoMetaTopic })
+        let json = try JSONSerialization.jsonObject(with: meta.payload) as? [String: Any]
+        #expect(json?["id"] as? String == "asset-2")
+    }
+
+    @Test func onPhotoChangePublishesViaDetachedTaskWithoutBlockingCaller() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        reporter.emit(PhotoReport(
+            assetID: "asset-3", imageData: Data([0x01]), takenAt: nil,
+            city: nil, state: nil, country: nil,
+            albumID: "a", albumName: "A", phase: .playing, photoCount: 1))
+        // emit() returned synchronously; the publish is deferred to a task.
+        #expect(transport.published.isEmpty)
+        await settle()
+        #expect(!transport.published.isEmpty)
+    }
+
+    @Test func nextButtonCommandCallsShowNext() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .next, .previous])
+        await coordinator.handleIncoming(message("PRESS", entity: .next))
+        #expect(reporter.showNextCount == 1)
+        #expect(reporter.showPreviousCount == 0)
+    }
+
+    @Test func previousButtonCommandCallsShowPrevious() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .next, .previous])
+        await coordinator.handleIncoming(message("PRESS", entity: .previous))
+        #expect(reporter.showPreviousCount == 1)
+        #expect(reporter.showNextCount == 0)
+    }
+
+    // MARK: - US4 diagnostics + reconnect
+
+    @Test func diagnosticSensorsEchoActualValuesRetained() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting(report: PhotoReport(
+            assetID: "a1", imageData: nil, takenAt: nil, city: nil, state: nil, country: nil,
+            albumID: "alb", albumName: "Album", phase: .playing, photoCount: 42))
+        reporter.version = "9.9.9"
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .phase, .photoCount, .version])
+
+        await coordinator.start()
+
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .phase), payload: "playing", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "42", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .version), payload: "9.9.9", retain: true))
+
+        await coordinator.stop()
+    }
+
+    @Test func photoChangeReEchoesPhaseAndPhotoCount() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting()
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .phase, .photoCount, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        // Entering .empty: phase reflects it, photo topics clear (scenario 3), and
+        // the new album's count re-echoes (scenario 2).
+        reporter.emit(PhotoReport(
+            assetID: "a2", imageData: nil, takenAt: nil, city: nil, state: nil, country: nil,
+            albumID: "alb2", albumName: "Album2", phase: .empty, photoCount: 7))
+        await settle()
+
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .phase), payload: "empty", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "7", retain: true))
+    }
+
+    @Test func reconnectRepublishesDiagnosticsAndPhotoState() async throws {
+        let transport = FakeMQTTTransport()
+        let reporter = FakePhotoReporting(report: PhotoReport(
+            assetID: "a3", imageData: Data([0x01]), takenAt: nil, city: nil, state: nil, country: nil,
+            albumID: "alb", albumName: "Album", phase: .playing, photoCount: 5))
+        reporter.version = "2.0.0"
+        let coordinator = makeCoordinator(
+            transport: transport, photoReporter: reporter,
+            entities: [.playback, .phase, .photoCount, .version, .currentPhoto, .currentPhotoImage])
+        await coordinator.start()
+        await coordinator.handleConnection(false)
+        transport.published.removeAll()
+
+        await coordinator.handleConnection(true)
+
+        #expect(transport.published.containsMessage(topic: HATopics.availability(deviceID: "dev1"), payload: "online", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .phase), payload: "playing", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "5", retain: true))
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .version), payload: "2.0.0", retain: true))
+        #expect(transport.published.contains { $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: .currentPhoto) && !$0.retain })
+        #expect(transport.published.contains { $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: .currentPhotoImage) && $0.payload == Data([0x01]) && !$0.retain })
+        #expect(transport.published.contains { $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .phase) })
+
+        await coordinator.stop()
+    }
+}

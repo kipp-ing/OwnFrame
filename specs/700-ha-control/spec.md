@@ -85,7 +85,11 @@ Alongside pause/play, the app exposes a dimmable light entity for brightness and
 
 - Reserved sub-spec `730`: Sleep/wake control through Home Assistant discovery, driven by an inbound presence signal from Home Assistant. Acceptance preserved from the source: discovery publishes sleep/wake control; no-presence or sleep dims to near black; presence or wake restores; schedules and sensors live in Home Assistant, not in the app. Pairs with the topic 400 sleep/wake roadmap item.
 
-*(Brightness and album-select were previously reserved as `710`/`720`; they are implemented and now Active above — see FR-700-13 / FR-700-14.)*
+*(Brightness and album-select were briefly reserved as `710`/`720` during this spec's initial
+design; they shipped inline instead as FR-700-13 / FR-700-14, so those directory numbers were
+never used. `710` has since been repurposed for a real sub-spec — see
+[`710-ha-full-control`](../710-ha-full-control/spec.md), which covers the rest of `ThemeSettings`,
+photo navigation, current-photo image/metadata, and diagnostics.)*
 
 ## Success Criteria *(mandatory)*
 

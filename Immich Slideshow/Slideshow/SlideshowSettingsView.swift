@@ -10,6 +10,7 @@
 //
 
 import BrokerSetupKit
+import HAControlKit
 import ImmichClient
 import OnboardingKit
 import PowerKit
@@ -37,6 +38,9 @@ struct SlideshowSettingsView: View {
     @State private var connectionViewModel: ConnectionSettingsViewModel?
     @State private var sourceLibraryViewModel: SourceLibraryViewModel?
     @State private var brokerViewModel: BrokerSetupViewModel
+    // HA photo-publishing prefs (image off by default, FR-710-15). Owned here so the
+    // toggle survives collapse/relaunch; shares the coordinator's UserDefaults key.
+    @State private var publishOptions: any HAPublishOptionsStore
     // The MQTT section collapses by default (Constitution VII). UI tests pre-expand it via a
     // launch argument so its fields are reachable without a tap. Connection is a pushed editor.
     @State private var mqttExpanded: Bool
@@ -61,6 +65,7 @@ struct SlideshowSettingsView: View {
         let broker = BrokerSetupViewModel(store: BrokerSettingsStoreFactory.make())
         broker.load()
         _brokerViewModel = State(initialValue: broker)
+        _publishOptions = State(initialValue: HAPublishOptionsStoreFactory.make())
         let args = ProcessInfo.processInfo.arguments
         _mqttExpanded = State(initialValue: args.contains("--uitest-broker"))
     }
@@ -179,7 +184,7 @@ struct SlideshowSettingsView: View {
 
                 Section {
                     DisclosureGroup(isExpanded: $mqttExpanded) {
-                        BrokerSettingsSection(viewModel: brokerViewModel)
+                        BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
                     } label: {
                         Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
                             .accessibilityIdentifier("settings.mqtt")

@@ -12,10 +12,21 @@
 
 import BrokerSetupKit
 import Foundation
+import HAControlKit
 import SwiftUI
 
 struct BrokerSettingsSection: View {
     @Bindable var viewModel: BrokerSetupViewModel
+    let publishOptions: any HAPublishOptionsStore
+    @State private var imageEnabled: Bool
+    @State private var byteCapKB: Double
+
+    init(viewModel: BrokerSetupViewModel, publishOptions: any HAPublishOptionsStore) {
+        self._viewModel = Bindable(viewModel)
+        self.publishOptions = publishOptions
+        self._imageEnabled = State(initialValue: publishOptions.options.imageEnabled)
+        self._byteCapKB = State(initialValue: (Double(publishOptions.options.byteCap) / 1000).rounded())
+    }
 
     var body: some View {
         Group {
@@ -34,7 +45,7 @@ struct BrokerSettingsSection: View {
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("broker.username")
 
-            SecureField(viewModel.passwordIsSet ? "New password" : "Password", text: $viewModel.password)
+            AppSecureField(viewModel.passwordIsSet ? "New password" : "Password", text: $viewModel.password)
                 .accessibilityIdentifier("broker.password")
 
             if viewModel.passwordIsSet {
@@ -60,6 +71,27 @@ struct BrokerSettingsSection: View {
             if viewModel.passwordIsSet {
                 Button("Remove", role: .destructive) { viewModel.remove() }
                     .accessibilityIdentifier("broker.remove")
+            }
+
+            // Photo image publishing is off by default (FR-710-15): metadata always
+            // flows, but the image bytes only when the user opts in here.
+            Toggle("Publish photo image to Home Assistant", isOn: $imageEnabled)
+                .accessibilityIdentifier("broker.imageEnabled")
+                .onChange(of: imageEnabled) { _, newValue in
+                    publishOptions.options.imageEnabled = newValue
+                }
+
+            if imageEnabled {
+                Stepper("Max image size: \(Int(byteCapKB)) KB", value: $byteCapKB, in: 100...2000, step: 100)
+                    .accessibilityIdentifier("broker.byteCap")
+                    .onChange(of: byteCapKB) { _, newValue in
+                        publishOptions.options.byteCap = Int(newValue * 1000)
+                    }
+
+                Text("Larger images may exceed the broker's packet limit and be skipped.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("broker.byteCapHint")
             }
         }
     }
@@ -88,6 +120,26 @@ enum BrokerSettingsStoreFactory {
         }
         #endif
         return KeychainBrokerSettingsStore()
+    }
+}
+
+/// Selects the HA publish-options store. Under `--uitest` it uses a dedicated,
+/// persistent UserDefaults suite (so a toggle survives relaunch) that
+/// `--uitest-reset-publish-options` clears for a deterministic start; production
+/// uses the standard defaults (no secrets — just booleans and a byte cap).
+enum HAPublishOptionsStoreFactory {
+    static func make() -> any HAPublishOptionsStore {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--uitest") {
+            let suite = "uitest.haPublish"
+            let defaults = UserDefaults(suiteName: suite) ?? .standard
+            if ProcessInfo.processInfo.arguments.contains("--uitest-reset-publish-options") {
+                defaults.removePersistentDomain(forName: suite)
+            }
+            return UserDefaultsHAPublishOptionsStore(defaults: defaults)
+        }
+        #endif
+        return UserDefaultsHAPublishOptionsStore()
     }
 }
 

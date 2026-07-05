@@ -7,13 +7,14 @@ import ImmichClientTestSupport
     // A `/share/<X>` identifier is the share KEY; the resolver must query `key=` first
     // (querying `slug=` on a key returns 401 "Invalid share key" — the false-password bug).
     let baseURL = try #require(URL(string: "https://photos.example.test"))
+    // expiresAt is far-future on purpose: the fixture must never expire.
     let responseData = try #require("""
     {
         "key": "shared-bearer-key",
         "album": {
             "id": "album-1"
         },
-        "expiresAt": "2026-07-01T12:00:00.000Z"
+        "expiresAt": "2126-01-01T12:00:00.000Z"
     }
     """.data(using: .utf8))
     let transport = MockTransport(result: .success((responseData, httpResponse(url: baseURL, statusCode: 200))))
@@ -23,7 +24,7 @@ import ImmichClientTestSupport
 
     #expect(resolution.key == "shared-bearer-key")
     #expect(resolution.albumID == "album-1")
-    #expect(resolution.expiresAt == isoDate("2026-07-01T12:00:00.000Z"))
+    #expect(resolution.expiresAt == isoDate("2126-01-01T12:00:00.000Z"))
 
     let request = try await #require(transport.recordedRequests.only)
     #expect(request.httpMethod == "GET")
