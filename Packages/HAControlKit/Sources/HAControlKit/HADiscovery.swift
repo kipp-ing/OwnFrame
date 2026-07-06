@@ -24,9 +24,13 @@ public enum HADiscovery {
             json["payload_on"] = "ON"
             json["payload_off"] = "OFF"
         case .brightness:
-            // Dimmable light on the basic schema: brightness is the control. HA
-            // publishes 0–brightness_scale to the (shared) command topic and reads
-            // the applied level back from the (shared) state topic.
+            // Dimmable light on the basic schema. `command_topic` is required by
+            // HA's schema even with `on_command_type: brightness` (it's just not
+            // used for turning on — brightness IS the on-command); but a `state_topic`
+            // alongside `brightness_state_topic` makes HA expect "ON"/"OFF" strings
+            // on the same topic as the raw numeric brightness payload, so only that
+            // one must be dropped (shows as permanently "unknown" otherwise).
+            json["state_topic"] = nil
             json["brightness_command_topic"] = HATopics.commandTopic(deviceID: deviceID, entity: entity)
             json["brightness_state_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
             json["brightness_scale"] = 255

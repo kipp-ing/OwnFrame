@@ -79,6 +79,47 @@ struct HAControlRoundTripTests {
 
         await coordinator.stop()
     }
+
+    @Test func chromeTogglePauseEchoesPlaybackStateToHA() async throws {
+        // The chrome play/pause button calls `viewModel.togglePause()` directly
+        // (SlideshowChrome.swift), never `adapter.pause()/resume()`. The adapter
+        // must observe the ViewModel's own `isPaused`, not rely on being called
+        // through, or a genuinely local pause never reaches HA.
+        let slideshow = SlideshowViewModel(
+            api: RoundTripStubAPI(),
+            albumID: "album-1",
+            ticker: RoundTripStubTicker(),
+            settingsStore: UserDefaultsThemeStore(defaults: try #require(UserDefaults(suiteName: "de.kippings.ImmichSlideshow.tests.roundtrip.playback")))
+        )
+        let adapter = SlideshowRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: PowerManager(screen: RoundTripStubScreen())
+        )
+        let transport = RecordingTransport()
+        let coordinator = HAControlCoordinator(
+            transport: transport,
+            control: adapter,
+            configStore: StaticBrokerConfigStore(config: BrokerConfig(
+                host: "broker.local", port: 8883, username: "user", password: "pass", deviceID: "dev2"
+            )),
+            deviceName: "Immich Slideshow",
+            enabledEntities: [.playback]
+        )
+
+        await coordinator.start()
+        let baseline = transport.published.count
+
+        slideshow.togglePause()
+        for _ in 0..<10 { await Task.yield() }
+        try await Task.sleep(for: .milliseconds(50))
+
+        let playbackTopic = HATopics.stateTopic(deviceID: "dev2", entity: .playback)
+        let echoes = transport.published.dropFirst(baseline).filter { $0.topic == playbackTopic }
+        #expect(echoes.count == 1, "exactly one echo for the local pause, got \(echoes.count)")
+        #expect(echoes.first?.payload == Data("OFF".utf8))
+
+        await coordinator.stop()
+    }
 }
 
 // MARK: - Local fakes (app test target has no access to HAControlKit's test fakes)

@@ -22,6 +22,12 @@ public enum HAEntity: String, CaseIterable, Sendable {
     case version
 }
 
+public extension HAEntity {
+    /// Entities enabled by default (contracts/ha-mqtt-entities.md §2: "all except
+    /// current_photo_image", which is opt-in via `HAPublishOptions`, FR-710-07/15).
+    static let defaultEnabled: Set<HAEntity> = Set(HAEntity.allCases).subtracting([.currentPhotoImage])
+}
+
 public enum PlaybackState: Sendable, Equatable {
     case playing
     case paused

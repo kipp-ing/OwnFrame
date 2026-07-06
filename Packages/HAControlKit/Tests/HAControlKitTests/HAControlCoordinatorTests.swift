@@ -249,6 +249,26 @@ struct HAControlCoordinatorTests {
         #expect(coordinator.connection == .disconnected)
     }
 
+    @Test
+    func stopPublishesRetainedOfflineBeforeDisconnecting() async throws {
+        // A clean MQTT DISCONNECT suppresses the Will (LWT never fires for a
+        // graceful stop — e.g. backgrounding, manual-verification.md T019 step 5),
+        // so `stop()` must publish "offline" itself.
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let coordinator = makeCoordinator(transport: transport, control: control)
+
+        await coordinator.start()
+        transport.published.removeAll()
+        await coordinator.stop()
+
+        let availabilityTopic = HATopics.availability(deviceID: "dev1")
+        let offline = transport.published.filter { $0.topic == availabilityTopic }
+        #expect(offline.count == 1, "expected exactly one offline publish, got \(offline.count)")
+        #expect(offline.first?.payload == Data("offline".utf8))
+        #expect(offline.first?.retain == true)
+    }
+
     private func makeCoordinator(
         transport: FakeMQTTTransport,
         control: FakeRemoteControl,

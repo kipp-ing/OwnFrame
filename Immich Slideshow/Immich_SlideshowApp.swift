@@ -277,12 +277,7 @@ struct Immich_SlideshowApp: App {
             )
             let transport = NIOMQTTTransport(config: brokerConfig)
 
-            var enabledEntities: Set<HAEntity> = [
-                .playback, .brightness, .album,
-                .order, .duration, .transition, .kenBurns, .fit, .quality,
-                .clock, .clockCorner, .clockDate,
-                .currentPhoto,
-            ]
+            var enabledEntities: Set<HAEntity> = HAEntity.defaultEnabled
             if publishOptions.options.imageEnabled {
                 enabledEntities.insert(.currentPhotoImage)
             }

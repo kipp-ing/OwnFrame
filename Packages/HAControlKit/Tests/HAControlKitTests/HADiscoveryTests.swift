@@ -31,8 +31,15 @@ struct HADiscoveryTests {
 
         #expect(json["unique_id"] as? String == "dev1_brightness")
         #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
+        // command_topic is kept (HA's default light schema requires it even with
+        // on_command_type: brightness), but state_topic must NOT also be set: HA
+        // treats a present state_topic as the authoritative ON/OFF state (expecting
+        // "ON"/"OFF"), so one pointing at the same topic as brightness_state_topic
+        // makes HA fail to parse the raw numeric brightness payload and show the
+        // light as permanently "unknown" (found via live HA verification against a
+        // real broker).
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .brightness))
-        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .brightness))
+        #expect(json["state_topic"] == nil)
         #expect(json["brightness_command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .brightness))
         #expect(json["brightness_state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .brightness))
         #expect(json["brightness_scale"] as? Int == 255)
