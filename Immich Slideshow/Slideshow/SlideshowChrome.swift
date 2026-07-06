@@ -3,11 +3,12 @@
 //  Immich Slideshow
 //
 //  Reveal-on-tap Liquid Glass chrome over the running slideshow: a top bar
-//  (exit · photo info · albums · settings) and a bottom transport bar
+//  (photo info · albums · settings) and a bottom transport bar
 //  (previous · play/pause · next). Hidden by default to keep the calm photo-frame
 //  look (Konstitution VII); the parent (SlideshowView) owns visibility and the
 //  auto-hide timing and passes interactions back via `onInteraction` so any tap
-//  keeps the chrome alive.
+//  keeps the chrome alive. Fixed dark scrims sit behind the bars so the controls
+//  stay legible over any photo, bright or dark (FR-300-34).
 //
 
 import SlideshowKit
@@ -15,7 +16,6 @@ import SwiftUI
 
 struct SlideshowChrome: View {
     let viewModel: SlideshowViewModel
-    var onExit: () -> Void = {}
     var onInfo: () -> Void = {}
     var onAlbums: () -> Void = {}
     var onSettings: () -> Void = {}
@@ -24,25 +24,45 @@ struct SlideshowChrome: View {
     var onInteraction: () -> Void = {}
 
     var body: some View {
-        VStack {
-            topBar
-            Spacer()
-            bottomBar
+        ZStack(alignment: .top) {
+            // Behind everything, unaffected by the bars' own insets below, so it always
+            // reaches the true screen edges.
+            edgeScrims
+
+            VStack {
+                topBar
+                Spacer()
+                bottomBar
+            }
+            .padding(.horizontal, 32)
+            // The slideshow hides the status bar and home indicator for the whole run, so the
+            // safe-area insets the chrome used to lean on collapse to ~0 on iPad. Inset the bars
+            // explicitly so the round controls always clear the physical screen edges in every
+            // orientation instead of crowding/clipping at the top and bottom.
+            .padding(.vertical, 44)
         }
-        .padding(.horizontal, 32)
-        // The slideshow hides the status bar and home indicator for the whole run, so the
-        // safe-area insets the chrome used to lean on collapse to ~0 on iPad. Inset the bars
-        // explicitly so the round controls always clear the physical screen edges in every
-        // orientation instead of crowding/clipping at the top and bottom.
-        .padding(.vertical, 44)
         .tint(.white)
+    }
+
+    /// Fixed dark gradients pinned to the top/bottom screen edges, behind the bars. Liquid
+    /// Glass materials pick up the photo behind them, so on a bright or near-white photo the
+    /// glass blur and white icon tint can both wash out together; a guaranteed-dark backing
+    /// keeps the icons legible no matter what's in the photo (FR-300-34). Never intercepts
+    /// touches, so the tap-to-hide-chrome gesture on the image beneath still works through it.
+    private var edgeScrims: some View {
+        VStack {
+            LinearGradient(colors: [.black.opacity(0.45), .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: 160)
+            Spacer()
+            LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 160)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
     private var topBar: some View {
         HStack {
-            iconButton("xmark", label: "Exit slideshow", id: "slideshow.chrome.exit") {
-                onInteraction(); onExit()
-            }
             Spacer()
             GlassEffectContainer(spacing: 14) {
                 HStack(spacing: 14) {
