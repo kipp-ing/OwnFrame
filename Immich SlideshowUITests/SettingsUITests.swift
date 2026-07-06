@@ -116,6 +116,37 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(scrollToElement(mqtt, in: app), "MQTT section reachable in landscape")
     }
 
+    /// Reset moved from the chrome's exit button into Settings (300/FR-300-28) — a wall-mounted
+    /// photo frame has no real "exit," so the destructive action now lives as an explicit row
+    /// here instead.
+    @MainActor
+    func testResetFromSettingsReturnsToOnboarding() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launch()
+
+        let image = app.descendants(matching: .any)
+            .matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+
+        let settingsButton = app.buttons["slideshow.chrome.settings"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
+        settingsButton.tap()
+
+        let resetButton = app.buttons["settings.reset"]
+        XCTAssertTrue(scrollToElement(resetButton, in: app), "Reset row should be present")
+        resetButton.tap()
+
+        // On iPad the confirmation renders as a popover with no separate Cancel button
+        // (tapping outside it is the implicit cancel) — confirming is what matters here.
+        let confirm = app.buttons["Reset"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 2), "confirmation dialog should offer Reset")
+        confirm.tap()
+
+        XCTAssertTrue(app.staticTexts["onboarding.connection.description"].waitForExistence(timeout: 5),
+                      "reset should return to the combined connection step")
+    }
+
     /// Swipes up until the element exists (or the swipe budget is exhausted).
     @MainActor
     private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) -> Bool {

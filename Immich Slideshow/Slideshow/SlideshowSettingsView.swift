@@ -30,9 +30,14 @@ struct SlideshowSettingsView: View {
     // API-key client for the add-source album picker.
     var makeSourceLibraryViewModel: () -> SourceLibraryViewModel? = { nil }
     var makeServerAPI: () async -> (any ImmichAPI)? = { nil }
+    // Reset lives here rather than on the chrome (300/FR-300-28): a wall-mounted photo
+    // frame has no real "exit," so the only thing a chrome button could do was reset —
+    // better placed as an explicit, clearly destructive Settings action.
+    var onReset: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
     @State private var brightness: Double
+    @State private var showResetDialog = false
     // Both editors are owned here as @State (not inside the disclosure content) so
     // collapsing/re-expanding a section keeps typed-but-unsaved edits.
     @State private var connectionViewModel: ConnectionSettingsViewModel?
@@ -51,7 +56,8 @@ struct SlideshowSettingsView: View {
         makeConnectionViewModel: @escaping () -> ConnectionSettingsViewModel? = { nil },
         onConnectionChanged: @escaping (ConnectionValidationOutcome) -> Void = { _ in },
         makeSourceLibraryViewModel: @escaping () -> SourceLibraryViewModel? = { nil },
-        makeServerAPI: @escaping () async -> (any ImmichAPI)? = { nil }
+        makeServerAPI: @escaping () async -> (any ImmichAPI)? = { nil },
+        onReset: @escaping () -> Void = {}
     ) {
         self.powerManager = powerManager
         self.themeStore = themeStore
@@ -59,6 +65,7 @@ struct SlideshowSettingsView: View {
         self.onConnectionChanged = onConnectionChanged
         self.makeSourceLibraryViewModel = makeSourceLibraryViewModel
         self.makeServerAPI = makeServerAPI
+        self.onReset = onReset
         _brightness = State(initialValue: Self.currentScreenBrightness())
         _connectionViewModel = State(initialValue: makeConnectionViewModel())
         _sourceLibraryViewModel = State(initialValue: makeSourceLibraryViewModel())
@@ -194,6 +201,15 @@ struct SlideshowSettingsView: View {
                 } footer: {
                     Text("MQTT broker for remote control via Home Assistant.")
                 }
+
+                Section {
+                    Button("Reset Configuration…", role: .destructive) {
+                        showResetDialog = true
+                    }
+                    .accessibilityIdentifier("settings.reset")
+                } footer: {
+                    Text("Clears the server, API key, and album, and returns to setup.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -205,6 +221,16 @@ struct SlideshowSettingsView: View {
         }
         .onChange(of: brightness) { _, newValue in
             Task { await powerManager.setBrightness(newValue, animated: false) }
+        }
+        .confirmationDialog(
+            "Reset configuration?",
+            isPresented: $showResetDialog,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive, action: onReset)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This clears the server, API key, and album, and returns to setup.")
         }
     }
 

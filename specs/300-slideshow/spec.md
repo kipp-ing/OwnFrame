@@ -107,18 +107,18 @@ From the chrome, the user can toggle an info overlay showing only capture date/t
 
 ### User Story 7 - Reach settings, brightness, reset, and localization (Priority: P3)
 
-From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from the exit button. All slideshow UI strings ship in English through localizable string catalogs; other device languages fall back to English. (German translations and a rendered clock overlay are deferred — see Roadmap.)
+From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from Settings. All slideshow UI strings ship in English through localizable string catalogs; other device languages fall back to English. (German translations and a rendered clock overlay are deferred — see Roadmap.)
 
 **Why this priority**: These controls round out a usable frame while keeping feature ownership clear and the default overlay-free.
 
-**Independent Test**: Open Settings from chrome, adjust brightness and verify the control is live through topic 400, change display options and verify the slideshow applies them through topic 500, invoke reset from the exit path, and confirm a non-English device language falls back to English strings.
+**Independent Test**: Open Settings from chrome, adjust brightness and verify the control is live through topic 400, change display options and verify the slideshow applies them through topic 500, invoke reset from Settings, and confirm a non-English device language falls back to English strings.
 
 **Acceptance Scenarios**:
 
 1. **Given** the slideshow runs, **When** the user opens Settings from chrome, **Then** a settings screen appears with a live brightness slider and display-option controls.
 2. **Given** Settings is open, **When** the brightness slider changes, **Then** screen brightness changes immediately in the foreground through topic 400.
 3. **Given** Settings is open, **When** the user changes display options, **Then** those topic 500 options persist and apply to the running slideshow.
-4. **Given** the user chooses the chrome exit action, **When** reset is selected, **Then** reset is reachable without a long-press and delegates connection clearing to topic 200.
+4. **Given** the user opens Settings, **When** reset is selected, **Then** reset is reachable without a long-press and delegates connection clearing to topic 200.
 5. **Given** any device language, **When** the slideshow UI is shown, **Then** all visible strings come from localizable resources and render in English until further languages ship (see Roadmap).
 
 ### Edge Cases
@@ -136,6 +136,8 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **Duration changed mid-photo**: The new duration applies from the next advance; the current photo is not cut short or frozen.
 - **Order switched mid-show**: The change takes effect without restarting the app or losing the current photo.
 - **Ken Burns with fitted images**: Motion behaves gracefully without jarring jumps or exposed empty background.
+- **Chrome across orientation and fit/fill switches**: Chrome bar insets stay stable in both orientations and when Ken Burns forces fill framing; controls never crowd or clip at the screen edges.
+- **Bright or near-white photo behind chrome**: Legibility is guaranteed by a fixed contrast backing independent of image content.
 - **Corrupt cached image or settings data**: Bad cache entries are skipped or evicted, and invalid settings fall back to topic 500 defaults without blocking startup.
 
 ## Requirements *(mandatory)*
@@ -153,7 +155,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **FR-300-10**: Empty sources and failed source fetches MUST show calm messages with manual retry rather than a blank or crashed screen.
 - **FR-300-13**: Videos, Live Photos, and other non-image assets MUST be skipped; this topic displays still images only.
 - **FR-300-14**: The slideshow timer MUST be foreground-only: it pauses in the background and resumes in the foreground, respecting user pause state and iPadOS platform boundaries.
-- **FR-300-15**: A tap MUST reveal Liquid Glass chrome with top actions exit, info, albums, and settings, and bottom controls previous, play/pause, and next; another tap MUST hide it.
+- **FR-300-15**: A tap MUST reveal Liquid Glass chrome with top actions info, albums, and settings, and bottom controls previous, play/pause, and next; another tap MUST hide it.
 - **FR-300-16**: Revealed chrome MUST auto-hide after about 4.5 seconds of idle, and control interaction MUST reset the countdown.
 - **FR-300-17**: Horizontal swipes MUST move forward or backward without revealing chrome.
 - **FR-300-18**: Play/pause MUST stop or resume auto-advance while leaving manual previous/next available; user pause MUST survive background to foreground.
@@ -166,10 +168,12 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **FR-300-25**: The info overlay MUST NOT show filename, album name, secrets, or credentials.
 - **FR-300-26**: Settings MUST be reachable from chrome with a live brightness slider whose behavior is owned by topic 400.
 - **FR-300-27**: Settings MUST surface topic 500 display-option controls, and those changes MUST affect the running slideshow.
-- **FR-300-28**: Reset MUST be reachable through the chrome exit action rather than a long-press and MUST delegate connection clearing to topic 200.
+- **FR-300-28**: Reset MUST be reachable from Settings (not the chrome) and MUST delegate connection clearing to topic 200.
 - **FR-300-30**: All slideshow UI strings MUST be localizable (string catalog, no hardcoded user-facing strings in views); the app ships English. Additional languages (German first) are deferred — see Roadmap.
 - **FR-300-31**: Slideshow state, timers, image loading, cache, and data access MUST remain testable behind injected protocols, with no real server, clock, cache, or display hardware required for unit tests.
 - **FR-300-32**: The UI MUST never reveal or log API keys, broker credentials, shared-link passwords, or other secrets.
+- **FR-300-33**: Chrome bar insets from the screen edges MUST remain stable across device orientation and MUST NOT shift when the rendered image switches between fit and fill framing (e.g., toggling Ken Burns).
+- **FR-300-34**: Chrome controls MUST remain legible against their icon/text regardless of the underlying photo's brightness or color, including near-white or near-black images.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -222,8 +226,9 @@ Spec Kit feature.
 - **SC-300-08**: Tap reveals chrome, idle hides it after about 4.5 seconds, and swipes navigate without chrome appearing.
 - **SC-300-09**: Selecting a different album and photo in the browser resumes fullscreen playback at that photo in the now-active album.
 - **SC-300-10**: The info overlay shows date and location when EXIF exists and nothing when it is absent.
-- **SC-300-11**: Brightness, display options, and reset entry points are reachable from chrome and apply through their owning topics.
+- **SC-300-11**: Brightness and display options are reachable from chrome; reset is reachable from Settings; all apply through their owning topics.
 - **SC-300-12**: Every user-facing slideshow string resolves through the string catalog (no hardcoded strings in views); non-English device languages fall back to English.
+- **SC-300-13**: Chrome control edge insets are pixel-identical between Ken Burns on and off and stable across portrait/landscape, guarded by an automated UI test.
 
 ## Assumptions
 

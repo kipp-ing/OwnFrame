@@ -35,20 +35,22 @@ final class SlideshowChromeUITests: XCTestCase {
     @MainActor
     func testChromeHiddenByDefaultAndRevealsOnTap() throws {
         let app = launchIntoSlideshow()
-        let exit = app.buttons["slideshow.chrome.exit"]
+        let settings = app.buttons["slideshow.chrome.settings"]
 
         // Calm default: chrome is not interactive.
-        XCTAssertFalse(exit.isHittable, "chrome should be hidden by default")
+        XCTAssertFalse(settings.isHittable, "chrome should be hidden by default")
 
         // Tap the photo to reveal the chrome.
         app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch.tap()
 
-        XCTAssertTrue(exit.waitForExistence(timeout: 2) && exit.isHittable, "tap should reveal chrome")
+        XCTAssertTrue(settings.waitForExistence(timeout: 2) && settings.isHittable, "tap should reveal chrome")
         XCTAssertTrue(app.buttons["slideshow.chrome.previous"].isHittable)
         XCTAssertTrue(app.buttons["slideshow.chrome.playPause"].isHittable)
         XCTAssertTrue(app.buttons["slideshow.chrome.next"].isHittable)
         XCTAssertTrue(app.buttons["slideshow.chrome.albums"].isHittable)
-        XCTAssertTrue(app.buttons["slideshow.chrome.settings"].isHittable)
+        XCTAssertTrue(app.buttons["slideshow.chrome.info"].isHittable)
+        // The exit/reset button is gone from chrome — reset now lives in Settings (FR-300-28).
+        XCTAssertFalse(app.buttons["slideshow.chrome.exit"].exists)
     }
 
     @MainActor
@@ -87,9 +89,45 @@ final class SlideshowChromeUITests: XCTestCase {
         image.swipeRight()
 
         // Swiping navigates but must NOT reveal the chrome (handover).
-        XCTAssertFalse(app.buttons["slideshow.chrome.exit"].isHittable, "swipe should not reveal chrome")
+        XCTAssertFalse(app.buttons["slideshow.chrome.settings"].isHittable, "swipe should not reveal chrome")
         // The slideshow is still running and responsive.
         XCTAssertTrue(image.exists)
+    }
+
+    /// Regression guard (300/FR-300-33): `cb83884` fixed a Ken-Burns-forced fill framing
+    /// shift in the chrome layout, and `365aea9` silently reverted that structural fix a day
+    /// later while chasing an unrelated status-bar bug — with no test to catch it, the shift
+    /// came back. Assert the chrome control's on-screen position is identical before/after
+    /// toggling Ken Burns live, in landscape (the orientation where it was reported crowding
+    /// the screen edge).
+    @MainActor
+    func testChromeInsetsStableAcrossOrientationAndKenBurns() throws {
+        let app = launchIntoSlideshow(extraArgs: ["--uitest-chrome"])
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let settingsButton = app.buttons["slideshow.chrome.settings"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
+        let frameBefore = settingsButton.frame
+        XCTAssertGreaterThan(frameBefore.minY, 20, "chrome control should clear the top edge in landscape")
+        XCTAssertLessThan(frameBefore.maxX, app.frame.width - 10,
+                          "chrome control should clear the trailing edge in landscape")
+
+        // Toggle Ken Burns on live (forces fill framing) and verify the same control doesn't shift.
+        settingsButton.tap()
+        let kenBurnsToggle = app.switches["settings.kenBurns"]
+        XCTAssertTrue(kenBurnsToggle.waitForExistence(timeout: 3))
+        kenBurnsToggle.tap()
+        app.buttons["Done"].tap()
+
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
+        let frameAfter = settingsButton.frame
+        XCTAssertEqual(frameAfter.origin.x, frameBefore.origin.x, accuracy: 1,
+                       "Ken Burns must not shift the chrome horizontally")
+        XCTAssertEqual(frameAfter.origin.y, frameBefore.origin.y, accuracy: 1,
+                       "Ken Burns must not shift the chrome vertically")
     }
 
     @MainActor
@@ -98,12 +136,12 @@ final class SlideshowChromeUITests: XCTestCase {
         let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
         image.tap()
 
-        let exit = app.buttons["slideshow.chrome.exit"]
-        XCTAssertTrue(exit.waitForExistence(timeout: 2) && exit.isHittable)
+        let settings = app.buttons["slideshow.chrome.settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 2) && settings.isHittable)
 
         // Idle past the ~4.5s auto-hide window; the chrome should retreat.
         let hidden = NSPredicate(format: "isHittable == false")
-        expectation(for: hidden, evaluatedWith: exit)
+        expectation(for: hidden, evaluatedWith: settings)
         waitForExpectations(timeout: 8)
     }
 }
