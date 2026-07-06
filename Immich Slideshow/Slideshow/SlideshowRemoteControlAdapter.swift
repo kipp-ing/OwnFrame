@@ -25,7 +25,9 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     private let themeStore: (any ThemeSettingsStore)?
     private var suppressSettingsCallback = false
 
-    public private(set) var playbackState: PlaybackState = .playing
+    // Single source of truth is the ViewModel's own `isPaused` (see `observePlayback`)
+    // so chrome-driven and HA-driven pauses can never drift apart.
+    public var playbackState: PlaybackState { slideshow.isPaused ? .paused : .playing }
     // Current target brightness (0.0–1.0). The PowerManager itself owns the actual
     // screen and only applies it in the foreground (Konstitution V); we mirror the
     // requested target so HA echoes a stable value.
@@ -75,18 +77,23 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         )
         observeThemeSettings()
         observeCurrentPhoto()
+        observePlayback()
     }
 
+    // The chrome play/pause button calls `slideshow.togglePause()` directly, never
+    // these methods — so a remote (HA) pause/resume must go through the same
+    // `isPaused` flag the chrome uses (via `togglePause()`, guarded so it doesn't
+    // flip the wrong way) rather than the ticker-only `slideshow.pause()/resume()`.
+    // That way both origins update one source of truth, and `observePlayback()`
+    // below is the single place that reports the change to HA.
     public func pause() {
-        slideshow.pause()
-        playbackState = .paused
-        onLocalChange?()
+        guard !slideshow.isPaused else { return }
+        slideshow.togglePause()
     }
 
     public func resume() {
-        slideshow.resume()
-        playbackState = .playing
-        onLocalChange?()
+        guard slideshow.isPaused else { return }
+        slideshow.togglePause()
     }
 
     public func setBrightness(_ value: Double) async {
@@ -121,6 +128,24 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
                     if !suppressed {
                         self.onSettingsChange?()
                     }
+                }
+            }
+        }
+    }
+
+    /// Re-armed observation of `slideshow.isPaused` — the single source of truth for
+    /// `playbackState` — so a chrome-driven pause (which never calls `pause()`/
+    /// `resume()` above) still reaches HA (FR-710-12/20).
+    private func observePlayback() {
+        withObservationTracking {
+            _ = slideshow.isPaused
+        } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.observePlayback()
+                    self.onLocalChange?()
                 }
             }
         }

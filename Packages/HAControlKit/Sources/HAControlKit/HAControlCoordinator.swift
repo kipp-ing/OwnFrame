@@ -79,6 +79,16 @@ public final class HAControlCoordinator {
         incomingTask = nil
         connectionTask = nil
         settingsEchoTask = nil
+        // A clean MQTT DISCONNECT (below) suppresses the Will, so a graceful stop
+        // (backgrounding, leaving the slideshow) would never otherwise show up as
+        // "offline" in HA — only an unclean drop fires the LWT. Publish it explicitly.
+        if let deviceID {
+            try? await transport.publish(MQTTMessage(
+                topic: HATopics.availability(deviceID: deviceID),
+                payload: Data("offline".utf8),
+                retain: true
+            ))
+        }
         await transport.disconnect()
         connection = .disconnected
     }
