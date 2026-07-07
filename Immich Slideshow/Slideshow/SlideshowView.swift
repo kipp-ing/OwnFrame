@@ -151,7 +151,7 @@ struct SlideshowView: View {
             // Present the settings as a larger page-sized sheet on iPad so the folded-in
             // Connection/MQTT sections aren't cut off behind a cramped form-sheet card
             // (010/US3). All sections remain reachable by scrolling regardless (FR-015).
-            .presentationSizing(.page)
+            .pageSizedSheet()
         }
         .sheet(isPresented: $showErrorConnection) {
             if let errorConnectionViewModel {
