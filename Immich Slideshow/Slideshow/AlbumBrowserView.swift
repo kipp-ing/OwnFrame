@@ -110,7 +110,7 @@ private struct AlbumCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .glassEffect(in: .rect(cornerRadius: 18))
+        .glassCard(cornerRadius: 18)
     }
 }
 

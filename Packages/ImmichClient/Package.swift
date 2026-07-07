@@ -5,7 +5,7 @@ let package = Package(
     name: "ImmichClient",
     platforms: [
         // iPadOS target for the app; macOS enables `swift test` on the host without a simulator.
-        .iOS(.v18),
+        .iOS(.v17),
         .macOS(.v14),
     ],
     products: [

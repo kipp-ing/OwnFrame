@@ -33,7 +33,7 @@ struct PhotoInfoView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
-                .glassEffect(in: .rect(cornerRadius: 16))
+                .glassCard(cornerRadius: 16)
                 .accessibilityIdentifier("slideshow.info.card")
             } else if !didLoad {
                 ProgressView()
