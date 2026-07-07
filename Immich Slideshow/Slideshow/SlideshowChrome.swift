@@ -64,7 +64,7 @@ struct SlideshowChrome: View {
     private var topBar: some View {
         HStack {
             Spacer()
-            GlassEffectContainer(spacing: 14) {
+            glassGroup(spacing: 14) {
                 HStack(spacing: 14) {
                     iconButton("info.circle", label: "Photo info", id: "slideshow.chrome.info") {
                         onInteraction(); onInfo()
@@ -81,7 +81,7 @@ struct SlideshowChrome: View {
     }
 
     private var bottomBar: some View {
-        GlassEffectContainer(spacing: 18) {
+        glassGroup(spacing: 18) {
             HStack(spacing: 18) {
                 iconButton("backward.end.fill", label: "Previous", id: "slideshow.chrome.previous") {
                     onInteraction()
@@ -115,7 +115,7 @@ struct SlideshowChrome: View {
                 .frame(width: 52, height: 52)
                 .contentShape(.circle)
         }
-        .buttonStyle(.glass)
+        .glassButtonStyle()
         .buttonBorderShape(.circle)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
