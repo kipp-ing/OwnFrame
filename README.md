@@ -6,8 +6,8 @@ official Immich client — and uses Immich purely as a photo source over its RES
 
 > ⚠️ **Active development.** Onboarding, the full-screen slideshow, display & power control,
 > display options, and Home Assistant remote control are built. Home Assistant control is
-> verified against an automated TLS broker test — live Home-Assistant confirmation is still
-> pending. Deferred: rendered clock overlay, disk image cache, automatic retry/refresh.
+> verified live against a real Home Assistant instance over a TLS broker. Deferred: rendered
+> clock overlay, disk image cache, automatic retry/refresh.
 
 ## What it does (and will do)
 
