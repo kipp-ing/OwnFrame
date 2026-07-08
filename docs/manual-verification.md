@@ -11,7 +11,9 @@ passes. Nothing here runs in CI.
 
 ## Feature 005 — HAControl (real broker + Home Assistant)
 
-**Open tasks:** `T019` (US1), `T023` (US2), `T027` (US3).
+**✅ VERIFIED LIVE 2026-07-08** — `T019` (US1), `T023` (US2), `T027` (US3) all pass against a real
+broker (`home.kippings.de:8883`) + real Home Assistant. See the 710 section below for the full
+session detail.
 
 ### Prerequisites
 - A reachable MQTT broker over **TLS** (port 8883) with Home Assistant's MQTT integration connected to it.
@@ -81,9 +83,15 @@ simulator-side confirmation (form validation hints, persistence, secret boundary
 
 ## Topic 710 — HA Full Control (live Home Assistant)
 
+**✅ VERIFIED LIVE across two sessions (2026-07-05 + 2026-07-08).** All 7 checklist items below pass
+against a real broker (`home.kippings.de:8883`) + real Home Assistant. Session 1 found and fixed 4
+real bugs via TDD (`c179840`); session 2 confirmed the last open item (`next`/`current_photo`, which
+turned out to be a false alarm — also pinned by a committed host characterization test) plus image
+rendering, offline-on-background, diagnostics-vs-connection-state, reconnect-without-duplicate-device,
+and non-retention of the photo topics. This also retires the 700 T019/T023/T027 checks above.
+
 **Merged 2026-07-05 (PR #10).** All host units, XCUITests, and env-gated broker transport tests are
-green; what remains is confirming the full entity surface against a **real Home Assistant** (which
-also retires the open 700 checks above — T019/T023/T027 use the same session).
+green.
 
 ### Prerequisites
 Same as topic 700 above (TLS broker + HA MQTT integration + saved credentials + slideshow in the
@@ -109,5 +117,5 @@ foreground). Photo image publishing: Settings → MQTT → "Publish photo image 
    state (all settings + current photo) is republished without duplicate devices. *(US4)*
 7. **Diagnostics**: the diagnostics surface reflects the connection state per spec 710 US4.
 
-When all pass: tick this section, tick 700's T019/T023/T027 above, and remove the "live
-Home-Assistant confirmation is still pending" caveat from the README banner.
+**All 7 passed live (2026-07-08).** Sections ticked above; the README banner's "live Home-Assistant
+confirmation is still pending" caveat has been removed.
