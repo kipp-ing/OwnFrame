@@ -11,6 +11,8 @@
 import Foundation
 import ImmichClient
 import Testing
+import ThemeKit
+import ThemeKitTestSupport
 @testable import SlideshowKit
 
 // MARK: - TestClock sanity (T002)
@@ -124,9 +126,9 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 // floor ⇒ provably still parked" and "advance to the ceiling ⇒ provably fired"
 // are deterministic without a seeded RNG at the engine level.
 //
-// TODO(T014): once the hourly refresh loop lands, a *playing* engine keeps one
-// extra sleeper parked on the clock — revisit every waitUntilSleeperCount in
-// playing-state passages below (failed-at-launch passages stay at 1).
+// Sleeper bookkeeping: a playing engine keeps the hourly refresh parked on the
+// clock (1 sleeper); failure passages park the backoff retry on top (2). A
+// failed-at-launch engine has no refresh yet — only the retry (1).
 
 @Suite("Resilience US1 — auto-retry with backoff")
 @MainActor
@@ -232,10 +234,11 @@ struct AutoRetryTests {
         #expect(model.currentAssetID == "image-1")
 
         // Images return; one backoff interval later the show moves on by itself.
+        // Two sleepers: the hourly refresh (parked since start) and the retry.
         api.setPreviewData(Data([1]), for: "image-1")
         api.setPreviewData(Data([2]), for: "image-2")
         api.setPreviewData(Data([3]), for: "image-3")
-        await clock.waitUntilSleeperCount(1)
+        await clock.waitUntilSleeperCount(2)
         clock.advance(by: .milliseconds(1200))
         await waitUntil(model.currentAssetID == "image-2")
 
@@ -300,9 +303,9 @@ struct AutoRetryTests {
         #expect(model.failureReason == .transient)
 
         // Reset curve: the retry fires within 1.2 s (un-reset attempt 4 would
-        // sit out at least 0.8 × 8 s).
+        // sit out at least 0.8 × 8 s). Two sleepers: hourly refresh + retry.
         api.setPreviewData(Data([2]), for: "image-2")
-        await clock.waitUntilSleeperCount(1)
+        await clock.waitUntilSleeperCount(2)
         clock.advance(by: .milliseconds(1200))
         await waitUntil(model.currentAssetID == "image-2")
         #expect(model.currentAssetID == "image-2")
@@ -371,5 +374,293 @@ struct AutoRetryTests {
         await waitUntil(model.phase == .playing)
         #expect(model.phase == .playing)
         #expect(model.failureReason == nil)
+    }
+}
+
+// MARK: - US2: New photos appear without a restart (T013)
+//
+// A healthy playing engine keeps exactly one sleeper parked on the clock: the
+// hourly refresh. Failure passages park a second one (the backoff retry).
+
+@Suite("Resilience US2 — periodic source refresh")
+@MainActor
+struct PeriodicRefreshTests {
+    private func makePlayingModel(
+        api: StubImmichAPI,
+        ticker: ManualTicker,
+        clock: TestClock,
+        assets ids: [String],
+        store: InMemoryThemeStore? = nil
+    ) async -> SlideshowViewModel {
+        api.setAssets(ids.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+        for id in ids {
+            api.setPreviewData(Data(id.utf8), for: id)
+        }
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            settingsStore: store ?? sequentialThemeStore()
+        )
+        await model.start()
+        return model
+    }
+
+    // US2-1/3 + FR-310-06/07 + SC-310-05: exactly one background re-fetch per
+    // interval; the on-screen photo, the pending tick, and the cursor are
+    // untouched by a same-list refresh.
+    @Test func hourlyRefreshRefetchesWithoutDisturbingPlayback() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1", "image-2"]
+        )
+        #expect(model.currentAssetID == "image-1")
+        #expect(api.assetsCallCount == 1)
+
+        // Provably parked until the interval elapses…
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3599))
+        #expect(clock.sleeperCount == 1)
+        #expect(api.assetsCallCount == 1)
+
+        // …exactly one re-fetch at the hour.
+        clock.advance(by: .seconds(1))
+        await waitUntil(api.assetsCallCount == 2)
+        #expect(api.assetsCallCount == 2)
+
+        // FR-310-07: nothing visible moved — same photo, same cycle position,
+        // and the auto-advance wait was never re-armed (timer not reset).
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.phase == .playing)
+        #expect(ticker.requestedDurations.count == 1)
+
+        // The rotation still advances normally afterwards.
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-2")
+        #expect(model.currentAssetID == "image-2")
+
+        // And the next hourly refresh is re-armed.
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == 3)
+        #expect(api.assetsCallCount == 3)
+    }
+
+    // US2-2 (sequential) + SC-310-02: additions appear at their album position.
+    @Test func sequentialAdditionEntersAtItsAlbumPosition() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-a", "image-c"]
+        )
+        #expect(model.currentAssetID == "image-a")
+
+        // image-b lands between a and c server-side.
+        api.setAssets([
+            Asset(id: "image-a", type: "IMAGE"),
+            Asset(id: "image-b", type: "IMAGE"),
+            Asset(id: "image-c", type: "IMAGE")
+        ], for: "album")
+        api.setPreviewData(Data("image-b".utf8), for: "image-b")
+
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == 2)
+        #expect(model.currentAssetID == "image-a")   // undisturbed
+
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-b")
+        #expect(model.currentAssetID == "image-b")
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-c")
+        #expect(model.currentAssetID == "image-c")
+    }
+
+    // US2-2 (shuffle) + SC-310-02: additions join the running cycle — every
+    // remaining photo, including the new one, plays exactly once before the wrap.
+    @Test func shuffleAdditionJoinsTheCurrentCycle() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let store = InMemoryThemeStore(
+            settings: ThemeSettings(order: .shuffle, duration: .seconds(15))
+        )
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock,
+            assets: ["image-a", "image-b", "image-c"], store: store
+        )
+        let first = model.currentAssetID
+        #expect(first != nil)
+
+        api.setAssets([
+            Asset(id: "image-a", type: "IMAGE"),
+            Asset(id: "image-b", type: "IMAGE"),
+            Asset(id: "image-c", type: "IMAGE"),
+            Asset(id: "image-d", type: "IMAGE")
+        ], for: "album")
+        api.setPreviewData(Data("image-d".utf8), for: "image-d")
+
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == 2)
+        #expect(model.currentAssetID == first)   // undisturbed
+
+        // The three remaining slots of this cycle show the three photos not
+        // yet seen — image-d among them, nothing twice (FR-300-05 holds).
+        var seen: [String] = [first!]
+        for _ in 0..<3 {
+            let before = model.currentAssetID
+            await ticker.waitUntilWaiting()
+            ticker.tick()
+            await waitUntil(model.currentAssetID != before)
+            seen.append(model.currentAssetID!)
+        }
+        #expect(seen.count == 4)
+        #expect(Set(seen) == Set(["image-a", "image-b", "image-c", "image-d"]))
+    }
+
+    // US2-5 first half: a removed asset never shows again.
+    @Test func removedAssetLeavesTheRotation() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock,
+            assets: ["image-a", "image-b", "image-c"]
+        )
+
+        api.setAssets([
+            Asset(id: "image-a", type: "IMAGE"),
+            Asset(id: "image-c", type: "IMAGE")
+        ], for: "album")
+
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == 2)
+
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-c")
+        #expect(model.currentAssetID == "image-c")   // b was skipped entirely
+    }
+
+    // US2-5 second half + SC-310-03: the removed *current* photo finishes its
+    // slot on screen and is skipped afterwards — no crash, no blank.
+    @Test func removedCurrentPhotoFinishesItsSlotThenIsSkipped() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock,
+            assets: ["image-a", "image-b", "image-c"]
+        )
+        #expect(model.currentAssetID == "image-a")
+
+        api.setAssets([
+            Asset(id: "image-b", type: "IMAGE"),
+            Asset(id: "image-c", type: "IMAGE")
+        ], for: "album")
+
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == 2)
+
+        // Still visible after the refresh that dropped it…
+        #expect(model.currentAssetID == "image-a")
+        #expect(model.currentImageData == Data("image-a".utf8))
+        #expect(model.phase == .playing)
+
+        // …and the next advance moves to its successor.
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-b")
+        #expect(model.currentAssetID == "image-b")
+    }
+
+    // US2-4 + FR-310-09: a failed refresh never replaces a working slideshow —
+    // stale keeps playing and the backoff retry takes over; its success is the
+    // refresh and re-arms the hourly cadence.
+    @Test func refreshFailureKeepsStalePlayingAndHandsToRetry() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1", "image-2"]
+        )
+
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == 2)
+
+        // Stale-but-working: no error surface, playback continues.
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-1")
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-2")
+        #expect(model.currentAssetID == "image-2")
+
+        // The retry recovers the source within one backoff interval…
+        api.setAssets([
+            Asset(id: "image-1", type: "IMAGE"),
+            Asset(id: "image-2", type: "IMAGE"),
+            Asset(id: "image-3", type: "IMAGE")
+        ], for: "album")
+        api.setPreviewData(Data("image-3".utf8), for: "image-3")
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .milliseconds(1200))
+        // Wait on the MainActor-visible outcome, not the stub's call counter —
+        // the counter bumps inside the fetch, before clearFailure() runs.
+        await waitUntil(api.assetsCallCount == 3 && model.failureReason == nil)
+        #expect(api.assetsCallCount == 3)
+        #expect(model.failureReason == nil)
+
+        // …its success counts as the refresh: the next fetch is an hour out,
+        // and the recovered list is live (image-3 joined the rotation).
+        #expect(model.currentAssetID == "image-2")   // still undisturbed
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3599))
+        #expect(api.assetsCallCount == 3)
+        clock.advance(by: .seconds(1))
+        await waitUntil(api.assetsCallCount == 4)
+        #expect(api.assetsCallCount == 4)
+
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-3")
+        #expect(model.currentAssetID == "image-3")
+    }
+
+    // US2-6: the source emptied server-side — the next refresh moves to the
+    // calm empty state; a later refresh with photos recovers playback.
+    @Test func refreshToEmptySourceMovesToEmptyStateAndBack() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1"]
+        )
+
+        api.setAssets([], for: "album")
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(model.phase == .empty)
+        #expect(model.phase == .empty)
+        #expect(model.currentAssetID == nil)
+
+        // Photos return: the refresh keeps running in the empty state and
+        // brings the show back without a restart.
+        api.setAssets([Asset(id: "image-9", type: "IMAGE")], for: "album")
+        api.setPreviewData(Data([9]), for: "image-9")
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .seconds(3600))
+        await waitUntil(model.phase == .playing)
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-9")
     }
 }

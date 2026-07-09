@@ -66,6 +66,13 @@ public final class SlideshowViewModel {
     /// but the retry needs one for classification and backoff.
     private var lastLoadError: (any Error)?
 
+    // MARK: Periodic refresh state (310, US2)
+
+    private var refreshTask: Task<Void, Never>?
+    /// Monotonic stamp of the last successful asset-list fetch — initial load,
+    /// hourly refresh, or a retry that recovered the source (FR-310-06).
+    private var lastSuccessfulRefresh: Duration?
+
     public init(
         api: any ImmichAPI,
         albumID: String,
@@ -90,16 +97,18 @@ public final class SlideshowViewModel {
 
     public func start() async {
         pause()
-        // Rebind the retry to whatever this start() targets: a source switch
-        // must never leave a timer running against the old source (FR-310-11),
-        // and an explicit (re)start begins a fresh backoff curve.
+        // Rebind every timer to whatever this start() targets: a source switch
+        // must never leave a retry or refresh running against the old source
+        // (FR-310-11), and an explicit (re)start begins a fresh backoff curve.
         cancelRetry()
+        cancelRefresh()
         retryPolicy.reset()
         isPaused = false
         phase = .loading
 
         do {
             imageAssets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
+            markRefreshSucceeded()
             guard !imageAssets.isEmpty else {
                 resetCurrent()
                 failureReason = nil
@@ -282,22 +291,31 @@ public final class SlideshowViewModel {
         }
     }
 
-    /// Quiet source re-fetch: the retry path's counterpart to `start()` — no
-    /// loading state, no visible transition. Success is also what clears the
-    /// failure and resets the backoff (research R4).
+    /// Quiet source re-fetch: the shared operation behind the backoff retry AND
+    /// the hourly refresh — no loading state, no visible transition. Success
+    /// clears the failure, resets the backoff, stamps the refresh schedule
+    /// (research R4), and — while the show is playing — merges the fresh list
+    /// via RotationReconciler instead of rebuilding (FR-310-07/08).
     private func reloadSource() async {
         do {
             let assets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
             clearFailure()
-            imageAssets = assets
+            markRefreshSucceeded()
 
             guard !assets.isEmpty else {
+                imageAssets = []
                 resetCurrent()
                 pause()
                 phase = .empty
                 return
             }
 
+            if phase == .playing, currentImageData != nil {
+                applyReconciledAssets(assets)
+                return
+            }
+
+            imageAssets = assets
             rebuildSequence(order: settingsStore.settings.order, anchorAssetIndex: nil)
             if let loaded = await loadFromCursor(forward: true) {
                 showLoadedImage(loaded)
@@ -310,6 +328,70 @@ public final class SlideshowViewModel {
         } catch {
             handleFailure(error, kind: .sourceReload)
         }
+    }
+
+    /// Merge a fresh asset list into the running rotation without touching the
+    /// on-screen photo, the auto-advance wait, or the cycle position
+    /// (FR-310-07). Only the prefetch is re-pointed at the new remainder.
+    private func applyReconciledAssets(_ assets: [Asset]) {
+        let order = builtOrder ?? settingsStore.settings.order
+        let result = RotationReconciler.reconcile(
+            oldAssets: imageAssets, newAssets: assets,
+            playOrder: playOrder, cursor: cursor,
+            order: order, currentAssetID: currentAssetID,
+            rng: &rng
+        )
+        imageAssets = assets
+        playOrder = result.playOrder
+        cursor = result.cursor
+        prefetchImages()
+    }
+
+    // MARK: - Periodic refresh (310, US2)
+
+    /// Stamp the successful list fetch and (re)arm the next hourly refresh —
+    /// runs across `.playing`, `.empty`, and `.failed` so an emptied or broken
+    /// source recovers on its own (FR-310-06).
+    private func markRefreshSucceeded() {
+        lastSuccessfulRefresh = clock.now
+        armRefreshTask()
+    }
+
+    private func armRefreshTask() {
+        refreshTask?.cancel()
+        guard let last = lastSuccessfulRefresh else {
+            return
+        }
+
+        let due = last + config.refreshInterval
+        let delay = max(due - clock.now, .zero)
+        let clock = clock
+        refreshTask = Task.detached { [weak self, clock] in
+            do {
+                try await clock.sleep(for: delay)
+            } catch {
+                return
+            }
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            await self.refreshTaskFired()
+        }
+    }
+
+    private func refreshTaskFired() async {
+        // While a retry is pending, the retry owns the source: its success is
+        // itself the refresh and re-arms the schedule (FR-310-09, research R4).
+        guard pendingRetry == nil else {
+            return
+        }
+        await reloadSource()
+    }
+
+    private func cancelRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        lastSuccessfulRefresh = nil
     }
 
     /// Re-attempt the image load that exhausted the cycle (US1-1): on success
@@ -326,6 +408,9 @@ public final class SlideshowViewModel {
             phase = .playing
             prefetchImages()
             restartTickerIfPlaying()
+            // A refresh that came due during the outage was consumed by the
+            // pending-retry guard — re-arm it (fires immediately if overdue).
+            armRefreshTask()
         } else {
             handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
         }

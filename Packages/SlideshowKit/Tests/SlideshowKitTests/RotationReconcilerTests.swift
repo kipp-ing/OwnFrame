@@ -262,6 +262,22 @@ struct RotationReconcilerTests {
         #expect(result.cursor == 0)
     }
 
+    @Test func emptyOldListRefillsCleanly() {
+        // The empty→refill path (photos re-added server-side while the frame
+        // sits in the empty state): everything is an addition, no cycle exists.
+        var rng = SeededRandomNumberGenerator(seed: 15)
+        let new = assets("x", "y", "z")
+
+        let result = RotationReconciler.reconcile(
+            oldAssets: [], newAssets: new,
+            playOrder: [], cursor: 0,
+            order: .shuffle, currentAssetID: nil, rng: &rng
+        )
+
+        #expect(result.playOrder.sorted() == Array(new.indices))
+        #expect(result.cursor >= 0 && result.cursor < new.count)
+    }
+
     @Test func emptyNewListDegradesGracefully() {
         var rng = SeededRandomNumberGenerator(seed: 14)
         let result = RotationReconciler.reconcile(
