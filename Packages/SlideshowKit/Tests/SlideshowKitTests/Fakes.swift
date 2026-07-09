@@ -311,6 +311,31 @@ final class StubImmichAPI: ImmichAPI, @unchecked Sendable {
     }
 }
 
+/// Creates a unique per-test directory under the system temp root (320). Unique
+/// per call so parallel test execution never collides; tests clean up via
+/// `defer { try? FileManager.default.removeItem(at: dir) }`.
+func makeTempDirectory() throws -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("SlideshowKitTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
+}
+
+/// Manually advanced wall clock for the disk cache's injected `now` (320): file
+/// recency stamps become fully deterministic instead of racing mtime granularity.
+final class MutableDateSource: @unchecked Sendable {
+    private let lock = NSLock()
+    private var date = Date(timeIntervalSince1970: 1_000_000)
+
+    var now: Date {
+        lock.withLock { date }
+    }
+
+    func advance(by seconds: TimeInterval) {
+        lock.withLock { date = date.addingTimeInterval(seconds) }
+    }
+}
+
 /// Deterministic RNG (SplitMix64) so shuffle-order tests assert an exact, repeatable
 /// permutation instead of relying on the system generator (SC-004).
 struct SeededRandomNumberGenerator: RandomNumberGenerator {
