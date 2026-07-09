@@ -121,4 +121,8 @@ topic, with `N10/N20…` reserved for sub-specs). Start at `docs/spec-overview.m
 reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. FR/SC IDs carry
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
+
+Active feature: `320-disk-image-cache` (next to build; 310 is implemented and is its base) —
+implementation plan at `specs/320-disk-image-cache/plan.md` (research, data-model, contracts,
+quickstart, tasks alongside it).
 <!-- SPECKIT END -->

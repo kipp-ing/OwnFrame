@@ -94,6 +94,84 @@ final class ManualTicker: SlideshowTicker, @unchecked Sendable {
     }
 }
 
+/// Deterministic SlideshowClock for the resilience tests (310, FR-310-12): `now` is
+/// manual, `sleep` parks a continuation, and `advance(by:)` releases every sleeper
+/// whose deadline has passed — in deadline order, synchronously under the lock, so
+/// tests can assert "still parked" without racing the scheduler.
+final class TestClock: SlideshowClock, @unchecked Sendable {
+    private struct Sleeper {
+        let id: UUID
+        let deadline: Duration
+        let continuation: CheckedContinuation<Void, any Error>
+    }
+
+    private let lock = NSLock()
+    private var currentNow: Duration = .zero
+    private var sleepers: [Sleeper] = []
+
+    var now: Duration {
+        lock.withLock { currentNow }
+    }
+
+    /// How many sleeps are currently parked. Reading this is synchronous truth —
+    /// a sleeper counted here has provably not been resumed yet.
+    var sleeperCount: Int {
+        lock.withLock { sleepers.count }
+    }
+
+    func sleep(for duration: Duration) async throws {
+        if Task.isCancelled {
+            throw CancellationError()
+        }
+        guard duration > .zero else {
+            return
+        }
+
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                lock.withLock {
+                    sleepers.append(Sleeper(id: id, deadline: currentNow + duration, continuation: continuation))
+                }
+            }
+        } onCancel: {
+            let cancelled = lock.withLock {
+                sleepers.firstIndex { $0.id == id }.map { sleepers.remove(at: $0) }
+            }
+            cancelled?.continuation.resume(throwing: CancellationError())
+        }
+    }
+
+    /// Move time forward and release every sleeper that became due, earliest
+    /// deadline first.
+    func advance(by duration: Duration) {
+        let due = lock.withLock {
+            currentNow += duration
+            let now = currentNow
+            let released = sleepers.filter { $0.deadline <= now }.sorted { $0.deadline < $1.deadline }
+            sleepers.removeAll { $0.deadline <= now }
+            return released
+        }
+
+        for sleeper in due {
+            sleeper.continuation.resume()
+        }
+    }
+
+    /// Yields until `count` sleepers are parked — the deterministic "the engine
+    /// has reached its wait" handshake (same role as ManualTicker.waitUntilWaiting).
+    /// Bounded so a missing sleeper fails the test's next assertion instead of
+    /// hanging the run.
+    func waitUntilSleeperCount(_ count: Int) async {
+        for _ in 0..<10_000 {
+            if lock.withLock({ sleepers.count >= count }) {
+                return
+            }
+            await Task.yield()
+        }
+    }
+}
+
 final class StubImmichAPI: ImmichAPI, @unchecked Sendable {
     private struct State {
         var assetsByAlbumID: [String: [Asset]] = [:]

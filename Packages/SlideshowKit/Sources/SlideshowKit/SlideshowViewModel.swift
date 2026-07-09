@@ -16,11 +16,19 @@ public final class SlideshowViewModel {
     /// but manual `showNext()`/`showPrevious()` still work.
     public private(set) var isPaused = false
 
+    /// Why the most recent fetch failed; nil while healthy (310, FR-310-05).
+    /// Set on any source/image failure, cleared by the next success. The error
+    /// surface reads this only in the `.failed` phase — while an image is
+    /// showing, failures stay invisible (FR-310-03/09).
+    public private(set) var failureReason: SlideshowFailureReason?
+
     /// The album currently being shown. Mutable so Home-Assistant/remote control
     /// can switch albums at runtime (see `switchAlbum(_:)`).
     public private(set) var albumID: String
     private let api: any ImmichAPI
     private let ticker: any SlideshowTicker
+    /// Monotonic clock for retry backoff and refresh staleness (310, FR-310-12).
+    private let clock: any SlideshowClock
     private let cache: ImageCache
     private let config: SlideshowConfig
     /// Live display/playback preferences (order, duration, quality). Read at the
@@ -38,10 +46,39 @@ public final class SlideshowViewModel {
     private var builtOrder: PlayOrder?
     private var runTask: Task<Void, Never>?
 
+    // MARK: Auto-retry state (310, US1)
+
+    /// Which operation the pending retry re-attempts: the source list fetch
+    /// (start/refresh path) or an image load that exhausted the cycle (step
+    /// path) — research R4.
+    private enum PendingRetry {
+        case sourceReload
+        case imageReload
+    }
+
+    private var retryPolicy: RetryPolicy
+    private var retryTask: Task<Void, Never>?
+    private var pendingRetry: PendingRetry?
+    /// Monotonic due time of the pending retry — survives `pause()` so a
+    /// foreground return can resume or fire an overdue attempt (FR-310-10).
+    private var nextRetryDue: Duration?
+    /// Last error seen by `loadFromCursor` — the walk swallows per-photo errors,
+    /// but the retry needs one for classification and backoff.
+    private var lastLoadError: (any Error)?
+
+    // MARK: Periodic refresh state (310, US2)
+
+    private var refreshTask: Task<Void, Never>?
+    /// Monotonic stamp of the last successful asset-list fetch — initial load,
+    /// hourly refresh, or a retry that recovered the source (FR-310-06).
+    private var lastSuccessfulRefresh: Duration?
+
     public init(
         api: any ImmichAPI,
         albumID: String,
         ticker: any SlideshowTicker,
+        clock: any SlideshowClock = ContinuousSlideshowClock(),
+        retryPolicy: RetryPolicy = RetryPolicy(),
         cache: ImageCache = ImageCache(limit: SlideshowConfig.default.cacheLimit),
         config: SlideshowConfig = .default,
         settingsStore: any ThemeSettingsStore,
@@ -50,6 +87,8 @@ public final class SlideshowViewModel {
         self.api = api
         self.albumID = albumID
         self.ticker = ticker
+        self.clock = clock
+        self.retryPolicy = retryPolicy
         self.cache = cache
         self.config = config
         self.settingsStore = settingsStore
@@ -57,14 +96,22 @@ public final class SlideshowViewModel {
     }
 
     public func start() async {
-        pause()
+        stopTicker()
+        // Rebind every timer to whatever this start() targets: a source switch
+        // must never leave a retry or refresh running against the old source
+        // (FR-310-11), and an explicit (re)start begins a fresh backoff curve.
+        cancelRetry()
+        cancelRefresh()
+        retryPolicy.reset()
         isPaused = false
         phase = .loading
 
         do {
             imageAssets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
+            markRefreshSucceeded()
             guard !imageAssets.isEmpty else {
                 resetCurrent()
+                failureReason = nil
                 phase = .empty
                 return
             }
@@ -72,15 +119,19 @@ public final class SlideshowViewModel {
             rebuildSequence(order: settingsStore.settings.order, anchorAssetIndex: nil)
             if let loaded = await loadFromCursor(forward: true) {
                 showLoadedImage(loaded)
+                failureReason = nil
                 phase = .playing
                 prefetchImages()
                 startTickerLoop()
             } else {
-                resetCurrent()
-                phase = .failed
+                // The list arrived but no photo loads: keep whatever is on
+                // screen (FR-310-03) and retry the image loads in the background.
+                handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
             }
         } catch {
-            phase = .failed
+            // Source list unreachable: calm state only when nothing is showing
+            // (US1-2); auto-retry runs behind it either way.
+            handleFailure(error, kind: .sourceReload)
         }
     }
 
@@ -92,7 +143,7 @@ public final class SlideshowViewModel {
     /// `advance()`, it resets the auto-advance timer so the next automatic step
     /// is a full interval away; works while paused (without resuming the timer).
     public func showNext() async {
-        pause()
+        stopTicker()
         await step(forward: true)
         restartTickerIfPlaying()
     }
@@ -100,7 +151,7 @@ public final class SlideshowViewModel {
     /// Manual backward step from the chrome/swipe (the only place the show moves
     /// backwards). Resets the auto-advance timer like `showNext()`.
     public func showPrevious() async {
-        pause()
+        stopTicker()
         await step(forward: false)
         restartTickerIfPlaying()
     }
@@ -113,7 +164,7 @@ public final class SlideshowViewModel {
             restartTickerIfPlaying()
         } else {
             isPaused = true
-            pause()
+            stopTicker()
         }
     }
 
@@ -124,7 +175,7 @@ public final class SlideshowViewModel {
             return
         }
 
-        pause()
+        stopTicker()
         ensureSequenceForCurrentOrder()
         if let position = playOrder.firstIndex(of: assetIndex) {
             cursor = position
@@ -134,6 +185,12 @@ public final class SlideshowViewModel {
             phase = .playing
             prefetchImages()
             restartTickerIfPlaying()
+            // Same recovery acknowledgement as step(): a successful jump
+            // obsoletes any pending retry.
+            if pendingRetry != nil {
+                clearFailure()
+                armRefreshTask()
+            }
         } else {
             phase = .failed
         }
@@ -148,14 +205,29 @@ public final class SlideshowViewModel {
         }
 
         ensureSequenceForCurrentOrder()
+        let displayedCursor = cursor
         moveCursor(forward: forward)
 
         if let loaded = await loadFromCursor(forward: forward) {
             showLoadedImage(loaded)
             prefetchImages()
+            // A successful step during an outage IS the recovery: drop the
+            // pending retry so it can't fire minutes later, re-show a photo,
+            // or reset the advance timer (stale-retry bug).
+            if pendingRetry != nil {
+                clearFailure()
+                armRefreshTask()
+            }
         } else {
-            phase = .failed
-            pause()
+            // Every photo in the cycle failed to load: keep the current image
+            // on screen (FR-310-03), park the pointless auto-advance, and let
+            // the backoff retry recover the show (US1-1). Restore the cursor to
+            // the displayed photo — the failed walk left it one slot ahead, and
+            // recovery must resume on what is visible, not jump mid-slot
+            // (recovery-jump / paused-jump bugs).
+            cursor = displayedCursor
+            stopTicker()
+            handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
         }
     }
 
@@ -167,26 +239,250 @@ public final class SlideshowViewModel {
     }
 
     public func retry() async {
-        guard phase == .failed else {
+        guard phase == .failed || pendingRetry != nil else {
             return
         }
 
-        await start()
+        // FR-310-04: an immediate attempt that also resets the backoff. From
+        // the calm error state this is the explicit restart (with its loading
+        // feedback); from a playing-but-degraded show it re-attempts quietly.
+        let kind = pendingRetry
+        cancelRetry()
+        retryPolicy.reset()
+        if phase == .failed {
+            await start()
+        } else if kind == .sourceReload {
+            await reloadSource()
+        } else {
+            await reloadImageFromCursor()
+        }
     }
 
+    // MARK: - Auto-retry (310, US1)
+
+    /// Record a failure, classify it, and arm the backoff retry. The phase only
+    /// becomes `.failed` when there is nothing on screen (FR-310-03).
+    private func handleFailure(_ error: any Error, kind: PendingRetry) {
+        failureReason = RetryPolicy.classify(error)
+        if currentImageData == nil {
+            resetCurrent()
+            phase = .failed
+        } else {
+            phase = .playing
+        }
+        scheduleRetry(for: error, kind: kind)
+    }
+
+    private func scheduleRetry(for error: any Error, kind: PendingRetry) {
+        pendingRetry = kind
+        let delay = retryPolicy.nextDelay(for: error)
+        nextRetryDue = clock.now + delay
+        armRetryTask(delay: delay)
+    }
+
+    private func armRetryTask(delay: Duration) {
+        retryTask?.cancel()
+        let clock = clock
+        retryTask = Task.detached { [weak self, clock] in
+            do {
+                try await clock.sleep(for: delay)
+            } catch {
+                return
+            }
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            await self.performRetryAttempt()
+        }
+    }
+
+    private func performRetryAttempt() async {
+        guard let kind = pendingRetry else {
+            return
+        }
+
+        switch kind {
+        case .sourceReload:
+            await reloadSource()
+        case .imageReload:
+            await reloadImageFromCursor()
+        }
+    }
+
+    /// Quiet source re-fetch: the shared operation behind the backoff retry AND
+    /// the hourly refresh — no loading state, no visible transition. Success
+    /// clears the failure, resets the backoff, stamps the refresh schedule
+    /// (research R4), and — while the show is playing — merges the fresh list
+    /// via RotationReconciler instead of rebuilding (FR-310-07/08).
+    private func reloadSource() async {
+        do {
+            let assets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
+            clearFailure()
+            markRefreshSucceeded()
+
+            guard !assets.isEmpty else {
+                imageAssets = []
+                resetCurrent()
+                stopTicker()
+                phase = .empty
+                return
+            }
+
+            if phase == .playing, currentImageData != nil {
+                applyReconciledAssets(assets)
+                return
+            }
+
+            imageAssets = assets
+            rebuildSequence(order: settingsStore.settings.order, anchorAssetIndex: nil)
+            if let loaded = await loadFromCursor(forward: true) {
+                showLoadedImage(loaded)
+                phase = .playing
+                prefetchImages()
+                restartTickerIfPlaying()
+            } else {
+                handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+            }
+        } catch {
+            handleFailure(error, kind: .sourceReload)
+        }
+    }
+
+    /// Merge a fresh asset list into the running rotation without touching the
+    /// on-screen photo, the auto-advance wait, or the cycle position
+    /// (FR-310-07). Only the prefetch is re-pointed at the new remainder.
+    private func applyReconciledAssets(_ assets: [Asset]) {
+        let order = builtOrder ?? settingsStore.settings.order
+        let result = RotationReconciler.reconcile(
+            oldAssets: imageAssets, newAssets: assets,
+            playOrder: playOrder, cursor: cursor,
+            order: order, currentAssetID: currentAssetID,
+            rng: &rng
+        )
+        imageAssets = assets
+        playOrder = result.playOrder
+        cursor = result.cursor
+        prefetchImages()
+    }
+
+    // MARK: - Periodic refresh (310, US2)
+
+    /// Stamp the successful list fetch and (re)arm the next hourly refresh —
+    /// runs across `.playing`, `.empty`, and `.failed` so an emptied or broken
+    /// source recovers on its own (FR-310-06).
+    private func markRefreshSucceeded() {
+        lastSuccessfulRefresh = clock.now
+        armRefreshTask()
+    }
+
+    private func armRefreshTask() {
+        refreshTask?.cancel()
+        guard let last = lastSuccessfulRefresh else {
+            return
+        }
+
+        let due = last + config.refreshInterval
+        let delay = max(due - clock.now, .zero)
+        let clock = clock
+        refreshTask = Task.detached { [weak self, clock] in
+            do {
+                try await clock.sleep(for: delay)
+            } catch {
+                return
+            }
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            await self.refreshTaskFired()
+        }
+    }
+
+    private func refreshTaskFired() async {
+        // While a retry is pending, the retry owns the source: its success is
+        // itself the refresh and re-arms the schedule (FR-310-09, research R4).
+        guard pendingRetry == nil else {
+            return
+        }
+        await reloadSource()
+    }
+
+    private func cancelRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        lastSuccessfulRefresh = nil
+    }
+
+    /// Re-attempt the image load that exhausted the cycle (US1-1): on success
+    /// the show moves to the photo under the cursor and the ticker re-arms.
+    private func reloadImageFromCursor() async {
+        guard !imageAssets.isEmpty else {
+            await reloadSource()
+            return
+        }
+
+        if let loaded = await loadFromCursor(forward: true) {
+            showLoadedImage(loaded)
+            clearFailure()
+            phase = .playing
+            prefetchImages()
+            restartTickerIfPlaying()
+            // A refresh that came due during the outage was consumed by the
+            // pending-retry guard — re-arm it (fires immediately if overdue).
+            armRefreshTask()
+        } else {
+            handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+        }
+    }
+
+    private func clearFailure() {
+        retryPolicy.reset()
+        failureReason = nil
+        cancelRetry()
+    }
+
+    /// Fully discard the pending retry (rebind/handled): task, kind, and due time.
+    private func cancelRetry() {
+        retryTask?.cancel()
+        retryTask = nil
+        pendingRetry = nil
+        nextRetryDue = nil
+    }
+
+    /// Background gating (scenePhase → inactive/background): stops the
+    /// auto-advance AND suspends the retry/refresh timers — nothing fires while
+    /// backgrounded (FR-310-10). Their due state survives for `resume()`.
     public func pause() {
-        runTask?.cancel()
-        runTask = nil
+        stopTicker()
+        retryTask?.cancel()
+        retryTask = nil
+        refreshTask?.cancel()
+        refreshTask = nil
     }
 
     public func resume() {
-        // Foreground gating only re-arms the timer; if the user paused via the
-        // chrome, stay paused across background→foreground.
+        // Re-arm the background work first — independent of the user-intent
+        // pause (a paused frame still refreshes its list and recovers its
+        // connection; research R7). Overdue work fires immediately (US3).
+        if pendingRetry != nil {
+            let remaining = max((nextRetryDue ?? clock.now) - clock.now, .zero)
+            armRetryTask(delay: remaining)
+        }
+        armRefreshTask()
+
+        // The ticker only re-arms while actually playing; if the user paused
+        // via the chrome, stay paused across background→foreground.
         guard phase == .playing, !isPaused else {
             return
         }
 
         startTickerLoop()
+    }
+
+    /// Stop only the auto-advance loop — the internal "hold the slide" used by
+    /// manual steps, user pause, and teardown. Never touches retry/refresh.
+    private func stopTicker() {
+        runTask?.cancel()
+        runTask = nil
     }
 
     /// Switch to a different album and reload from its first image. Used by remote
@@ -197,7 +493,7 @@ public final class SlideshowViewModel {
     }
 
     private func startTickerLoop() {
-        pause()
+        stopTicker()
         let ticker = ticker
         runTask = Task.detached { [weak self, ticker] in
             guard let self else { return }
@@ -308,6 +604,7 @@ public final class SlideshowViewModel {
                 let data = try await loadImageData(for: assetID)
                 return LoadedImage(assetID: assetID, data: data)
             } catch {
+                lastLoadError = error
                 moveCursor(forward: forward)
                 attempts += 1
             }
