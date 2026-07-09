@@ -4,8 +4,8 @@
 
 **Created**: 2026-07-09
 
-**Status**: Planned — pre-release gate; not yet built. Next implementation slice before the
-App Store release.
+**Status**: Implemented (2026-07-09, branch `310-slideshow-resilience`) — was the pre-release
+gate before the App Store release. FR→test mapping in `docs/spec-traceability.md` (310 section).
 
 **Input**: Sub-spec of `specs/300-slideshow`. A photo frame runs unattended for weeks: it must
 survive network loss without anyone touching it, and newly added photos must enter rotation
@@ -102,7 +102,9 @@ older than the interval; verify no refresh/retry timers fire while backgrounded.
 - **Server unreachable at launch with saved setup**: calm state + auto-retry (US1 scenario 2) —
   never a dead end.
 - **API key revoked / shared-link password changed or link expired**: actionable calm message;
-  background retry continues at the backoff cap only (no hot loop against an auth error).
+  background retry continues at the backoff cap only (no hot loop against an auth error). The
+  actionable message appears only when nothing is displayable — while a photo is on screen,
+  FR-310-03 wins: the frame stays stale-but-visible and recovers silently.
 - **Album deleted server-side**: treated as the empty/failed source case — calm message + retry.
 - **Refresh while the album browser sheet is open**: rotation updates apply; the open browser is
   unaffected (it fetches its own data on demand).

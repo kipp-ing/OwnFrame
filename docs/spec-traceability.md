@@ -83,10 +83,10 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR-300-06 | Prefetch next one to two images | `SlideshowViewModelTests.swift` `startPrefetchesNextImageWithoutBlockingDisplay`, `advanceUsesPrefetchedImageWithoutAdditionalPreviewCall`, `prefetchWrapsAndRespectsCacheLimitAcrossTicks` | covered | host-unit |
 | FR-300-07 | Bounded in-memory cache oldest-first | `ImageCacheTests.swift` `storeEvictsLeastRecentlyStoredEntryWhenLimitIsExceeded`, `dataLookupRefreshesLRUPosition`, `containsDoesNotRefreshLRUPosition` | covered | host-unit |
 | FR-300-08 | Disk cache survives relaunch/offline, size limit, clear action | — | missing | host-unit |
-| FR-300-09 | Skip one broken image | `SlideshowViewModelTests.swift` `startSkipsInitialPreviewErrorsAndShowsFirstLoadableImage`, `advanceSkipsPreviewErrorAndShowsNextLoadableImage`, `advanceFailsWhenEveryImageInRingNowFails` | covered | host-unit |
+| FR-300-09 | Skip one broken image | `SlideshowViewModelTests.swift` `startSkipsInitialPreviewErrorsAndShowsFirstLoadableImage`, `advanceSkipsPreviewErrorAndShowsNextLoadableImage`; total-exhaustion case superseded by 310 (`SlideshowResilienceTests.swift` `imageExhaustionKeepsCurrentImageAndAutoRecovers`) | covered | host-unit |
 | FR-300-10 | Empty/fetch failed states with retry | `SlideshowViewModelTests.swift` `emptyAndVideoOnlyAlbumsEnterEmptyPhase`, `assetsErrorFailsAndRetryStartsAgainWhenAssetsRecover`; UI views are not fully simulator-tested | partial | ui-sim |
-| FR-300-11 | Auto-retry with backoff | — | missing | host-unit |
-| FR-300-12 | Periodic source refresh | — | missing | host-unit |
+| FR-300-11 | Auto-retry with backoff | promoted to spec 310 (FR-310-01…05) — see the 310 section below | covered | host-unit |
+| FR-300-12 | Periodic source refresh | promoted to spec 310 (FR-310-06…10) — see the 310 section below | covered | host-unit |
 | FR-300-13 | Skip videos/Live Photos/non-images | `SlideshowViewModelTests.swift` `startShowsFirstImageAssetAndFiltersVideos`, `emptyAndVideoOnlyAlbumsEnterEmptyPhase` | covered | host-unit |
 | FR-300-14 | Foreground-only timer and user pause respected | `SlideshowViewModelTests.swift` `slideshowDoesNotAdvanceWithoutTickAndPauseStopsTickerUntilResume`, `togglePauseStopsTickerAndSurvivesForegroundResume`; no app lifecycle simulator test | partial | ui-sim |
 | FR-300-15 | Tap reveals/hides Liquid Glass chrome and controls | `SlideshowChromeUITests.swift` `testChromeHiddenByDefaultAndRevealsOnTap`; second-tap hide not directly tested | partial | ui-sim |
@@ -107,6 +107,29 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR-300-30 | English/German localizable UI strings | — | missing | ui-sim |
 | FR-300-31 | Slideshow logic injected/testable | SlideshowKit tests use `StubImmichAPI`, `ManualTicker`, `ImageCache`, and injected `ThemeSettingsStore` throughout | covered | host-unit |
 | FR-300-32 | UI never reveals/logs secrets | — | missing | manual |
+
+## 310 - Slideshow Resilience *(added 2026-07-09, implemented)*
+
+All host-unit tests live in `Packages/SlideshowKit/Tests/SlideshowKitTests/` —
+`RetryPolicyTests.swift`, `RotationReconcilerTests.swift`, and `SlideshowResilienceTests.swift`
+(TestClock-driven, no real timers per FR-310-12).
+
+| FR | Requirement (short) | Covering test(s) | Status | Testability |
+|---|---|---|---|---|
+| FR-310-01 | Auto-retry transient failures with backoff | `SlideshowResilienceTests` `deadServerAtLaunchShowsCalmStateAndAutoRecovers`, `retryWaitsOutTheBackoffDelayBeforeRefetching`, `imageExhaustionKeepsCurrentImageAndAutoRecovers` | covered | host-unit |
+| FR-310-02 | 1 s → ×2 → 300 s cap, ±20 % jitter, reset on success | `RetryPolicyTests` (sequence, cap, jitter bounds, reset); `SlideshowResilienceTests` `recoveryResetsTheBackoff` | covered | host-unit |
+| FR-310-03 | Keep current image while retrying; calm state only when nothing to show | `imageExhaustionKeepsCurrentImageAndAutoRecovers`, `refreshFailureKeepsStalePlayingAndHandsToRetry` | covered | host-unit |
+| FR-310-04 | Manual retry immediate + backoff reset | `manualRetryFiresImmediatelyAndResetsBackoff` | covered | host-unit |
+| FR-310-05 | Auth failures: actionable message + cap-only retry | `RetryPolicyTests` `authFailuresRetryAtTheCapFromTheFirstAttempt`, `classifyMaps…`; `authFailureSurfacesActionableReasonAndRetriesAtCapOnly`; UI variant in `SlideshowErrorView` (previews) | covered | host-unit + preview |
+| FR-310-06 | Hourly foreground refresh | `hourlyRefreshRefetchesWithoutDisturbingPlayback` | covered | host-unit |
+| FR-310-07 | Refresh never interrupts photo/timer/cycle | `hourlyRefreshRefetchesWithoutDisturbingPlayback` (tick wait not re-armed); `RotationReconcilerTests` (no-op, cycle preservation) | covered | host-unit |
+| FR-310-08 | Additions per order; removals leave; removed current finishes slot | `sequentialAdditionEntersAtItsAlbumPosition`, `shuffleAdditionJoinsTheCurrentCycle`, `removedAssetLeavesTheRotation`, `removedCurrentPhotoFinishesItsSlotThenIsSkipped`; `RotationReconcilerTests` | covered | host-unit |
+| FR-310-09 | Failed refresh keeps stale rotation playing | `refreshFailureKeepsStalePlayingAndHandsToRetry` | covered | host-unit |
+| FR-310-10 | Background: no timers; foreground return: stale refresh + overdue retry fire | `backgroundStopsAllTimers`, `staleForegroundReturnRefreshesImmediately`, `freshForegroundReturnKeepsTheOriginalSchedule`, `overduePendingRetryFiresImmediatelyOnForegroundReturn`, `pendingRetryResumesWithItsRemainingDelay`, `userPausedFrameStillRefreshesOnForegroundReturn` | covered | host-unit |
+| FR-310-11 | Both source kinds; timers rebind on source switch | `sourceSwitchMidRetryRebindsAllTimers`; source kinds resolve upstream to `api`+`albumID` (by construction) | covered | host-unit |
+| FR-310-12 | Injected clock/scheduler, no real timers in tests | `TestClockTests` + the entire resilience suite | covered | host-unit |
+| FR-310-13 | No secrets in failure paths | 310 diff carries no logging at all; failure state is typed (`SlideshowFailureReason`) — audit 2026-07-09 | covered | static audit |
+| SC-310-01…06 | Measurable outcomes | SC-01 `deadServerAtLaunch…`; SC-02 `sequentialAddition…`/`shuffleAddition…`; SC-03 `removedCurrentPhoto…`; SC-04 `RetryPolicyTests`; SC-05 `hourlyRefresh…`; SC-06 `longRunSoakSurvivesFlapsAndChurn` | covered | host-unit |
 
 ## 400 - PowerManager
 
