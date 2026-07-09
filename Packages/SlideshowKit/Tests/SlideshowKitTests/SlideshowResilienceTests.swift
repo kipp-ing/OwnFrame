@@ -786,6 +786,114 @@ struct PeriodicRefreshTests {
         #expect(model.isPaused)
     }
 
+    // FR-310-11 (T017): a source switch while a retry is pending rebinds every
+    // timer — nothing ever fires against the old source, and the schedule
+    // belongs to the new one.
+    @Test func sourceSwitchMidRetryRebindsAllTimers() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        api.setAssetsError(ImmichError.unreachable, for: "album-a")
+        api.setAssets([Asset(id: "image-b", type: "IMAGE")], for: "album-b")
+        api.setPreviewData(Data([1]), for: "image-b")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album-a", ticker: ticker, clock: clock,
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        #expect(model.phase == .failed)
+        await clock.waitUntilSleeperCount(1)   // retry against album-a parked
+
+        await model.switchAlbum("album-b")
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-b")
+        #expect(model.failureReason == nil)
+
+        // Exact call accounting across a window covering both the old retry's
+        // due time (~1 s) and the new refresh interval: exactly ONE further
+        // fetch (album-b's hourly refresh) may happen. A leaked album-a retry
+        // would add a second.
+        let callsAfterSwitch = api.assetsCallCount
+        await clock.waitUntilSleeperCount(1)   // album-b's refresh parked
+        clock.advance(by: .seconds(3600))
+        await waitUntil(api.assetsCallCount == callsAfterSwitch + 1)
+        await waitUntil(false)   // settle any strays
+        #expect(api.assetsCallCount == callsAfterSwitch + 1)
+        #expect(model.phase == .playing)
+    }
+
+    // SC-310-06 (T018): a long simulated run of network flaps, refreshes with
+    // list churn, and advances ends with the show still advancing and the
+    // image cache inside its bound.
+    @Test func longRunSoakSurvivesFlapsAndChurn() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let cache = ImageCache(limit: 3)
+        let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 3)
+        let allIDs = (1...6).map { "image-\($0)" }
+        for id in allIDs {
+            api.setPreviewData(Data(id.utf8), for: id)
+        }
+        api.setAssets(allIDs.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            cache: cache, config: config, settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        #expect(model.phase == .playing)
+
+        for round in 0..<12 {
+            // Advance a couple of slides.
+            for _ in 0..<2 {
+                let before = model.currentAssetID
+                await ticker.waitUntilWaiting()
+                ticker.tick()
+                await waitUntil(model.currentAssetID != before)
+            }
+
+            switch round % 3 {
+            case 0:
+                // Network flap: the hourly refresh fails, the retry recovers.
+                api.setAssetsError(ImmichError.unreachable, for: "album")
+                let calls = api.assetsCallCount
+                clock.advance(by: .seconds(3600))
+                await waitUntil(api.assetsCallCount == calls + 1)
+                api.setAssets(allIDs.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+                await clock.waitUntilSleeperCount(1)
+                clock.advance(by: .milliseconds(1200))
+                await waitUntil(api.assetsCallCount == calls + 2 && model.failureReason == nil)
+                #expect(model.failureReason == nil)
+            case 1:
+                // Churn: drop one asset, keep playing on the fresh list.
+                let keep = allIDs.filter { $0 != model.currentAssetID }.dropFirst().map { $0 }
+                api.setAssets(keep.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+                let calls = api.assetsCallCount
+                clock.advance(by: .seconds(3600))
+                await waitUntil(api.assetsCallCount == calls + 1)
+            default:
+                // Full list returns.
+                api.setAssets(allIDs.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+                let calls = api.assetsCallCount
+                clock.advance(by: .seconds(3600))
+                await waitUntil(api.assetsCallCount == calls + 1)
+            }
+
+            #expect(model.phase == .playing, "round \(round)")
+            #expect(cache.count <= 3, "round \(round)")
+        }
+
+        // Still advancing at the end.
+        let before = model.currentAssetID
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID != before)
+        #expect(model.currentAssetID != before)
+        #expect(cache.count <= 3)
+    }
+
     // US2-6: the source emptied server-side — the next refresh moves to the
     // calm empty state; a later refresh with photos recovers playback.
     @Test func refreshToEmptySourceMovesToEmptyStateAndBack() async {
