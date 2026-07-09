@@ -233,23 +233,24 @@ struct AutoRetryTests {
         await waitUntil(false)   // settle the executor
         #expect(model.currentAssetID == "image-1")
 
-        // Images return; one backoff interval later the show moves on by itself.
-        // Two sleepers: the hourly refresh (parked since start) and the retry.
+        // Images return; one backoff interval later the show recovers by itself
+        // — silently, on the displayed photo (no mid-slot jump). Two sleepers:
+        // the hourly refresh (parked since start) and the retry.
         api.setPreviewData(Data([1]), for: "image-1")
         api.setPreviewData(Data([2]), for: "image-2")
         api.setPreviewData(Data([3]), for: "image-3")
         await clock.waitUntilSleeperCount(2)
         clock.advance(by: .milliseconds(1200))
-        await waitUntil(model.currentAssetID == "image-2")
+        await waitUntil(model.failureReason == nil)
 
-        #expect(model.currentAssetID == "image-2")
+        #expect(model.currentAssetID == "image-1")
         #expect(model.failureReason == nil)
 
-        // And the ticker is re-armed: the next tick advances normally again.
+        // And the ticker is re-armed: the next ticks advance normally again.
         await ticker.waitUntilWaiting()
         ticker.tick()
-        await waitUntil(model.currentAssetID == "image-3")
-        #expect(model.currentAssetID == "image-3")
+        await waitUntil(model.currentAssetID == "image-2")
+        #expect(model.currentAssetID == "image-2")
     }
 
     // US1-3/4: intervals grow while failing, and any success resets the curve —
@@ -304,11 +305,15 @@ struct AutoRetryTests {
 
         // Reset curve: the retry fires within 1.2 s (un-reset attempt 4 would
         // sit out at least 0.8 × 8 s). Two sleepers: hourly refresh + retry.
+        // Recovery is silent — the displayed photo stays; clearing the failure
+        // within 1.2 s is the discriminator.
+        api.setPreviewData(Data([1]), for: "image-1")
         api.setPreviewData(Data([2]), for: "image-2")
         await clock.waitUntilSleeperCount(2)
         clock.advance(by: .milliseconds(1200))
-        await waitUntil(model.currentAssetID == "image-2")
-        #expect(model.currentAssetID == "image-2")
+        await waitUntil(model.failureReason == nil)
+        #expect(model.failureReason == nil)
+        #expect(model.currentAssetID == "image-1")
     }
 
     // US1-5 + FR-310-04: manual retry fires immediately (no clock movement) and
@@ -341,6 +346,122 @@ struct AutoRetryTests {
         clock.advance(by: .milliseconds(1200))
         await waitUntil(api.assetsCallCount == calls0 + 3)
         #expect(api.assetsCallCount == calls0 + 3)
+    }
+
+    /// Shared exhaustion fixture: 3 images playing, cache evicted, every load
+    /// failing — image-1 stays on screen with a retry pending.
+    private func makeExhaustedModel(
+        api: StubImmichAPI, ticker: ManualTicker, clock: TestClock, cache: ImageCache
+    ) async -> SlideshowViewModel {
+        let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 2)
+        api.setAssets([
+            Asset(id: "image-1", type: "IMAGE"),
+            Asset(id: "image-2", type: "IMAGE"),
+            Asset(id: "image-3", type: "IMAGE")
+        ], for: "album")
+        api.setPreviewData(Data([1]), for: "image-1")
+        api.setPreviewData(Data([2]), for: "image-2")
+        api.setPreviewData(Data([3]), for: "image-3")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            cache: cache, config: config, settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        await waitUntil(cache.contains("image-2"))
+        cache.store(Data([9]), for: "unrelated-1")
+        cache.store(Data([10]), for: "unrelated-2")
+        api.setPreviewError(ImmichError.unreachable, for: "image-1")
+        api.setPreviewError(ImmichError.unreachable, for: "image-2")
+        api.setPreviewError(ImmichError.unreachable, for: "image-3")
+        await model.advance()
+        return model
+    }
+
+    private func restoreImages(_ api: StubImmichAPI) {
+        api.setPreviewData(Data([1]), for: "image-1")
+        api.setPreviewData(Data([2]), for: "image-2")
+        api.setPreviewData(Data([3]), for: "image-3")
+    }
+
+    // FR-310-03/07 spirit: recovery must not jump the frame — the retry resumes
+    // on the *displayed* photo (cursor restored after the failed walk) and the
+    // next photo arrives via the normal advance, not mid-slot.
+    @Test func retryRecoveryKeepsTheDisplayedPhotoAndAdvancesNaturally() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makeExhaustedModel(api: api, ticker: ticker, clock: clock, cache: ImageCache(limit: 2))
+        #expect(model.currentAssetID == "image-1")
+
+        restoreImages(api)
+        await clock.waitUntilSleeperCount(2)   // refresh + retry
+        clock.advance(by: .milliseconds(1200))
+        await waitUntil(model.failureReason == nil)
+
+        // Recovered silently: same photo on the wall, no jump.
+        #expect(model.failureReason == nil)
+        #expect(model.currentAssetID == "image-1")
+
+        // The auto-advance is re-armed and moves on naturally.
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-2")
+        #expect(model.currentAssetID == "image-2")
+    }
+
+    // Pause semantics beat recovery: a user-paused frame never changes its
+    // photo when the retry succeeds — recovery unfreezes nothing until the
+    // user does.
+    @Test func retryRecoveryWhileUserPausedChangesNothingUntilUnpause() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makeExhaustedModel(api: api, ticker: ticker, clock: clock, cache: ImageCache(limit: 2))
+        model.togglePause()
+        #expect(model.isPaused)
+
+        restoreImages(api)
+        await clock.waitUntilSleeperCount(2)
+        clock.advance(by: .milliseconds(1200))
+        await waitUntil(model.failureReason == nil)
+
+        // Recovered, but the frozen frame stays frozen.
+        #expect(model.failureReason == nil)
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.isPaused)
+        ticker.tick()   // stray tick: ticker must not be running while paused
+        await waitUntil(false)
+        #expect(model.currentAssetID == "image-1")
+
+        // Unpausing resumes normal playback from the displayed photo.
+        model.togglePause()
+        await ticker.waitUntilWaiting()
+        ticker.tick()
+        await waitUntil(model.currentAssetID == "image-2")
+        #expect(model.currentAssetID == "image-2")
+    }
+
+    // A manual step that succeeds during the outage IS the recovery: the
+    // pending retry is cancelled (it must not fire minutes later, re-show a
+    // photo, or reset the advance timer) and the failure state clears.
+    @Test func manualStepRecoveryCancelsThePendingRetry() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makeExhaustedModel(api: api, ticker: ticker, clock: clock, cache: ImageCache(limit: 2))
+        await clock.waitUntilSleeperCount(2)   // refresh + retry parked
+
+        restoreImages(api)
+        await model.showNext()
+
+        #expect(model.currentAssetID == "image-2")   // natural next from the displayed photo
+        #expect(model.failureReason == nil)
+        // Stale retry cancelled; only the re-armed refresh parks (the re-arm is
+        // a fresh detached task, so give it its handshake before counting).
+        await clock.waitUntilSleeperCount(1)
+        await waitUntil(false)   // settle: nothing else may park
+        #expect(clock.sleeperCount == 1)
     }
 
     // US1-6 + FR-310-05: auth failures name the problem and retry at the cap
