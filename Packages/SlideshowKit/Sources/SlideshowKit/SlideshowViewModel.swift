@@ -185,6 +185,12 @@ public final class SlideshowViewModel {
             phase = .playing
             prefetchImages()
             restartTickerIfPlaying()
+            // Same recovery acknowledgement as step(): a successful jump
+            // obsoletes any pending retry.
+            if pendingRetry != nil {
+                clearFailure()
+                armRefreshTask()
+            }
         } else {
             phase = .failed
         }
@@ -199,15 +205,27 @@ public final class SlideshowViewModel {
         }
 
         ensureSequenceForCurrentOrder()
+        let displayedCursor = cursor
         moveCursor(forward: forward)
 
         if let loaded = await loadFromCursor(forward: forward) {
             showLoadedImage(loaded)
             prefetchImages()
+            // A successful step during an outage IS the recovery: drop the
+            // pending retry so it can't fire minutes later, re-show a photo,
+            // or reset the advance timer (stale-retry bug).
+            if pendingRetry != nil {
+                clearFailure()
+                armRefreshTask()
+            }
         } else {
             // Every photo in the cycle failed to load: keep the current image
             // on screen (FR-310-03), park the pointless auto-advance, and let
-            // the backoff retry recover the show (US1-1).
+            // the backoff retry recover the show (US1-1). Restore the cursor to
+            // the displayed photo — the failed walk left it one slot ahead, and
+            // recovery must resume on what is visible, not jump mid-slot
+            // (recovery-jump / paused-jump bugs).
+            cursor = displayedCursor
             stopTicker()
             handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
         }
