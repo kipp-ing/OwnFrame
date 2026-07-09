@@ -726,7 +726,18 @@ struct PeriodicRefreshTests {
         await waitUntil(model.currentAssetID == "image-2")
         #expect(model.currentAssetID == "image-2")
 
-        // The retry recovers the source within one backoff interval…
+        // The successful step IS the recovery bookkeeping: it drops the pending
+        // retry and re-arms the refresh — which is an hour overdue, so a
+        // catch-up fires immediately, still against the dead server. Waiting
+        // for this deterministic third call (and its MainActor-visible failure)
+        // instead of racing it against setAssets was this test's historical
+        // flake.
+        await waitUntil(api.assetsCallCount == 3)
+        #expect(api.assetsCallCount == 3)
+        await waitUntil(model.failureReason == .transient)
+        #expect(model.failureReason == .transient)
+
+        // The backoff retry from the failed catch-up recovers the source…
         api.setAssets([
             Asset(id: "image-1", type: "IMAGE"),
             Asset(id: "image-2", type: "IMAGE"),
@@ -737,8 +748,8 @@ struct PeriodicRefreshTests {
         clock.advance(by: .milliseconds(1200))
         // Wait on the MainActor-visible outcome, not the stub's call counter —
         // the counter bumps inside the fetch, before clearFailure() runs.
-        await waitUntil(api.assetsCallCount == 3 && model.failureReason == nil)
-        #expect(api.assetsCallCount == 3)
+        await waitUntil(api.assetsCallCount == 4 && model.failureReason == nil)
+        #expect(api.assetsCallCount == 4)
         #expect(model.failureReason == nil)
 
         // …its success counts as the refresh: the next fetch is an hour out,
@@ -746,10 +757,10 @@ struct PeriodicRefreshTests {
         #expect(model.currentAssetID == "image-2")   // still undisturbed
         await clock.waitUntilSleeperCount(1)
         clock.advance(by: .seconds(3599))
-        #expect(api.assetsCallCount == 3)
-        clock.advance(by: .seconds(1))
-        await waitUntil(api.assetsCallCount == 4)
         #expect(api.assetsCallCount == 4)
+        clock.advance(by: .seconds(2))
+        await waitUntil(api.assetsCallCount == 5)
+        #expect(api.assetsCallCount == 5)
 
         await ticker.waitUntilWaiting()
         ticker.tick()
