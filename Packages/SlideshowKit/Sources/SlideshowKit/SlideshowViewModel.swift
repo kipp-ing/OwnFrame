@@ -21,6 +21,8 @@ public final class SlideshowViewModel {
     public private(set) var albumID: String
     private let api: any ImmichAPI
     private let ticker: any SlideshowTicker
+    /// Monotonic clock for retry backoff and refresh staleness (310, FR-310-12).
+    private let clock: any SlideshowClock
     private let cache: ImageCache
     private let config: SlideshowConfig
     /// Live display/playback preferences (order, duration, quality). Read at the
@@ -42,6 +44,7 @@ public final class SlideshowViewModel {
         api: any ImmichAPI,
         albumID: String,
         ticker: any SlideshowTicker,
+        clock: any SlideshowClock = ContinuousSlideshowClock(),
         cache: ImageCache = ImageCache(limit: SlideshowConfig.default.cacheLimit),
         config: SlideshowConfig = .default,
         settingsStore: any ThemeSettingsStore,
@@ -50,6 +53,7 @@ public final class SlideshowViewModel {
         self.api = api
         self.albumID = albumID
         self.ticker = ticker
+        self.clock = clock
         self.cache = cache
         self.config = config
         self.settingsStore = settingsStore
