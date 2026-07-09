@@ -284,6 +284,63 @@ struct OfflineRelaunchTests {
         }
     }
 
+    // US1-4/US2-2 regression (found in sim bug hunt 2026-07-09): an offline
+    // advance that succeeds FROM DISK must not count as "the recovery" — in
+    // 310 a successful step proved the network worked, but a disk hit proves
+    // nothing. If it cancels the sourceReload retry (and no refresh is armed
+    // because no fetch ever succeeded in this process), the engine stops
+    // trying to reach the server forever: the network's return goes unnoticed.
+    @Test func offlineAdvancesDoNotKillTheSourceRetry() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let api = StubImmichAPI()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+        let clock = TestClock()
+        let ticker = ManualTicker()
+        let model = makeRelaunchedModel(
+            api: api, disk: disk, snapshots: snapshots, clock: clock, ticker: ticker
+        )
+        await model.start()
+        #expect(model.phase == .playing)
+
+        // The frame advances twice from disk while the server is still dead —
+        // exactly what a wall frame does for however long the outage lasts.
+        for _ in 0..<2 {
+            let before = model.currentAssetID
+            await ticker.waitUntilWaiting()
+            ticker.tick()
+            await waitUntil(model.currentAssetID != before)
+            #expect(model.currentAssetID != before)
+        }
+        // Stale-but-working stays marked as degraded (FR-320-07: failureReason
+        // stays set until live data is back).
+        #expect(model.failureReason == .transient)
+
+        // The router reboots — with a new photo in the album. The retry chain
+        // must still be alive to notice, whatever backoff attempt it is on:
+        // release every parked timer generously.
+        let grown = ids + ["image-4"]
+        api.setAssets(grown.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+        api.setPreviewData(Data([4]), for: "image-4")
+        let callsBefore = api.assetsCallCount
+        for _ in 0..<10 {
+            clock.advance(by: .seconds(360))
+            await waitUntil(api.assetsCallCount > callsBefore)
+            if api.assetsCallCount > callsBefore {
+                break
+            }
+        }
+        await waitUntil(model.failureReason == nil)
+
+        #expect(api.assetsCallCount > callsBefore, "the engine must still be fetching")
+        #expect(model.failureReason == nil)
+        #expect(snapshots.load(forKey: "album")?.map(\.id) == grown)   // live list adopted
+    }
+
     // US2-4 + SC-320-06 (scenario 6): remembered list present but the stored
     // photos were purged — calm error state with the retry armed, no crash.
     @Test func purgedPhotosDegradeToTheCalmErrorState() async throws {

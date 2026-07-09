@@ -226,8 +226,9 @@ public final class SlideshowViewModel {
             prefetchImages()
             restartTickerIfPlaying()
             // Same recovery acknowledgement as step(): a successful jump
-            // obsoletes any pending retry.
-            if pendingRetry != nil {
+            // obsoletes a pending IMAGE retry — and, as in step(), must leave
+            // a SOURCE retry running (the jump may have loaded from disk).
+            if pendingRetry == .imageReload {
                 clearFailure()
                 armRefreshTask()
             }
@@ -251,10 +252,15 @@ public final class SlideshowViewModel {
         if let loaded = await loadFromCursor(forward: forward) {
             showLoadedImage(loaded)
             prefetchImages()
-            // A successful step during an outage IS the recovery: drop the
-            // pending retry so it can't fire minutes later, re-show a photo,
-            // or reset the advance timer (stale-retry bug).
-            if pendingRetry != nil {
+            // A successful step during an IMAGE outage is the recovery: drop
+            // the pending retry so it can't fire minutes later, re-show a
+            // photo, or reset the advance timer (stale-retry bug). A pending
+            // SOURCE retry must survive (320): with the disk tier, this step
+            // may have loaded from disk and proves nothing about the server —
+            // cancelling it would strand an offline-relaunched frame with no
+            // recovery path at all (no refresh is armed before the first
+            // successful fetch).
+            if pendingRetry == .imageReload {
                 clearFailure()
                 armRefreshTask()
             }
