@@ -170,3 +170,178 @@ struct OfflinePlaybackTests {
         #expect(api.previewCallCount == networkCalls)
     }
 }
+
+// MARK: - US2: The frame survives an offline relaunch (T009)
+
+@Suite("Offline US2 — relaunch survival")
+@MainActor
+struct OfflineRelaunchTests {
+    private let ids = ["image-1", "image-2", "image-3"]
+
+    /// First app run: play the album far enough that the snapshot is saved and
+    /// every photo is on disk, then tear the engine down (power cut).
+    private func playFirstRun(
+        api: StubImmichAPI, disk: DiskImageCache, snapshots: FileSourceSnapshotStore
+    ) async {
+        api.setAssets(ids.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+        for (index, id) in ids.enumerated() {
+            api.setPreviewData(Data([UInt8(index + 1)]), for: id)
+        }
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            diskCache: disk, snapshots: snapshots,
+            cache: ImageCache(limit: 2),
+            config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        await model.advance()
+        for id in ids {
+            _ = await waitForDiskEntry(disk, "\(id)#preview")
+        }
+        model.pause()   // park every timer before the "power cut"
+    }
+
+    private func makeRelaunchedModel(
+        api: StubImmichAPI, disk: DiskImageCache, snapshots: FileSourceSnapshotStore,
+        clock: TestClock, ticker: ManualTicker = ManualTicker()
+    ) -> SlideshowViewModel {
+        SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            diskCache: disk, snapshots: snapshots,
+            cache: ImageCache(limit: 2),
+            config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
+            settingsStore: sequentialThemeStore()
+        )
+    }
+
+    // US2-1 + SC-320-02 + FR-320-06/07 (scenario 4): relaunch with the source
+    // dead plays the remembered list from disk — no error screen, no user
+    // input; the fetch was attempted, and the sourceReload retry is armed.
+    @Test func offlineRelaunchPlaysFromTheRememberedList() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let api = StubImmichAPI()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+        #expect(snapshots.load(forKey: "album")?.map(\.id) == ids)   // FR-320-06
+
+        // Relaunch: router still rebooting — the list fetch fails.
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+        let clock = TestClock()
+        let calls0 = api.assetsCallCount
+        let model = makeRelaunchedModel(api: api, disk: disk, snapshots: snapshots, clock: clock)
+        await model.start()
+
+        #expect(api.assetsCallCount == calls0 + 1)   // live fetch was attempted
+        #expect(model.phase == .playing)             // …but the show still starts
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.currentImageData == Data([1]))
+        #expect(model.failureReason == .transient)   // degraded, not broken
+        await clock.waitUntilSleeperCount(1)         // the retry is armed
+        #expect(clock.sleeperCount >= 1)
+    }
+
+    // US2-2 (scenario 5): when the retry reaches the server, the live list
+    // replaces the remembered one via 310's reconciliation — an asset added
+    // server-side enters the rotation and the snapshot is replaced.
+    @Test func recoveryAfterSnapshotStartMergesTheLiveList() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let api = StubImmichAPI()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+        let clock = TestClock()
+        let ticker = ManualTicker()
+        let model = makeRelaunchedModel(
+            api: api, disk: disk, snapshots: snapshots, clock: clock, ticker: ticker
+        )
+        await model.start()
+        #expect(model.phase == .playing)
+
+        // The network returns — with a new photo in the album.
+        let grown = ids + ["image-4"]
+        api.setAssets(grown.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+        api.setPreviewData(Data([4]), for: "image-4")
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .milliseconds(1200))
+        await waitUntil(model.failureReason == nil)
+
+        #expect(model.failureReason == nil)
+        #expect(model.currentAssetID == "image-1")               // undisturbed
+        #expect(snapshots.load(forKey: "album")?.map(\.id) == grown)   // replaced
+
+        // The addition joins the rotation without a restart.
+        for expected in ["image-2", "image-3", "image-4"] {
+            await ticker.waitUntilWaiting()
+            ticker.tick()
+            await waitUntil(model.currentAssetID == expected)
+            #expect(model.currentAssetID == expected)
+        }
+    }
+
+    // US2-4 + SC-320-06 (scenario 6): remembered list present but the stored
+    // photos were purged — calm error state with the retry armed, no crash.
+    @Test func purgedPhotosDegradeToTheCalmErrorState() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let api = StubImmichAPI()
+        let imagesRoot = root.appendingPathComponent("images")
+        let disk = DiskImageCache(root: imagesRoot, budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+
+        // iOS reclaimed the cache directory; the network is also down.
+        try FileManager.default.removeItem(at: imagesRoot)
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+        for id in ids {
+            api.setPreviewError(ImmichError.unreachable, for: id)
+        }
+
+        let clock = TestClock()
+        let freshDisk = DiskImageCache(root: imagesRoot, budget: 10_000_000)
+        let model = makeRelaunchedModel(api: api, disk: freshDisk, snapshots: snapshots, clock: clock)
+        await model.start()
+
+        #expect(model.phase == .failed)
+        #expect(model.failureReason == .transient)
+        #expect(model.currentImageData == nil)
+        await clock.waitUntilSleeperCount(1)   // auto-retry runs behind the calm state
+        #expect(clock.sleeperCount >= 1)
+    }
+
+    // US2-3 (scenario 7): no snapshot for the active source — the launch
+    // behaves exactly like 310's dead-server scenario, recovery included.
+    @Test func launchWithoutASnapshotKeeps310BehaviorVerbatim() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let api = StubImmichAPI()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+
+        let clock = TestClock()
+        let model = makeRelaunchedModel(api: api, disk: disk, snapshots: snapshots, clock: clock)
+        await model.start()
+
+        #expect(model.phase == .failed)
+        #expect(model.failureReason == .transient)
+
+        // The server returns before the first retry fires — playback starts by
+        // itself (310 US1-2).
+        api.setAssets([Asset(id: "image-9", type: "IMAGE")], for: "album")
+        api.setPreviewData(Data([9]), for: "image-9")
+        await clock.waitUntilSleeperCount(1)
+        clock.advance(by: .milliseconds(1200))
+        await waitUntil(model.phase == .playing)
+
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-9")
+        #expect(model.failureReason == nil)
+        #expect(snapshots.load(forKey: "album")?.map(\.id) == ["image-9"])
+    }
+}
