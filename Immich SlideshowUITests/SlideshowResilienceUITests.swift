@@ -24,7 +24,11 @@ final class SlideshowResilienceUITests: XCTestCase {
     @MainActor
     private func launchSlideshow(extraArgs: [String]) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest", "--uitest-slideshow"] + extraArgs
+        // `--uitest-reset-storage`: these tests assert the error state at
+        // launch, so the 320 stores must start empty — a snapshot left by an
+        // earlier test would (correctly!) play the remembered album from disk
+        // instead (320 US2 offline fallback).
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-reset-storage"] + extraArgs
         app.launch()
         return app
     }
