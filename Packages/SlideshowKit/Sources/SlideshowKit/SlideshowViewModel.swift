@@ -96,7 +96,7 @@ public final class SlideshowViewModel {
     }
 
     public func start() async {
-        pause()
+        stopTicker()
         // Rebind every timer to whatever this start() targets: a source switch
         // must never leave a retry or refresh running against the old source
         // (FR-310-11), and an explicit (re)start begins a fresh backoff curve.
@@ -143,7 +143,7 @@ public final class SlideshowViewModel {
     /// `advance()`, it resets the auto-advance timer so the next automatic step
     /// is a full interval away; works while paused (without resuming the timer).
     public func showNext() async {
-        pause()
+        stopTicker()
         await step(forward: true)
         restartTickerIfPlaying()
     }
@@ -151,7 +151,7 @@ public final class SlideshowViewModel {
     /// Manual backward step from the chrome/swipe (the only place the show moves
     /// backwards). Resets the auto-advance timer like `showNext()`.
     public func showPrevious() async {
-        pause()
+        stopTicker()
         await step(forward: false)
         restartTickerIfPlaying()
     }
@@ -164,7 +164,7 @@ public final class SlideshowViewModel {
             restartTickerIfPlaying()
         } else {
             isPaused = true
-            pause()
+            stopTicker()
         }
     }
 
@@ -175,7 +175,7 @@ public final class SlideshowViewModel {
             return
         }
 
-        pause()
+        stopTicker()
         ensureSequenceForCurrentOrder()
         if let position = playOrder.firstIndex(of: assetIndex) {
             cursor = position
@@ -208,7 +208,7 @@ public final class SlideshowViewModel {
             // Every photo in the cycle failed to load: keep the current image
             // on screen (FR-310-03), park the pointless auto-advance, and let
             // the backoff retry recover the show (US1-1).
-            pause()
+            stopTicker()
             handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
         }
     }
@@ -305,7 +305,7 @@ public final class SlideshowViewModel {
             guard !assets.isEmpty else {
                 imageAssets = []
                 resetCurrent()
-                pause()
+                stopTicker()
                 phase = .empty
                 return
             }
@@ -430,19 +430,41 @@ public final class SlideshowViewModel {
         nextRetryDue = nil
     }
 
+    /// Background gating (scenePhase → inactive/background): stops the
+    /// auto-advance AND suspends the retry/refresh timers — nothing fires while
+    /// backgrounded (FR-310-10). Their due state survives for `resume()`.
     public func pause() {
-        runTask?.cancel()
-        runTask = nil
+        stopTicker()
+        retryTask?.cancel()
+        retryTask = nil
+        refreshTask?.cancel()
+        refreshTask = nil
     }
 
     public func resume() {
-        // Foreground gating only re-arms the timer; if the user paused via the
-        // chrome, stay paused across background→foreground.
+        // Re-arm the background work first — independent of the user-intent
+        // pause (a paused frame still refreshes its list and recovers its
+        // connection; research R7). Overdue work fires immediately (US3).
+        if pendingRetry != nil {
+            let remaining = max((nextRetryDue ?? clock.now) - clock.now, .zero)
+            armRetryTask(delay: remaining)
+        }
+        armRefreshTask()
+
+        // The ticker only re-arms while actually playing; if the user paused
+        // via the chrome, stay paused across background→foreground.
         guard phase == .playing, !isPaused else {
             return
         }
 
         startTickerLoop()
+    }
+
+    /// Stop only the auto-advance loop — the internal "hold the slide" used by
+    /// manual steps, user pause, and teardown. Never touches retry/refresh.
+    private func stopTicker() {
+        runTask?.cancel()
+        runTask = nil
     }
 
     /// Switch to a different album and reload from its first image. Used by remote
@@ -453,7 +475,7 @@ public final class SlideshowViewModel {
     }
 
     private func startTickerLoop() {
-        pause()
+        stopTicker()
         let ticker = ticker
         runTask = Task.detached { [weak self, ticker] in
             guard let self else { return }

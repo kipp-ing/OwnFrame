@@ -636,6 +636,156 @@ struct PeriodicRefreshTests {
         #expect(model.currentAssetID == "image-3")
     }
 
+    // US3-2 + FR-310-10: while backgrounded, no retry or refresh timer fires —
+    // however much time passes.
+    @Test func backgroundStopsAllTimers() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1"]
+        )
+        await clock.waitUntilSleeperCount(1)   // the hourly refresh is parked
+
+        model.pause()
+        #expect(clock.sleeperCount == 0)
+
+        clock.advance(by: .seconds(5 * 3600))
+        await waitUntil(false)   // settle the executor
+        #expect(api.assetsCallCount == 1)
+    }
+
+    // US3-1: returning to the foreground stale (last refresh older than the
+    // interval) triggers an immediate refresh — no waiting out a fresh hour.
+    @Test func staleForegroundReturnRefreshesImmediately() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1"]
+        )
+
+        model.pause()
+        clock.advance(by: .seconds(2 * 3600))   // asleep for two hours
+
+        model.resume()
+        await waitUntil(api.assetsCallCount == 2)
+        #expect(api.assetsCallCount == 2)
+    }
+
+    // US3-1 inverse: a short background trip is not stale — the refresh keeps
+    // its original due time instead of firing on every foreground return.
+    @Test func freshForegroundReturnKeepsTheOriginalSchedule() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1"]
+        )
+
+        model.pause()
+        clock.advance(by: .seconds(600))   // 10 minutes — well inside the hour
+
+        model.resume()
+        await clock.waitUntilSleeperCount(1)
+        await waitUntil(false)   // settle: provably no immediate fetch
+        #expect(api.assetsCallCount == 1)
+
+        // The original cadence holds: due 50 minutes later, not a fresh hour.
+        clock.advance(by: .seconds(3000))
+        await waitUntil(api.assetsCallCount == 2)
+        #expect(api.assetsCallCount == 2)
+    }
+
+    // US3-3: a retry that was pending at background time resumes on foreground
+    // return — immediately when overdue.
+    @Test func overduePendingRetryFiresImmediatelyOnForegroundReturn() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        await clock.waitUntilSleeperCount(1)   // retry parked
+
+        model.pause()
+        #expect(clock.sleeperCount == 0)
+
+        // The server comes back while the app sleeps past the retry's due time;
+        // nothing fires in the background.
+        api.setAssets([Asset(id: "image-1", type: "IMAGE")], for: "album")
+        api.setPreviewData(Data([1]), for: "image-1")
+        clock.advance(by: .seconds(10))
+        await waitUntil(false)   // settle
+        #expect(model.phase == .failed)
+
+        model.resume()
+        await waitUntil(model.phase == .playing)
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-1")
+    }
+
+    // US3-3 second half: a retry that is not yet due resumes with its remaining
+    // delay instead of firing early.
+    @Test func pendingRetryResumesWithItsRemainingDelay() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        api.setAssetsError(ImmichError.unreachable, for: "album")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        let calls0 = api.assetsCallCount
+        await clock.waitUntilSleeperCount(1)
+
+        model.pause()
+        model.resume()   // no time passed: full delay remains
+
+        await clock.waitUntilSleeperCount(1)
+        await waitUntil(false)   // settle: provably not fired early
+        #expect(api.assetsCallCount == calls0)
+
+        clock.advance(by: .milliseconds(1200))
+        await waitUntil(api.assetsCallCount > calls0)
+        #expect(api.assetsCallCount == calls0 + 1)
+    }
+
+    // Research R7: the background re-arm is independent of the user-intent
+    // pause — a paused frame still refreshes its list; only the auto-advance
+    // stays stopped.
+    @Test func userPausedFrameStillRefreshesOnForegroundReturn() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(
+            api: api, ticker: ticker, clock: clock, assets: ["image-1", "image-2"]
+        )
+        await ticker.waitUntilWaiting()   // the advance loop has parked once
+
+        model.togglePause()   // user-intent pause (chrome button)
+        #expect(model.isPaused)
+
+        model.pause()
+        clock.advance(by: .seconds(2 * 3600))
+        model.resume()
+
+        await waitUntil(api.assetsCallCount == 2)
+        #expect(api.assetsCallCount == 2)
+
+        // The auto-advance stayed stopped: no new tick wait was armed and the
+        // photo did not move.
+        #expect(ticker.requestedDurations.count == 1)
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.isPaused)
+    }
+
     // US2-6: the source emptied server-side — the next refresh moves to the
     // calm empty state; a later refresh with photos recovers playback.
     @Test func refreshToEmptySourceMovesToEmptyStateAndBack() async {
