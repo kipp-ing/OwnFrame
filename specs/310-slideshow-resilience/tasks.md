@@ -39,21 +39,21 @@ No setup tasks — `SlideshowKit` exists with a green suite; no new dependencies
 **Purpose**: The time seam every story schedules against, plus source-compatible view-model
 plumbing. No story work before this is done.
 
-- [ ] T001 Add `SlideshowClock` protocol (monotonic `now: Duration`, `sleep(for:) async throws`)
+- [x] T001 Add `SlideshowClock` protocol (monotonic `now: Duration`, `sleep(for:) async throws`)
       and `ContinuousSlideshowClock` production impl in
       `Packages/SlideshowKit/Sources/SlideshowKit/SlideshowClock.swift` (contract:
       contracts/slideshow-resilience-api.md; trivial wrapper, same no-unit-test precedent as
       `RealTicker`)
-- [ ] T002 Add `TestClock` fake (deterministic `advance(by:)` releases due sleepers; pending
+- [x] T002 Add `TestClock` fake (deterministic `advance(by:)` releases due sleepers; pending
       sleep throws `CancellationError` on task cancellation) to
       `Packages/SlideshowKit/Tests/SlideshowKitTests/Fakes.swift`, with red-first sanity tests
       (sleep blocks until advanced past deadline, multiple sleepers release in deadline order,
       cancellation propagates) at the top of new
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift`
-- [ ] T003 [P] Add `refreshInterval: Duration` (default `.seconds(3600)`, precondition > 0) to
+- [x] T003 [P] Add `refreshInterval: Duration` (default `.seconds(3600)`, precondition > 0) to
       `Packages/SlideshowKit/Sources/SlideshowKit/SlideshowConfig.swift` (FR-310-06; asserted
       in use by T013's default-interval test)
-- [ ] T004 Add injected `clock: any SlideshowClock = ContinuousSlideshowClock()` parameter to
+- [x] T004 Add injected `clock: any SlideshowClock = ContinuousSlideshowClock()` parameter to
       `SlideshowViewModel.init` in
       `Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift` — store only, no
       behavior change; existing suites stay green (`cd Packages/SlideshowKit && swift test`)
@@ -78,13 +78,13 @@ backoff interval without user input. No real timers, no real network.
 
 ### Tests for User Story 1 (red first) ⚠️
 
-- [ ] T005 [P] [US1] Red: `Packages/SlideshowKit/Tests/SlideshowKitTests/RetryPolicyTests.swift`
+- [x] T005 [P] [US1] Red: `Packages/SlideshowKit/Tests/SlideshowKitTests/RetryPolicyTests.swift`
       — delay sequence `initial × factor^(n-1)` capped at 300 s with each delay inside ±20 %
       jitter bounds (seeded `SeededRandomNumberGenerator`, numeric assertions); `reset()`
       returns to ~1 s; auth errors (`.unauthorized`, `.shareLinkExpired`, `.wrongPassword`,
       `.passwordRequired`) yield cap-only delays from attempt 1; `classify` table incl.
       non-`ImmichError` → `.transient` (FR-310-02/05, SC-310-04)
-- [ ] T007 [US1] Red: US1 scenarios in
+- [x] T007 [US1] Red: US1 scenarios in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift` —
       (a) mid-playback image-load failure: current image + `phase == .playing` retained,
       re-attempts observed at backoff schedule under `TestClock` (US1-1, FR-310-03);
@@ -98,10 +98,10 @@ backoff interval without user input. No real timers, no real network.
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] Green: `RetryPolicy` + `Configuration` + `SlideshowFailureReason` + `classify`
+- [x] T006 [US1] Green: `RetryPolicy` + `Configuration` + `SlideshowFailureReason` + `classify`
       in `Packages/SlideshowKit/Sources/SlideshowKit/RetryPolicy.swift` per
       contracts/slideshow-resilience-api.md (depends on T005)
-- [ ] T008 [US1] Green: retry loop in
+- [x] T008 [US1] Green: retry loop in
       `Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift` — `retryPolicy`
       init param (default `RetryPolicy()`), `failureReason` published property,
       `retryTask` (weak-self detached, `runTask` style), pending-retry context (source reload
@@ -109,11 +109,11 @@ backoff interval without user input. No real timers, no real network.
       current image when one exists (FR-310-03) instead of unconditional `.failed`, manual
       `retry()` also allowed while a retry is pending + resets backoff, `pause()` cancels /
       `start()` rebinds the retry task (depends on T006, T007)
-- [ ] T009 [US1] Auth-actionable message variant (FR-310-05: "check your connection settings"
+- [x] T009 [US1] Auth-actionable message variant (FR-310-05: "check your connection settings"
       copy) behind a failure-reason input in
       `Immich Slideshow/Slideshow/SlideshowErrorView.swift`; keep accessibility IDs
       `slideshow.error`/`slideshow.retry` stable; `#Preview` renders both variants
-- [ ] T010 [US1] Pass `viewModel.failureReason` into `SlideshowErrorView` at
+- [x] T010 [US1] Pass `viewModel.failureReason` into `SlideshowErrorView` at
       `Immich Slideshow/Slideshow/SlideshowView.swift` (error-state branch, ~line 199)
 
 **Checkpoint**: `cd Packages/SlideshowKit && swift test` green; error view preview shows both
@@ -136,7 +136,7 @@ cursor stability, and exactly-one-fetch; empty list → `.empty`.
 
 ### Tests for User Story 2 (red first) ⚠️
 
-- [ ] T011 [P] [US2] Red:
+- [x] T011 [P] [US2] Red:
       `Packages/SlideshowKit/Tests/SlideshowKitTests/RotationReconcilerTests.swift` — the six
       data-model.md invariants: output always a full permutation of the new list; identical
       list ⇒ inputs returned unchanged; sequential ⇒ identity order, cursor anchored on
@@ -145,7 +145,7 @@ cursor stability, and exactly-one-fetch; empty list → `.empty`.
       exactly-once-per-cycle holds; removed current ⇒ cursor before its successor (next
       advance shows the successor; at cycle end, a new cycle starts) (FR-310-07/08,
       SC-310-02/03)
-- [ ] T013 [US2] Red: US2 scenarios in
+- [x] T013 [US2] Red: US2 scenarios in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift` —
       (a) advancing 60 min triggers exactly one `assets()` re-fetch; `currentAssetID`, the
       pending tick deadline, and the cursor are untouched (US2-1/3, FR-310-06/07, SC-310-05);
@@ -158,10 +158,10 @@ cursor stability, and exactly-one-fetch; empty list → `.empty`.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Green: `RotationReconciler.reconcile(...)` in
+- [x] T012 [US2] Green: `RotationReconciler.reconcile(...)` in
       `Packages/SlideshowKit/Sources/SlideshowKit/RotationReconciler.swift` per
       contracts/slideshow-resilience-api.md (depends on T011)
-- [ ] T014 [US2] Green: refresh loop in
+- [x] T014 [US2] Green: refresh loop in
       `Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift` — `refreshTask`
       sleeping to `lastSuccessfulRefresh + config.refreshInterval` on the injected clock;
       success ⇒ reconcile via `RotationReconciler` + stamp `lastSuccessfulRefresh` + reset
@@ -185,7 +185,7 @@ fetches), `resume()` ⇒ immediate refresh and overdue retry fires.
 
 ### Tests for User Story 3 (red first) ⚠️
 
-- [ ] T015 [US3] Red: US3 scenarios in
+- [x] T015 [US3] Red: US3 scenarios in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift` —
       (a) after `pause()`, advancing the clock far past both deadlines produces zero API
       calls (US3-2, FR-310-10); (b) `resume()` with `now - lastSuccessfulRefresh >
@@ -196,7 +196,7 @@ fetches), `resume()` ⇒ immediate refresh and overdue retry fires.
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Green: `pause()` cancels `retryTask`/`refreshTask` (due instants survive as
+- [x] T016 [US3] Green: `pause()` cancels `retryTask`/`refreshTask` (due instants survive as
       stored monotonic state); `resume()` re-arms both with overdue-fires-immediately,
       independent of `isPaused`, in
       `Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift` (depends on T015)
@@ -207,32 +207,32 @@ fetches), `resume()` ⇒ immediate refresh and overdue retry fires.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T017 Red+Green: source-switch rebind test in
+- [x] T017 Red+Green: source-switch rebind test in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift` —
       `switchAlbum` while a retry is pending: old timers dead (no fetch against the old
       album), new source fetched fresh, backoff and `lastSuccessfulRefresh` reset
       (FR-310-11, quickstart 12); fix `start()` teardown if red reveals a leak
-- [ ] T018 [P] Long-run soak test (SC-310-06) in
+- [x] T018 [P] Long-run soak test (SC-310-06) in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift` —
       scripted loop of network flaps + refreshes + advances under `TestClock`; ends
       `.playing`, `ImageCache` count within `cacheLimit`
-- [ ] T019 [P] Secret audit of every new failure path (FR-310-13): grep/review the 310 diff in
+- [x] T019 [P] Secret audit of every new failure path (FR-310-13): grep/review the 310 diff in
       `Packages/SlideshowKit/Sources/SlideshowKit/` — no API key, shared-link password, or
       URL query secrets in log/error strings (existing `ImmichClient` status+path style only)
-- [ ] T020 Verification gate (Claude-owned): XcodeBuildMCP build of the app scheme + `test_sim`
+- [x] T020 Verification gate (Claude-owned): XcodeBuildMCP build of the app scheme + `test_sim`
       on the app-hosted test classes (whole classes — memory
       `xcodebuildmcp-single-test-false-green`); confirm the two `SlideshowViewModel` build
       sites in `Immich Slideshow/Immich_SlideshowApp.swift` need no change (clock default
       parameter) or inject `ContinuousSlideshowClock()` explicitly if the team prefers it
       visible
-- [ ] T021 Full XCUITest suite via XcodeBuildMCP `test_sim` (SwiftUI files touched — repo
+- [x] T021 Full XCUITest suite via XcodeBuildMCP `test_sim` (SwiftUI files touched — repo
       rule, memory `run-full-xcuitest-before-merge`); screenshot-verify the auth-variant
       error state if a `--uitest` seam reaches it, else preview evidence from T009
-- [ ] T022 [P] Docs: add FR-310-*/SC-310-* → test mapping to `docs/spec-traceability.md`;
+- [x] T022 [P] Docs: add FR-310-*/SC-310-* → test mapping to `docs/spec-traceability.md`;
       flip `specs/310-slideshow-resilience/spec.md` Status from "Planned" to reflect
       implementation; note the delivered scope in `docs/spec-overview.md` if it lists 310's
       state
-- [ ] T023 Run the quickstart.md validation pass end-to-end (host gate + simulator gates);
+- [x] T023 Run the quickstart.md validation pass end-to-end (host gate + simulator gates);
       optional live smoke per its "Manual smoke" section on the real frame
 
 ---
