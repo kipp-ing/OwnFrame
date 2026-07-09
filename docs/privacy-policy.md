@@ -42,4 +42,4 @@ Changes to this policy are visible in this repository's version history.
 
 ## Contact
 
-Jan Kipping — info@kippings.de
+Jan Kipping — app@kipp.ing
