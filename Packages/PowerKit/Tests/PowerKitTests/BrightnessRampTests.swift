@@ -50,6 +50,9 @@ struct BrightnessRampTests {
         let manager = PowerManager(screen: screen, clock: clock, config: config)
 
         manager.activate()
+
+        // First ramp toward 0.0: let exactly one step land (0.8 -> 0.7), then it
+        // parks on its next sleep.
         let firstRamp = Task {
             await manager.setBrightness(0.0, animated: true)
         }
@@ -57,16 +60,27 @@ struct BrightnessRampTests {
         clock.advanceOne()
         await waitUntil(screen.brightnessWrites.count == 1)
         #expect(abs((screen.brightnessWrites.last ?? 0) - 0.7) < 0.001)
+        await clock.waitUntilSleeping()  // first ramp is now parked on its next step
 
+        // Second ramp toward 1.0 preempts the first. `setBrightness` cancels the
+        // in-flight ramp synchronously, before creating its own, so the parked
+        // sleep resumes via the cancellation handler and the first ramp ends here
+        // without writing any further steps. We must NOT hand-advance the first
+        // ramp's pending sleeper — driving it would let it keep ramping toward 0.0
+        // and desynchronise the manual clock (the old fixed-count pump could then
+        // wait forever for a sleeper preemption had already cancelled).
         let secondRamp = Task {
             await manager.setBrightness(1.0, animated: true)
         }
+        await firstRamp.value
+
+        // Only the second ramp remains, and it performs exactly `softDimSteps`
+        // sleeps. Advancing that many times drives it to its target with no
+        // step-count guesswork and no leftover sleeper to deadlock on.
         for _ in 0..<config.softDimSteps {
             await clock.waitUntilSleeping()
             clock.advanceOne()
-            await Task.yield()
         }
-        await firstRamp.value
         await secondRamp.value
 
         #expect(screen.brightnessWrites.last == 1.0)
