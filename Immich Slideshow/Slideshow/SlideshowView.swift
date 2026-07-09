@@ -35,6 +35,11 @@ struct SlideshowView: View {
     // client for the add-source album picker.
     var makeSourceLibraryViewModel: () -> SourceLibraryViewModel? = { nil }
     var makeServerAPI: () async -> (any ImmichAPI)? = { nil }
+    // Storage stores (320): shared with the engine; the settings sheet surfaces
+    // usage/budget/Clear against the same instances the slideshow writes to.
+    var diskCache: (any DiskImageStoring)?
+    var snapshotStore: (any SourceSnapshotStoring)?
+    var budgetStore: (any CacheBudgetStore)?
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: HAControlCoordinator?
@@ -168,7 +173,10 @@ struct SlideshowView: View {
                 onConnectionChanged: onConnectionChanged,
                 makeSourceLibraryViewModel: makeSourceLibraryViewModel,
                 makeServerAPI: makeServerAPI,
-                onReset: onReset
+                onReset: onReset,
+                diskCache: diskCache,
+                snapshotStore: snapshotStore,
+                budgetStore: budgetStore
             )
             // Present the settings as a larger page-sized sheet on iPad so the folded-in
             // Connection/MQTT sections aren't cut off behind a cramped form-sheet card
