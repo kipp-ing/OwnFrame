@@ -121,4 +121,8 @@ topic, with `N10/N20…` reserved for sub-specs). Start at `docs/spec-overview.m
 reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. FR/SC IDs carry
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
+
+Active feature: `310-slideshow-resilience` — implementation plan at
+`specs/310-slideshow-resilience/plan.md` (research, data-model, contracts, quickstart
+alongside it).
 <!-- SPECKIT END -->
