@@ -543,9 +543,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Photo Frame";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Immich Slideshow connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Photo Frame for Immich connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -593,9 +594,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Photo Frame";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Immich Slideshow connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Photo Frame for Immich connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -739,7 +741,7 @@
 				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Immich SlideshowShareExtension/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Immich Slideshow";
+				INFOPLIST_KEY_CFBundleDisplayName = "Photo Frame";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -771,7 +773,7 @@
 				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Immich SlideshowShareExtension/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Immich Slideshow";
+				INFOPLIST_KEY_CFBundleDisplayName = "Photo Frame";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
