@@ -108,7 +108,6 @@ final class TestClock: SlideshowClock, @unchecked Sendable {
     private let lock = NSLock()
     private var currentNow: Duration = .zero
     private var sleepers: [Sleeper] = []
-    private var sleeperObservers: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     var now: Duration {
         lock.withLock { currentNow }
@@ -133,7 +132,6 @@ final class TestClock: SlideshowClock, @unchecked Sendable {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
                 lock.withLock {
                     sleepers.append(Sleeper(id: id, deadline: currentNow + duration, continuation: continuation))
-                    notifySleeperObserversLocked()
                 }
             }
         } onCancel: {
@@ -160,24 +158,17 @@ final class TestClock: SlideshowClock, @unchecked Sendable {
         }
     }
 
-    /// Suspends until `count` sleepers are parked — the deterministic "the engine
+    /// Yields until `count` sleepers are parked — the deterministic "the engine
     /// has reached its wait" handshake (same role as ManualTicker.waitUntilWaiting).
+    /// Bounded so a missing sleeper fails the test's next assertion instead of
+    /// hanging the run.
     func waitUntilSleeperCount(_ count: Int) async {
-        await withCheckedContinuation { continuation in
-            lock.withLock {
-                if sleepers.count >= count {
-                    continuation.resume()
-                } else {
-                    sleeperObservers.append((count: count, continuation: continuation))
-                }
+        for _ in 0..<10_000 {
+            if lock.withLock({ sleepers.count >= count }) {
+                return
             }
+            await Task.yield()
         }
-    }
-
-    private func notifySleeperObserversLocked() {
-        let ready = sleeperObservers.filter { sleepers.count >= $0.count }
-        sleeperObservers.removeAll { sleepers.count >= $0.count }
-        ready.forEach { $0.continuation.resume() }
     }
 }
 

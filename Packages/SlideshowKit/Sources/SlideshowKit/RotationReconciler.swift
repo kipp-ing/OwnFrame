@@ -115,6 +115,13 @@ public enum RotationReconciler {
             }
         }
 
+        // No running cycle to preserve (refill from empty): a fresh shuffle.
+        if survivors.isEmpty && cursorPosition == nil {
+            var indices = Array(newAssets.indices)
+            indices.shuffle(using: &rng)
+            return (indices, 0)
+        }
+
         var newCursor = cursorPosition ?? 0
 
         // Additions join the unplayed remainder at rng-chosen slots — strictly
