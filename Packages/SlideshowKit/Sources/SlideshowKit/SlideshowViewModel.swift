@@ -30,6 +30,9 @@ public final class SlideshowViewModel {
     /// Monotonic clock for retry backoff and refresh staleness (310, FR-310-12).
     private let clock: any SlideshowClock
     private let cache: ImageCache
+    /// Persistence tier under the RAM cache (320): photos survive outages and
+    /// relaunches. nil = exact 310 behavior (the compatibility contract).
+    private let diskCache: (any DiskImageStoring)?
     private let config: SlideshowConfig
     /// Live display/playback preferences (order, duration, quality). Read at the
     /// point of use so changes apply to the running show without a restart (008).
@@ -79,6 +82,7 @@ public final class SlideshowViewModel {
         ticker: any SlideshowTicker,
         clock: any SlideshowClock = ContinuousSlideshowClock(),
         retryPolicy: RetryPolicy = RetryPolicy(),
+        diskCache: (any DiskImageStoring)? = nil,
         cache: ImageCache = ImageCache(limit: SlideshowConfig.default.cacheLimit),
         config: SlideshowConfig = .default,
         settingsStore: any ThemeSettingsStore,
@@ -89,6 +93,7 @@ public final class SlideshowViewModel {
         self.ticker = ticker
         self.clock = clock
         self.retryPolicy = retryPolicy
+        self.diskCache = diskCache
         self.cache = cache
         self.config = config
         self.settingsStore = settingsStore
@@ -613,12 +618,19 @@ public final class SlideshowViewModel {
         return nil
     }
 
+    /// RAM → disk → network (320, FR-320-02): a disk hit repopulates RAM and
+    /// makes no network request; a network fetch writes through to both tiers.
     private func loadImageData(for assetID: String) async throws -> Data {
         let quality = settingsStore.settings.quality
         let key = cacheKey(for: assetID, quality: quality)
 
         if let cached = cache.data(for: key) {
             return cached
+        }
+
+        if let diskCache, let stored = await diskCache.data(forKey: key) {
+            cache.store(stored, for: key)
+            return stored
         }
 
         let data = switch quality {
@@ -628,7 +640,19 @@ public final class SlideshowViewModel {
             try await api.original(assetID: assetID)
         }
         cache.store(data, for: key)
+        persistToDisk(data, key: key)
         return data
+    }
+
+    /// Fire-and-forget disk write: storing (and the pruning it triggers) never
+    /// blocks or delays the visible slide transition (FR-320-11).
+    private func persistToDisk(_ data: Data, key: String) {
+        guard let diskCache else {
+            return
+        }
+        Task.detached {
+            await diskCache.store(data, forKey: key)
+        }
     }
 
     private func cacheKey(for assetID: String, quality: ImageQuality) -> String {
@@ -667,11 +691,21 @@ public final class SlideshowViewModel {
         }
         let api = api
         let cache = cache
+        let diskCache = diskCache
 
         Task { [quality] in
             for assetID in assetIDs {
                 let key = cacheKey(for: assetID, quality: quality)
                 guard cache.data(for: key) == nil else {
+                    continue
+                }
+
+                // Same tiering as the display path: disk beats network, and a
+                // fetched prefetch writes through to disk (FR-320-01). Awaiting
+                // the store here is fine — the prefetch task is already off the
+                // display path.
+                if let diskCache, let stored = await diskCache.data(forKey: key) {
+                    cache.store(stored, for: key)
                     continue
                 }
 
@@ -683,6 +717,7 @@ public final class SlideshowViewModel {
                         try await api.original(assetID: assetID)
                     }
                     cache.store(data, for: key)
+                    await diskCache?.store(data, forKey: key)
                 } catch {
                     continue
                 }
