@@ -2,7 +2,7 @@ import Foundation
 
 /// The user-selected maximum size of the disk image cache (320, FR-320-04): fixed
 /// steps only — no free-form entry for a number nobody should have to think about.
-public struct CacheBudget: Sendable, Equatable {
+public struct CacheBudget: Sendable, Hashable {
     public var bytes: Int64
 
     public init(bytes: Int64) {
