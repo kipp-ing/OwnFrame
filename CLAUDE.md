@@ -122,7 +122,7 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `310-slideshow-resilience` — implementation plan at
-`specs/310-slideshow-resilience/plan.md` (research, data-model, contracts, quickstart
-alongside it).
+Active feature: `320-disk-image-cache` (next to build; 310 is implemented and is its base) —
+implementation plan at `specs/320-disk-image-cache/plan.md` (research, data-model, contracts,
+quickstart, tasks alongside it).
 <!-- SPECKIT END -->
