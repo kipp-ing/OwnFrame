@@ -28,7 +28,7 @@ After onboarding, the app opens directly into a fullscreen slideshow from the co
 
 ### User Story 2 - Keep transitions smooth with bounded caching (Priority: P2)
 
-The engine prefetches the next images and keeps a bounded in-memory cache so normal advances do not show blank loading states. (A size-limited disk cache that survives relaunch/offline plus a Clear-cache action is deferred — see Roadmap.)
+The engine prefetches the next images and keeps a bounded in-memory cache so normal advances do not show blank loading states. (The size-limited disk cache that survives relaunch/offline plus the Clear-cache action are built — sub-spec [320-disk-image-cache](../320-disk-image-cache/spec.md).)
 
 **Why this priority**: A photo frame must feel stable in 24/7 use. Smooth playback and a bounded cache avoid both flicker and unbounded memory growth.
 
@@ -180,7 +180,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **Slideshow Source**: The configured provider of image assets. The active source is currently one selected album from topic 100; future multi-album, Memories, and shared-link sources are deferred to topic 100 and sub-spec 110.
 - **Slideshow Asset**: A still image asset with ID, display metadata, image data, and optional EXIF date/location.
 - **Slideshow State**: Current asset, playback order, current index, running or user-paused state, visible chrome state, active album, and transient empty/error phase.
-- **Image Cache**: Bounded in-memory image storage (built). Disk-persistent storage with size enforcement and a clear action is deferred (see Roadmap).
+- **Image Cache**: Bounded in-memory image storage (built). Disk-persistent storage with size enforcement and a clear action is built — sub-spec [320-disk-image-cache](../320-disk-image-cache/spec.md).
 - **Album Browser Selection**: The album and asset chosen from the browser, used to switch the active runtime album and jump to an image.
 - **Info Overlay Data**: Date/time and location derived from Immich EXIF, empty when unavailable.
 - **Clock Overlay Rendering**: The rendered time and optional date at the corner configured by topic 500. Deferred (see Roadmap) — the settings exist in topic 500 but the renderer is not yet built.
@@ -191,10 +191,11 @@ These are specified intent but not implemented today; the engine currently uses 
 only and forward playback without unattended retry/refresh. Each should be scheduled as its own
 Spec Kit feature.
 
-- **Disk image cache + Clear cache** (was FR-300-08 / part of FR-300-27): **now specced** as
+- **Disk image cache + Clear cache** (was FR-300-08 / part of FR-300-27): **implemented** as
   sub-spec [320-disk-image-cache](../320-disk-image-cache/spec.md) (2026-07-09) — size-limited
   disk cache surviving relaunch/offline with LRU eviction, budget configurable in Settings
-  (default 500 MB), Clear action, plus a remembered source list for offline launches.
+  (default 500 MB), Clear action, plus a remembered source list for offline launches. No longer
+  deferred; FR-320-01…12 are the binding requirements.
 - **Auto-retry with backoff** (was FR-300-11): load/connection failures auto-retry with backoff for
   unattended recovery, beyond the existing manual retry. **Now specced** as sub-spec
   `310-slideshow-resilience` (FR-310-01…05) — planned pre-release.

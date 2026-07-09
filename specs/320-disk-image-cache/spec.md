@@ -4,7 +4,9 @@
 
 **Created**: 2026-07-09
 
-**Status**: Planned — next implementation slice (post-310). Not yet built.
+**Status**: Implemented (2026-07-09) — disk tier, source snapshots, offline startup fallback, and
+the Settings Storage section are built and gated (host suites + sim + `SettingsStorageUITests`).
+Traceability in `docs/spec-traceability.md`.
 
 **Input**: Sub-spec of `specs/300-slideshow`. Promotes the disk image cache from topic 300's
 Roadmap (was FR-300-08 + the Clear-cache part of FR-300-27) into buildable requirements. A

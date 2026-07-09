@@ -14,6 +14,7 @@ import HAControlKit
 import ImmichClient
 import OnboardingKit
 import PowerKit
+import SlideshowKit
 import SwiftUI
 import ThemeKit
 import UIKit
@@ -34,10 +35,20 @@ struct SlideshowSettingsView: View {
     // frame has no real "exit," so the only thing a chrome button could do was reset —
     // better placed as an explicit, clearly destructive Settings action.
     var onReset: () -> Void = {}
+    // Storage seams (320, US3): the shared disk cache/snapshot store the engine
+    // writes to, plus the budget store. nil hides the Storage section entirely.
+    var diskCache: (any DiskImageStoring)?
+    var snapshotStore: (any SourceSnapshotStoring)?
+    var budgetStore: (any CacheBudgetStore)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var brightness: Double
     @State private var showResetDialog = false
+    // Storage section state (320): live usage (refreshed on appear and after
+    // Clear), the selected budget step, and the Clear confirmation.
+    @State private var cacheUsage: Int64?
+    @State private var selectedBudget: CacheBudget
+    @State private var showClearCacheDialog = false
     // Both editors are owned here as @State (not inside the disclosure content) so
     // collapsing/re-expanding a section keeps typed-but-unsaved edits.
     @State private var connectionViewModel: ConnectionSettingsViewModel?
@@ -57,7 +68,10 @@ struct SlideshowSettingsView: View {
         onConnectionChanged: @escaping (ConnectionValidationOutcome) -> Void = { _ in },
         makeSourceLibraryViewModel: @escaping () -> SourceLibraryViewModel? = { nil },
         makeServerAPI: @escaping () async -> (any ImmichAPI)? = { nil },
-        onReset: @escaping () -> Void = {}
+        onReset: @escaping () -> Void = {},
+        diskCache: (any DiskImageStoring)? = nil,
+        snapshotStore: (any SourceSnapshotStoring)? = nil,
+        budgetStore: (any CacheBudgetStore)? = nil
     ) {
         self.powerManager = powerManager
         self.themeStore = themeStore
@@ -66,6 +80,10 @@ struct SlideshowSettingsView: View {
         self.makeSourceLibraryViewModel = makeSourceLibraryViewModel
         self.makeServerAPI = makeServerAPI
         self.onReset = onReset
+        self.diskCache = diskCache
+        self.snapshotStore = snapshotStore
+        self.budgetStore = budgetStore
+        _selectedBudget = State(initialValue: budgetStore?.load() ?? .default)
         _brightness = State(initialValue: Self.currentScreenBrightness())
         _connectionViewModel = State(initialValue: makeConnectionViewModel())
         _sourceLibraryViewModel = State(initialValue: makeSourceLibraryViewModel())
@@ -202,6 +220,39 @@ struct SlideshowSettingsView: View {
                     Text("MQTT broker for remote control via Home Assistant.")
                 }
 
+                if let diskCache {
+                    Section {
+                        HStack {
+                            Label("Used", systemImage: "internaldrive")
+                            Spacer()
+                            // The identifier sits on the value Text itself so the
+                            // UITest reads the byte string as the element's label.
+                            Text(Self.byteLabel(cacheUsage ?? 0))
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("settings.storage.usage")
+                        }
+
+                        Picker(selection: $selectedBudget) {
+                            ForEach(CacheBudget.steps, id: \.self) { step in
+                                Text(Self.byteLabel(step.bytes)).tag(step)
+                            }
+                        } label: {
+                            Label("Maximum size", systemImage: "externaldrive")
+                        }
+                        .accessibilityIdentifier("settings.storage.budget")
+
+                        Button("Clear Cache…", role: .destructive) {
+                            showClearCacheDialog = true
+                        }
+                        .accessibilityIdentifier("settings.storage.clear")
+                    } header: {
+                        Text("Storage")
+                    } footer: {
+                        Text("Photos you have viewed are kept on this iPad so the slideshow keeps playing when the network is down.")
+                    }
+                    .task { cacheUsage = await diskCache.currentUsage() }
+                }
+
                 Section {
                     Button("Reset Configuration…", role: .destructive) {
                         showResetDialog = true
@@ -210,6 +261,36 @@ struct SlideshowSettingsView: View {
                 } footer: {
                     Text("Clears the server, API key, and album, and returns to setup.")
                 }
+            }
+            // Budget changes persist and prune immediately (FR-320-04); the usage
+            // label follows the prune.
+            .onChange(of: selectedBudget) { _, newValue in
+                budgetStore?.save(newValue)
+                guard let diskCache else { return }
+                Task {
+                    await diskCache.setBudget(newValue.bytes)
+                    cacheUsage = await diskCache.currentUsage()
+                }
+            }
+            // The one other destructive Settings action gets the same explicit
+            // confirmation as Reset (FR-320-05). Attached to the Form, not the
+            // NavigationStack, so it never collides with the reset dialog.
+            .confirmationDialog(
+                "Clear cached photos?",
+                isPresented: $showClearCacheDialog,
+                titleVisibility: .visible
+            ) {
+                Button("Clear Cache", role: .destructive) {
+                    guard let diskCache else { return }
+                    Task {
+                        await diskCache.clear()
+                        snapshotStore?.clear()
+                        cacheUsage = await diskCache.currentUsage()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Removes the photos stored for offline playback. The slideshow keeps running and re-fills the cache as it plays.")
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -267,5 +348,36 @@ struct SlideshowSettingsView: View {
         let screen = (windowScenes.first { $0.activationState == .foregroundActive } ?? windowScenes.first)?.screen
         return Double(screen?.brightness ?? 1.0)
     }
+
+    /// Decimal byte label ("500 MB", "1 GB") matching CacheBudget's decimal
+    /// steps; numeric zero (not "Zero KB") so the usage label stays literal.
+    private static func byteLabel(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowsNonnumericFormatting = false
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+#Preview("Storage section") {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("settings-preview-\(UUID().uuidString)", isDirectory: true)
+    return SlideshowSettingsView(
+        powerManager: PowerManager(screen: PreviewScreenController()),
+        themeStore: UserDefaultsThemeStore(
+            defaults: UserDefaults(suiteName: "preview.theme") ?? .standard
+        ),
+        diskCache: DiskImageCache(root: root.appendingPathComponent("images"), budget: CacheBudget.default.bytes),
+        snapshotStore: FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots")),
+        budgetStore: UserDefaultsCacheBudgetStore(
+            defaults: UserDefaults(suiteName: "preview.storage") ?? .standard
+        )
+    )
+}
+
+@MainActor
+private final class PreviewScreenController: ScreenControlling {
+    var brightness: Double = 0.5
+    var isIdleTimerDisabled = false
 }
 

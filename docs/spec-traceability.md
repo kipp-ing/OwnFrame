@@ -101,7 +101,7 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR-300-24 | Info overlay date/location only, updates, empty when absent | `Immich SlideshowUITests/PhotoInfoUITests.swift` `testInfoButtonTogglesDateAndLocationOverlay`; `ImmichClient/AssetInfoTests.swift` `assetInfoWithoutExifFallsBackToLocalDateTimeAndNilLocation`; update/empty overlay not directly tested | partial | ui-sim |
 | FR-300-25 | Info overlay excludes filenames, album names, secrets | — | missing | ui-sim |
 | FR-300-26 | Settings reachable with live brightness slider | `SettingsUITests.swift` `testSettingsShowsBrightnessAndPlannedOptionsAndDismisses`; `PowerKit/PowerManagerTests.swift` and `BrightnessRampTests.swift` cover owner behavior | covered | ui-sim |
-| FR-300-27 | Settings surface display options and disk-cache controls | `SettingsDisplayOptionsUITests.swift` `testOrderAndDurationPersistAcrossRelaunch`, `testTransitionAndKenBurnsPersistAcrossRelaunch`; disk-cache size/clear action not present | partial | ui-sim |
+| FR-300-27 | Settings surface display options and disk-cache controls | `SettingsDisplayOptionsUITests.swift` `testOrderAndDurationPersistAcrossRelaunch`, `testTransitionAndKenBurnsPersistAcrossRelaunch`; disk-cache size/clear via `SettingsStorageUITests.swift` (320, 2026-07-09) | covered | ui-sim |
 | FR-300-28 | Reset reachable through chrome exit | — | missing | ui-sim |
 | FR-300-29 | Clock overlay renders by settings, off by default | `ThemeSettingsDefaultsTests.swift` `themeSettingsDefaultsMatchDisplayOptionsSpec`; settings UI still shows clock as planned placeholder | missing | ui-sim |
 | FR-300-30 | English/German localizable UI strings | — | missing | ui-sim |
@@ -130,6 +130,30 @@ All host-unit tests live in `Packages/SlideshowKit/Tests/SlideshowKitTests/` —
 | FR-310-12 | Injected clock/scheduler, no real timers in tests | `TestClockTests` + the entire resilience suite | covered | host-unit |
 | FR-310-13 | No secrets in failure paths | 310 diff carries no logging at all; failure state is typed (`SlideshowFailureReason`) — audit 2026-07-09 | covered | static audit |
 | SC-310-01…06 | Measurable outcomes | SC-01 `deadServerAtLaunch…`; SC-02 `sequentialAddition…`/`shuffleAddition…`; SC-03 `removedCurrentPhoto…`; SC-04 `RetryPolicyTests`; SC-05 `hourlyRefresh…`; SC-06 `longRunSoakSurvivesFlapsAndChurn` | covered | host-unit |
+
+## 320 - Disk Image Cache *(added 2026-07-09, implemented)*
+
+Host-unit tests live in `Packages/SlideshowKit/Tests/SlideshowKitTests/` —
+`DiskImageCacheTests.swift`, `SourceSnapshotStoreTests.swift`, and `SlideshowOfflineTests.swift`
+(real file-backed stores in per-test temp dirs, injected `now`, TestClock-driven engine scenarios).
+UI coverage in `Immich SlideshowUITests/SettingsStorageUITests.swift` (hermetic `--uitest` build
+with real stores under the sandbox tmp dir).
+
+| FR | Requirement (short) | Covering test(s) | Status | Testability |
+|---|---|---|---|---|
+| FR-320-01 | Displayed/prefetched photos persist per quality variant | `SlideshowOfflineTests` `shownAndPrefetchedPhotosAreWrittenThroughToDisk`; `DiskImageCacheTests` `roundTripReturnsIdenticalBytesForDistinctQualityKeys` | covered | host-unit |
+| FR-320-02 | RAM → disk → network; disk hit repopulates RAM, no network | `diskHitMakesNoNetworkRequestAndRepopulatesRAM` | covered | host-unit |
+| FR-320-03 | Byte budget with LRU eviction; usage ≤ budget after store | `usageNeverExceedsBudgetAfterAnyStore`, `fillingPastBudgetEvictsLeastRecentlyStampedFirst`, `readRestampsRecencySoTheOtherEntryIsEvicted`, `usageAccountingMatchesTheFileByteSum` | covered | host-unit |
+| FR-320-04 | 500 MB default, fixed steps, smaller budget prunes immediately | `CacheBudgetTests` (steps/default/round-trip); `loweringTheBudgetPrunesImmediately`; picker in `SettingsStorageUITests` `testBudgetSelectionPersistsAcrossRelaunch` | covered | host-unit + ui-sim |
+| FR-320-05 | Usage + Clear in Settings; Clear never interrupts the shown photo | `ClearCacheSemanticsTests` `clearingBothStoresMidShowKeepsPlayingAndRefills`; `clearRemovesEveryEntryAndZeroesUsage`; `SettingsStorageUITests` `testClearResetsTheUsageLabelAfterConfirmation` | covered | host-unit + ui-sim |
+| FR-320-06 | Snapshot saved on every successful fetch (ids + type only) | `OfflineRelaunchTests` `offlineRelaunchPlaysFromTheRememberedList` (save assert), `launchWithoutASnapshotKeeps310BehaviorVerbatim` (replace assert); `SourceSnapshotStoreTests` round-trip/replace | covered | host-unit |
+| FR-320-07 | Launch-fetch failure + snapshot ⇒ play remembered list; 310 recovers | `offlineRelaunchPlaysFromTheRememberedList`, `recoveryAfterSnapshotStartMergesTheLiveList` | covered | host-unit |
+| FR-320-08 | Offline rotation across all stored photos (not just RAM) | `wholeAlbumKeepsRotatingOfflineAfterOnePass` | covered | host-unit |
+| FR-320-09 | Corrupt ⇒ miss+delete; write failure ⇒ silent degrade | `unreadableEntryIsAMissAndGetsDeleted`, `writeFailureIsSwallowedAndPlaybackNeverNotices`; `SourceSnapshotStoreTests` `corruptSnapshotFileLoadsAsNilAndNeverThrows` | covered | host-unit |
+| FR-320-10 | App-private, backup-excluded, no secrets, purge tolerated | `aCreatedRootIsExcludedFromBackup`, `snapshotFileContainsOnlyIdsAndTypes`, `purgedPhotosDegradeToTheCalmErrorState`; 320 diff carries no logging — audit 2026-07-09 | covered | host-unit + static audit |
+| FR-320-11 | Disk work off the display path | Write-through is fire-and-forget (`persistToDisk`); `waitForDiskEntry` polling in tests exists *because* stores are async — design-level; no direct latency assertion | covered | host-unit (by construction) |
+| FR-320-12 | Injectable root/budget/time; host-testable | Entire `DiskImageCacheTests`/`SourceSnapshotStoreTests`/`SlideshowOfflineTests` run against temp dirs + injected `now`/TestClock | covered | host-unit |
+| SC-320-01…06 | Measurable outcomes | SC-01 `wholeAlbumKeepsRotatingOfflineAfterOnePass`; SC-02 `offlineRelaunchPlaysFromTheRememberedList`; SC-03 `usageNeverExceedsBudgetAfterAnyStore`/`fillingPastBudget…`; SC-04 `clearingBothStoresMidShow…`/`loweringTheBudgetPrunesImmediately`; SC-05 `diskHitMakesNoNetworkRequest…`; SC-06 `purgedPhotosDegradeToTheCalmErrorState` | covered | host-unit |
 
 ## 400 - PowerManager
 

@@ -68,6 +68,13 @@ struct Immich_SlideshowApp: App {
         // The current source library, used to route an incoming link (unconfigured ⇒ prefill
         // onboarding; configured ⇒ switch/add+activate) without touching a secret (210, US2).
         let loadLibrary: @MainActor @Sendable () -> SourceLibrary
+        // The persistence tier (320): ONE disk cache + snapshot store + budget
+        // store for the app's lifetime, created here because the slideshow view
+        // model is rebuilt on connection/source changes and Settings must act on
+        // the same instances the engine writes to (research R6).
+        let diskCache: any DiskImageStoring
+        let snapshotStore: any SourceSnapshotStoring
+        let cacheBudgetStore: any CacheBudgetStore
     }
 
     init() {
@@ -88,6 +95,10 @@ struct Immich_SlideshowApp: App {
             // incoming-link consumption is testable without the system Share Sheet. The value
             // is the launch argument following `--uitest-pending-link`.
             let pendingLinkStore = InMemoryPendingSharedLinkStore(pendingURL: UITestSupport.pendingLinkURL)
+            // 320: REAL file-backed stores in the sandbox tmp dir so the hermetic
+            // build exercises the production disk paths. They persist across
+            // relaunches within a test; `--uitest-reset-storage` starts clean.
+            let storage = UITestSupport.makeStorageStores()
 
             let uitestViewModel = OnboardingViewModel(
                 api: { _ in StubImmichAPI() },
@@ -129,7 +140,12 @@ struct Immich_SlideshowApp: App {
                 return SourceLibrary.restartStrategy(from: previous, to: next)
             }
             factories = Factories(
-                makeSlideshow: { @MainActor @Sendable store in UITestSupport.makeSlideshowViewModel(settingsStore: store, library: sourceStore.load()) },
+                makeSlideshow: { @MainActor @Sendable store in
+                    UITestSupport.makeSlideshowViewModel(
+                        settingsStore: store, library: sourceStore.load(),
+                        diskCache: storage.diskCache, snapshots: storage.snapshotStore
+                    )
+                },
                 makeAPI: { @MainActor @Sendable in StubImmichAPI() },
                 makeServerAPI: { @MainActor @Sendable in StubImmichAPI() },
                 switchActiveSource: switchActiveSource,
@@ -141,7 +157,10 @@ struct Immich_SlideshowApp: App {
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
                 saveSelectedAlbum: { @MainActor @Sendable _ in },
                 takePendingLink: { pendingLinkStore.takePendingURL() },
-                loadLibrary: { sourceStore.load() }
+                loadLibrary: { sourceStore.load() },
+                diskCache: storage.diskCache,
+                snapshotStore: storage.snapshotStore,
+                cacheBudgetStore: storage.budgetStore
             )
             return
         }
@@ -161,6 +180,19 @@ struct Immich_SlideshowApp: App {
         let brokerStore = KeychainBrokerSettingsStore()
         let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "immich-slideshow-device"
         let brokerProvider = BrokerConfigProvider(settingsStore: brokerStore, deviceID: deviceID)
+        // Persistence tier (320): images under Caches (iOS may purge — tolerated,
+        // FR-320-10), snapshots under Application Support (backup-excluded by the
+        // store), budget in UserDefaults. One shared instance each (research R6).
+        let cacheBudgetStore = UserDefaultsCacheBudgetStore()
+        let diskCache = DiskImageCache(
+            root: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("ImageCache", isDirectory: true),
+            budget: cacheBudgetStore.load().bytes
+        )
+        let snapshotStore = FileSourceSnapshotStore(
+            root: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("SourceSnapshots", isDirectory: true)
+        )
         let viewModel = OnboardingViewModel(
             api: { serverConfig in ImmichClient(config: serverConfig) },
             config: config,
@@ -198,6 +230,8 @@ struct Immich_SlideshowApp: App {
                 api: ImmichClient(config: resolved.serverConfig),
                 albumID: resolved.albumID,
                 ticker: RealTicker(),
+                diskCache: diskCache,
+                snapshots: snapshotStore,
                 settingsStore: settingsStore
             )
         }
@@ -323,7 +357,10 @@ struct Immich_SlideshowApp: App {
             makeConnectionSettingsViewModel: makeConnectionSettingsViewModel,
             saveSelectedAlbum: saveSelectedAlbum,
             takePendingLink: { pendingLinkStore.takePendingURL() },
-            loadLibrary: { sourceStore.load() }
+            loadLibrary: { sourceStore.load() },
+            diskCache: diskCache,
+            snapshotStore: snapshotStore,
+            cacheBudgetStore: cacheBudgetStore
         )
     }
 
@@ -397,7 +434,10 @@ private struct RootView: View {
                               makeConnectionViewModel: { factories.makeConnectionSettingsViewModel() },
                               onConnectionChanged: handleConnectionChange,
                               makeSourceLibraryViewModel: { factories.makeSourceLibraryViewModel { id in switchSource(id: id) } },
-                              makeServerAPI: { await factories.makeServerAPI() })
+                              makeServerAPI: { await factories.makeServerAPI() },
+                              diskCache: factories.diskCache,
+                              snapshotStore: factories.snapshotStore,
+                              budgetStore: factories.cacheBudgetStore)
                 .id(connectionGeneration)
                 .sheet(isPresented: $showAlbumReselect) {
                     AlbumBrowserView(api: api, currentAlbumID: nil) { albumID, _ in
@@ -581,7 +621,9 @@ enum UITestSupport {
 
     static func makeSlideshowViewModel(
         settingsStore: any ThemeSettingsStore,
-        library: SourceLibrary = UITestSupport.seededLibrary()
+        library: SourceLibrary = UITestSupport.seededLibrary(),
+        diskCache: (any DiskImageStoring)? = nil,
+        snapshots: (any SourceSnapshotStoring)? = nil
     ) -> SlideshowViewModel {
         // Resolve the active source to a stub album id (shared links → a2 like the stub
         // resolver) so switching the active source visibly changes the photos.
@@ -595,7 +637,41 @@ enum UITestSupport {
             api: StubImmichAPI(),
             albumID: albumID,
             ticker: RealTicker(),
+            diskCache: diskCache,
+            snapshots: snapshots,
             settingsStore: settingsStore
+        )
+    }
+
+    /// Real file-backed 320 stores rooted in the sandbox tmp dir (320, T013):
+    /// the hermetic build exercises the production disk paths without touching
+    /// real caches. State persists across relaunches within a UI test (the
+    /// persistence checks need it); `--uitest-reset-storage` starts clean.
+    struct StorageStores {
+        let diskCache: DiskImageCache
+        let snapshotStore: FileSourceSnapshotStore
+        let budgetStore: UserDefaultsCacheBudgetStore
+    }
+
+    static func makeStorageStores() -> StorageStores {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("uitest-storage", isDirectory: true)
+        let suite = "uitest.storage"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        if ProcessInfo.processInfo.arguments.contains("--uitest-reset-storage") {
+            try? FileManager.default.removeItem(at: root)
+            defaults.removePersistentDomain(forName: suite)
+        }
+        let budgetStore = UserDefaultsCacheBudgetStore(defaults: defaults)
+        return StorageStores(
+            diskCache: DiskImageCache(
+                root: root.appendingPathComponent("ImageCache", isDirectory: true),
+                budget: budgetStore.load().bytes
+            ),
+            snapshotStore: FileSourceSnapshotStore(
+                root: root.appendingPathComponent("SourceSnapshots", isDirectory: true)
+            ),
+            budgetStore: budgetStore
         )
     }
 
