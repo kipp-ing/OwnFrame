@@ -121,7 +121,7 @@ struct SlideshowSettingsView: View {
                     .accessibilityIdentifier("settings.order")
 
                     Picker(selection: $themeStore.settings.duration) {
-                        ForEach(Self.durationPresets, id: \.self) { duration in
+                        ForEach(ThemeSettings.durationOptions(including: themeStore.settings.duration), id: \.self) { duration in
                             Text(Self.durationLabel(duration)).tag(duration)
                         }
                     } label: {
@@ -315,18 +315,15 @@ struct SlideshowSettingsView: View {
         }
     }
 
-    /// Duration presets surfaced in the picker (a subset of the 3 s…600 s range the
-    /// store accepts; out-of-range values are clamped by the store).
-    private static let durationPresets: [Duration] = [
-        .seconds(5), .seconds(10), .seconds(15), .seconds(30), .seconds(60), .seconds(300)
-    ]
-
     private static func durationLabel(_ duration: Duration) -> String {
         let seconds = Int(duration.components.seconds)
-        if seconds < 60 {
-            return "\(seconds) s"
+        // Whole minutes read as "N min" (5 s…600 s presets stay unchanged); a custom
+        // value from Home Assistant that isn't a whole minute stays in seconds so it
+        // isn't rounded misleadingly (e.g. 90 s → "90 s", not "1 min").
+        if seconds >= 60, seconds % 60 == 0 {
+            return "\(seconds / 60) min"
         }
-        return "\(seconds / 60) min"
+        return "\(seconds) s"
     }
 
     /// A disabled preview of a planned setting (lights up once its module exists).

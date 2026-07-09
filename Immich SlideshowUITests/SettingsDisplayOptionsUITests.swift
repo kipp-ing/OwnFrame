@@ -66,6 +66,33 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
         )
     }
 
+    // Regression: a non-preset duration (any integer 3…600 s Home Assistant can push,
+    // retained on the MQTT broker across a device reinstall) must still show a value in
+    // the picker instead of rendering blank. See ThemeSettings.durationOptions(including:).
+    @MainActor
+    func testNonPresetDurationIsShownInsteadOfBlank() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings",
+            "--uitest-reset-theme", "--uitest-duration-seconds=20"
+        ]
+        app.launch()
+
+        let duration = app.descendants(matching: .any).matching(identifier: "settings.duration").firstMatch
+        XCTAssertTrue(duration.waitForExistence(timeout: 5), "duration picker should exist")
+        // The off-preset selection is rendered (this was blank before the fix).
+        XCTAssertTrue(
+            app.staticTexts["20 s"].firstMatch.waitForExistence(timeout: 2),
+            "a non-preset 20 s duration should be shown in the picker"
+        )
+
+        // And it remains a real option once the menu opens, alongside the presets.
+        duration.tap()
+        XCTAssertTrue(app.buttons["20 s"].firstMatch.waitForExistence(timeout: 2),
+                      "20 s should be a selectable option")
+        XCTAssertTrue(app.buttons["30 s"].firstMatch.exists, "presets stay available")
+    }
+
     @MainActor
     func testTransitionAndKenBurnsPersistAcrossRelaunch() throws {
         let app = XCUIApplication()
