@@ -9,6 +9,22 @@ public struct ThemeSettings: Sendable, Equatable {
 
     public static let durationRange: ClosedRange<Duration> = .seconds(3)...(.seconds(600))
 
+    /// Quick-pick duration values surfaced in the settings picker — a curated subset
+    /// of `durationRange`, kept sorted.
+    public static let durationPresets: [Duration] = [
+        .seconds(5), .seconds(10), .seconds(15), .seconds(30), .seconds(60), .seconds(300)
+    ]
+
+    /// Picker options that always include `current`, so the current selection is never
+    /// unrepresentable. Home Assistant can set any integer in `durationRange` (min 3,
+    /// max 600, step 1), and that value is retained on the MQTT broker across a device
+    /// reinstall; a non-preset selection with no matching picker tag renders blank.
+    /// Merging `current` into the presets (sorted) guarantees a matching tag.
+    public static func durationOptions(including current: Duration) -> [Duration] {
+        guard !durationPresets.contains(current) else { return durationPresets }
+        return (durationPresets + [current]).sorted()
+    }
+
     public init(
         order: PlayOrder = .shuffle,
         duration: Duration = .seconds(15),

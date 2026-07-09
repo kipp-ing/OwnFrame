@@ -561,6 +561,13 @@ private struct RootView: View {
             if ProcessInfo.processInfo.arguments.contains("--uitest-kenburns") {
                 store.settings.kenBurns = true
             }
+            // Seed a specific duration (e.g. a non-preset value Home Assistant can push)
+            // so the settings picker's handling of off-preset selections is testable.
+            if let arg = ProcessInfo.processInfo.arguments
+                .first(where: { $0.hasPrefix("--uitest-duration-seconds=") }),
+               let seconds = Int(arg.dropFirst("--uitest-duration-seconds=".count)) {
+                store.settings.duration = .seconds(seconds)
+            }
             return store
         }
         #endif
