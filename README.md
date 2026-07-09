@@ -1,13 +1,19 @@
-# Immich Slideshow
+# Photo Frame for Immich
 
-A full-screen photo **slideshow app for iPad**, powered by your own
+Turns an iPad into a full-screen **photo frame**, powered by your own
 [Immich](https://immich.app) server. It is a standalone app — **not** a fork of the
 official Immich client — and uses Immich purely as a photo source over its REST API.
 
+This is an independent app, not affiliated with or endorsed by Immich or FUTO. (The
+repository keeps its historical name, `Immich-Slideshow`; the app ships as
+**Photo Frame for Immich**.)
+
 > ⚠️ **Active development.** Onboarding, the full-screen slideshow, display & power control,
 > display options, and Home Assistant remote control are built. Home Assistant control is
-> verified live against a real Home Assistant instance over a TLS broker. Deferred: rendered
-> clock overlay, disk image cache, automatic retry/refresh.
+> verified live against a real Home Assistant instance over a TLS broker. Next up before
+> release: automatic retry + periodic source refresh
+> ([spec 310](specs/310-slideshow-resilience/spec.md)). Deferred: rendered clock overlay,
+> disk image cache.
 
 ## What it does (and will do)
 
@@ -24,7 +30,7 @@ official Immich client — and uses Immich purely as a photo source over its RES
 
 ## Requirements
 
-- An iPad running **iPadOS 26** or later.
+- An iPad running **iPadOS 17** or later (a retired iPad makes a good frame).
 - An **Immich server reachable over HTTPS with a valid TLS certificate.**
   (Self-signed / local certificates are not supported yet.)
 - An Immich **API key** (Immich → Account Settings → API Keys) **only if you connect to your

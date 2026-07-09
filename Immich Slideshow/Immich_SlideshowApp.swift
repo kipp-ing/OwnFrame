@@ -288,7 +288,7 @@ struct Immich_SlideshowApp: App {
                 settings: adapter,
                 photoReporter: adapter,
                 configStore: brokerProvider,
-                deviceName: "Immich Slideshow",
+                deviceName: "Photo Frame",
                 enabledEntities: enabledEntities
             )
         }
