@@ -191,10 +191,10 @@ These are specified intent but not implemented today; the engine currently uses 
 only and forward playback without unattended retry/refresh. Each should be scheduled as its own
 Spec Kit feature.
 
-- **Disk image cache + Clear cache** (was FR-300-08 / part of FR-300-27): a size-limited disk cache
-  that survives relaunch and brief offline periods with oldest-first eviction, plus a Clear-cache
-  action surfaced in Settings. Acceptance preserved: cached photos can display while the server is
-  unreachable; the disk cache stays within its size limit; Clear empties it.
+- **Disk image cache + Clear cache** (was FR-300-08 / part of FR-300-27): **now specced** as
+  sub-spec [320-disk-image-cache](../320-disk-image-cache/spec.md) (2026-07-09) — size-limited
+  disk cache surviving relaunch/offline with LRU eviction, budget configurable in Settings
+  (default 500 MB), Clear action, plus a remembered source list for offline launches.
 - **Auto-retry with backoff** (was FR-300-11): load/connection failures auto-retry with backoff for
   unattended recovery, beyond the existing manual retry. **Now specced** as sub-spec
   `310-slideshow-resilience` (FR-310-01…05) — planned pre-release.
