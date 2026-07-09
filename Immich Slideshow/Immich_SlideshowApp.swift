@@ -628,7 +628,51 @@ private final class StubScreenController: ScreenControlling {
     var isIdleTimerDisabled = false
 }
 
+/// Thread-safe counter for the stub's failure seams (the engine fetches from
+/// detached retry tasks — explicitly nonisolated against the target's
+/// MainActor default isolation).
+private nonisolated final class FailureCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    func increment() {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+    }
+}
+
 private struct StubImmichAPI: ImmichAPI {
+    /// 310 resilience seams (release-gate UI tests):
+    /// `--uitest-assets-fail=unreachable|unauthorized` makes `assets()` throw;
+    /// `--uitest-assets-recover-after=N` clears the failure after N failed
+    /// fetches, so the auto-retry's unattended recovery is observable in the
+    /// UI without a real server. Counter is shared across the stub's value
+    /// copies (one hermetic app process per test).
+    private static let failedFetches = FailureCounter()
+
+    private func assetsFailure() -> ImmichError? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.first(where: { $0.hasPrefix("--uitest-assets-fail=") }) else {
+            return nil
+        }
+
+        if let recoverArg = arguments.first(where: { $0.hasPrefix("--uitest-assets-recover-after=") }),
+           let threshold = Int(recoverArg.split(separator: "=").last ?? ""),
+           Self.failedFetches.count >= threshold {
+            return nil
+        }
+
+        Self.failedFetches.increment()
+        return flag.hasSuffix("unauthorized") ? .unauthorized : .unreachable
+    }
+
     func serverVersion() async throws -> String { "1.0.0" }
 
     func albums() async throws -> [Album] {
@@ -640,6 +684,10 @@ private struct StubImmichAPI: ImmichAPI {
     }
 
     func assets(albumID: String) async throws -> [Asset] {
+        if let failure = assetsFailure() {
+            throw failure
+        }
+
         // Per-album assets so switching the active source (a1 → a2) visibly changes the
         // photos in the running slideshow (120, US2 source switch).
         switch albumID {

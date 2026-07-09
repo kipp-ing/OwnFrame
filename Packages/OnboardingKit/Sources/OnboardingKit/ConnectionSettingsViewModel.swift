@@ -2,7 +2,9 @@ import Foundation
 import ImmichClient
 import Observation
 
-@MainActor @Observable public final class ConnectionSettingsViewModel {
+/// Identifiable (object identity) so presentation can use `.sheet(item:)` —
+/// the flag+optional-state pattern raced SwiftUI's first sheet render (310).
+@MainActor @Observable public final class ConnectionSettingsViewModel: Identifiable {
     public var serverURLInput: String
     public var apiKeyInput: String = ""
     public private(set) var isBusy = false

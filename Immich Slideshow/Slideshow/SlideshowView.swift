@@ -60,8 +60,9 @@ struct SlideshowView: View {
     @State private var showInfo = ProcessInfo.processInfo.arguments.contains("--uitest-info")
     // Connection editor reached from the error state (009, US2), separate from the
     // one in the settings sheet so a broken connection is fixable without chrome.
+    // Presented via .sheet(item:) — an isPresented flag plus a captured optional
+    // @State raced SwiftUI's first sheet render and showed an empty card (310 UI bug).
     @State private var errorConnectionViewModel: ConnectionSettingsViewModel?
-    @State private var showErrorConnection = false
 
     private static let chromeAutoHide: Duration = .seconds(4.5)
 
@@ -79,8 +80,12 @@ struct SlideshowView: View {
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     // Tap toggles the chrome; a horizontal swipe advances without revealing it.
-                    .onTapGesture { toggleChrome() }
-                    .gesture(swipeGesture)
+                    // In the failed state the container gestures are masked off so the error
+                    // card's buttons reliably receive their taps (310 UI bug: the screen-wide
+                    // tap gesture could swallow button taps and toggle the chrome instead);
+                    // the chrome is pinned visible there via onChange below.
+                    .gesture(TapGesture().onEnded { toggleChrome() }, including: containerGestureMask)
+                    .gesture(swipeGesture, including: containerGestureMask)
             }
         // Status bar + home indicator stay hidden for the whole slideshow — even while the
         // chrome is revealed. The chrome owns its own transport controls, so there's no need
@@ -106,6 +111,23 @@ struct SlideshowView: View {
             powerManager.deactivate()
             autoHideTask?.cancel()
             Task { await stopCoordinator() }
+        }
+        .onChange(of: viewModel.phase) { _, newPhase in
+            // Failed state: pin the chrome visible (Settings/Albums stay one tap
+            // away next to the error card's own actions); auto-hide resumes once
+            // playback recovers.
+            switch newPhase {
+            case .failed:
+                chromeVisible = true
+                autoHideTask?.cancel()
+                autoHideTask = nil
+            case .playing:
+                if chromeVisible {
+                    scheduleAutoHide()
+                }
+            default:
+                break
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             // Foreground-only effects (Konstitution V, FR-003/FR-004/FR-012): iOS hands
@@ -153,13 +175,11 @@ struct SlideshowView: View {
             // (010/US3). All sections remain reachable by scrolling regardless (FR-015).
             .pageSizedSheet()
         }
-        .sheet(isPresented: $showErrorConnection) {
-            if let errorConnectionViewModel {
-                NavigationStack {
-                    ConnectionSettingsView(viewModel: errorConnectionViewModel) { outcome in
-                        showErrorConnection = false
-                        onConnectionChanged(outcome)
-                    }
+        .sheet(item: $errorConnectionViewModel) { connectionViewModel in
+            NavigationStack {
+                ConnectionSettingsView(viewModel: connectionViewModel) { outcome in
+                    errorConnectionViewModel = nil
+                    onConnectionChanged(outcome)
                 }
             }
         }
@@ -201,7 +221,6 @@ struct SlideshowView: View {
                     onRetry: { Task { await viewModel.retry() } },
                     onFixConnection: {
                         errorConnectionViewModel = makeConnectionViewModel()
-                        showErrorConnection = errorConnectionViewModel != nil
                     }
                 )
             }
@@ -212,6 +231,12 @@ struct SlideshowView: View {
 
     private func toggleChrome() {
         if chromeVisible { hideChrome() } else { revealChrome() }
+    }
+
+    /// Screen-wide chrome gestures run everywhere except the failed state, where
+    /// only the subviews (the error card's buttons) may handle touches.
+    private var containerGestureMask: GestureMask {
+        viewModel.phase == .failed ? .subviews : .all
     }
 
     private func revealChrome() {
@@ -228,8 +253,10 @@ struct SlideshowView: View {
 
     /// (Re)arm the idle countdown that hides the chrome again. Called on reveal
     /// and on every control interaction so the chrome stays up while in use.
+    /// While the show is failed the chrome stays pinned — with the container
+    /// gestures masked off there, a hidden chrome would be unreachable.
     private func scheduleAutoHide() {
-        guard !pinChrome else { return }
+        guard !pinChrome, viewModel.phase != .failed else { return }
         autoHideTask?.cancel()
         autoHideTask = Task { @MainActor in
             try? await Task.sleep(for: Self.chromeAutoHide)
