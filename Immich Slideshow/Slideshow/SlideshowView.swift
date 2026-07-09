@@ -197,6 +197,7 @@ struct SlideshowView: View {
 
             case .failed:
                 SlideshowErrorView(
+                    reason: viewModel.failureReason,
                     onRetry: { Task { await viewModel.retry() } },
                     onFixConnection: {
                         errorConnectionViewModel = makeConnectionViewModel()
