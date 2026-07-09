@@ -345,3 +345,62 @@ struct OfflineRelaunchTests {
         #expect(snapshots.load(forKey: "album")?.map(\.id) == ["image-9"])
     }
 }
+
+// MARK: - US3: Clear cache semantics at the engine (T011)
+
+@Suite("Offline US3 — Clear never touches the on-screen photo")
+@MainActor
+struct ClearCacheSemanticsTests {
+    // US3-4/5 + FR-320-05 (scenario 8): clearing both stores mid-show leaves
+    // the current photo and phase untouched; the next advance (online)
+    // re-fetches from the network and re-fills the cache — no restart needed.
+    @Test func clearingBothStoresMidShowKeepsPlayingAndRefills() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let api = StubImmichAPI()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        let cache = ImageCache(limit: 2)
+        api.setAssets([
+            Asset(id: "image-1", type: "IMAGE"),
+            Asset(id: "image-2", type: "IMAGE")
+        ], for: "album")
+        api.setPreviewData(Data([1]), for: "image-1")
+        api.setPreviewData(Data([2]), for: "image-2")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            diskCache: disk, snapshots: snapshots,
+            cache: cache,
+            config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        await waitForDiskEntry(disk, "image-2#preview")
+
+        // The user taps Clear in Settings (both stores) — mid-show.
+        await disk.clear()
+        snapshots.clear()
+
+        // The on-screen photo is not interrupted (FR-320-05).
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.currentImageData == Data([1]))
+        #expect(await disk.currentUsage() == 0)
+        #expect(snapshots.load(forKey: "album") == nil)
+
+        // Next advance while online: RAM still holds the prefetched neighbor,
+        // so empty it too — the photo must come from the network again.
+        cache.store(Data([8]), for: "unrelated-1")
+        cache.store(Data([9]), for: "unrelated-2")
+        let networkCalls = api.previewCallCount(for: "image-2")
+
+        await model.advance()
+
+        #expect(model.currentAssetID == "image-2")
+        #expect(model.currentImageData == Data([2]))
+        #expect(api.previewCallCount(for: "image-2") == networkCalls + 1)
+        // …and the fetch re-filled the disk cache as it played (US3-5).
+        #expect(await waitForDiskEntry(disk, "image-2#preview") == Data([2]))
+    }
+}
