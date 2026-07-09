@@ -433,32 +433,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(model.currentAssetID == "image-3")
 }
 
-@MainActor
-@Test func advanceFailsWhenEveryImageInRingNowFails() async {
-    let api = StubImmichAPI()
-    let ticker = ManualTicker()
-    let cache = ImageCache(limit: 2)
-    let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 2)
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
-    ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
-
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
-    await model.start()
-    await waitUntil(cache.contains("image-2"))
-    cache.store(Data([9]), for: "unrelated-1")
-    cache.store(Data([10]), for: "unrelated-2")
-    api.setPreviewError(ImmichError.unreachable, for: "image-1")
-    api.setPreviewError(ImmichError.unreachable, for: "image-2")
-    api.setPreviewError(ImmichError.unreachable, for: "image-3")
-
-    await model.advance()
-
-    #expect(model.phase == .failed)
-    #expect(model.currentAssetID == "image-1")
-}
+// The former advanceFailsWhenEveryImageInRingNowFails test asserted the pre-310
+// dead-end (`phase == .failed` on total image exhaustion). FR-310-03 supersedes
+// it: the current image stays up and a backoff retry recovers the show — see
+// imageExhaustionKeepsCurrentImageAndAutoRecovers in SlideshowResilienceTests.

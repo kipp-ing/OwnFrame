@@ -16,6 +16,12 @@ public final class SlideshowViewModel {
     /// but manual `showNext()`/`showPrevious()` still work.
     public private(set) var isPaused = false
 
+    /// Why the most recent fetch failed; nil while healthy (310, FR-310-05).
+    /// Set on any source/image failure, cleared by the next success. The error
+    /// surface reads this only in the `.failed` phase — while an image is
+    /// showing, failures stay invisible (FR-310-03/09).
+    public private(set) var failureReason: SlideshowFailureReason?
+
     /// The album currently being shown. Mutable so Home-Assistant/remote control
     /// can switch albums at runtime (see `switchAlbum(_:)`).
     public private(set) var albumID: String
@@ -40,11 +46,32 @@ public final class SlideshowViewModel {
     private var builtOrder: PlayOrder?
     private var runTask: Task<Void, Never>?
 
+    // MARK: Auto-retry state (310, US1)
+
+    /// Which operation the pending retry re-attempts: the source list fetch
+    /// (start/refresh path) or an image load that exhausted the cycle (step
+    /// path) — research R4.
+    private enum PendingRetry {
+        case sourceReload
+        case imageReload
+    }
+
+    private var retryPolicy: RetryPolicy
+    private var retryTask: Task<Void, Never>?
+    private var pendingRetry: PendingRetry?
+    /// Monotonic due time of the pending retry — survives `pause()` so a
+    /// foreground return can resume or fire an overdue attempt (FR-310-10).
+    private var nextRetryDue: Duration?
+    /// Last error seen by `loadFromCursor` — the walk swallows per-photo errors,
+    /// but the retry needs one for classification and backoff.
+    private var lastLoadError: (any Error)?
+
     public init(
         api: any ImmichAPI,
         albumID: String,
         ticker: any SlideshowTicker,
         clock: any SlideshowClock = ContinuousSlideshowClock(),
+        retryPolicy: RetryPolicy = RetryPolicy(),
         cache: ImageCache = ImageCache(limit: SlideshowConfig.default.cacheLimit),
         config: SlideshowConfig = .default,
         settingsStore: any ThemeSettingsStore,
@@ -54,6 +81,7 @@ public final class SlideshowViewModel {
         self.albumID = albumID
         self.ticker = ticker
         self.clock = clock
+        self.retryPolicy = retryPolicy
         self.cache = cache
         self.config = config
         self.settingsStore = settingsStore
@@ -62,6 +90,11 @@ public final class SlideshowViewModel {
 
     public func start() async {
         pause()
+        // Rebind the retry to whatever this start() targets: a source switch
+        // must never leave a timer running against the old source (FR-310-11),
+        // and an explicit (re)start begins a fresh backoff curve.
+        cancelRetry()
+        retryPolicy.reset()
         isPaused = false
         phase = .loading
 
@@ -69,6 +102,7 @@ public final class SlideshowViewModel {
             imageAssets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
             guard !imageAssets.isEmpty else {
                 resetCurrent()
+                failureReason = nil
                 phase = .empty
                 return
             }
@@ -76,15 +110,19 @@ public final class SlideshowViewModel {
             rebuildSequence(order: settingsStore.settings.order, anchorAssetIndex: nil)
             if let loaded = await loadFromCursor(forward: true) {
                 showLoadedImage(loaded)
+                failureReason = nil
                 phase = .playing
                 prefetchImages()
                 startTickerLoop()
             } else {
-                resetCurrent()
-                phase = .failed
+                // The list arrived but no photo loads: keep whatever is on
+                // screen (FR-310-03) and retry the image loads in the background.
+                handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
             }
         } catch {
-            phase = .failed
+            // Source list unreachable: calm state only when nothing is showing
+            // (US1-2); auto-retry runs behind it either way.
+            handleFailure(error, kind: .sourceReload)
         }
     }
 
@@ -158,8 +196,11 @@ public final class SlideshowViewModel {
             showLoadedImage(loaded)
             prefetchImages()
         } else {
-            phase = .failed
+            // Every photo in the cycle failed to load: keep the current image
+            // on screen (FR-310-03), park the pointless auto-advance, and let
+            // the backoff retry recover the show (US1-1).
             pause()
+            handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
         }
     }
 
@@ -171,11 +212,137 @@ public final class SlideshowViewModel {
     }
 
     public func retry() async {
-        guard phase == .failed else {
+        guard phase == .failed || pendingRetry != nil else {
             return
         }
 
-        await start()
+        // FR-310-04: an immediate attempt that also resets the backoff. From
+        // the calm error state this is the explicit restart (with its loading
+        // feedback); from a playing-but-degraded show it re-attempts quietly.
+        let kind = pendingRetry
+        cancelRetry()
+        retryPolicy.reset()
+        if phase == .failed {
+            await start()
+        } else if kind == .sourceReload {
+            await reloadSource()
+        } else {
+            await reloadImageFromCursor()
+        }
+    }
+
+    // MARK: - Auto-retry (310, US1)
+
+    /// Record a failure, classify it, and arm the backoff retry. The phase only
+    /// becomes `.failed` when there is nothing on screen (FR-310-03).
+    private func handleFailure(_ error: any Error, kind: PendingRetry) {
+        failureReason = RetryPolicy.classify(error)
+        if currentImageData == nil {
+            resetCurrent()
+            phase = .failed
+        } else {
+            phase = .playing
+        }
+        scheduleRetry(for: error, kind: kind)
+    }
+
+    private func scheduleRetry(for error: any Error, kind: PendingRetry) {
+        pendingRetry = kind
+        let delay = retryPolicy.nextDelay(for: error)
+        nextRetryDue = clock.now + delay
+        armRetryTask(delay: delay)
+    }
+
+    private func armRetryTask(delay: Duration) {
+        retryTask?.cancel()
+        let clock = clock
+        retryTask = Task.detached { [weak self, clock] in
+            do {
+                try await clock.sleep(for: delay)
+            } catch {
+                return
+            }
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            await self.performRetryAttempt()
+        }
+    }
+
+    private func performRetryAttempt() async {
+        guard let kind = pendingRetry else {
+            return
+        }
+
+        switch kind {
+        case .sourceReload:
+            await reloadSource()
+        case .imageReload:
+            await reloadImageFromCursor()
+        }
+    }
+
+    /// Quiet source re-fetch: the retry path's counterpart to `start()` — no
+    /// loading state, no visible transition. Success is also what clears the
+    /// failure and resets the backoff (research R4).
+    private func reloadSource() async {
+        do {
+            let assets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
+            clearFailure()
+            imageAssets = assets
+
+            guard !assets.isEmpty else {
+                resetCurrent()
+                pause()
+                phase = .empty
+                return
+            }
+
+            rebuildSequence(order: settingsStore.settings.order, anchorAssetIndex: nil)
+            if let loaded = await loadFromCursor(forward: true) {
+                showLoadedImage(loaded)
+                phase = .playing
+                prefetchImages()
+                restartTickerIfPlaying()
+            } else {
+                handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+            }
+        } catch {
+            handleFailure(error, kind: .sourceReload)
+        }
+    }
+
+    /// Re-attempt the image load that exhausted the cycle (US1-1): on success
+    /// the show moves to the photo under the cursor and the ticker re-arms.
+    private func reloadImageFromCursor() async {
+        guard !imageAssets.isEmpty else {
+            await reloadSource()
+            return
+        }
+
+        if let loaded = await loadFromCursor(forward: true) {
+            showLoadedImage(loaded)
+            clearFailure()
+            phase = .playing
+            prefetchImages()
+            restartTickerIfPlaying()
+        } else {
+            handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+        }
+    }
+
+    private func clearFailure() {
+        retryPolicy.reset()
+        failureReason = nil
+        cancelRetry()
+    }
+
+    /// Fully discard the pending retry (rebind/handled): task, kind, and due time.
+    private func cancelRetry() {
+        retryTask?.cancel()
+        retryTask = nil
+        pendingRetry = nil
+        nextRetryDue = nil
     }
 
     public func pause() {
@@ -312,6 +479,7 @@ public final class SlideshowViewModel {
                 let data = try await loadImageData(for: assetID)
                 return LoadedImage(assetID: assetID, data: data)
             } catch {
+                lastLoadError = error
                 moveCursor(forward: forward)
                 attempts += 1
             }
