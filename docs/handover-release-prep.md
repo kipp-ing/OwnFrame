@@ -33,6 +33,15 @@ TDD per the constitution. Notes:
 - Gates: `swift test` (host) + XcodeBuildMCP `test_sim` (whole test classes — single-@Test
   runs are a false green), full XCUITest before merging SwiftUI changes.
 
+## Release scope update (2026-07-09)
+
+**310 is implemented** (branch `310-slideshow-resilience`, all gates green) and **320
+(disk image cache) ships in v1.0 too** — Jan's call: the release waits for 320.
+Build order: merge 310 → build 320 (spec/plan/tasks ready in `specs/320-disk-image-cache/`,
+feature.json already points there) → then the checklist below. Before every release run the
+**Release gate** section in `docs/testing.md` (host suites, full sim suite incl. the
+`SlideshowResilienceUITests` failure-seam tests, error-state screenshots, manual smoke).
+
 ## Release checklist (after 310 is green)
 
 - [ ] Bump `CURRENT_PROJECT_VERSION`, archive + upload (recipe in memory

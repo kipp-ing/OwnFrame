@@ -89,6 +89,45 @@ and add an XCUITest that launches with `--uitest`. Do **not** reach for `axe` /
 MCP write-side UI automation — XCUITest is the repeatable, committed path. (That
 backend isn't installed here anyway; see the engineering notes.)
 
+## Release gate — run before EVERY release
+
+Every App Store submission (and every merge to `main` that will ship) runs this
+sequence, in order. Nothing here is optional.
+
+1. **Host suites** — every package green:
+
+   ```bash
+   for p in Packages/*/; do (cd "$p" && swift test) || break; done
+   ```
+
+   `SlideshowKit` carries the resilience engine suites (310): `RetryPolicyTests`,
+   `RotationReconcilerTests`, `SlideshowResilienceTests` (TestClock-driven — real
+   timers in tests are a spec violation, FR-310-12).
+
+2. **Full simulator suite** — `test_sim` on the whole scheme (app-hosted +
+   *all* XCUITests). This includes the 310 release tests in
+   `SlideshowResilienceUITests`, which drive the failure seams
+   (`--uitest-assets-fail=unreachable|unauthorized`,
+   `--uitest-assets-recover-after=N`):
+   - calm error state + **unattended auto-recovery with zero taps** (US1-2/SC-310-01),
+   - the actionable auth variant + Edit connection opening the editor (FR-310-05),
+   - manual retry against a dead server staying calm (FR-310-04).
+   Never `-only-testing` a single Swift Testing `@Test` (false green — runs 0
+   tests and reports SUCCEEDED); whole classes only.
+
+3. **Error-state screenshots** — launch the app with each failure seam and
+   screenshot both `SlideshowErrorView` variants (XCUITest can't judge layout;
+   overlays are verified visually — see engineering notes).
+
+4. **Manual resilience smoke on the real frame** (per
+   `specs/310-slideshow-resilience/quickstart.md`, and once 320 ships also its
+   quickstart): kill Wi-Fi ~2 min mid-show → playback self-recovers; add a photo
+   server-side → appears within one refresh interval. With 320: Airplane Mode →
+   full rotation continues; force-quit + relaunch offline → show returns.
+
+5. **Full XCUITest suite green before the merge** — house rule; screenshots miss
+   UI-test regressions.
+
 ## Live-server contract check (manual, opt-in)
 
 The hermetic UI test proves the *flow*; it does **not** prove the real Immich API
