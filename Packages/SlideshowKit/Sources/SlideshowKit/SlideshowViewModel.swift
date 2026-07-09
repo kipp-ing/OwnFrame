@@ -33,6 +33,10 @@ public final class SlideshowViewModel {
     /// Persistence tier under the RAM cache (320): photos survive outages and
     /// relaunches. nil = exact 310 behavior (the compatibility contract).
     private let diskCache: (any DiskImageStoring)?
+    /// Remembered photo list per source (320, FR-320-06/07): written on every
+    /// successful fetch, played back when a launch-time fetch fails. Same
+    /// nil-means-310 contract as `diskCache`.
+    private let snapshots: (any SourceSnapshotStoring)?
     private let config: SlideshowConfig
     /// Live display/playback preferences (order, duration, quality). Read at the
     /// point of use so changes apply to the running show without a restart (008).
@@ -83,6 +87,7 @@ public final class SlideshowViewModel {
         clock: any SlideshowClock = ContinuousSlideshowClock(),
         retryPolicy: RetryPolicy = RetryPolicy(),
         diskCache: (any DiskImageStoring)? = nil,
+        snapshots: (any SourceSnapshotStoring)? = nil,
         cache: ImageCache = ImageCache(limit: SlideshowConfig.default.cacheLimit),
         config: SlideshowConfig = .default,
         settingsStore: any ThemeSettingsStore,
@@ -94,6 +99,7 @@ public final class SlideshowViewModel {
         self.clock = clock
         self.retryPolicy = retryPolicy
         self.diskCache = diskCache
+        self.snapshots = snapshots
         self.cache = cache
         self.config = config
         self.settingsStore = settingsStore
@@ -113,7 +119,7 @@ public final class SlideshowViewModel {
 
         do {
             imageAssets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
-            markRefreshSucceeded()
+            markRefreshSucceeded(with: imageAssets)
             guard !imageAssets.isEmpty else {
                 resetCurrent()
                 failureReason = nil
@@ -134,10 +140,39 @@ public final class SlideshowViewModel {
                 handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
             }
         } catch {
-            // Source list unreachable: calm state only when nothing is showing
-            // (US1-2); auto-retry runs behind it either way.
-            handleFailure(error, kind: .sourceReload)
+            // 320 FR-320-07: stale-beats-broken extends to launch — a
+            // remembered list plays from disk while the retry recovers live
+            // data. handleFailure sees the shown image and lands on
+            // .playing-degraded; without a playable snapshot it is the calm
+            // state, auto-retry behind it either way (310 US1-2).
+            if await startFromSnapshot() {
+                handleFailure(error, kind: .sourceReload)
+                startTickerLoop()
+            } else {
+                handleFailure(error, kind: .sourceReload)
+            }
         }
+    }
+
+    /// Offline startup fallback (320, US2): adopt the remembered list and show
+    /// the first loadable photo from the disk tier. False when no snapshot
+    /// exists or every remembered photo is gone (purged) — the caller then
+    /// takes the ordinary failure path (SC-320-06).
+    private func startFromSnapshot() async -> Bool {
+        guard let snapshot = snapshots?.load(forKey: albumID)?.filter({ $0.type == "IMAGE" }),
+              !snapshot.isEmpty else {
+            return false
+        }
+
+        imageAssets = snapshot
+        rebuildSequence(order: settingsStore.settings.order, anchorAssetIndex: nil)
+        guard let loaded = await loadFromCursor(forward: true) else {
+            return false
+        }
+
+        showLoadedImage(loaded)
+        prefetchImages()
+        return true
     }
 
     public func advance() async {
@@ -323,7 +358,7 @@ public final class SlideshowViewModel {
         do {
             let assets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
             clearFailure()
-            markRefreshSucceeded()
+            markRefreshSucceeded(with: assets)
 
             guard !assets.isEmpty else {
                 imageAssets = []
@@ -374,8 +409,12 @@ public final class SlideshowViewModel {
 
     /// Stamp the successful list fetch and (re)arm the next hourly refresh —
     /// runs across `.playing`, `.empty`, and `.failed` so an emptied or broken
-    /// source recovers on its own (FR-310-06).
-    private func markRefreshSucceeded() {
+    /// source recovers on its own (FR-310-06). This is the single "list fetch
+    /// succeeded" choke point, so the source snapshot rides it (320,
+    /// FR-320-06) — with the fresh list passed in, because reloadSource calls
+    /// this before `imageAssets` is reassigned.
+    private func markRefreshSucceeded(with assets: [Asset]) {
+        snapshots?.save(assets, forKey: albumID)
         lastSuccessfulRefresh = clock.now
         armRefreshTask()
     }
