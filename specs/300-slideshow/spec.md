@@ -196,12 +196,14 @@ Spec Kit feature.
   action surfaced in Settings. Acceptance preserved: cached photos can display while the server is
   unreachable; the disk cache stays within its size limit; Clear empties it.
 - **Auto-retry with backoff** (was FR-300-11): load/connection failures auto-retry with backoff for
-  unattended recovery, beyond the existing manual retry.
+  unattended recovery, beyond the existing manual retry. **Now specced** as sub-spec
+  `310-slideshow-resilience` (FR-310-01…05) — planned pre-release.
 - **German translations** (part of FR-300-30): a `de` localization for the string catalogs. All
   source strings stay English (repo policy: English-only source); German ships as a translation
   pass over the existing catalogs once scheduled.
 - **Periodic source refresh** (was FR-300-12): the active source asset list refreshes periodically
-  so newly added Immich photos enter rotation without an app restart.
+  so newly added Immich photos enter rotation without an app restart. **Now specced** as sub-spec
+  `310-slideshow-resilience` (FR-310-06…11) — planned pre-release.
 - **Rendered clock overlay** (was FR-300-29): render the optional clock (corner + optional date)
   per topic 500 settings; the settings are already stored (topic 500) but no renderer exists yet.
   Off by default.
