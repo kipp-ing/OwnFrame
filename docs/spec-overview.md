@@ -33,7 +33,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 210 | [shared-link-onboarding](../specs/210-shared-link-onboarding/spec.md) | OnboardingKit | *(sub-spec of 200)* Choice-first onboarding, shared-link-only setup (no API key), iOS Share Sheet acceptance, resolve-first/password-when-needed, one searchable/subscrollable album picker shared by onboarding + Settings. | Active |
 | 300 | [slideshow](../specs/300-slideshow/spec.md)                       | SlideshowKit     | Fullscreen playback engine + Liquid Glass UI: chrome, gestures, album browser, info.     | Active   |
 | 310 | [slideshow-resilience](../specs/310-slideshow-resilience/spec.md) | SlideshowKit     | *(sub-spec of 300)* Auto-retry with backoff + periodic source refresh — unattended frame survival. | Active |
-| 320 | [disk-image-cache](../specs/320-disk-image-cache/spec.md)         | SlideshowKit     | *(sub-spec of 300)* Byte-capped disk cache + remembered source list — whole-album offline survival incl. relaunch; budget in Settings (500 MB default). | Planned (next) |
+| 320 | [disk-image-cache](../specs/320-disk-image-cache/spec.md)         | SlideshowKit     | *(sub-spec of 300)* Byte-capped disk cache + remembered source list — whole-album offline survival incl. relaunch; budget in Settings (500 MB default). | Active |
 | 400 | [power-manager](../specs/400-power-manager/spec.md)               | PowerKit         | Keep the display awake and dim brightness while the slideshow runs in the foreground.     | Active   |
 | 500 | [display-options](../specs/500-display-options/spec.md)           | ThemeKit         | User-configurable order/duration/transition/Ken Burns/fit/quality/clock, applied live.   | Active   |
 | 600 | [broker-setup](../specs/600-broker-setup/spec.md)                 | BrokerSetupKit   | Enter and persist MQTT broker credentials (Keychain) so 700 has something to connect to. | Active   |
@@ -59,7 +59,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
                               └─ reserved: 730 sleep/wake
 
 310 Slideshow Resilience ──> 300 (auto-retry + periodic refresh; implemented 2026-07-09)
-320 Disk Image Cache ─────> 300 + 310 (offline photo survival; specced, planned next)
+320 Disk Image Cache ─────> 300 + 310 (offline photo survival; implemented 2026-07-09)
 800 App Intents ──> 700's command surface (Shortcuts/Siri/automations, no MQTT; deferred v1.1)
 900 Photo Library Source ──> 120 source library (new kind) + a source-neutral data
                              protocol that 100 and PhotoKit both implement (deferred v1.x)
@@ -82,8 +82,8 @@ source kinds — read it alongside `120`.
 ## Reserved / deferred (roadmap)
 
 Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120`/`710` shipped and are
-Active above. `310` is **implemented** (was the pre-release gate); `800`/`900` are specced and deferred
-(post-release, in that order); the rest remain unscheduled.
+Active above. `310` and `320` are **implemented** (the two pre-release gates); `800`/`900` are
+specced and deferred (post-release, in that order); the rest remain unscheduled.
 
 **Reserved sub-specs / future sources:**
 - `730` HA sleep/wake driven by an HA presence signal (pairs with the 400 sleep/wake roadmap item).
@@ -92,7 +92,8 @@ Active above. `310` is **implemented** (was the pre-release gate); `800`/`900` a
 
 **Specified but not yet built** (carried over from old "extended/added" notes, deferred during the
 overhaul so every Active requirement maps to real, tested code):
-- Disk image cache + size limit + Clear-cache action (topic 300).
+- ~~Disk image cache + size limit + Clear-cache action~~ — promoted to sub-spec
+  [320-disk-image-cache](../specs/320-disk-image-cache/spec.md), implemented 2026-07-09.
 - ~~Auto-retry with backoff~~ / ~~periodic source refresh~~ — promoted to sub-spec
   [310-slideshow-resilience](../specs/310-slideshow-resilience/spec.md), implemented 2026-07-09.
 - Rendered clock overlay — settings are stored (500), renderer deferred (topic 300).
