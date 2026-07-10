@@ -45,7 +45,10 @@ import Observation
 
         let albums: [Album]
         do {
-            albums = try await api(ServerConfig(baseURL: url, apiKey: effectiveKey)).albums()
+            let client = api(ServerConfig(baseURL: url, apiKey: effectiveKey))
+            // 130 FR-130-05: reject a pre-v3 server before adopting the connection.
+            try await client.ensureServerSupported()
+            albums = try await client.albums()
         } catch let error as ImmichError {
             errorMessage = ConnectionError.message(for: error)
             return outcome(for: error)
@@ -86,6 +89,8 @@ import Observation
             // treat them as an unexpected response here. The source library surfaces them
             // through its own shared-link flow (120).
             .invalidResponse
+        case let .serverTooOld(version):
+            .serverTooOld(version: version)
         }
     }
 }

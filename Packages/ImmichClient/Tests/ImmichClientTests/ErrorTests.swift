@@ -49,6 +49,15 @@ import ImmichClientTestSupport
     }
 }
 
+@Test func serverTooOldCarriesVersionAndIsDistinctFromOtherCases() {
+    let tooOld = ImmichError.serverTooOld(version: "2.118.0")
+    #expect(tooOld == .serverTooOld(version: "2.118.0"))
+    #expect(tooOld != .serverTooOld(version: "3.0.0"))
+    #expect(tooOld != .invalidResponse)
+    #expect(tooOld != .unreachable)
+    #expect(tooOld != .unauthorized)
+}
+
 private func makeClient(responseData: Data, statusCode: Int) throws -> ImmichClient {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/albums"))

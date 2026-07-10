@@ -66,10 +66,12 @@ struct ImmichClientIntegrationTests {
         #expect(request.value(forHTTPHeaderField: "x-api-key") == apiKey)
     }
 
-    @Test func assetsRequestHitsAlbumPathWithAPIKey() async throws {
+    // v3 (130): an API-key album lists its images via POST /api/search/metadata, not the
+    // removed album `assets` array.
+    @Test func assetsFetchImagesViaMetadataSearchWithAPIKey() async throws {
         let (client, transport) = try makeClient(
-            json: #"{"assets":[{"id":"asset-1","type":"IMAGE"}]}"#,
-            path: "/api/albums/album-1"
+            json: #"{"assets":{"items":[{"id":"asset-1","type":"IMAGE"}],"nextPage":null}}"#,
+            path: "/api/search/metadata"
         )
 
         let assets = try await client.assets(albumID: "album-1")
@@ -79,7 +81,8 @@ struct ImmichClientIntegrationTests {
         #expect(assets[0].type == "IMAGE")
 
         let request = try #require(await transport.recordedRequests.first)
-        #expect(request.url?.path == "/api/albums/album-1")
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/api/search/metadata")
         #expect(request.value(forHTTPHeaderField: "x-api-key") == apiKey)
     }
 
@@ -110,8 +113,8 @@ struct ImmichClientIntegrationTests {
     // SC-005: empty album decodes to [] without error.
     @Test func assetsReturnsEmptyArrayForEmptyAlbum() async throws {
         let (client, _) = try makeClient(
-            json: #"{"assets":[]}"#,
-            path: "/api/albums/empty"
+            json: #"{"assets":{"items":[],"nextPage":null}}"#,
+            path: "/api/search/metadata"
         )
 
         let assets = try await client.assets(albumID: "empty")

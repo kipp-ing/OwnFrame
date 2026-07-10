@@ -24,10 +24,52 @@ public struct ImmichClient: ImmichAPI {
         return try decode([Album].self, from: data)
     }
 
+    /// Number of assets requested per metadata-search page. One page covers a typical frame
+    /// album; larger albums page transparently via the `nextPage` token.
+    private static let metadataSearchPageSize = 1000
+
     public func assets(albumID: String) async throws -> [Asset] {
-        let request = makeRequest(path: "api/albums/\(albumID)")
+        // v3 routes asset listing by auth kind: an API key uses the metadata-search pager;
+        // a shared link reads the assets embedded in its own resolution response (130).
+        switch config.auth {
+        case .apiKey:
+            return try await albumAssetsViaMetadataSearch(albumID: albumID)
+        case .shareKey:
+            return try await sharedLinkAssets()
+        }
+    }
+
+    /// API-key album source: page `POST /api/search/metadata` filtered to the album's images
+    /// until the server stops returning a `nextPage` token (FR-130-02). `order` mirrors the
+    /// album's own date sort; the caller may still filter by type.
+    private func albumAssetsViaMetadataSearch(albumID: String) async throws -> [Asset] {
+        var collected: [Asset] = []
+        var page = 1
+        while true {
+            let body = MetadataSearchRequest(
+                albumIds: [albumID],
+                type: "IMAGE",
+                order: "desc",
+                page: page,
+                size: Self.metadataSearchPageSize
+            )
+            let request = try makeJSONRequest(path: "api/search/metadata", body: body)
+            let data = try await responseData(for: request)
+            let response = try decode(SearchResponse.self, from: data)
+            collected.append(contentsOf: response.assets.items)
+            guard let token = response.assets.nextPage, let next = Int(token) else { break }
+            page = next
+        }
+        return collected
+    }
+
+    /// Shared-link source: the link's assets are embedded in `GET /api/shared-links/me` (the
+    /// `?key=` credential is appended by `makeRequest`). No-password links resolve here directly;
+    /// a password link's refresh (login/cookie) is pinned to M2 (see specs/130 research.md §3).
+    private func sharedLinkAssets() async throws -> [Asset] {
+        let request = makeRequest(path: "api/shared-links/me")
         let data = try await responseData(for: request)
-        return try decode(AlbumDetail.self, from: data).assets
+        return try decode(SharedLinkMeAssetsResponse.self, from: data).assets ?? []
     }
 
     public func assetInfo(assetID: String) async throws -> AssetInfo {
@@ -86,6 +128,16 @@ public struct ImmichClient: ImmichAPI {
         if case let .apiKey(apiKey) = config.auth {
             request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         }
+        return request
+    }
+
+    /// A `POST` with a JSON body, reusing `makeRequest`'s URL building and auth (v3 uses this for
+    /// `POST /api/search/metadata` and the shared-link login).
+    private func makeJSONRequest(path: String, body: some Encodable) throws -> URLRequest {
+        var request = makeRequest(path: path)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(body)
         return request
     }
 

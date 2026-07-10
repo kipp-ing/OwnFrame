@@ -756,7 +756,7 @@ private struct StubImmichAPI: ImmichAPI {
         return flag.hasSuffix("unauthorized") ? .unauthorized : .unreachable
     }
 
-    func serverVersion() async throws -> String { "1.0.0" }
+    func serverVersion() async throws -> String { "3.0.2" }
 
     func albums() async throws -> [Album] {
         // 210 US3: a large, metadata-bearing list drives the searchable-picker UI test.

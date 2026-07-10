@@ -61,6 +61,32 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     #expect(keychain.saveCount == 0)
 }
 
+// 130 FR-130-05: Settings re-connect rejects a pre-v3 server with the upgrade notice and does
+// not adopt the connection.
+@MainActor @Test func connectionSettingsRejectsPreV3Server() async throws {
+    let data = try #require("[]".data(using: .utf8))
+    let response = try makeConnectionSettingsResponse(path: "/api/albums", statusCode: 200)
+    let config = CountingConfigStore.seeded()
+    let keychain = CountingKeychainStore(apiKey: "stored-key")
+    let vm = makeConnectionSettingsVM(
+        transportResult: .success((data, response)),
+        config: config,
+        keychain: keychain,
+        serverVersion: "2.118.0"
+    )
+    vm.serverURLInput = "https://new.example.test"
+
+    let outcome = await vm.save()
+
+    guard case let .serverTooOld(version) = outcome else {
+        Issue.record("Expected .serverTooOld, got \(outcome)")
+        return
+    }
+    #expect(version == "2.118.0")
+    #expect(vm.errorMessage == ConnectionError.message(for: .serverTooOld(version: "2.118.0")))
+    #expect(config.saveCount == 0)
+}
+
 @MainActor @Test func connectionSettingsDoesNotPersistUnreachableConnection() async {
     let config = CountingConfigStore.seeded()
     let keychain = CountingKeychainStore(apiKey: "stored-key")
@@ -203,18 +229,32 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
 @MainActor private func makeConnectionSettingsVM(
     transportResult: Result<(Data, URLResponse), Error>,
     config: CountingConfigStore = .seeded(),
-    keychain: CountingKeychainStore = .init(apiKey: "stored-key")
+    keychain: CountingKeychainStore = .init(apiKey: "stored-key"),
+    serverVersion: String = "3.0.2"
 ) -> ConnectionSettingsViewModel {
     ConnectionSettingsViewModel(
         api: { serverConfig in
             ImmichClient(
                 config: serverConfig,
-                transport: MockTransport(result: transportResult)
+                // v3 (130): save() gates the version first, then fetches albums — the sequence
+                // answers the version check, then every later request with transportResult.
+                transport: MockTransport(sequence: [versionResult(serverVersion), transportResult])
             )
         },
         config: config,
         keychain: keychain
     )
+}
+
+private func versionResult(_ version: String) -> Result<(Data, URLResponse), Error> {
+    let parts = version.split(separator: ".").map { Int($0) ?? 0 }
+    let major = parts.indices.contains(0) ? parts[0] : 0
+    let minor = parts.indices.contains(1) ? parts[1] : 0
+    let patch = parts.indices.contains(2) ? parts[2] : 0
+    let data = Data(#"{"major":\#(major),"minor":\#(minor),"patch":\#(patch)}"#.utf8)
+    let url = URL(string: "https://photos.example.test/api/server/version")!
+    let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+    return .success((data, response))
 }
 
 private func makeConnectionSettingsResponse(path: String, statusCode: Int) throws -> HTTPURLResponse {
@@ -297,8 +337,10 @@ private actor BlockingAlbumsAPI: ImmichAPI {
     private var startedContinuation: CheckedContinuation<Void, Never>?
     private(set) var albumsCallCount = 0
 
+    // v3 (130): save() gates the version before albums(); report a supported version so the
+    // flow reaches the blocking albums() call this fake is built to suspend on.
     func serverVersion() async throws -> String {
-        "1.119.0"
+        "3.0.2"
     }
 
     func albums() async throws -> [Album] {
