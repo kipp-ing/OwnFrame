@@ -118,6 +118,9 @@ public final class SlideshowViewModel {
         phase = .loading
 
         do {
+            // 130 FR-130-05/06: reject a pre-v3 server up front so a relaunch straight into the
+            // slideshow (bypassing onboarding) still surfaces the upgrade notice.
+            try await api.ensureServerSupported()
             imageAssets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
             markRefreshSucceeded(with: imageAssets)
             guard !imageAssets.isEmpty else {
@@ -145,7 +148,9 @@ public final class SlideshowViewModel {
             // data. handleFailure sees the shown image and lands on
             // .playing-degraded; without a playable snapshot it is the calm
             // state, auto-retry behind it either way (310 US1-2).
-            if await startFromSnapshot() {
+            // A too-old server (130) must show the upgrade notice, not silently play cached
+            // photos — skip the offline snapshot fallback for that terminal case.
+            if !RetryPolicy.classify(error).isTerminal, await startFromSnapshot() {
                 handleFailure(error, kind: .sourceReload)
                 startTickerLoop()
             } else {
@@ -309,12 +314,19 @@ public final class SlideshowViewModel {
     /// Record a failure, classify it, and arm the backoff retry. The phase only
     /// becomes `.failed` when there is nothing on screen (FR-310-03).
     private func handleFailure(_ error: any Error, kind: PendingRetry) {
-        failureReason = RetryPolicy.classify(error)
+        let reason = RetryPolicy.classify(error)
+        failureReason = reason
         if currentImageData == nil {
             resetCurrent()
             phase = .failed
         } else {
             phase = .playing
+        }
+        // 130 FR-130-06: an unsupported (v<3) server is terminal — surface the notice, but do
+        // not arm the backoff loop against a server the app can never satisfy.
+        guard !reason.isTerminal else {
+            cancelRetry()
+            return
         }
         scheduleRetry(for: error, kind: kind)
     }
@@ -362,6 +374,9 @@ public final class SlideshowViewModel {
     /// via RotationReconciler instead of rebuilding (FR-310-07/08).
     private func reloadSource() async {
         do {
+            // 130 FR-130-06: re-check on every refresh so a server downgraded to v2 mid-run
+            // surfaces the notice terminally instead of looping the backoff.
+            try await api.ensureServerSupported()
             let assets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
             clearFailure()
             markRefreshSucceeded(with: assets)

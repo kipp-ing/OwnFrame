@@ -21,6 +21,13 @@ public enum SlideshowFailureReason: Sendable, Equatable {
     /// 401/403, expired or re-passworded shared link — cap-only retry and an
     /// actionable message ("check your connection settings").
     case authentication
+    /// Server older than the supported Immich major version (130, FR-130-06).
+    /// Terminal: the app speaks the v3 API only and cannot operate against it, so the engine
+    /// surfaces the "needs Immich v3+" notice and does NOT arm the backoff loop.
+    case unsupportedServer
+
+    /// Terminal reasons stop the auto-retry loop entirely — no backoff, not even cap-retry.
+    public var isTerminal: Bool { self == .unsupportedServer }
 }
 
 /// Backoff parameters and attempt state. A plain value owned by the engine
@@ -70,7 +77,8 @@ public struct RetryPolicy {
         let maxSeconds = Self.seconds(configuration.maxDelay)
         let nominal: Double
         switch Self.classify(error) {
-        case .authentication:
+        case .authentication, .unsupportedServer:
+            // Terminal reasons are not scheduled by the engine; cap defensively if ever asked.
             nominal = maxSeconds
         case .transient:
             let initial = Self.seconds(configuration.initialDelay)
@@ -94,6 +102,10 @@ public struct RetryPolicy {
     /// FR-310-05: the four unambiguous auth conditions; everything else —
     /// including non-ImmichError transport surprises — is worth a normal retry.
     public static func classify(_ error: any Error) -> SlideshowFailureReason {
+        // serverTooOld carries an associated value, so match it before the no-payload cases.
+        if let immich = error as? ImmichError, case .serverTooOld = immich {
+            return .unsupportedServer
+        }
         switch error {
         case ImmichError.unauthorized, ImmichError.shareLinkExpired,
              ImmichError.wrongPassword, ImmichError.passwordRequired:

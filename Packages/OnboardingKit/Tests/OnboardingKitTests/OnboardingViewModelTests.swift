@@ -149,6 +149,21 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
+// 130 FR-130-05: a pre-v3 server blocks the connection with the upgrade notice and never
+// advances to the source step; the album fetch is gated out.
+@MainActor @Test func submitConnectionBlocksPreV3ServerWithUpgradeNotice() async {
+    let api = AlbumsAPI(result: .success([Album(id: "a1", name: "Fam")]), serverVersion: "2.118.0")
+    let vm = makeVM(api: api)
+    vm.serverURLInput = "https://photos.example.test"
+    vm.apiKeyInput = "key"
+
+    await vm.submitConnection()
+
+    #expect(vm.step == .connection)
+    #expect(vm.errorMessage == ConnectionError.message(for: .serverTooOld(version: "2.118.0")))
+    #expect(await api.albumsCallCount == 0)
+}
+
 @MainActor @Test func advancesToSourceEvenWhenAlbumListEmpty() async throws {
     // An empty album list still proves the connection works; the user can add a shared
     // link on the source step, so onboarding advances instead of erroring (120, US2).
@@ -374,14 +389,16 @@ import ImmichClient
 
 private actor AlbumsAPI: ImmichAPI {
     private let result: Result<[Album], Error>
+    private let serverVersionString: String
     private(set) var albumsCallCount = 0
 
-    init(result: Result<[Album], Error>) {
+    init(result: Result<[Album], Error>, serverVersion: String = "3.0.2") {
         self.result = result
+        self.serverVersionString = serverVersion
     }
 
     func serverVersion() async throws -> String {
-        "1.119.0"
+        serverVersionString
     }
 
     func albums() async throws -> [Album] {
@@ -412,7 +429,7 @@ private actor FlakyAlbumsAPI: ImmichAPI {
     }
 
     func serverVersion() async throws -> String {
-        "1.119.0"
+        "3.0.2"
     }
 
     func albums() async throws -> [Album] {

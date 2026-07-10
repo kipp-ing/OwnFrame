@@ -23,7 +23,7 @@ The user can change slideshow order and per-photo duration from settings. The ru
 1. **Given** a default install, **When** the slideshow first runs, **Then** order is shuffle and duration is 15 seconds without user configuration.
 2. **Given** the settings screen, **When** the user changes the duration, **Then** the running slideshow's auto-advance uses the new duration without a restart.
 3. **Given** order is shuffle, **When** the slideshow runs a full cycle, **Then** every photo is shown once before any repeats, and the next cycle uses a fresh shuffle.
-4. **Given** order is sequential, **When** the slideshow runs, **Then** photos appear in album order.
+4. **Given** order is sequential, **When** the slideshow runs, **Then** photos appear in the source's album order — i.e. capture-date order, newest first (see FR-500-06 note; 130).
 5. **Given** any changed option, **When** the app is relaunched, **Then** the previously chosen values are still in effect.
 
 ---
@@ -92,7 +92,7 @@ The user can enable an unobtrusive clock overlay, choose its corner, and optiona
 - **FR-500-03**: The system MUST apply these defaults on first run or after invalid storage fallback: order shuffle, duration 15 seconds, transition crossfade, Ken Burns off, fit Fit, quality Preview, and clock off.
 - **FR-500-04**: Settings changes MUST apply to the already-running slideshow without requiring an app or slideshow restart.
 - **FR-500-05**: Settings changes MUST persist across app launches.
-- **FR-500-06**: The system MUST support photo order options shuffle and sequential. Shuffle MUST show every photo once per cycle before any repeat, then reshuffle for the next cycle.
+- **FR-500-06**: The system MUST support photo order options shuffle and sequential. Shuffle MUST show every photo once per cycle before any repeat, then reshuffle for the next cycle. **"Album order" (sequential) is the source's capture-date order, newest first** — under Immich v3 (130) an API-key album is fetched via `POST /api/search/metadata` with `order: desc` (which reproduces the album's own date sort), and a shared link plays the order returned by `/api/shared-links/me`; the offline snapshot (320) replays that same stored order.
 - **FR-500-07**: The system MUST support configurable per-photo duration and MUST clamp out-of-range values to the documented valid range.
 - **FR-500-08**: The system MUST support transition options crossfade, slide, dissolve, and none.
 - **FR-500-09**: The system MUST support an optional Ken Burns slow pan/zoom toggle, default off.

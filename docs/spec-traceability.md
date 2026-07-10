@@ -25,9 +25,9 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR | Requirement (short) | Covering test(s) | Status | Testability |
 |---|---|---|---|---|
 | FR-100-01 | Accept HTTPS base URL and API key config | `Packages/ImmichClient/Tests/ImmichClientTests/FoundationTypesTests.swift` `serverConfigStoresBaseURLAndAPIKey` | covered | host-unit |
-| FR-100-02 | Send `x-api-key` on requests | `AlbumTests.swift` `albumsSendsGetRequestWithAPIKeyHeader`; `AssetTests.swift` `assetsSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedAssets`; `PreviewTests.swift` `previewSendsGetRequestWithPreviewSizeQueryAndReturnsRawData`, `thumbnailSendsGetRequestWithThumbnailSizeQueryAndReturnsRawData`; `OriginalEndpointTests.swift` `originalSendsGetRequestWithoutSizeQueryAndReturnsRawData`; `AssetInfoTests.swift` `assetInfoSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedInfo`; `ServerVersionTests.swift` `serverVersionReturnsVersionStringAndSendsGetRequest` | covered | host-unit |
+| FR-100-02 | Send `x-api-key` on requests | `AlbumTests.swift` `albumsSendsGetRequestWithAPIKeyHeader`; `AssetTests.swift` `assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader`; `PreviewTests.swift` `previewSendsGetRequestWithPreviewSizeQueryAndReturnsRawData`, `thumbnailSendsGetRequestWithThumbnailSizeQueryAndReturnsRawData`; `OriginalEndpointTests.swift` `originalSendsGetRequestWithoutSizeQueryAndReturnsRawData`; `AssetInfoTests.swift` `assetInfoSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedInfo`; `ServerVersionTests.swift` `serverVersionReturnsVersionStringAndSendsGetRequest` | covered | host-unit |
 | FR-100-03 | Fetch album list with ID/name | `AlbumTests.swift` `albumJSONDecodesAlbumNameAsName`, `albumsSendsGetRequestWithAPIKeyHeader` | covered | host-unit |
-| FR-100-04 | Fetch album image assets with display metadata | `AssetTests.swift` `albumDetailJSONDecodesAssets`, `assetsSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedAssets`; `AssetInfoTests.swift` `assetInfoSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedInfo` | covered | host-unit |
+| FR-100-04 | Fetch album image assets with display metadata | `AssetTests.swift` `assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader` (v3 metadata-search, 130); `AssetInfoTests.swift` `assetInfoSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedInfo` | covered | host-unit |
 | FR-100-05 | Fetch preview by default | `PreviewTests.swift` `previewSendsGetRequestWithPreviewSizeQueryAndReturnsRawData`; `OriginalEndpointTests.swift` `originalProtocolDefaultDelegatesToPreview`; `SlideshowKit/QualitySelectionTests.swift` `previewQualityLoadsPreviewBytesWithoutOriginalFetch` | covered | host-unit |
 | FR-100-06 | Map HTTP 401 to unauthorized | `ErrorTests.swift` `albumsMapsUnauthorizedStatusToUnauthorizedError`; `OriginalEndpointTests.swift` `originalMapsUnauthorizedStatusToUnauthorizedError` | covered | host-unit |
 | FR-100-07 | Map network failure to unreachable | `ErrorTests.swift` `albumsMapsURLErrorToUnreachableError`; `ServerVersionTests.swift` `serverVersionMapsURLErrorToUnreachable` | covered | host-unit |
@@ -154,6 +154,25 @@ with real stores under the sandbox tmp dir).
 | FR-320-11 | Disk work off the display path | Write-through is fire-and-forget (`persistToDisk`); `waitForDiskEntry` polling in tests exists *because* stores are async — design-level; no direct latency assertion | covered | host-unit (by construction) |
 | FR-320-12 | Injectable root/budget/time; host-testable | Entire `DiskImageCacheTests`/`SourceSnapshotStoreTests`/`SlideshowOfflineTests` run against temp dirs + injected `now`/TestClock | covered | host-unit |
 | SC-320-01…06 | Measurable outcomes | SC-01 `wholeAlbumKeepsRotatingOfflineAfterOnePass`; SC-02 `offlineRelaunchPlaysFromTheRememberedList`; SC-03 `usageNeverExceedsBudgetAfterAnyStore`/`fillingPastBudget…`; SC-04 `clearingBothStoresMidShow…`/`loweringTheBudgetPrunesImmediately`; SC-05 `diskHitMakesNoNetworkRequest…`; SC-06 `purgedPhotosDegradeToTheCalmErrorState` | covered | host-unit |
+
+## 130 - Immich API v3 *(added 2026-07-10, implemented)*
+
+v3-only baseline (drops v2). Host-unit unless noted.
+
+| Req | Statement | Test evidence | Status | Kind |
+|-----|-----------|---------------|--------|------|
+| FR-130-01 | v3-only; no v2 compatibility path | All 130 tests below run against v3 fixtures; the v2 album `assets` decode path was removed | covered | host-unit |
+| FR-130-02 | Album assets via `POST /search/metadata`, paged | `ImmichClient/MetadataSearchTests.swift` `searchResponseDecodesItemsTypeAndNextPageToken`, `assetsPageThroughMetadataSearchUntilNextPageIsNil`, `metadataSearchRequestEncodesAlbumFilterPagingAndImageType`; `AssetTests.swift` `assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader`, `assetsReturnsEmptyArrayForAlbumWithoutAssets`; app `Immich_SlideshowTests.swift` `assetsFetchImagesViaMetadataSearchWithAPIKey`, `assetsReturnsEmptyArrayForEmptyAlbum` | covered | host-unit + app |
+| FR-130-03 | Shared-link password in login body, never query | `SharedLinkResolverTests.swift` `resolverLogsInWithPasswordInBodyNotQueryAndReturnsResolution`, `resolverFallsBackToSlugWhenKeyIsInvalid` (no-password GET `/me`) | covered | host-unit |
+| FR-130-12 | Shared-link source lists assets from `/shared-links/me` | `MetadataSearchTests.swift` `sharedLinkSourceListsAssetsFromSharedLinksMe` | covered | host-unit |
+| FR-130-04/09 | Detect major<3; unknown never blocks | `ServerVersionTests.swift` `serverVersionGateClassifiesMajorVersions`, `ensureServerSupportedThrowsServerTooOldForMajorBelowThree`, `ensureServerSupportedPassesForMajorThreePlus`, `ensureServerSupportedPropagatesUnreachableRatherThanTooOld` | covered | host-unit |
+| FR-130-05 | Connect (onboarding + Settings) blocks pre-v3 with notice | `OnboardingViewModelTests.swift` `submitConnectionBlocksPreV3ServerWithUpgradeNotice`; `ConnectionSettingsViewModelTests.swift` `connectionSettingsRejectsPreV3Server` | covered | host-unit |
+| FR-130-06 | Refresh treats too-old as terminal (no backoff) | `RetryPolicyTests.swift` `classifyMapsServerTooOldToUnsupportedServerAndIsTerminal`; `SlideshowResilienceTests.swift` `tooOldServerAtLaunchShowsUnsupportedNoticeAndDoesNotRetry` | covered | host-unit |
+| FR-130-07 | Distinct `serverTooOld` error category | `ErrorTests.swift` `serverTooOldCarriesVersionAndIsDistinctFromOtherCases` | covered | host-unit |
+| FR-130-08 | Decode tolerance for removed v3 fields | `V3DecodeToleranceTests.swift` `albumDecodesV3ShapeWithoutOwnerOrAssets`, `assetDecodesV3ShapeIgnoringRemovedDeviceFields`, `assetInfoDecodesV3AssetWithoutDeviceFields`, `resolverReadsSimplifiedV3ErrorEnvelopeForInvalidIdentifier` | covered | host-unit |
+| FR-130-11 | Password never in URL/log | `SharedLinkResolverTests.swift` password-in-body assertion (no `password` query) | covered | host-unit |
+
+SC-130-01…06 map to the same tests (paging/order, no-query-password, connect notice, terminal-no-retry, decode tolerance, mock-transport-only). Notice rendering (`SlideshowErrorView` `.unsupportedServer`; onboarding/Settings `errorMessage`) exercised by the full sim suite without regression; a **dedicated too-old onboarding UITest is deferred** (see spec Status).
 
 ## 400 - PowerManager
 

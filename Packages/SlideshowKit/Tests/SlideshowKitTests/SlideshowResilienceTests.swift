@@ -164,6 +164,30 @@ struct AutoRetryTests {
         #expect(model.failureReason == nil)
     }
 
+    // 130 FR-130-05/06: a pre-v3 server at launch shows the unsupported-server notice, never
+    // fetches assets, and does NOT arm the backoff loop (terminal — no sleeper parked). The
+    // refresh path (reloadSource) shares this exact gate + handleFailure-terminal code.
+    @Test func tooOldServerAtLaunchShowsUnsupportedNoticeAndDoesNotRetry() async {
+        let api = StubImmichAPI()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        api.setServerVersion("2.118.0")
+        // Assets are available, but the version gate must reject the server before any fetch.
+        api.setAssets([Asset(id: "image-1", type: "IMAGE")], for: "album")
+        api.setPreviewData(Data([1]), for: "image-1")
+
+        let model = SlideshowViewModel(
+            api: api, albumID: "album", ticker: ticker, clock: clock,
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+
+        #expect(model.phase == .failed)
+        #expect(model.failureReason == .unsupportedServer)
+        #expect(api.assetsCallCount == 0)     // gated before any asset fetch
+        #expect(clock.sleeperCount == 0)      // terminal: no backoff retry parked
+    }
+
     // FR-310-02 at engine level: the retry provably waits out the backoff delay.
     @Test func retryWaitsOutTheBackoffDelayBeforeRefetching() async {
         let api = StubImmichAPI()

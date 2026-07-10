@@ -18,6 +18,11 @@ public enum ConnectionError {
             String(localized: "Incorrect password for this shared link.", bundle: .module)
         case .passwordRequired:
             String(localized: "This shared link requires a password.", bundle: .module)
+        case let .serverTooOld(version):
+            String(
+                localized: "This app requires Immich v3 or newer. This server is running \(version) — please update Immich.",
+                bundle: .module
+            )
         }
     }
 }
