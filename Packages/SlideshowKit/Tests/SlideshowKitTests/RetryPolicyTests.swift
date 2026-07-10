@@ -112,4 +112,13 @@ struct RetryPolicyTests {
         #expect(RetryPolicy.classify(DummyError()) == .transient)
         #expect(RetryPolicy.classify(CancellationError()) == .transient)
     }
+
+    // 130 FR-130-06: a pre-v3 server is terminal — classified apart from auth/transient, and
+    // marked non-retryable so the engine stops the backoff loop.
+    @Test func classifyMapsServerTooOldToUnsupportedServerAndIsTerminal() {
+        #expect(RetryPolicy.classify(ImmichError.serverTooOld(version: "2.118.0")) == .unsupportedServer)
+        #expect(SlideshowFailureReason.unsupportedServer.isTerminal)
+        #expect(!SlideshowFailureReason.authentication.isTerminal)
+        #expect(!SlideshowFailureReason.transient.isTerminal)
+    }
 }

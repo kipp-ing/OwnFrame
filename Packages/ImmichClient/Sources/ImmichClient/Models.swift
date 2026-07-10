@@ -82,8 +82,42 @@ public struct Asset: Codable, Sendable {
     }
 }
 
-struct AlbumDetail: Decodable, Sendable {
-    let assets: [Asset]
+// MARK: - Immich API v3 (130)
+
+/// Request body for `POST /api/search/metadata` — the v3 replacement for the removed album
+/// `assets` array. `albumIds` filters to one album; `type` filters to images server-side;
+/// `order` mirrors the album's own sort (`asc`/`desc` by date); `page`/`size` drive paging.
+struct MetadataSearchRequest: Encodable, Sendable {
+    let albumIds: [String]
+    let type: String?
+    let order: String?
+    let page: Int
+    let size: Int
+}
+
+/// Response of `POST /api/search/metadata`. Assets live under `assets.items`; `assets.nextPage`
+/// is a string page token (`nil` when the last page has been returned).
+struct SearchResponse: Decodable, Sendable {
+    let assets: AssetsPage
+
+    struct AssetsPage: Decodable, Sendable {
+        let items: [Asset]
+        let nextPage: String?
+    }
+}
+
+/// Request body for `POST /api/shared-links/login` — the password moves out of the URL query
+/// and into the body in v3 (FR-130-03). The link identifier stays a `?key=`/`?slug=` query.
+struct SharedLinkLoginRequest: Encodable, Sendable {
+    let password: String
+}
+
+/// Assets carried by a `SharedLinkResponseDto` (`GET /api/shared-links/me` or
+/// `POST /api/shared-links/login`). A shared-link source lists its assets from here — v3 does
+/// not accept the `?key=` credential on `/api/search/metadata`, and the album `assets` array is
+/// gone (FR-130-12). Optional so a link without an embedded list decodes to an empty result.
+struct SharedLinkMeAssetsResponse: Decodable, Sendable {
+    let assets: [Asset]?
 }
 
 public struct AssetInfo: Sendable, Equatable {

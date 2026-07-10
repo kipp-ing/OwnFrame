@@ -46,15 +46,27 @@ struct SlideshowErrorView: View {
     }
 
     private var iconName: String {
-        reason == .authentication ? "key.slash" : "wifi.exclamationmark"
+        switch reason {
+        case .unsupportedServer: return "exclamationmark.triangle"
+        case .authentication: return "key.slash"
+        case .transient, nil: return "wifi.exclamationmark"
+        }
     }
 
     private var title: String {
-        reason == .authentication ? "Access was denied" : "Couldn’t load the album"
+        switch reason {
+        case .unsupportedServer: return "Immich update required"
+        case .authentication: return "Access was denied"
+        case .transient, nil: return "Couldn’t load the album"
+        }
     }
 
     private var message: String {
         switch reason {
+        case .unsupportedServer:
+            // 130 FR-130-05/06: terminal — no background retry, so the copy points at the fix.
+            return "This app needs Immich v3 or newer. Update your Immich server, "
+                + "then tap Try again."
         case .authentication:
             return "Check your connection settings — the API key or shared link "
                 + "may have expired. Retrying automatically in the background."

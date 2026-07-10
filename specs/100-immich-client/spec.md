@@ -108,6 +108,12 @@ When Immich cannot be reached, rejects credentials, or returns malformed data, c
 
 ### Roadmap / Deferred (not yet built)
 
+- Sub-spec `130-immich-api-v3` (**Draft**): v3-only baseline. Album assets move to
+  `POST /api/search/metadata` (the album `assets` array was removed in v3), the shared-link
+  password moves into the request body (v3 rejects `query.password`), and a server reporting
+  major version < 3 is detected via `GET /api/server/version` and surfaced as an outdated-server
+  notice at connect + refresh. No v2 compatibility path. Amends FR-100-04 (asset fetch mechanism)
+  and 110's shared-link auth; see `specs/130-immich-api-v3/spec.md`.
 - Sub-spec `110-shared-album-link` (now **scheduled**, feeding `120`): auth is abstracted behind the
   transport so a shared-link key (`?key=` query) and optional password replace `x-api-key` without
   changing call sites; unprotected mechanics are verified against Immich 2.7.5 (see `110`), and
