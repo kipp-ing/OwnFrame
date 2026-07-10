@@ -3,9 +3,10 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
-@Test func resolverRequestsSharedLinkMeWithKeyFirstAndPasswordAndReturnsResolution() async throws {
-    // A `/share/<X>` identifier is the share KEY; the resolver must query `key=` first
-    // (querying `slug=` on a key returns 401 "Invalid share key" — the false-password bug).
+@Test func resolverLogsInWithPasswordInBodyNotQueryAndReturnsResolution() async throws {
+    // v3 (130): a password-protected link authenticates via POST /api/shared-links/login with
+    // the password in the request BODY — never a `?password=` query (rejected in v3). The `key=`
+    // identifier still goes first (querying `slug=` on a key 401s "Invalid share key").
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     // expiresAt is far-future on purpose: the fixture must never expire.
     let responseData = try #require("""
@@ -27,11 +28,15 @@ import ImmichClientTestSupport
     #expect(resolution.expiresAt == isoDate("2126-01-01T12:00:00.000Z"))
 
     let request = try await #require(transport.recordedRequests.only)
-    #expect(request.httpMethod == "GET")
-    #expect(request.url?.path == "/api/shared-links/me")
+    #expect(request.httpMethod == "POST")
+    #expect(request.url?.path == "/api/shared-links/login")
     #expect(queryValue("key", in: request.url) == "summer")
     #expect(queryValue("slug", in: request.url) == nil)
-    #expect(queryValue("password", in: request.url) == "secret-password")
+    // SC-130-02: the password is never a URL query parameter.
+    #expect(queryValue("password", in: request.url) == nil)
+    let body = try #require(request.httpBody)
+    let object = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(object["password"] as? String == "secret-password")
     #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
 }
 
@@ -70,6 +75,8 @@ import ImmichClientTestSupport
 
     let requests = await transport.recordedRequests
     #expect(requests.count == 2)
+    // No-password links resolve via GET /api/shared-links/me (no login body).
+    #expect(requests.allSatisfy { $0.httpMethod == "GET" && $0.url?.path == "/api/shared-links/me" })
     #expect(queryValue("key", in: requests.first?.url) == "my-trip")
     #expect(queryValue("slug", in: requests.last?.url) == "my-trip")
 }

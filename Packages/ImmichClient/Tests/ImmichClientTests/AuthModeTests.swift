@@ -5,7 +5,8 @@ import ImmichClientTestSupport
 
 @Test func apiKeyAuthSetsHeaderAndDoesNotAppendKeyQuery() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
-    let transport = MockTransport(result: .success((try albumData(), response(url: baseURL))))
+    // v3 (130): an API-key album lists assets via POST /api/search/metadata.
+    let transport = MockTransport(result: .success((try searchData(), response(url: baseURL))))
     let client = ImmichClient(
         config: ServerConfig(baseURL: baseURL, auth: .apiKey("secret-api-key")),
         transport: transport
@@ -79,6 +80,11 @@ import ImmichClientTestSupport
 
 private func albumData() throws -> Data {
     try #require(#"{"assets":[]}"#.data(using: .utf8))
+}
+
+// v3 empty page for the API-key metadata-search branch of assets().
+private func searchData() throws -> Data {
+    try #require(#"{"assets":{"items":[],"nextPage":null}}"#.data(using: .utf8))
 }
 
 private func response(url: URL) -> HTTPURLResponse {

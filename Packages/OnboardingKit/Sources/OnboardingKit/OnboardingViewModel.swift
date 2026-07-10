@@ -135,6 +135,10 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         var attempt = 0
         while true {
             do {
+                // 130 FR-130-05: gate the server version inside the retry so the Local Network
+                // permission prompt (which fails the first request) is tolerated for the version
+                // check too. serverTooOld is deterministic and propagates without retry.
+                try await client.ensureServerSupported()
                 return try await client.albums()
             } catch ImmichError.unreachable where attempt < connectionRetryLimit {
                 attempt += 1

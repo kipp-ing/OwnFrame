@@ -58,7 +58,7 @@ public struct SharedLinkResolver: SharedLinkResolving {
         as parameter: Identifier,
         password: String?
     ) async throws -> SharedLinkResolution {
-        let request = makeRequest(baseURL: baseURL, parameter: parameter, identifier: identifier, password: password)
+        let request = try makeRequest(baseURL: baseURL, parameter: parameter, identifier: identifier, password: password)
 
         do {
             let (data, response) = try await transport.data(for: request)
@@ -111,20 +111,26 @@ public struct SharedLinkResolver: SharedLinkResolving {
         return (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.message
     }
 
-    private func makeRequest(baseURL: URL, parameter: Identifier, identifier: String, password: String?) -> URLRequest {
-        let url = baseURL.appending(path: "api/shared-links/me")
+    /// v3 (130): a no-password link resolves via `GET /api/shared-links/me`; a password link
+    /// authenticates via `POST /api/shared-links/login` with the password in the request BODY
+    /// (never a `?password=` query — rejected in v3). The `key=`/`slug=` identifier stays a query.
+    private func makeRequest(baseURL: URL, parameter: Identifier, identifier: String, password: String?) throws -> URLRequest {
+        let path = password == nil ? "api/shared-links/me" : "api/shared-links/login"
+        let url = baseURL.appending(path: path)
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        var queryItems = [URLQueryItem(name: parameter.rawValue, value: identifier)]
-        if let password {
-            queryItems.append(URLQueryItem(name: "password", value: password))
-        }
-        components?.queryItems = queryItems
+        components?.queryItems = [URLQueryItem(name: parameter.rawValue, value: identifier)]
 
         var request = URLRequest(url: url)
         if let componentURL = components?.url {
             request.url = componentURL
         }
-        request.httpMethod = "GET"
+        if let password {
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(SharedLinkLoginRequest(password: password))
+        } else {
+            request.httpMethod = "GET"
+        }
         return request
     }
 

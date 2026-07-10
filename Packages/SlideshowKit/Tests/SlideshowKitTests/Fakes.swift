@@ -236,6 +236,10 @@ final class StubImmichAPI: ImmichAPI, @unchecked Sendable {
         }
     }
 
+    func setServerVersion(_ version: String) {
+        lock.withLock { state.serverVersion = version }
+    }
+
     func serverVersion() async throws -> String {
         lock.withLock {
             state.serverVersionCallCount += 1
