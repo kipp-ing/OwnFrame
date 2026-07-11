@@ -35,33 +35,40 @@ album's order ever diverges, Sequential is defined against date-desc and topic 5
 
 ### 3. Shared-link source → assets come from `/shared-links/me` (NEW — plan gap closed)
 
-A shared link **cannot** use `/search/metadata`: the `?key=` shared-link credential is not among
-that endpoint's accepted schemes (`[bearer, cookie, api_key]`), and there is no `key`/`shareKey`
-security scheme at all. Instead the shared-link endpoints return the assets **inline**:
+> **M2 CORRECTION (live 3.0.2, 2026-07-10).** Two guesses in this section were **wrong**. For an
+> **ALBUM** share, both `GET /shared-links/me` and `POST /shared-links/login` return **`assets: []`**
+> — the assets are *not* embedded. And `POST /search/metadata` **does accept the `?key=`
+> credential** (HTTP 200, full album). So a shared link lists its album exactly like an API key: the
+> same `/search/metadata` pager, only authenticating with `?key=` instead of `x-api-key`. The text
+> below is kept but corrected inline; the resolved architecture is in "Consequence" + "M2 —
+> RESOLVED".
 
-- `GET /shared-links/me?key=<key>` (or `?slug=<slug>`) → `SharedLinkResponseDto` with
-  `{ key, album (AlbumResponseDto), assets: AssetResponseDto[], expiresAt (nullable), password,
-  slug, id, … }`. **The link's assets are in `.assets`** — no separate album call.
-- Password links: `POST /shared-links/login?key=<key>` with body
+`GET /shared-links/me?key=<key>` (or `?slug=<slug>`) **resolves** the link → `SharedLinkResponseDto`
+`{ key, album (AlbumResponseDto), expiresAt (nullable), password, slug, id, type, … }`. The resolver
+reads `.key` + `.album.id` from here. (The `assets` field exists in the schema but is **empty for
+album shares** — do **not** rely on it for listing.)
+
+- Password links: `POST /shared-links/login?key=<key>` (or `?slug=`) with body
   `SharedLinkLoginDto { password }` (password **required, in the body**) → returns the same
-  `SharedLinkResponseDto` (so the login response *also* yields `.assets`) and sets the
-  `immich_access_token` **cookie**.
+  `SharedLinkResponseDto` (the resolver still reads `.key` from it) and sets an
+  **`immich_shared_link_token`** cookie (not the `immich_access_token` originally guessed).
 
-Consequence for architecture: a **shared-link source lists its assets from the shared-link
-resolution response, not from `assets(albumID:)`**. Cleanest fit for the existing single choke
-point: make `ImmichClient.assets(albumID:)` branch on `config.auth` —
-`.apiKey` → metadata-search pager (§1); `.shareKey` → `/shared-links/me?key=` and return
-`.assets`. That keeps the SlideshowKit callers and the 320 snapshot transparent (still
-`[Asset]`).
+Consequence for architecture (**corrected**): a shared-link source lists its assets from the **same
+`assets(albumID:)` choke point** as an API key. `ImmichClient.assets(albumID:)` calls the
+`/search/metadata` pager for **both** auth kinds — the `?key=` query is appended for `.shareKey` by
+`makeRequest`, no `x-api-key` header. The resolved `album.id` flows in via
+`SharedLinkResolution.albumID` (`ActiveSourceResolver`). SlideshowKit callers and the 320 snapshot
+stay transparent (still `[Asset]`).
 
-**Open M2 questions (need the live rc2/v3 server — do not guess):**
-- **Password-link refresh**: `/me?key=` for a password link relies on the `immich_access_token`
-  cookie set by `/login`. Does a stateless client need to (a) persist that cookie for the
-  session, or (b) re-`POST /login` (password from the keychain) on every 310 refresh? Prefer
-  **(b) re-login, stateless** unless M2 shows the cookie is required elsewhere.
-- **Shared image bytes**: does `GET /assets/{id}/thumbnail?key=<key>&size=preview` still authorize
-  via `?key=` in v3 (as public shared albums require), or does it now need the login cookie? This
-  gates whether the 320 disk-image path is untouched for shared links. **Top M2 risk.**
+**M2 questions — RESOLVED live (3.0.2, 2026-07-10):**
+- **Password-link refresh**: neither (a) persist-cookie nor (b) re-login is needed.
+  `POST /search/metadata?key=` returns the full album with the **key alone** — no cookie, no
+  re-login — even for a password link. The password is spent once at `/login` to obtain the stable
+  key; listing is then fully stateless. (`/me?key=` still enforces the password — "Password
+  required" without the cookie — but it is no longer on the listing path.)
+- **Shared image bytes** (top risk): ✅ `GET /assets/{id}/thumbnail?size=preview&key=<key>` still
+  authorizes via `?key=` (HTTP 200 `image/jpeg`; no-key → 401). **Top M2 risk retired** — the 320
+  disk-image path is untouched for shared links.
 
 ### 4. Version endpoint is public (CONFIRMED)
 
@@ -96,6 +103,11 @@ calls.
 - **M2 — after upgrade to rc2/v3**: real album load (§1), real shared-link resolve incl.
   password (§3), and the two open shared-link questions above. rc2 passes the gate — the parser
   keys on the numeric major and tolerates the `-rc.2` suffix (spec edge case).
+  **DONE 2026-07-10 against live 3.0.2** (bilder.kippings.de): API-key album load ✅ (456-asset
+  album, paging terminates); shared-link resolve incl. password ✅; image bytes via `?key=` ✅;
+  §3 **corrected** — shared-link listing moved from `/me.assets` (empty for album shares) to
+  `/search/metadata?key=` (`ImmichClient.assets()` now single-path; red test flipped in
+  `MetadataSearchTests`/`AuthModeTests`, host 54 + full sim 77 green).
 
 ## Fixtures to derive from this (feed the red tests)
 

@@ -21,7 +21,9 @@ import ImmichClientTestSupport
 
 @Test func shareKeyAuthAppendsKeyQueryAndDoesNotSetAPIKeyHeader() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
-    let transport = MockTransport(result: .success((try albumData(), response(url: baseURL))))
+    // v3 (130/M2): a shared-link album lists assets via POST /api/search/metadata (?key=), same
+    // pager as the API-key path — just authenticated by the key query instead of the header.
+    let transport = MockTransport(result: .success((try searchData(), response(url: baseURL))))
     let client = ImmichClient(
         config: ServerConfig(baseURL: baseURL, auth: .shareKey("shared-bearer-key")),
         transport: transport
@@ -78,11 +80,7 @@ import ImmichClientTestSupport
     }
 }
 
-private func albumData() throws -> Data {
-    try #require(#"{"assets":[]}"#.data(using: .utf8))
-}
-
-// v3 empty page for the API-key metadata-search branch of assets().
+// v3 empty page for the metadata-search branch of assets() (both API-key and shared-link).
 private func searchData() throws -> Data {
     try #require(#"{"assets":{"items":[],"nextPage":null}}"#.data(using: .utf8))
 }

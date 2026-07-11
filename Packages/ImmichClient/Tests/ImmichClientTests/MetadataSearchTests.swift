@@ -70,26 +70,34 @@ import ImmichClientTestSupport
     #expect(try bodyPage(requests[1]) == 2)
 }
 
-// MARK: - T008a: a shared-link source lists its assets from /api/shared-links/me
+// MARK: - T008a: a shared-link source lists its assets from POST /api/search/metadata (?key=)
 
-@Test func sharedLinkSourceListsAssetsFromSharedLinksMe() async throws {
+// v3/M2 (validated live against 3.0.2): for an ALBUM share, `/api/shared-links/me` returns
+// `assets: []` — the assets are NOT embedded. The share `key` DOES authorize
+// `POST /api/search/metadata`, so a shared link pages its album exactly like an API key,
+// only authenticating with the `?key=` query instead of the `x-api-key` header.
+@Test func sharedLinkSourceListsAssetsViaMetadataSearchWithKeyQuery() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
-    let requestURL = try #require(URL(string: "https://photos.example.test/api/shared-links/me"))
-    let responseData = Data(#"{"key":"share-key","expiresAt":null,"assets":[{"id":"s1","type":"IMAGE"},{"id":"s2","type":"VIDEO"}]}"#.utf8)
+    let requestURL = try #require(URL(string: "https://photos.example.test/api/search/metadata"))
+    let responseData = Data(#"{"assets":{"items":[{"id":"s1","type":"IMAGE"},{"id":"s2","type":"VIDEO"}],"nextPage":null}}"#.utf8)
     let response = try #require(HTTPURLResponse(url: requestURL, statusCode: 200, httpVersion: nil, headerFields: nil))
     let transport = MockTransport(result: .success((responseData, response)))
     let client = ImmichClient(config: ServerConfig(baseURL: baseURL, auth: .shareKey("share-key")), transport: transport)
 
-    let assets = try await client.assets(albumID: "album-ignored-for-shared-link")
+    let assets = try await client.assets(albumID: "album-42")
 
     #expect(assets.map(\.id) == ["s1", "s2"])
     let request = try await #require(transport.recordedRequests.only)
-    #expect(request.httpMethod == "GET")
-    #expect(request.url?.path == "/api/shared-links/me")
+    #expect(request.httpMethod == "POST")
+    #expect(request.url?.path == "/api/search/metadata")
     #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
     let key = URLComponents(url: try #require(request.url), resolvingAgainstBaseURL: false)?
         .queryItems?.first { $0.name == "key" }?.value
     #expect(key == "share-key")
+    // The resolved album ID is honored, not ignored (the `/me` path silently dropped it).
+    let body = try #require(request.httpBody)
+    let object = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(object["albumIds"] as? [String] == ["album-42"])
 }
 
 private func bodyPage(_ request: URLRequest) throws -> Int? {

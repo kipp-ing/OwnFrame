@@ -29,19 +29,17 @@ public struct ImmichClient: ImmichAPI {
     private static let metadataSearchPageSize = 1000
 
     public func assets(albumID: String) async throws -> [Asset] {
-        // v3 routes asset listing by auth kind: an API key uses the metadata-search pager;
-        // a shared link reads the assets embedded in its own resolution response (130).
-        switch config.auth {
-        case .apiKey:
-            return try await albumAssetsViaMetadataSearch(albumID: albumID)
-        case .shareKey:
-            return try await sharedLinkAssets()
-        }
+        // v3 lists album assets from POST /api/search/metadata for both auth kinds. The removed
+        // album `assets` array and the shared-link `/me.assets` list are both empty for ALBUM
+        // shares on v3 (validated live against 3.0.2, M2) — but the share `key` authorizes the
+        // metadata search, so a shared link pages exactly like an API key, only authenticating
+        // with the `?key=` query (appended by `makeRequest`) instead of the `x-api-key` header.
+        try await albumAssetsViaMetadataSearch(albumID: albumID)
     }
 
-    /// API-key album source: page `POST /api/search/metadata` filtered to the album's images
-    /// until the server stops returning a `nextPage` token (FR-130-02). `order` mirrors the
-    /// album's own date sort; the caller may still filter by type.
+    /// Album source (API key or shared link): page `POST /api/search/metadata` filtered to the
+    /// album's images until the server stops returning a `nextPage` token (FR-130-02). `order`
+    /// mirrors the album's own date sort; the caller may still filter by type.
     private func albumAssetsViaMetadataSearch(albumID: String) async throws -> [Asset] {
         var collected: [Asset] = []
         var page = 1
@@ -61,15 +59,6 @@ public struct ImmichClient: ImmichAPI {
             page = next
         }
         return collected
-    }
-
-    /// Shared-link source: the link's assets are embedded in `GET /api/shared-links/me` (the
-    /// `?key=` credential is appended by `makeRequest`). No-password links resolve here directly;
-    /// a password link's refresh (login/cookie) is pinned to M2 (see specs/130 research.md §3).
-    private func sharedLinkAssets() async throws -> [Asset] {
-        let request = makeRequest(path: "api/shared-links/me")
-        let data = try await responseData(for: request)
-        return try decode(SharedLinkMeAssetsResponse.self, from: data).assets ?? []
     }
 
     public func assetInfo(assetID: String) async throws -> AssetInfo {
