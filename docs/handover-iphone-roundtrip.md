@@ -1,6 +1,25 @@
 # Handover — iPhone Roundtrip (last one before Submit)
 
-> **STATUS 2026-07-11 (evening): the roundtrip is DONE except the build-4 binary upload.**
+> **STATUS 2026-07-11 (late): the §5 extreme-device roundtrip is DONE — one real bug found
+> and fixed, build 1.0 (5) uploaded and selected.**
+> All four matrix devices ran the full suite + live noob smoke (all frames eyeballed):
+> SE 3rd gen @17.5, iPad 10th gen @17.5, iPhone 16e @18.6, and the stretch iPad mini 6
+> @17.5. The mini surfaced a real noob-facing bug: **"Reset Configuration…" presented an
+> empty, invisible popover** (the confirmationDialog hung off the NavigationStack — no
+> anchor — and the invisible dismiss region swallowed the next tap; deterministic on the
+> mini, `testResetFromSettingsReturnsToOnboarding` red). Fix `dbf1e8d`: anchor the dialog
+> to the Reset button. Full gate after the fix: SE 17.5 + iPad 10 17.5 + mini 17.5 +
+> 16e 18.6 + iPhone 17 Pro Max 26.5 + iPad Pro 13" 26.5 — **80/0 each**. Build bumped to
+> **1.0 (5)** (`ec4cb26`, supersedes the never-uploaded b4), archived + uploaded via the
+> `appstore-upload-cli` recipe, selected on version `e425bae6-…` after processing. Main
+> pushed. Noob-lens observations that are *not* bugs: on the SE 4.7" the error card pushes
+> "Start slideshow" below the keyboard (Form scrolls / return dismisses — standard iOS);
+> pre-26 chrome material is fainter over bright full-bleed photos but legible and matches
+> the 26 glass look.
+> **Still to do (Jan, ASC web UI):** privacy label, age rating, Submit (§4).
+
+> Historical status (before §5): the iPhone roundtrip was DONE except the build-4 binary
+> upload — b4 was archived but never uploaded; build 5 replaces it.
 > Suite green on iPhone (80/0) and iPad (80/0). The live noob smoke
 > (`LiveSmokeUITests`, LIVE_SMOKE=1) surfaced and fixed two real bugs (commit `fae606f`):
 > a Liquid-Glass chrome held at `.opacity(0)` swallowed the first button tap after reveal
