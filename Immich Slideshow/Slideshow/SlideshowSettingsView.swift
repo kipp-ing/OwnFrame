@@ -258,6 +258,18 @@ struct SlideshowSettingsView: View {
                         showResetDialog = true
                     }
                     .accessibilityIdentifier("settings.reset")
+                    // Anchored to the button, not the NavigationStack: an unanchored
+                    // dialog popover renders empty on the iPad mini (iPadOS 17.5).
+                    .confirmationDialog(
+                        "Reset configuration?",
+                        isPresented: $showResetDialog,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Reset", role: .destructive, action: onReset)
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This clears the server, API key, and album, and returns to setup.")
+                    }
                 } footer: {
                     Text("Clears the server, API key, and album, and returns to setup.")
                 }
@@ -273,8 +285,8 @@ struct SlideshowSettingsView: View {
                 }
             }
             // The one other destructive Settings action gets the same explicit
-            // confirmation as Reset (FR-320-05). Attached to the Form, not the
-            // NavigationStack, so it never collides with the reset dialog.
+            // confirmation as Reset (FR-320-05). Attached to the Form while the
+            // reset dialog sits on its own button, so the two never collide.
             .confirmationDialog(
                 "Clear cached photos?",
                 isPresented: $showClearCacheDialog,
@@ -302,16 +314,6 @@ struct SlideshowSettingsView: View {
         }
         .onChange(of: brightness) { _, newValue in
             Task { await powerManager.setBrightness(newValue, animated: false) }
-        }
-        .confirmationDialog(
-            "Reset configuration?",
-            isPresented: $showResetDialog,
-            titleVisibility: .visible
-        ) {
-            Button("Reset", role: .destructive, action: onReset)
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This clears the server, API key, and album, and returns to setup.")
         }
     }
 
