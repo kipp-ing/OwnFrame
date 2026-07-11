@@ -365,6 +365,11 @@ struct SlideshowView: View {
             .kenBurns(isActive: kenBurnsActive, durationSeconds: photoDurationSeconds)
             .id(viewModel.currentAssetID)
             .transition(imageTransition)
+            // Keep both the outgoing and incoming photo above the opaque black backdrop
+            // during the swap: without an explicit zIndex, SwiftUI drops the removed view
+            // behind the `Color.black` sibling, turning every transition into a hard cut
+            // to black followed by a fade-in from black (pre-release transition bug).
+            .zIndex(1)
         } else {
             Color.black
         }
@@ -386,17 +391,31 @@ struct SlideshowView: View {
         Double(themeStore.settings.duration.components.seconds)
     }
 
+    /// Fading both photos at once lets the black backdrop bleed through at the midpoint
+    /// (a visible dark pulse on every swap), so crossfade/dissolve sequence the fades:
+    /// the incoming photo fades in over the still fully opaque outgoing one, which only
+    /// fades away afterwards. That keeps at least one photo fully opaque at every moment,
+    /// so the swap never dips toward black — regardless of which of the two transitioning
+    /// views SwiftUI stacks on top. Slide is a plain opaque push for the same reason.
     private var imageTransition: AnyTransition {
         switch themeStore.settings.transition.descriptor.style {
         case .crossfade:
-            return .opacity
+            return .asymmetric(
+                insertion: .opacity.animation(.easeInOut(duration: 0.35)),
+                removal: .opacity.animation(.easeInOut(duration: 0.35).delay(0.35))
+            )
         case .slide:
             return .asymmetric(
-                insertion: .move(edge: .trailing).combined(with: .opacity),
-                removal: .move(edge: .leading).combined(with: .opacity)
+                insertion: .move(edge: .trailing),
+                removal: .move(edge: .leading)
             )
         case .dissolve:
-            return .scale(scale: 1.08).combined(with: .opacity)
+            return .asymmetric(
+                insertion: .scale(scale: 1.08).combined(with: .opacity)
+                    .animation(.easeInOut(duration: 0.35)),
+                removal: .scale(scale: 1.08).combined(with: .opacity)
+                    .animation(.easeInOut(duration: 0.35).delay(0.35))
+            )
         case .none:
             return .identity
         }

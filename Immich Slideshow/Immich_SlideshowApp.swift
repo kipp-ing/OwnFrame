@@ -568,6 +568,13 @@ private struct RootView: View {
                let seconds = Int(arg.dropFirst("--uitest-duration-seconds=".count)) {
                 store.settings.duration = .seconds(seconds)
             }
+            // Seed a transition style so each style's swap is visually verifiable
+            // (simulator recording) without driving the settings UI first.
+            if let arg = ProcessInfo.processInfo.arguments
+                .first(where: { $0.hasPrefix("--uitest-transition=") }),
+               let transition = Transition(rawValue: String(arg.dropFirst("--uitest-transition=".count))) {
+                store.settings.transition = transition
+            }
             return store
         }
         #endif
