@@ -1,5 +1,19 @@
 # Handover — iPhone Roundtrip (last one before Submit)
 
+> **STATUS 2026-07-11 (evening): the roundtrip is DONE except the build-4 binary upload.**
+> Suite green on iPhone (80/0) and iPad (80/0). The live noob smoke
+> (`LiveSmokeUITests`, LIVE_SMOKE=1) surfaced and fixed two real bugs (commit `fae606f`):
+> a Liquid-Glass chrome held at `.opacity(0)` swallowed the first button tap after reveal
+> (now structural insert/remove), and the photo-info card overlapped the top chrome buttons
+> in iPhone portrait (now a layout slot under the top bar). 7 iPhone screenshots
+> (2868×1320, English, keyboard dismissed) are uploaded to **both** locales as
+> **`APP_IPHONE_67`** (the API has no `APP_IPHONE_69`; 6.9" lives in the 6.7" slot), all
+> COMPLETE. Build bumped to **1.0 (4)** (`c5e0d88`) and archived
+> (`~/Library/Developer/Xcode/ImmichSlideshow-dist/ImmichSlideshow-b4.xcarchive`).
+> **Still to do:** export/upload the b4 archive (recipe below/memory `appstore-upload-cli`),
+> select build 4 on version `e425bae6-…`, push main (gh account kipp-ing), then Jan's three
+> human clicks (privacy label, age rating, Submit).
+
 State as of 2026-07-11. Read this first in the next session; `handover-release-prep.md` is
 historical — everything in it is done.
 
