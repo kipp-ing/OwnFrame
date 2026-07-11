@@ -346,23 +346,12 @@ struct SlideshowView: View {
     @ViewBuilder
     private var currentImage: some View {
         if let data = viewModel.currentImageData, let image = UIImage(data: data) {
-            // Fit (letterbox) the image into the full screen and center it. Applying
-            // `.ignoresSafeArea()` directly to a `scaledToFit` image expands its frame
-            // asymmetrically by the safe-area insets, which pushed the picture off-center
-            // in landscape; instead the whole ZStack ignores the safe area and the image
-            // fills + centers within it. Fill (or Ken Burns, which implies fill-style
-            // framing) crops to fill with no bars.
-            let base = Image(uiImage: image).resizable()
-            Group {
-                if fillsScreen {
-                    base.scaledToFill()
-                } else {
-                    base.scaledToFit()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .kenBurns(isActive: kenBurnsActive, durationSeconds: photoDurationSeconds)
+            SlidePhotoView(
+                image: image,
+                fillsScreen: fillsScreen,
+                kenBurnsActive: kenBurnsActive,
+                durationSeconds: photoDurationSeconds
+            )
             .id(viewModel.currentAssetID)
             .transition(imageTransition)
             // Keep both the outgoing and incoming photo above the opaque black backdrop
@@ -423,5 +412,39 @@ struct SlideshowView: View {
 
     private var swapAnimation: Animation? {
         themeStore.settings.transition.descriptor.animates ? .easeInOut(duration: 0.6) : nil
+    }
+}
+
+/// The transitioning slide content. Deliberately a value-props child with no direct
+/// view-model reads: while its Ken Burns drift is in flight, a transitioning-out view
+/// keeps re-rendering, and if it read the live view model it would pick up the *next*
+/// photo's data mid-removal — swapping its own content (and inner identity) inside the
+/// removal, which collapses the swap into a hard cut to black and freezes the incoming
+/// fade halfway. Frozen value props make the outgoing view a stable snapshot of the old
+/// photo that keeps drifting while it fades away.
+private struct SlidePhotoView: View {
+    let image: UIImage
+    let fillsScreen: Bool
+    let kenBurnsActive: Bool
+    let durationSeconds: Double
+
+    var body: some View {
+        // Fit (letterbox) the image into the full screen and center it. Applying
+        // `.ignoresSafeArea()` directly to a `scaledToFit` image expands its frame
+        // asymmetrically by the safe-area insets, which pushed the picture off-center
+        // in landscape; instead the whole ZStack ignores the safe area and the image
+        // fills + centers within it. Fill (or Ken Burns, which implies fill-style
+        // framing) crops to fill with no bars.
+        let base = Image(uiImage: image).resizable()
+        Group {
+            if fillsScreen {
+                base.scaledToFill()
+            } else {
+                base.scaledToFit()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .kenBurns(isActive: kenBurnsActive, durationSeconds: durationSeconds)
     }
 }
