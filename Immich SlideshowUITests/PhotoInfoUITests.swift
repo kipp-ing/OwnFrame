@@ -49,4 +49,34 @@ final class PhotoInfoUITests: XCTestCase {
         expectation(for: gone, evaluatedWith: card)
         waitForExpectations(timeout: 3)
     }
+
+    /// Regression guard (live smoke, iPhone portrait): the info card was overlaid at a
+    /// fixed 100pt from the top, which collides with the top chrome buttons on compact
+    /// widths — the centered card and the right-aligned button row only miss each other
+    /// on wide (iPad/landscape) screens. The card must never cover the chrome's buttons.
+    @MainActor
+    func testInfoCardDoesNotCoverChromeButtons() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launch()
+
+        let infoButton = app.buttons["slideshow.chrome.info"]
+        XCTAssertTrue(infoButton.waitForExistence(timeout: 5))
+        infoButton.tap()
+
+        let card = app.descendants(matching: .any)
+            .matching(identifier: "slideshow.info.card").firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 3), "info overlay should appear")
+
+        // The card's AX frame is the union of its text labels; the glass background
+        // extends another 12pt (the card's vertical padding) beyond it, so demand
+        // that much clearance below the bar's lowest button.
+        let barBottom = ["slideshow.chrome.info", "slideshow.chrome.albums", "slideshow.chrome.settings"]
+            .map { app.buttons[$0].frame.maxY }
+            .max() ?? 0
+        XCTAssertGreaterThanOrEqual(
+            card.frame.minY - 12, barBottom,
+            "info card (incl. its glass padding) must sit below the top chrome bar, card \(card.frame), bar bottom \(barBottom)"
+        )
+    }
 }
