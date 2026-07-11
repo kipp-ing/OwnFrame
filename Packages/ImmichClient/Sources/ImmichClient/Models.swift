@@ -112,14 +112,6 @@ struct SharedLinkLoginRequest: Encodable, Sendable {
     let password: String
 }
 
-/// Assets carried by a `SharedLinkResponseDto` (`GET /api/shared-links/me` or
-/// `POST /api/shared-links/login`). A shared-link source lists its assets from here — v3 does
-/// not accept the `?key=` credential on `/api/search/metadata`, and the album `assets` array is
-/// gone (FR-130-12). Optional so a link without an embedded list decodes to an empty result.
-struct SharedLinkMeAssetsResponse: Decodable, Sendable {
-    let assets: [Asset]?
-}
-
 public struct AssetInfo: Sendable, Equatable {
     public let id: String
     public let takenAt: Date?
