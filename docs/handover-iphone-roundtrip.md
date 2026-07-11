@@ -13,6 +13,8 @@
 > **Still to do:** export/upload the b4 archive (recipe below/memory `appstore-upload-cli`),
 > select build 4 on version `e425bae6-…`, push main (gh account kipp-ing), then Jan's three
 > human clicks (privacy label, age rating, Submit).
+> **Next session:** the extreme-device noob roundtrip (§5) — iOS 17.5/18.6 + smallest
+> screens, same live-smoke method that caught the two chrome bugs.
 
 State as of 2026-07-11. Read this first in the next session; `handover-release-prep.md` is
 historical — everything in it is done.
@@ -103,9 +105,61 @@ smaller phones by auto-scaling).
 Privacy label "Data Not Collected" → age rating confirm (all-NONE = 4+) → **Submit for
 Review**. What's New is N/A for a first version.
 
+## 5. Next session — extreme-device noob roundtrip (iOS 17/18 floor + newest)
+
+**Why:** every test so far ran on iOS 26.5 flagships. The iOS 17 floor (View+Compat shims,
+no Liquid Glass pre-26) is a **different rendering and interaction path that has never been
+exercised** — and this roundtrip proved a green suite can hide broken chrome (the swallowed
+tap passed every existing test). Old-OS devices are exactly the "old iPad on the shelf"
+audience the floor targets. Method: same as this session — full suite + the live noob smoke
+(`LiveSmokeUITests`, LIVE_SMOKE=1, uninstall first, export attachments, **eyeball every
+frame** — both bugs this round were only visible in pixels).
+
+**Device × OS matrix** (all sims already exist; runtimes 17.5 and 18.6 are installed;
+`sim-build-destination` memory was stale — the app scheme **builds for iOS 17.5, verified
+2026-07-11** on the SE):
+
+| # | Device (why) | Runtime | simulatorId |
+|---|---|---|---|
+| 1 | iPhone SE 3rd gen — smallest screen (4.7"), home button, no Dynamic Island | 17.5 | `9FABBA82-A611-4A13-8373-D4926763EB22` |
+| 2 | iPad (10th gen) — floor-era iPad class | 17.5 | `CEE64420-AED5-4DD2-BD86-D8B4FDEDC2BE` |
+| 3 | iPhone 16e — the mid ring, budget hardware | 18.6 | `652549F1-06F1-45DF-B23C-C38FA1711D29` |
+| 4 | (stretch) iPad mini 6th gen — smallest iPad | 17.5 | `A935E5B0-0552-46A6-9EC7-CC4CA7FFC550` |
+| 5 | 26.5 flagships (iPhone `82562538-…`, iPad `CA71157B-…`) — regression re-run **only if fixes land** | 26.5 | — |
+
+(`iPad-iOS17-test` `20AEB1AE-…` from the floor audit also exists on 17.5.)
+
+**Per device:** pin `simulatorId` + `preferXcodebuild`, full suite (`-parallel-testing-enabled
+NO` for the live runs; old runtimes are slower), then the noob smoke, then eyeball. The
+env-gated rigs (screenshot capture, live smoke) auto-skip inside suite runs.
+
+**Noob-lens watchpoints on the floor path:**
+- **View+Compat fallbacks**: chrome buttons, info glass card, settings sheet use pre-26
+  materials — legibility over bright photos (scrims), and the first-tap regression tests
+  (`testFirstTapOnRevealedChromeNextAdvances` + pinned variant + info-card clearance) must
+  pass on this rendering path too.
+- **iPhone SE 4.7"**: shared-link form with the keyboard up — is "Start slideshow" still
+  tappable (no auto-scroll)? Landscape = very little height: password sheet
+  (`.presentationDetents([.medium])`), album picker, settings sheet.
+- **Home-button device**: no Dynamic Island insets — chrome top spacing; `statusBarHidden` /
+  `persistentSystemOverlays` behave differently pre-26; verify by screenshot (XCUITest
+  can't see the system status bar).
+- **AppSecureField** exists as an iOS 26 save-password workaround — make sure it doesn't
+  misbehave on 17/18 (password prompt flow of the protected-link path).
+- **Ken Burns + crossfade** on the old renderer — toggle them live in settings during the
+  smoke.
+- No new ASC screenshots needed — the 6.9" + 13" sets cover smaller devices by auto-scaling.
+
+**If fixes land:** TDD (red test first) → full gate = SE 17.5 + 16e 18.6 + both 26.5
+flagships → bump `CURRENT_PROJECT_VERSION` 4 → 5 (8 occurrences) → archive/upload → re-select
+the build on version `e425bae6-…`. Whether Submit waits for this roundtrip is Jan's call —
+build 4's upload is pending anyway.
+
 ## Notes
 
 - gh account: `gh auth switch -u kipp-ing` before pushing (main is pushed as of 2239845…).
 - iPad sim `CA71157B-…` was switched to English system language for the shots and has the
-  app installed with the demo-link source — reset to German only if Jan asks.
+  app installed with the demo-link source — reset to German only if Jan asks. The iPhone
+  26.5 sim `82562538-…` is English too (keeps a German QWERTZ keyboard; the capture rig
+  dismisses the keyboard, so it doesn't matter).
 - Deferred after release: `800-app-intents` → `900-photo-library-source`; clock overlay.
