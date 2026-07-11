@@ -78,8 +78,14 @@ struct SlideshowView: View {
         // fill framing (the latter forced by Ken Burns) can't drag the chrome's layout around
         // (FR-300-33). The image still owns the gestures and covers the whole screen, incl.
         // under the hidden status bar, via `.ignoresSafeArea()`.
-        chromeOverlay
+        ZStack {
+            if chromeVisible {
+                chromeOverlay
+                    .transition(.opacity)
+            }
+        }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeInOut(duration: 0.3), value: chromeVisible)
             .background {
                 phaseContent
                     .ignoresSafeArea()
@@ -286,6 +292,12 @@ struct SlideshowView: View {
             }
     }
 
+    /// The chrome is inserted/removed structurally (`if chromeVisible` above) rather than
+    /// held in the tree at `.opacity(0)`: a Liquid Glass container whose opacity was
+    /// animated 0→1 swallowed the first tap on its buttons (reveal → tap Next did
+    /// nothing — live-smoke bug), while a freshly composed container (the pinned
+    /// `--uitest-chrome` path) never did. Insertion recomposes the glass fresh on every
+    /// reveal; the `.transition(.opacity)` keeps the same fade.
     @ViewBuilder
     private var chromeOverlay: some View {
         SlideshowChrome(
@@ -294,17 +306,13 @@ struct SlideshowView: View {
             onAlbums: { showAlbumBrowser = true },
             onSettings: { showSettings = true },
             onInteraction: { scheduleAutoHide() }
-        )
-        .overlay(alignment: .top) {
+        ) {
             if showInfo, let assetID = viewModel.currentAssetID {
                 PhotoInfoView(api: api, assetID: assetID)
-                    .padding(.top, 100)
+                    .padding(.top, 12)
                     .transition(.opacity)
             }
         }
-        .opacity(chromeVisible ? 1 : 0)
-        .animation(.easeInOut(duration: 0.3), value: chromeVisible)
-        .allowsHitTesting(chromeVisible)
     }
 
     private func startCoordinator() async {

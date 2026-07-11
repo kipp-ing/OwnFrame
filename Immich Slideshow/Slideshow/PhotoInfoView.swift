@@ -34,6 +34,10 @@ struct PhotoInfoView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .glassCard(cornerRadius: 16)
+                // A real container element (not just an identifier flattened onto the
+                // text children) so UI tests see the card's full glass frame; the
+                // labels inside stay individually queryable.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("slideshow.info.card")
             } else if !didLoad {
                 ProgressView()

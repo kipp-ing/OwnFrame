@@ -14,7 +14,7 @@
 import SlideshowKit
 import SwiftUI
 
-struct SlideshowChrome: View {
+struct SlideshowChrome<Info: View>: View {
     let viewModel: SlideshowViewModel
     var onInfo: () -> Void = {}
     var onAlbums: () -> Void = {}
@@ -22,6 +22,11 @@ struct SlideshowChrome: View {
     /// Called whenever the user touches a control, so the parent can reset the
     /// auto-hide countdown.
     var onInteraction: () -> Void = {}
+    /// The photo-info card. Laid out in the VStack directly under the top bar —
+    /// not as a free overlay — so it can never cover the bar's buttons on narrow
+    /// (iPhone portrait) screens, where a centered overlay collided with the
+    /// right-aligned button row (live-smoke bug).
+    @ViewBuilder var info: Info
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -31,6 +36,7 @@ struct SlideshowChrome: View {
 
             VStack {
                 topBar
+                info
                 Spacer()
                 bottomBar
             }

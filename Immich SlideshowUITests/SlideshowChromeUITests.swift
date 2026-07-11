@@ -73,6 +73,49 @@ final class SlideshowChromeUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(playPause, equals: "Play", timeout: 2))
     }
 
+    /// Regression guard (live smoke, iPhone): the FIRST tap on a freshly revealed
+    /// chrome's Next button must advance the photo. Both live-smoke runs showed the
+    /// tap being swallowed — the show only moved when the auto-advance ticker fired
+    /// ~13s later. Unlike testTransportAndPlayPauseToggle (pinned chrome via
+    /// --uitest-chrome, asserts only the pause state), this walks the real reveal
+    /// path and asserts the advance itself.
+    @MainActor
+    func testFirstTapOnRevealedChromeNextAdvances() throws {
+        let app = launchIntoSlideshow()
+        let image = app.descendants(matching: .any)
+            .matching(identifier: "slideshow.image").firstMatch
+
+        image.tap()
+        let next = app.buttons["slideshow.chrome.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 2) && next.isHittable,
+                      "tap should reveal the chrome")
+
+        let before = image.value as? String
+        next.tap()
+        let changed = NSPredicate(format: "value != %@", before ?? "")
+        expectation(for: changed, evaluatedWith: image)
+        waitForExpectations(timeout: 3)
+    }
+
+    /// Discriminator for the swallowed-tap bug: same Next-advances assertion, but with
+    /// the chrome pinned from launch (--uitest-chrome, no reveal transition). Passing
+    /// here while the reveal-path test fails isolates the bug to the reveal path;
+    /// failing here means the Next button never advanced at all.
+    @MainActor
+    func testNextTapAdvancesWithPinnedChrome() throws {
+        let app = launchIntoSlideshow(extraArgs: ["--uitest-chrome"])
+        let image = app.descendants(matching: .any)
+            .matching(identifier: "slideshow.image").firstMatch
+        let next = app.buttons["slideshow.chrome.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 2))
+
+        let before = image.value as? String
+        next.tap()
+        let changed = NSPredicate(format: "value != %@", before ?? "")
+        expectation(for: changed, evaluatedWith: image)
+        waitForExpectations(timeout: 3)
+    }
+
     @MainActor
     private func waitForLabel(_ element: XCUIElement, equals value: String, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
