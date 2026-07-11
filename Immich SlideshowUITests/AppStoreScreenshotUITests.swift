@@ -145,8 +145,10 @@ final class AppStoreScreenshotUITests: XCTestCase {
         }
     }
 
-    /// Best-effort dismissal of the iPad keyboard (dedicated dismiss key). Falls
-    /// back to leaving the keyboard up — the capture is still usable then.
+    /// Best-effort keyboard dismissal: the iPad's dedicated dismiss key when present,
+    /// otherwise return (ends editing on the URL field — the iPhone keyboard has no
+    /// dismiss key, and a visible keyboard would also expose the sim's stubborn
+    /// German QWERTZ layout in an English listing).
     @MainActor
     private func dismissKeyboard(_ app: XCUIApplication) {
         let dismiss = app.keyboards.buttons.matching(
@@ -154,8 +156,10 @@ final class AppStoreScreenshotUITests: XCTestCase {
         ).firstMatch
         if dismiss.exists {
             dismiss.tap()
-            usleep(500_000)
+        } else if app.keyboards.firstMatch.exists {
+            app.typeText("\n")
         }
+        usleep(500_000)
     }
 
     @MainActor
