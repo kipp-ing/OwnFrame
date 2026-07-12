@@ -66,6 +66,21 @@ private var span: Double { duration + drift.swapOverlapSeconds }
     #expect(drift.rate(durationSeconds: 0).isFinite)
 }
 
+@Test func settleLeavesAtMostThreePercentCrop() {
+    // The photo must end its slide close to the full (fill-framed) frame: the settle
+    // margin exists only to keep the motion alive through the ~0.7s transition plus
+    // typical prefetch latency — not a multi-second worst case. A big margin is a
+    // permanent visible crop on every single photo.
+    #expect(drift.settleScale - drift.floorScale <= 0.03 + 0.0001)
+}
+
+@Test func graceStillCoversTransitionAndTypicalLatency() {
+    // Even when the swap lands 2s late, the outgoing photo must still be in motion
+    // for the whole time it remains visible (late swap + 0.7s sequenced fade).
+    let lateExit = drift.scale(elapsedSeconds: span + 2 + 0.7, durationSeconds: duration)
+    #expect(lateExit > drift.floorScale)
+}
+
 @Test func panFractionTracksTheZoomLinearly() {
     // The pan offset rides the same linear clock as the zoom (constant speed), is
     // full at the start scale, and vanishes exactly at the floor so a clamped
