@@ -19,3 +19,18 @@ import Testing
     #expect(Transition.dissolve.descriptor.animates)
     #expect(!Transition.none.descriptor.animates)
 }
+
+@Test func kenBurnsDegradesDissolveToCrossfade() {
+    // Dissolve's built-in scale would stack a second, eased zoom on top of the Ken
+    // Burns drift (the "fast catch-up" artifact), so while Ken Burns is on it
+    // degrades to the opacity-only crossfade — the drift itself supplies the motion.
+    #expect(Transition.dissolve.descriptor.effectiveStyle(kenBurns: true) == .crossfade)
+    #expect(Transition.dissolve.descriptor.effectiveStyle(kenBurns: false) == .dissolve)
+}
+
+@Test func kenBurnsLeavesOtherStylesUntouched() {
+    for transition in [Transition.crossfade, .slide, .none] {
+        #expect(transition.descriptor.effectiveStyle(kenBurns: true) == transition.descriptor.style)
+        #expect(transition.descriptor.effectiveStyle(kenBurns: false) == transition.descriptor.style)
+    }
+}

@@ -20,6 +20,14 @@ public struct TransitionDescriptor: Equatable, Sendable {
     /// Whether the image swap animates at all. False only for `.none`.
     public var animates: Bool { style != .none }
 
+    /// The style the view should actually build. Dissolve's built-in scale would
+    /// stack a second, eased zoom on top of the Ken Burns drift (a fast "catch-up"
+    /// that breaks the continuous motion), so while Ken Burns is on it degrades to
+    /// the opacity-only crossfade — the drift itself supplies the motion.
+    public func effectiveStyle(kenBurns: Bool) -> Style {
+        kenBurns && style == .dissolve ? .crossfade : style
+    }
+
     public init(style: Style) {
         self.style = style
     }

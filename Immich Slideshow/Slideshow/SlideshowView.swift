@@ -387,7 +387,10 @@ struct SlideshowView: View {
     /// so the swap never dips toward black — regardless of which of the two transitioning
     /// views SwiftUI stacks on top. Slide is a plain opaque push for the same reason.
     private var imageTransition: AnyTransition {
-        switch themeStore.settings.transition.descriptor.style {
+        // While Ken Burns is on, dissolve degrades to the opacity-only crossfade
+        // (effectiveStyle): its built-in scale would stack a second, eased zoom on the
+        // drift — a fast "catch-up" that breaks the continuous motion.
+        switch themeStore.settings.transition.descriptor.effectiveStyle(kenBurns: themeStore.settings.kenBurns) {
         case .crossfade:
             return .asymmetric(
                 insertion: .opacity.animation(.easeInOut(duration: 0.35)),
