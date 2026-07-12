@@ -12,47 +12,47 @@
 //  flight cancels the swap's transition animations — the outgoing photo popped out
 //  instantly (hard cut to black) and the incoming fade froze mid-way. TimelineView
 //  recomputes values outside the animation/transaction system, so it cannot interfere
-//  with the transitions, and it keeps ticking while the outgoing photo fades away —
-//  the drift never visibly stops across a swap.
+//  with the transitions, and it keeps ticking while the outgoing photo fades away.
+//
+//  The zoom-out is rate-based (see KenBurnsDrift): a constant scale-per-second rate
+//  that is still in motion at the expected swap moment and keeps drifting through the
+//  grace headroom when the swap lands late (device image-load latency). The old
+//  span-based progress clamped at scale 1.0 — every late swap left the photo standing
+//  still, and the next photo's motion read as a fast "catch-up". Because the rate is
+//  identical for the outgoing and the incoming photo, the perceived motion is one
+//  continuous drift through every cross-fade.
 //
 
+import SlideshowKit
 import SwiftUI
 
 struct KenBurnsModifier: ViewModifier {
     /// On only when Ken Burns is enabled and the show is actively playing (not paused).
     let isActive: Bool
-    /// Per-photo duration; the pan/zoom spans the time the photo is on screen.
+    /// Per-photo duration; sets the drift rate so every photo completes the same arc.
     let durationSeconds: Double
 
     /// Wall-clock start of this photo's drift. Fresh per photo (the modifier sits
     /// inside the image's `.id`), re-stamped when the show resumes from pause.
     @State private var startDate: Date?
 
-    // Zoom OUT, not in: each photo starts tight (zoomed + nudged off-center) and settles
-    // onto the full frame, so the motion keeps revealing more of the picture. Scale stays
-    // >= 1 (the photo is rendered fill-framed while Ken Burns is on) and the pan offset
-    // shrinks proportionally with the zoom, so the photo edge never enters the screen —
-    // no letterbox gap at any point of the motion.
-    private let startScale: CGFloat = 1.12
-    private let endScale: CGFloat = 1.0
+    /// Zoom OUT, not in: each photo starts tight (zoomed + nudged off-center) and
+    /// keeps revealing more of the picture. Scale stays >= 1 (the photo is rendered
+    /// fill-framed while Ken Burns is on) and the pan offset shrinks proportionally
+    /// with the zoom, so the photo edge never enters the screen.
+    private static let drift = KenBurnsDrift()
     private let pan: CGFloat = 16
-
-    /// How far the drift runs past the slide's own length. Covers the 0.7s sequenced
-    /// swap (see `imageTransition`) plus a cushion for image-load latency, so the
-    /// outgoing photo is still in motion while it fades away (continuous all-over
-    /// movement instead of move–stop–fade–stop–move). Constant rate for the same
-    /// reason: an ease curve would decelerate to a visible standstill before the swap.
-    private static let swapOverlapSeconds: Double = 1.0
 
     func body(content: Content) -> some View {
         // The schedule pauses (instead of the TimelineView being structurally removed)
         // when inactive, so toggling pause/Ken Burns never changes the view's identity —
         // an identity change here would re-trigger the photo's insertion transition.
         TimelineView(.animation(minimumInterval: nil, paused: !isActive)) { context in
-            let progress = isActive ? progress(at: context.date) : 1
+            let scale = isActive ? scale(at: context.date) : CGFloat(Self.drift.floorScale)
+            let panFraction = CGFloat(Self.drift.panFraction(forScale: Double(scale)))
             content
-                .scaleEffect(startScale + (endScale - startScale) * progress)
-                .offset(x: pan * (1 - progress), y: -pan * (1 - progress))
+                .scaleEffect(scale)
+                .offset(x: pan * panFraction, y: -pan * panFraction)
         }
         .onAppear { startDate = Date() }
         .onChange(of: isActive) { _, active in
@@ -60,12 +60,14 @@ struct KenBurnsModifier: ViewModifier {
         }
     }
 
-    /// Linear 0→1 over the slide length + overlap; clamps at 1 (fully settled), and
-    /// `progress == 1` is also the neutral state used while inactive (scale 1, no pan).
-    private func progress(at date: Date) -> CGFloat {
-        guard let startDate else { return 0 }
-        let span = max(durationSeconds, 0.1) + Self.swapOverlapSeconds
-        return CGFloat(min(max(date.timeIntervalSince(startDate) / span, 0), 1))
+    /// Constant-rate zoom-out; `startScale` is also the pre-`onAppear` state so the
+    /// first rendered frame matches the drift's own starting point (no jump).
+    private func scale(at date: Date) -> CGFloat {
+        guard let startDate else { return CGFloat(Self.drift.startScale) }
+        return CGFloat(Self.drift.scale(
+            elapsedSeconds: date.timeIntervalSince(startDate),
+            durationSeconds: durationSeconds
+        ))
     }
 }
 
