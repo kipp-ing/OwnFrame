@@ -11,9 +11,13 @@ import Foundation
 /// `settleScale` (still zoomed, still moving) at the *expected* swap moment and simply
 /// keeps drifting through the `settleScale → floorScale` grace headroom when the swap
 /// is late. Outgoing and incoming photo always move at the identical rate, so the
-/// motion stays continuous through the whole cross-fade; the clamp at `floorScale`
-/// (below which a fill-framed photo would pull its edges into view) is reachable only
-/// after many seconds of pathological lateness.
+/// motion stays continuous through the whole cross-fade.
+///
+/// The settle margin is deliberately small: it only has to keep the motion alive for
+/// the ~0.7s sequenced fade plus typical prefetch latency (well under a second), and
+/// every point of margin is a permanent visible crop on every photo. A swap several
+/// seconds late (cold cache on a slow network) parks the photo at `floorScale` — the
+/// exact full-fill frame, the same calm state a non-Ken-Burns show always sits in.
 public struct KenBurnsDrift: Equatable, Sendable {
     /// Scale a fresh photo starts at.
     public let startScale: Double
@@ -27,8 +31,8 @@ public struct KenBurnsDrift: Equatable, Sendable {
     public let swapOverlapSeconds: Double
 
     public init(
-        startScale: Double = 1.15,
-        settleScale: Double = 1.06,
+        startScale: Double = 1.10,
+        settleScale: Double = 1.025,
         floorScale: Double = 1.0,
         swapOverlapSeconds: Double = 1.0
     ) {
