@@ -292,6 +292,55 @@ final class PhotoAlbumPickerUITests: XCTestCase {
                       "the vanish copy should include the upgraded-iCloud-album hint (FR-900-16)")
     }
 
+    /// FR-900-10 (T032) — the info overlay works for a Photos source through the neutral
+    /// metadata path and renders DATE ONLY: no geocoding means no place line (R7), and an
+    /// absent place renders nothing rather than a blank line.
+    @MainActor
+    func testPhotosSourceInfoOverlayShowsDateOnly() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos-source", "--uitest-photos-auth=full"]
+        app.launch()
+
+        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+
+        let infoButton = app.buttons["slideshow.chrome.info"]
+        XCTAssertTrue(infoButton.waitForExistence(timeout: 3),
+                      "the info affordance should exist for a Photos source")
+        infoButton.tap()
+
+        let card = app.descendants(matching: .any)
+            .matching(identifier: "slideshow.info.card").firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 3), "info overlay should appear")
+
+        // The fake gateway's capture date (June 2024) renders; no place line exists.
+        let dateLine = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "2024")
+        ).firstMatch
+        XCTAssertTrue(dateLine.waitForExistence(timeout: 2),
+                      "the capture date should render")
+        XCTAssertFalse(app.staticTexts["Berlin, Germany"].exists,
+                       "a Photos asset has no place — nothing must render for it")
+    }
+
+    /// FR-900-15 (T033) — quality honesty: with a Photos source active, the Display
+    /// section notes the iCloud Shared Album pixel ceiling so the quality picker never
+    /// implies better quality exists. (Immich sources keep the unannotated footer.)
+    @MainActor
+    func testPhotosSourceShowsQualityCeilingNote() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-settings", "--uitest-photos-source",
+                               "--uitest-photos-auth=full"]
+        app.launch()
+
+        let note = app.descendants(matching: .any)
+            .matching(identifier: "settings.quality.ceilingNote").firstMatch
+        XCTAssertTrue(scrollToElement(note, in: app),
+                      "the Display footer should note the shared-album quality ceiling")
+    }
+
     // MARK: - Helpers
 
     @MainActor

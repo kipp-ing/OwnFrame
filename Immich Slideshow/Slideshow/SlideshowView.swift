@@ -157,6 +157,12 @@ struct SlideshowView: View {
             case .active:
                 viewModel.resume()
                 powerManager.willEnterForeground()
+                // FR-900-09 (T025): shared-album remote posts carry no notification
+                // guarantee, so a Photos source refetches immediately on foreground —
+                // the periodic refresh stays the upper bound.
+                if isPhotoLibrarySource {
+                    Task { await viewModel.refreshNow() }
+                }
                 Task { await startCoordinator() }
             default:
                 viewModel.pause()
@@ -191,6 +197,7 @@ struct SlideshowView: View {
                 makeSourceLibraryViewModel: makeSourceLibraryViewModel,
                 makeServerAPI: makeServerAPI,
                 makePhotoGateway: makePhotoGateway,
+                isPhotoLibrarySource: isPhotoLibrarySource,
                 onReset: onReset,
                 diskCache: diskCache,
                 snapshotStore: snapshotStore,
@@ -317,17 +324,21 @@ struct SlideshowView: View {
     private var chromeOverlay: some View {
         SlideshowChrome(
             viewModel: viewModel,
-            // Immich-backed affordances hide for a Photos source (api == nil) until
-            // T031/T032 bring source-neutral parity.
-            onInfo: api == nil ? nil : { showInfo.toggle(); scheduleAutoHide() },
+            // Photo info reads the engine's neutral metadata (T032) — every backend gets
+            // it; the album browser stays Immich-backed and hides for a Photos source
+            // until T031-adjacent parity.
+            onInfo: { showInfo.toggle(); scheduleAutoHide() },
             onAlbums: api == nil ? nil : { showAlbumBrowser = true },
             onSettings: { showSettings = true },
             onInteraction: { scheduleAutoHide() }
         ) {
-            if showInfo, let api, let assetID = viewModel.currentAssetID {
-                PhotoInfoView(api: api, assetID: assetID)
-                    .padding(.top, 12)
-                    .transition(.opacity)
+            if showInfo, let assetID = viewModel.currentAssetID {
+                PhotoInfoView(
+                    fetchMetadata: { [viewModel] in try? await viewModel.metadata(for: $0) },
+                    assetID: assetID
+                )
+                .padding(.top, 12)
+                .transition(.opacity)
             }
         }
     }

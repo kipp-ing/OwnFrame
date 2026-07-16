@@ -331,6 +331,13 @@ public final class SlideshowViewModel {
         await reloadSource()
     }
 
+    /// Neutral metadata pass-through for the info overlay (900 T032, FR-900-10): date and
+    /// optional place from whatever backend serves the show — Immich composes its EXIF
+    /// place, Photos delivers the capture date only (`placeName` nil by R7, no geocoding).
+    public func metadata(for assetID: String) async throws -> AssetMetadata {
+        try await source.metadata(for: assetID)
+    }
+
     // MARK: - Auto-retry (310, US1)
 
     /// Record a failure, classify it, and arm the backoff retry. The phase only

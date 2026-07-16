@@ -3,19 +3,22 @@
 //  Immich Slideshow
 //
 //  Slice C — Liquid Glass photo-info overlay shown from the chrome: date/time and
-//  location for the current photo, fetched lazily from Immich EXIF. Reloads when
-//  the slideshow advances to another asset. Stays quiet (renders nothing) when the
-//  photo carries no usable info, keeping with the calm default.
+//  location for the current photo, fetched lazily through the engine's neutral metadata
+//  pass-through (900 T032, FR-900-10) so every backend renders the same card — Immich
+//  supplies its EXIF place, a Photos source the capture date only (no geocoding, R7).
+//  Reloads when the slideshow advances to another asset. Stays quiet (renders nothing)
+//  when the photo carries no usable info, keeping with the calm default.
 //
 
-import ImmichClient
+import PhotoSourceKit
 import SwiftUI
 
 struct PhotoInfoView: View {
-    let api: any ImmichAPI
+    /// Fetches the current photo's neutral metadata; nil on failure (the card stays quiet).
+    let fetchMetadata: (String) async -> AssetMetadata?
     let assetID: String
 
-    @State private var info: AssetInfo?
+    @State private var metadata: AssetMetadata?
     @State private var didLoad = false
 
     var body: some View {
@@ -55,18 +58,18 @@ struct PhotoInfoView: View {
     }
 
     private var dateText: String? {
-        guard let takenAt = info?.takenAt else { return nil }
-        return takenAt.formatted(date: .long, time: .shortened)
+        guard let capturedAt = metadata?.capturedAt else { return nil }
+        return capturedAt.formatted(date: .long, time: .shortened)
     }
 
     private var locationText: String? {
-        let parts = [info?.city, info?.country].compactMap { $0 }.filter { !$0.isEmpty }
-        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+        guard let placeName = metadata?.placeName, !placeName.isEmpty else { return nil }
+        return placeName
     }
 
     private func load() async {
         didLoad = false
-        info = try? await api.assetInfo(assetID: assetID)
+        metadata = await fetchMetadata(assetID)
         didLoad = true
     }
 }

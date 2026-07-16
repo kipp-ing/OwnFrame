@@ -434,6 +434,27 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(model.currentAssetID == "image-3")
 }
 
+// 900 T032 (FR-900-10): the info overlay reads date/place through the engine's neutral
+// metadata pass-through — one path for both backends (Immich composes EXIF place; Photos
+// delivers date only, placeName nil by R7).
+@MainActor
+@Test func metadataPassesThroughFromTheSource() async throws {
+    let source = StubPhotoSource()
+    let captured = Date(timeIntervalSince1970: 1_718_462_400)
+    source.setAssets([SourceAsset(id: "image-1", kind: .image)], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setMetadata(
+        AssetMetadata(capturedAt: captured, latitude: nil, longitude: nil, placeName: "Berlin, Germany"),
+        for: "image-1"
+    )
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ManualTicker(), settingsStore: sequentialThemeStore())
+    let metadata = try await model.metadata(for: "image-1")
+
+    #expect(metadata.capturedAt == captured)
+    #expect(metadata.placeName == "Berlin, Germany")
+}
+
 // The former advanceFailsWhenEveryImageInRingNowFails test asserted the pre-310
 // dead-end (`phase == .failed` on total image exhaustion). FR-310-03 supersedes
 // it: the current image stays up and a backoff retry recovers the show — see
