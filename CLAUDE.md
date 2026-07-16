@@ -122,8 +122,10 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: none in flight — v1.0 is in App Store review; `310`/`320` are implemented.
-Next up: `800-app-intents` (v1.1), then the roadmap majors `900-photo-library-source`
-(amended 2026-07-16: full-access gate, shared-album limits, iOS 27 risk) and `1000-apple-tv`
-(specced 2026-07-16; secret sync via CloudKit encrypted fields per constitution v1.1.0).
+Active feature: `900-photo-library-source` (branch `900-photo-library-source`) —
+implementation plan at `specs/900-photo-library-source/plan.md` (research, data-model,
+contracts, quickstart alongside it; session orchestration in
+`docs/implementation-session-plan.md`). v1.0 is in App Store review; `310`/`320` are
+implemented; `800-app-intents` and `1000-apple-tv` remain queued (constitution v1.1.0
+sanctions the 1000 secret-sync channel).
 <!-- SPECKIT END -->
