@@ -16,6 +16,9 @@ public protocol PhotoSourceProviding: Sendable {
 
     /// Rotation content for one collection. `PhotoLibrarySource.selectedPhotosID`
     /// resolves to the granted-assets pool. Throws .notFound on vanish (FR-900-16).
+    /// Returns fully materialized descriptors (id+kind only — tiny even at 10k assets,
+    /// matching today's Immich behavior); "windowed/lazy" in the spec's huge-album edge
+    /// case refers to the gateway's internal PHAsset enumeration, never to image data.
     func assets(in collectionID: String) async throws -> [SourceAsset]
 
     /// Final-quality image bytes (FR-900-07 — never degraded). Network allowed (FR-900-06).

@@ -66,7 +66,8 @@ backoff table itself is untouched.
 
 States: `notDetermined → (request) → full | limited | denied`; any state may transition to
 any other via iOS Settings or the periodic re-prompt (checked at `ensureReady()` +
-foreground, R5).
+foreground, R5). The platform's add-only authorization grants no read access and maps to
+`.denied` at the gateway (FR-900-04).
 
 | State | Album sources | Selected-Photos source | Picker surface |
 |---|---|---|---|
