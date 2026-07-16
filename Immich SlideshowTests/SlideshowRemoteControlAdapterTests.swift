@@ -14,6 +14,7 @@ import Testing
 import UIKit
 import HAControlKit
 import ImmichClient
+import PhotoSourceKit
 import PowerKit
 import SlideshowKit
 import ThemeKit
@@ -276,8 +277,8 @@ struct SlideshowRemoteControlAdapterTests {
 
         let store = UserDefaultsThemeStore(defaults: defaults)
         let slideshow = SlideshowViewModel(
-            api: StubAPI(),
-            albumID: "album-1",
+            source: StubAPI(),
+            collectionID: "album-1",
             ticker: StubTicker(),
             settingsStore: store
         )
@@ -343,8 +344,8 @@ struct SlideshowRemoteControlAdapterTests {
         )
 
         let slideshow = SlideshowViewModel(
-            api: vmAPI,
-            albumID: "album-1",
+            source: vmAPI,
+            collectionID: "album-1",
             ticker: BlockingTicker(),
             settingsStore: store
         )
@@ -392,6 +393,17 @@ private struct StubAPI: ImmichAPI {
     func albums() async throws -> [Album] { [] }
     func assets(albumID: String) async throws -> [Asset] { [] }
     func preview(assetID: String) async throws -> Data { Data() }
+}
+
+// 900 (T012): the engine consumes the neutral protocol; the adapter still takes ImmichAPI.
+extension StubAPI: PhotoSourceProviding {
+    func ensureReady() async throws {}
+    func collections() async throws -> [SourceCollection] { [] }
+    func assets(in collectionID: String) async throws -> [SourceAsset] { [] }
+    func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data { Data() }
+    func metadata(for assetID: String) async throws -> AssetMetadata {
+        AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: nil)
+    }
 }
 
 private struct StubTicker: SlideshowTicker {
@@ -455,6 +467,35 @@ private actor FakeAPI: ImmichAPI {
     }
 
     func original(assetID: String) async throws -> Data { image }
+}
+
+// 900 (T012): neutral-protocol face of the same fake — image requests route through the
+// counted preview/thumbnail/original methods so the call-isolation assertions keep meaning.
+extension FakeAPI: PhotoSourceProviding {
+    func ensureReady() async throws {}
+    func collections() async throws -> [SourceCollection] { [] }
+    func assets(in collectionID: String) async throws -> [SourceAsset] {
+        try await assets(albumID: collectionID).map {
+            SourceAsset(id: $0.id, kind: MediaKind(rawValue: $0.type) ?? .other)
+        }
+    }
+    func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data {
+        switch fidelity {
+        case .thumbnail: return try await thumbnail(assetID: assetID)
+        case .preview: return try await preview(assetID: assetID)
+        case .original: return try await original(assetID: assetID)
+        }
+    }
+    func metadata(for assetID: String) async throws -> AssetMetadata {
+        let info = try await assetInfo(assetID: assetID)
+        let parts = [info.city, info.country].compactMap { $0 }.filter { !$0.isEmpty }
+        return AssetMetadata(
+            capturedAt: info.takenAt,
+            latitude: nil,
+            longitude: nil,
+            placeName: parts.isEmpty ? nil : parts.joined(separator: ", ")
+        )
+    }
 }
 
 @MainActor

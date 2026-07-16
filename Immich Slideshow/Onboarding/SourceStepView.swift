@@ -165,6 +165,9 @@ private extension SourceKind {
         switch self {
         case .album: "photo.stack"
         case .sharedLink: "link"
+        // 900: not offered by onboarding yet (US1/T019 adds the picker entry); the icon
+        // exists so a photoLibrary source saved elsewhere renders sensibly in lists.
+        case .photoLibrary: "photo.on.rectangle.angled"
         }
     }
 }

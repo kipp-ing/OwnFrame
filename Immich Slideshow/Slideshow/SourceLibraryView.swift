@@ -269,6 +269,7 @@ private extension SourceKind {
         switch self {
         case .album: "photo.stack"
         case .sharedLink: "link"
+        case .photoLibrary: "photo.on.rectangle.angled"
         }
     }
 
@@ -278,6 +279,9 @@ private extension SourceKind {
             "Album"
         case let .sharedLink(baseURL, _):
             baseURL.host ?? "Shared link"
+        case .photoLibrary:
+            // 900: a device Apple Photos / iCloud album (picker entry lands with US1/T019).
+            "Photos"
         }
     }
 }
