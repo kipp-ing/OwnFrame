@@ -166,12 +166,17 @@ public final class PHKitGateway: NSObject, PhotoLibraryGateway, @unchecked Senda
     private func requestOriginalData(for asset: PHAsset, options: PHImageRequestOptions) async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
             PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, info in
-                // R6 guard: never surface a degraded delivery; with .highQualityFormat the
-                // final callback is the only one, so a degraded frame is simply dropped.
-                if (info?[PHImageResultIsDegradedKey] as? Bool) == true { return }
-                if let data {
-                    continuation.resume(returning: data)
-                } else {
+                // R6 guard: the degraded-delivery decision is the host-tested ImageDeliveryRules
+                // (FR-900-07). With .highQualityFormat the final callback is the only one, so a
+                // degraded frame is simply dropped and the continuation waits for the final one.
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
+                switch ImageDeliveryRules.decision(isDegraded: isDegraded, hasPayload: data != nil) {
+                case .ignore:
+                    return
+                case .deliver:
+                    // .deliver implies a non-nil payload; the guard keeps this force-unwrap-free.
+                    if let data { continuation.resume(returning: data) }
+                case .fail:
                     let underlying = info?[PHImageErrorKey] as? NSError
                         ?? NSError(domain: "PHKitGateway", code: 1)
                     continuation.resume(throwing: SourceFailure.transient(underlying: underlying))
@@ -185,10 +190,14 @@ public final class PHKitGateway: NSObject, PhotoLibraryGateway, @unchecked Senda
             PHImageManager.default().requestImage(
                 for: asset, targetSize: target, contentMode: .aspectFit, options: options
             ) { image, info in
-                if (info?[PHImageResultIsDegradedKey] as? Bool) == true { return }
-                if let data = image?.jpegData(compressionQuality: 0.9) {
-                    continuation.resume(returning: data)
-                } else {
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
+                let data = image?.jpegData(compressionQuality: 0.9)
+                switch ImageDeliveryRules.decision(isDegraded: isDegraded, hasPayload: data != nil) {
+                case .ignore:
+                    return
+                case .deliver:
+                    if let data { continuation.resume(returning: data) }
+                case .fail:
                     let underlying = info?[PHImageErrorKey] as? NSError
                         ?? NSError(domain: "PHKitGateway", code: 2)
                     continuation.resume(throwing: SourceFailure.transient(underlying: underlying))

@@ -1073,3 +1073,103 @@ struct PeriodicRefreshTests {
         #expect(model.currentAssetID == "image-9")
     }
 }
+
+// MARK: - Photos delivery semantics (900, FR-900-06)
+//
+// The no-blank-frame rules (FR-300-09, slow-connection edge case) reach the Photos backend
+// through the neutral protocol: an iCloud-resident original is fetched on demand and may be
+// slow or fail, but the engine's contract is unchanged — the displayed photo survives a slow
+// load, and a broken load is skipped like any other. Driven against StubPhotoSource so the
+// contract holds for every backend, not just Immich.
+
+@Suite("Resilience 900 — Photos image delivery")
+@MainActor
+struct PhotosDeliveryTests {
+
+    // FR-900-06 / FR-300-09: the next original is iCloud-resident and its fetch is slow. The
+    // frame must never blank to nothing — the current photo stays on screen for the whole
+    // in-flight window and only swaps once the new bytes arrive.
+    @Test func slowNextImageLoadKeepsTheCurrentPhotoOnScreen() async {
+        let source = StubPhotoSource()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        // cacheLimit 2 lets two unrelated stores evict image-2, forcing the advance to hit the
+        // (now slow) source rather than a prefetched cache entry.
+        let cache = ImageCache(limit: 2)
+        let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 2)
+        source.setAssets([
+            SourceAsset(id: "image-1", kind: .image),
+            SourceAsset(id: "image-2", kind: .image)
+        ], for: "album")
+        source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+        source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+
+        let model = SlideshowViewModel(
+            source: source, collectionID: "album", ticker: ticker, clock: clock,
+            cache: cache, config: config, settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        #expect(model.currentAssetID == "image-1")
+        await waitUntil(cache.contains("image-2#preview"))   // prefetched by start()
+
+        // Evict the prefetched next photo so the advance must re-fetch it, then make that
+        // fetch slow — the iCloud-on-demand case.
+        cache.store(Data([9]), for: "unrelated-1")
+        cache.store(Data([10]), for: "unrelated-2")
+        source.setArtificialDelay(.milliseconds(50))
+        let advance = Task { await model.advance() }
+
+        // Throughout the slow load the frame is never blanked and never jumps early: image-1's
+        // bytes stay on screen until image-2 is fully loaded.
+        var observedInFlight = false
+        for _ in 0..<40 {
+            if model.currentAssetID == "image-2" { break }
+            #expect(model.currentAssetID == "image-1")
+            #expect(model.currentImageData == Data([1]))
+            observedInFlight = true
+            await Task.yield()
+        }
+        #expect(observedInFlight)
+
+        await advance.value
+        source.setArtificialDelay(nil)
+
+        #expect(model.currentAssetID == "image-2")
+        #expect(model.currentImageData == Data([2]))
+        #expect(model.phase == .playing)
+        #expect(model.failureReason == nil)
+    }
+
+    // FR-900-06 / FR-300-09: one photo's download fails (a transient iCloud error). The engine
+    // skips the broken photo like any other and the rotation lands on the next loadable one —
+    // no blank, no error surface. (The Immich-flavored equivalents live in
+    // SlideshowViewModelTests; this pins the same contract through the neutral source.)
+    @Test func failingImageLoadIsSkippedAndRotationContinues() async {
+        let source = StubPhotoSource()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        source.setAssets([
+            SourceAsset(id: "image-1", kind: .image),
+            SourceAsset(id: "image-2", kind: .image),
+            SourceAsset(id: "image-3", kind: .image)
+        ], for: "album")
+        source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+        source.setImageError(SourceFailure.transient(underlying: TestSourceError.probe), for: "image-2", fidelity: .preview)
+        source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
+
+        let model = SlideshowViewModel(
+            source: source, collectionID: "album", ticker: ticker, clock: clock,
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        #expect(model.currentAssetID == "image-1")
+
+        await model.advance()
+
+        // image-2 was skipped entirely; the show is uninterrupted on image-3.
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-3")
+        #expect(model.currentImageData == Data([3]))
+        #expect(model.failureReason == nil)
+    }
+}
