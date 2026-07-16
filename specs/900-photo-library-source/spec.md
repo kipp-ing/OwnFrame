@@ -4,6 +4,12 @@
 
 **Created**: 2026-07-09
 
+**Updated**: 2026-07-16 — research pass encoded: shared albums require *full* library
+authorization (invisible under limited access), legacy shared-album quality ceiling (2048 px),
+the iOS 27 shared-album rebuild as a first-class risk, change-observation latency limits, and
+the iCloud Shared Photo Library free-ride. iOS 17 floor re-confirmed safe (every required API
+is iOS 15 or older).
+
 **Status**: Deferred — planned for v1.x, after release and after `800-app-intents`. Specced now
 because it drives the source-abstraction decision and the app's identity ("Photo Frame for
 Immich & iCloud").
@@ -15,7 +21,15 @@ links. The architectural core is a **source-agnostic data-access abstraction**: 
 engine stops assuming `ImmichAPI` and consumes a protocol that Immich and PhotoKit both
 implement. Out of scope: videos, editing, uploading, Memories/featured collections, smart
 albums (Roadmap), multi-source pooling (topic 100 roadmap, unchanged), any Immich behavior
-change.
+change, contributing to / commenting on shared albums (display only).
+
+**Shared-album generations**: iOS 27 (fall 2026) rebuilds iCloud Shared Albums — per-album,
+owner-initiated "upgraded" albums gain full resolution and cross-platform sharing, count
+against the owner's iCloud storage, and are invisible to devices below OS 27. Whether upgraded
+albums remain visible to third-party apps through PhotoKit is **unverified** (nothing in the
+iOS 27 release notes or the PhotoKit updates page as of 2026-07-16). This spec targets the
+**legacy** shared-album system, which keeps working with no announced sunset; upgraded-album
+support is Roadmap, gated on a beta verification (SC-900-07).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -35,9 +49,10 @@ the source is persisted in the topic-120 library and survives relaunch.
 
 1. **Given** the source picker, **When** the user chooses "Photos album", **Then** photo access
    is requested at that moment (not at app launch) with a purpose string that says why.
-2. **Given** access is granted, **Then** the user's albums (user collections and iCloud Shared
-   Albums) are listed with title and count in the same searchable picker pattern the Immich
-   album picker uses (topic 210).
+2. **Given** *full* access is granted, **Then** the user's albums (user collections and iCloud
+   Shared Albums) are listed with title and count in the same searchable picker pattern the
+   Immich album picker uses (topic 210). (Albums — shared or not — cannot be enumerated under
+   limited access; that path is User Story 3.)
 3. **Given** an album is selected, **Then** it is saved as a source in the topic-120 library,
    becomes active, and the slideshow plays it with all topic-500 options applying live.
 4. **Given** a saved Photos source, **When** the app relaunches, **Then** it resumes directly
@@ -76,22 +91,33 @@ the next 1–2 images ahead through the abstraction.
 ### User Story 3 - Permissions and limited access handled honestly (Priority: P2)
 
 Denied or limited photo access never dead-ends the app: the user sees what the frame can and
-cannot show and where to change it.
+cannot show and where to change it. The platform reality this story encodes: **under limited
+access, PhotoKit exposes no user albums and no cloud-shared content at all** (Apple: user
+albums "cannot be fetched", "no access to cloud shared assets or albums" — WWDC20 10641).
+Album sources — including iCloud Shared Albums — therefore exist only with full access;
+limited access can still power a single "Selected Photos" source built from the granted
+assets.
 
 **Independent Test**: With a fake authorization state: verify denied → calm message with a
-path to iOS Settings; limited → the picker shows only authorized assets plus a hint to expand
-selection; revoked-while-active → the source errors calmly like a failed Immich source.
+path to iOS Settings; limited → the picker offers exactly one "Selected Photos" source plus
+the system's manage-selection affordance and an honest note that albums need full access;
+revoked-while-active → the source errors calmly like a failed Immich source.
 
 **Acceptance Scenarios**:
 
 1. **Given** access is denied, **Then** a calm message explains the frame cannot see photos and
    links to iOS Settings; other source kinds keep working untouched.
-2. **Given** limited-library access, **Then** the album/photo list reflects exactly the granted
-   subset and offers the system's "manage selection" affordance; no pretending the library is
-   complete.
+2. **Given** limited-library access, **Then** the picker offers a single "Selected Photos"
+   source (the granted assets as one pool) with the system's "manage selection" affordance,
+   and states plainly that albums — including iCloud Shared Albums — require full access; it
+   never renders an empty album list as if the user had no albums.
 3. **Given** access is revoked while a Photos source is active, **Then** playback fails to the
    calm error state (FR-300-10) with an actionable message — no crash, no infinite spinner.
-4. **Given** photo access exists, **Then** library content is used strictly for display (and
+4. **Given** iOS's periodic full-access re-confirmation dialog ("allow continued full
+   access?") downgrades access to limited while an album source is active or saved, **Then**
+   the album source becomes calmly unavailable with a message naming the cause and the fix
+   (re-grant in iOS Settings); a "Selected Photos" source, if any, keeps playing.
+5. **Given** photo access exists, **Then** library content is used strictly for display (and
    the existing opt-in HA photo publishing, see FR-900-12) — nothing else leaves the device.
 
 ### Edge Cases
@@ -108,6 +134,15 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
   server — current photo persists, skips accumulate calmly, topic-310 retry applies.
 - **Shared-album assets with restricted originals**: display at best available quality; if
   nothing displayable is provided, skip.
+- **Shared album upgraded to the iOS 27 format by its owner**: the album may disappear from
+  legacy shared-album fetches on this device. Treated exactly like a deleted album
+  (FR-900-16): calm unavailable state naming the likely cause ("this shared album may have
+  been upgraded and is no longer visible to this app"), other sources untouched — never a
+  crash, spinner, or silent empty slideshow.
+- **Remote posts to a shared album** (another subscriber adds photos): the change-observer
+  fires only after the system syncs the album — no push-like latency is guaranteed. New
+  content arrives via observer when it comes, via refetch on app foregrounding, and at the
+  latest via the topic-310 periodic refresh.
 - **Device with no photo library content**: picker states it plainly; not an error.
 
 ## Requirements *(mandatory)*
@@ -122,10 +157,17 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
   topic 120's `SourceKind`, persist across relaunch, and participate in source switching with a
   rebuild restart strategy for cross-backend switches.
 - **FR-900-03**: The source picker MUST list the user's albums and iCloud Shared Albums via the
-  same searchable picker pattern as topic 210's album picker; smart albums are Roadmap.
+  same searchable picker pattern as topic 210's album picker; smart albums are Roadmap. Album
+  enumeration (shared or not) exists only under full authorization — under limited access the
+  picker MUST NOT present an album list (see FR-900-04), and it MUST NOT render "no albums" as
+  if the library were empty.
 - **FR-900-04**: Photo-library authorization MUST be requested only when the user chooses a
-  Photos source (never at launch), with an accurate purpose string; the app MUST fully support
-  the limited-library mode (show the granted subset, offer the system selection UI).
+  Photos source (never at launch), with an accurate purpose string. Authorization MUST be read
+  through the access-level-aware API (`.readWrite`); the legacy no-argument status API reports
+  limited access as authorized and MUST NOT be used. Limited access yields exactly one
+  offerable source — "Selected Photos" (the granted assets as one pool) — plus the system
+  manage-selection affordance and an honest note that albums require full access. `.addOnly`
+  grants no read access and counts as denied for this feature.
 - **FR-900-05**: Denied/revoked access MUST produce calm, actionable states and MUST NOT affect
   non-Photos sources.
 - **FR-900-06**: iCloud-resident originals MUST be fetched on demand with network access
@@ -140,6 +182,9 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
   rotation via the platform change-observation API — event-driven where PhotoKit provides it,
   with topic 310's reconciliation rules (current photo finishes its slot, no visible restart);
   the 310 polling interval is the fallback, not the primary mechanism, for this backend.
+  For shared albums, remote posts carry no documented notification latency — the app MUST
+  additionally refetch the active Photos source when entering the foreground, and the 310
+  periodic refresh remains the guaranteed upper bound.
 - **FR-900-10**: The info overlay MUST show the same fields as for Immich assets (date,
   location when available) sourced from asset metadata; the FR-300-25 exclusions (no filename,
   no album name, no secrets) hold.
@@ -152,6 +197,17 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
   fake provider (no PhotoKit in unit tests); PhotoKit-touching code stays a thin adapter.
 - **FR-900-14**: Nothing from the photo library leaves the device except through the existing,
   explicit HA publishing opt-ins; no analytics, no uploads (constitution III).
+- **FR-900-15**: The frame MUST display the best representation the source provides and MUST
+  NOT imply better quality exists: legacy iCloud Shared Album photos are capped by the
+  platform at 2048 px on the long edge (panoramas up to 5400 px, ≤ 5000 items per album).
+  The topic-500 quality setting has no effect above a source's ceiling; no artificial
+  upscaling is required or performed. FR-900-07 (never show degraded progressive previews)
+  is unaffected — "final quality" means the best the source will deliver.
+- **FR-900-16**: A saved Photos source whose backing collection disappears from library
+  fetches — deleted, unshared, unsubscribed, or migrated to the iOS 27 upgraded shared-album
+  format — MUST resolve to the calm unavailable state naming the likely cause, without
+  affecting other sources or crashing; recovery is picking a source again. This is a
+  first-class state, not an error path.
 
 ### Key Entities
 
@@ -161,12 +217,22 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
 - **Photo Library Provider**: The PhotoKit-backed implementation (collections, on-demand iCloud
   fetch, change observation, authorization state).
 - **Photos Source Kind**: `SourceKind.photoLibrary(collectionID)` in the topic-120 library with
-  label = album title.
+  label = album title; the limited-access "Selected Photos" pool is a collection-less variant
+  of the same kind (stable well-known identifier, label = "Selected Photos").
 - **Authorization State**: full / limited / denied / revoked, driving picker content and calm
-  states.
+  states — full unlocks albums + shared albums; limited unlocks only the "Selected Photos"
+  source; the state can be *downgraded* by the system re-confirmation dialog at any time.
+- **Selected Photos Source**: the single source offerable under limited access — the granted
+  asset pool as one rotation, with the system manage-selection affordance as its "edit".
 
 ### Roadmap / Deferred (not yet built)
 
+- **Upgraded (iOS 27) shared albums**: support once their third-party PhotoKit exposure is
+  verified on a real beta/release (SC-900-07); until then they surface only as the FR-900-16
+  vanish case. Track each beta cycle.
+- **Photos source on Apple TV**: PhotoKit is typed for tvOS 10+ (including shared albums), but
+  what a third-party tvOS app actually sees at runtime is unverified — prototype-first; owned
+  by topic 1000's roadmap, built on this spec's source protocol.
 - **Smart albums** (Favorites, Recents) and **Memories-style collections** as pickable sources.
 - **Multi-source pooling** across backends — stays topic 100/120 roadmap; the source protocol
   here is a prerequisite, not the delivery.
@@ -191,6 +257,10 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
   or hang (UI-tested).
 - **SC-900-06**: Switching Immich ↔ Photos sources via app UI, HA select, and (once built)
   intents works with no leaked timers or stale data from the previous backend.
+- **SC-900-07**: Before the feature ships, US1/US2 pass on the newest iOS beta available at
+  that time (iOS 27 at time of writing) against a real legacy shared album, and the
+  upgraded-album vanish case (FR-900-16) is exercised — an owner-upgraded album degrades to
+  the calm unavailable state, never a crash or silent empty rotation.
 
 ## Assumptions
 
@@ -201,4 +271,17 @@ selection; revoked-while-active → the source errors calmly like a failed Immic
   tuning, if needed, is an implementation detail, not new spec surface.
 - Topic 310 (retry/refresh) ships first; this spec leans on its reconciliation rules instead of
   redefining them.
-- The iOS 17 deployment floor is unaffected (PhotoKit APIs used here predate iOS 17).
+- The iOS 17 deployment floor is unaffected — re-verified 2026-07: every required API
+  (collection/asset fetch, image manager + network-allowed delivery, change observer,
+  access-level authorization, limited-library handling) is iOS 15 or older, and none is
+  deprecated as of iOS 26 / the iOS 27 beta.
+- **iCloud Shared Photo Library** (the *other* sharing feature) needs zero special handling:
+  its assets appear merged into the personal library and albums, indistinguishable per asset
+  (Apple has confirmed there is no distinguishing API) — supporting the photo library as a
+  source includes it automatically.
+- Legacy iCloud Shared Albums remain fetchable for the foreseeable future (no announced
+  sunset); the iOS 27 "upgraded" format's third-party visibility is unknown as of 2026-07-16
+  and is treated as a Roadmap gate, not a blocker.
+- Enumerating *within* a fetched shared collection needs no extra opt-in; only global
+  source-type-based fetches must explicitly include cloud-shared source types (implementation
+  detail for the plan, recorded here so it isn't rediscovered the hard way).

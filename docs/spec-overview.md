@@ -41,7 +41,8 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 700 | [ha-control](../specs/700-ha-control/spec.md)                     | HAControlKit     | Remote control via MQTT/HA: availability + pause/play + brightness + album (730 deferred). | Active   |
 | 710 | [ha-full-control](../specs/710-ha-full-control/spec.md)           | HAControlKit     | *(sub-spec of 700)* Read/set every display setting, next/previous, current-photo image + metadata, and diagnostics over MQTT. | Active |
 | 800 | [app-intents](../specs/800-app-intents/spec.md)                   | app target (+ AppIntentsKit) | Shortcuts/Siri/personal-automation control via App Intents — second front-end to 700's command surface. | Deferred (v1.1) |
-| 900 | [photo-library-source](../specs/900-photo-library-source/spec.md) | PhotoLibraryKit (new) | Apple Photos / iCloud albums as a source, behind a backend-neutral source protocol.       | Deferred (v1.x) |
+| 900 | [photo-library-source](../specs/900-photo-library-source/spec.md) | PhotoLibraryKit (new) | Apple Photos / iCloud albums (incl. Shared Albums) as a source, behind a backend-neutral source protocol. Amended 2026-07-16: full-access gate, shared-album quality ceiling, iOS 27 rebuild risk. | Deferred (v1.x) |
+| 1000 | [apple-tv](../specs/1000-apple-tv/spec.md)                       | tvOS app target (new) | Apple TV port: same packages/engine on tvOS 17+, purgeable-storage discipline, config sync (non-secrets via KVS, secrets E2E via CloudKit encrypted fields — constitution III v1.1.0), remote-first chrome, HA device parity. | Deferred (roadmap) |
 
 ## How they connect
 
@@ -64,6 +65,9 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 800 App Intents ──> 700's command surface (Shortcuts/Siri/automations, no MQTT; deferred v1.1)
 900 Photo Library Source ──> 120 source library (new kind) + a source-neutral data
                              protocol that 100 and PhotoKit both implement (deferred v1.x)
+1000 Apple TV ──> second app target reusing every package: 210 onboarding semantics,
+                  320 purge tolerance (as the normal case), 400 seam (software dim),
+                  600/700/710 parity as a distinct HA device (deferred, roadmap with 900)
 ```
 
 - **200** owns the Settings-screen surface; it *surfaces* the 600 (Broker) and 500 (Display)
@@ -83,8 +87,11 @@ source kinds — read it alongside `120`.
 ## Reserved / deferred (roadmap)
 
 Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120`/`710` shipped and are
-Active above. `310` and `320` are **implemented** (the two pre-release gates); `800`/`900` are
-specced and deferred (post-release, in that order); the rest remain unscheduled.
+Active above. `310` and `320` are **implemented** (the two pre-release gates); `800`/`900`/`1000`
+are specced and deferred — post-release order: `800` intents, then the two roadmap majors
+`900` (iCloud/Photos source, amended 2026-07-16 after the feasibility research) and `1000`
+(Apple TV). `900` and `1000` interlock: 1000 reuses 900's source protocol, and the Photos
+source *on tvOS* is prototype-gated in both roadmaps.
 
 **Reserved sub-specs / future sources:**
 - `730` HA sleep/wake driven by an HA presence signal (pairs with the 400 sleep/wake roadmap item).
