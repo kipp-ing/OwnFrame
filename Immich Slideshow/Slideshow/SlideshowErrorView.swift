@@ -87,11 +87,13 @@ struct SlideshowErrorView: View {
             return "This app needs Immich v3 or newer. Update your Immich server, "
                 + "then tap Try again."
         case .authentication:
-            // 900 US3-3/4: for a Photos source the cause is reduced/revoked photo access —
-            // name it and point at the re-grant, not at the Immich connection.
+            // 900 US3-3/4: for a Photos source the cause is insufficient photo access —
+            // name it and point at Settings, not at the Immich connection. "Missing or
+            // reduced" also covers the never-asked state (e.g. after a backup restore),
+            // where nothing was ever revoked.
             if isPhotoLibrarySource {
-                return "Photo access for this app was reduced or revoked, so this source "
-                    + "can't play. Re-grant full photo access in Settings."
+                return "Photo access for this app is missing or was reduced, so this source "
+                    + "can't play. Allow full photo access in Settings."
             }
             return "Check your connection settings — the API key or shared link "
                 + "may have expired. Retrying automatically in the background."

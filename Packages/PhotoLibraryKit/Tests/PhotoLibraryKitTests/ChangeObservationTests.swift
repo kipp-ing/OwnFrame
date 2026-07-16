@@ -69,6 +69,113 @@ import PhotoLibraryTestSupport
         let failure = await captureFailure { try await provider.assets(in: "album") }
         #expect(failure?.isNotFound == true)
     }
+
+    // MARK: - Prompt-free change observation (FR-900-04)
+
+    // The observer must never be wired while access is `.notDetermined`: registering a
+    // `PHPhotoLibraryChangeObserver` is what fires the system TCC prompt, and the spec forbids
+    // any permission request outside the picker moment. So at registration the provider stores
+    // the handler but does NOT forward it to the gateway — the gateway is left untouched.
+    @Test func notDeterminedDoesNotForwardChangeHandlerAtRegistration() async {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.notDetermined)
+        let provider = PhotoLibraryProvider(gateway: gateway, collectionID: "album")
+
+        provider.setChangeHandler { }
+
+        #expect(gateway.setChangeHandlerCallCount == 0)
+        #expect(gateway.capturedChangeHandler == nil)
+    }
+
+    // Denied is equally prompt-sensitive (and pointless to observe): no forward at registration.
+    @Test func deniedDoesNotForwardChangeHandlerAtRegistration() async {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.denied)
+        let provider = PhotoLibraryProvider(gateway: gateway, collectionID: "album")
+
+        provider.setChangeHandler { }
+
+        #expect(gateway.setChangeHandlerCallCount == 0)
+        #expect(gateway.capturedChangeHandler == nil)
+    }
+
+    // Full access is already granted, so registering the observer cannot prompt: forward it
+    // immediately at registration time.
+    @Test func fullAccessForwardsChangeHandlerImmediately() async {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.full)
+        let provider = PhotoLibraryProvider(gateway: gateway, collectionID: "album")
+
+        provider.setChangeHandler { }
+
+        #expect(gateway.setChangeHandlerCallCount == 1)
+        #expect(gateway.capturedChangeHandler != nil)
+    }
+
+    // Limited access is also a granted level — registration is prompt-free — and the
+    // granted-assets pool is the source this provider serves, so forward immediately.
+    @Test func limitedSelectedPhotosForwardsChangeHandlerImmediately() async {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.limited)
+        let provider = PhotoLibraryProvider(
+            gateway: gateway, collectionID: PhotoLibrarySource.selectedPhotosID
+        )
+
+        provider.setChangeHandler { }
+
+        #expect(gateway.setChangeHandlerCallCount == 1)
+        #expect(gateway.capturedChangeHandler != nil)
+    }
+
+    // The deferred handler comes alive exactly once. It is set while `.notDetermined` (no
+    // forward), the user then grants full access, and the next `ensureReady()` — which runs at
+    // engine start, every refresh, and manual retry — forwards it. A second `ensureReady()`
+    // must not re-register (a double PhotoKit registration).
+    @Test func deferredHandlerForwardsOnceAfterAccessIsGranted() async throws {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.notDetermined)
+        let provider = PhotoLibraryProvider(gateway: gateway, collectionID: "album")
+
+        provider.setChangeHandler { }
+        #expect(gateway.setChangeHandlerCallCount == 0)   // deferred, no prompt
+
+        gateway.setAuthorization(.full)
+        try await provider.ensureReady()
+        #expect(gateway.setChangeHandlerCallCount == 1)
+        #expect(gateway.capturedChangeHandler != nil)
+
+        // Readiness is re-checked constantly; the observer must be wired exactly once.
+        try await provider.ensureReady()
+        #expect(gateway.setChangeHandlerCallCount == 1)
+    }
+
+    // Access never gets granted: the handler stays deferred and `ensureReady()` still surfaces
+    // the calm auth gate, having never touched the gateway.
+    @Test func deferredHandlerStaysUnforwardedWhileAccessRemainsNotDetermined() async {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.notDetermined)
+        let provider = PhotoLibraryProvider(gateway: gateway, collectionID: "album")
+
+        provider.setChangeHandler { }
+
+        let failure = await captureFailure { try await provider.ensureReady() }
+        #expect(failure?.isAuthentication == true)
+        #expect(gateway.setChangeHandlerCallCount == 0)
+    }
+
+    // Once a handler has actually been forwarded, clearing it with `nil` must forward the nil so
+    // the gateway tears the real observer down (no leaked registration).
+    @Test func clearingAfterForwardUnregistersAtGateway() async {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.full)
+        let provider = PhotoLibraryProvider(gateway: gateway, collectionID: "album")
+
+        provider.setChangeHandler { }
+        #expect(gateway.capturedChangeHandler != nil)
+
+        provider.setChangeHandler(nil)
+        #expect(gateway.capturedChangeHandler == nil)
+    }
 }
 
 // MARK: - Test helpers
@@ -92,6 +199,7 @@ private func captureFailure<T>(
 
 private extension SourceFailure {
     var isNotFound: Bool { if case .notFound = self { return true } else { return false } }
+    var isAuthentication: Bool { if case .authentication = self { return true } else { return false } }
 }
 
 /// Thread-safe fire flag for the change-handler callback assertions.

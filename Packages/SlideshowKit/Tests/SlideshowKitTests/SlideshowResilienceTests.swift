@@ -1173,3 +1173,120 @@ struct PhotosDeliveryTests {
         #expect(model.failureReason == nil)
     }
 }
+
+// MARK: - Mid-play terminal failures (900 bugfix, FR-900-16 / FR-130-05/06)
+//
+// FR-310-03 ("while retrying, keep showing the current image") is scoped to failures that
+// actually RETRY. Terminal reasons (`.notFound` vanish, `.unsupportedServer`) never retry, so
+// there is no silent recovery to hold the stale photo for — keeping a vanished collection's
+// remembered photos on the wall forever contradicts FR-900-16 (a vanished collection MUST
+// resolve to the calm unavailable state — a first-class state, not an error path) and
+// FR-130-05/06 (surface the notice). These pins prove the terminal carve-out fires even while a
+// photo is on screen, and — critically — that it does NOT catch the non-terminal auth failure,
+// whose mid-play behavior FR-310-03 still governs. The transient mid-play case (photo kept,
+// retry armed) is already pinned by `refreshFailureKeepsStalePlayingAndHandsToRetry` and
+// `imageExhaustionKeepsCurrentImageAndAutoRecovers` above.
+
+@Suite("Resilience 900 — mid-play terminal failures")
+@MainActor
+struct MidPlayTerminalFailureTests {
+
+    /// Play two images, then fire the hourly refresh into a scripted mid-play failure so the
+    /// refresh path (`reloadSource` → `handleFailure`) sees it while a photo is on screen.
+    private func makePlayingModel(
+        source: StubPhotoSource, ticker: ManualTicker, clock: TestClock
+    ) async -> SlideshowViewModel {
+        source.setAssets([
+            SourceAsset(id: "image-1", kind: .image),
+            SourceAsset(id: "image-2", kind: .image)
+        ], for: "album")
+        source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+        source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+
+        let model = SlideshowViewModel(
+            source: source, collectionID: "album", ticker: ticker, clock: clock,
+            settingsStore: sequentialThemeStore()
+        )
+        await model.start()
+        return model
+    }
+
+    // FR-900-16: a collection deleted mid-play is TERMINAL — the engine must surface the calm
+    // unavailable state at once instead of looping the dead collection's remembered photos
+    // forever: `.failed`, the stale image cleared, the reason named, and NOTHING parked (no
+    // retry; the consumed hourly refresh does not re-arm on a failed fetch).
+    @Test func vanishMidPlaySurfacesCalmFailedStateAndParksNoRetry() async {
+        let source = StubPhotoSource()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(source: source, ticker: ticker, clock: clock)
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-1")
+        await clock.waitUntilSleeperCount(1)   // only the hourly refresh is parked
+
+        // The backing collection vanishes (album deleted / unshared): every fetch now not-founds.
+        source.setAssetsError(SourceFailure.notFound, for: "album")
+
+        // The terminal signal arrives through the refresh path.
+        clock.advance(by: .seconds(3600))
+        await waitUntil(model.phase == .failed)
+
+        #expect(model.phase == .failed)
+        #expect(model.failureReason == .notFound)
+        #expect(model.currentAssetID == nil)         // stale photo cleared — not looped forever
+        #expect(model.currentImageData == nil)
+        await waitUntil(false)                        // settle: nothing may (re-)park
+        #expect(clock.sleeperCount == 0)              // terminal: no retry, refresh not re-armed
+    }
+
+    // 130 FR-130-05/06: a server downgraded below v3 mid-play is likewise terminal — the
+    // unsupported-server notice replaces the show; no backoff loop against a server the app can
+    // never satisfy (the neutral engine sees `.permanent` → `.unsupportedServer`).
+    @Test func unsupportedServerMidPlaySurfacesNoticeAndParksNoRetry() async {
+        let source = StubPhotoSource()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(source: source, ticker: ticker, clock: clock)
+        #expect(model.currentAssetID == "image-1")
+        await clock.waitUntilSleeperCount(1)
+
+        // The server is downgraded to an unsupported version — the readiness gate now rejects it.
+        source.setEnsureReadyError(SourceFailure.permanent(underlying: TestSourceError.probe))
+        clock.advance(by: .seconds(3600))
+        await waitUntil(model.phase == .failed)
+
+        #expect(model.phase == .failed)
+        #expect(model.failureReason == .unsupportedServer)
+        #expect(model.currentImageData == nil)
+        await waitUntil(false)
+        #expect(clock.sleeperCount == 0)              // terminal: nothing parked
+    }
+
+    // FR-310-05 + FR-310-03 (the non-goal pin): the terminal carve-out must NOT catch AUTH.
+    // Authentication is non-terminal, so a mid-play 401/revocation keeps the current photo on
+    // screen (FR-310-03 wins while a photo is showing) and arms the cap-only retry — exactly as
+    // before. Only `.notFound` / `.unsupportedServer` surface the calm `.failed` state mid-play.
+    @Test func authFailureMidPlayKeepsCurrentPhotoAndArmsRetry() async {
+        let source = StubPhotoSource()
+        let ticker = ManualTicker()
+        let clock = TestClock()
+        let model = await makePlayingModel(source: source, ticker: ticker, clock: clock)
+        #expect(model.currentAssetID == "image-1")
+        await clock.waitUntilSleeperCount(1)
+
+        // Credentials expire mid-play: the source-list refresh now 401s.
+        source.setAssetsError(SourceFailure.authentication, for: "album")
+        clock.advance(by: .seconds(3600))             // fire the hourly refresh into the auth failure
+        await waitUntil(model.failureReason == .authentication)
+
+        // FR-310-03 wins while a photo is on screen: the stale photo stays, no calm `.failed`.
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.currentImageData == Data([1]))
+        #expect(model.failureReason == .authentication)
+
+        // A cap-only retry IS armed (non-terminal) — the refresh handed off to the backoff retry.
+        await clock.waitUntilSleeperCount(1)
+        #expect(clock.sleeperCount == 1)
+    }
+}
