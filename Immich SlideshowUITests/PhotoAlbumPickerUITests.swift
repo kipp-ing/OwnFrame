@@ -170,6 +170,128 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         waitForExpectations(timeout: 5)
     }
 
+    // MARK: - US3: permissions handled honestly (T029)
+
+    /// US3-2 — limited access: the picker offers exactly ONE "Selected Photos" source (the
+    /// granted pool), the system's manage-selection affordance, and an honest note that
+    /// albums — including iCloud Shared Albums — need full access. It must never render an
+    /// empty album list as if the user had no albums. Selecting the pool source plays it.
+    @MainActor
+    func testLimitedAccessOffersSelectedPhotosOnly() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos", "--uitest-photos-auth=limited"]
+        app.launch()
+
+        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+
+        openSources(in: app)
+        app.buttons["sources.add"].tap()
+        app.buttons["Photos album"].tap()
+
+        // The single offerable source, not an album list (and not a bare unavailable state).
+        let selectedRow = app.buttons["sources.photos.selected-photos"]
+        XCTAssertTrue(selectedRow.waitForExistence(timeout: 5),
+                      "limited access should offer the Selected Photos pool as one source")
+        XCTAssertFalse(app.buttons["sources.photos.pl-family"].exists,
+                       "albums must not be listed under limited access")
+
+        // Honest note + the system manage-selection affordance.
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "sources.photos.limitedNote")
+            .firstMatch.exists, "the picker should state plainly that albums need full access")
+        XCTAssertTrue(app.buttons["sources.photos.manageSelection"].exists,
+                      "the system manage-selection affordance should be offered")
+
+        // Selecting the pool adds it; activating plays the granted assets.
+        selectedRow.tap()
+        app.buttons["sources.add.done"].tap()
+        let newRow = app.buttons["Selected Photos"]
+        XCTAssertTrue(newRow.waitForExistence(timeout: 5))
+        newRow.tap()
+
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        let poolAsset = NSPredicate(format: "value BEGINSWITH %@", "pl-asset")
+        expectation(for: poolAsset, evaluatedWith: image)
+        waitForExpectations(timeout: 5)
+    }
+
+    /// US3-1 — denied access: a calm message explains the frame cannot see photos and links
+    /// to iOS Settings; the other source kinds keep working untouched.
+    @MainActor
+    func testDeniedAccessShowsCalmMessageWithSettingsPath() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos", "--uitest-photos-auth=denied"]
+        app.launch()
+
+        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+
+        openSources(in: app)
+        app.buttons["sources.add"].tap()
+        app.buttons["Photos album"].tap()
+
+        let denied = app.descendants(matching: .any).matching(identifier: "sources.photos.denied").firstMatch
+        XCTAssertTrue(denied.waitForExistence(timeout: 5),
+                      "denied access should show a calm explanation")
+        XCTAssertTrue(app.buttons["sources.photos.openSettings"].exists,
+                      "the denied state should link to iOS Settings")
+
+        // Other source kinds keep working: the Immich album tab still lists albums.
+        app.buttons["Album"].tap()
+        XCTAssertTrue(app.buttons["sources.album.a2"].waitForExistence(timeout: 5),
+                      "denied photo access must not affect Immich album sources")
+    }
+
+    /// US3-4 — mid-life downgrade: a saved, active Photos ALBUM source under an access
+    /// downgrade (full → limited) becomes calmly unavailable with copy naming the cause and
+    /// the fix in iOS Settings — not the Immich connection-editor path.
+    @MainActor
+    func testDowngradeMakesActiveAlbumSourceCalmlyUnavailable() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos-source", "--uitest-photos-auth=limited"]
+        app.launch()
+
+        let error = app.staticTexts["slideshow.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5),
+                      "a downgraded album source should land in the calm error state")
+
+        // The fix is re-granting photo access, not editing the Immich connection.
+        XCTAssertTrue(app.buttons["slideshow.openSettings"].waitForExistence(timeout: 3),
+                      "the error state should offer the iOS Settings path for photo access")
+        XCTAssertFalse(app.buttons["slideshow.fixConnection"].exists,
+                       "the Immich connection editor is the wrong fix for a Photos source")
+        let photoCopy = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS[c] %@", "photo access")
+        ).firstMatch
+        XCTAssertTrue(photoCopy.exists, "the copy should name reduced photo access as the cause")
+    }
+
+    /// FR-900-16 — vanish: an active Photos source whose backing collection disappears
+    /// (deleted / unshared / upgraded to the new iCloud format) fails to the calm terminal
+    /// state whose copy names the possible causes, including the iOS 27 upgrade hint.
+    @MainActor
+    func testVanishedAlbumShowsCauseCopyIncludingUpgradeHint() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos-source", "--uitest-photos-auth=full",
+                               "--uitest-photos-vanish"]
+        app.launch()
+
+        let error = app.staticTexts["slideshow.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5),
+                      "a vanished collection should land in the calm error state")
+        XCTAssertEqual(error.label, "This source is gone")
+
+        let upgradeHint = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "iCloud")
+        ).firstMatch
+        XCTAssertTrue(upgradeHint.exists,
+                      "the vanish copy should include the upgraded-iCloud-album hint (FR-900-16)")
+    }
+
     // MARK: - Helpers
 
     @MainActor
