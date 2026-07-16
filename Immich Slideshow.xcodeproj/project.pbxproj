@@ -555,6 +555,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Photo Frame for Immich connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Photo Frame can play albums from your Photos library, including iCloud albums. Access is only used to list your albums and show their photos in the slideshow.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -606,6 +607,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Photo Frame for Immich connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Photo Frame can play albums from your Photos library, including iCloud albums. Access is only used to list your albums and show their photos in the slideshow.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

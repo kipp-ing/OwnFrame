@@ -9,6 +9,7 @@
 //
 
 import OnboardingKit
+import PhotoLibraryKit
 import SwiftUI
 
 struct OnboardingFlowView: View {
@@ -17,15 +18,19 @@ struct OnboardingFlowView: View {
     /// A shared link handed in while the app is still unconfigured (210, US2):
     /// pre-fills the shared-link setup field.
     let sharedLinkPrefill: String
+    // 900 / US1: the PhotoKit seam for the source step's Photos-album tab.
+    let makePhotoGateway: () -> any PhotoLibraryGateway
 
     init(
         viewModel: OnboardingViewModel,
         sharedLinkPrefill: String = "",
-        makeSourceLibrary: () -> SourceLibraryViewModel
+        makeSourceLibrary: () -> SourceLibraryViewModel,
+        makePhotoGateway: @escaping () -> any PhotoLibraryGateway = { PHKitGateway() }
     ) {
         self.viewModel = viewModel
         self.sharedLinkPrefill = sharedLinkPrefill
         _sourceLibrary = State(initialValue: makeSourceLibrary())
+        self.makePhotoGateway = makePhotoGateway
     }
 
     var body: some View {
@@ -39,7 +44,7 @@ struct OnboardingFlowView: View {
                 case .connection:
                     ConnectionStepView(viewModel: viewModel)
                 case .source:
-                    SourceStepView(onboarding: viewModel, sourceLibrary: sourceLibrary)
+                    SourceStepView(onboarding: viewModel, sourceLibrary: sourceLibrary, makePhotoGateway: makePhotoGateway)
                 case .confirm:
                     OnboardingConfirmStepView(onboarding: viewModel, sourceLibrary: sourceLibrary)
                 case .done:

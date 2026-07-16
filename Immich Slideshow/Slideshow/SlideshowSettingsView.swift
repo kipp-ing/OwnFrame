@@ -13,6 +13,7 @@ import BrokerSetupKit
 import HAControlKit
 import ImmichClient
 import OnboardingKit
+import PhotoLibraryKit
 import PowerKit
 import SlideshowKit
 import SwiftUI
@@ -31,6 +32,8 @@ struct SlideshowSettingsView: View {
     // API-key client for the add-source album picker.
     var makeSourceLibraryViewModel: () -> SourceLibraryViewModel? = { nil }
     var makeServerAPI: () async -> (any ImmichAPI)? = { nil }
+    // 900 / US1: the PhotoKit seam for the add-sheet's Photos-album tab.
+    var makePhotoGateway: () -> any PhotoLibraryGateway = { PHKitGateway() }
     // Reset lives here rather than on the chrome (300/FR-300-28): a wall-mounted photo
     // frame has no real "exit," so the only thing a chrome button could do was reset —
     // better placed as an explicit, clearly destructive Settings action.
@@ -68,6 +71,7 @@ struct SlideshowSettingsView: View {
         onConnectionChanged: @escaping (ConnectionValidationOutcome) -> Void = { _ in },
         makeSourceLibraryViewModel: @escaping () -> SourceLibraryViewModel? = { nil },
         makeServerAPI: @escaping () async -> (any ImmichAPI)? = { nil },
+        makePhotoGateway: @escaping () -> any PhotoLibraryGateway = { PHKitGateway() },
         onReset: @escaping () -> Void = {},
         diskCache: (any DiskImageStoring)? = nil,
         snapshotStore: (any SourceSnapshotStoring)? = nil,
@@ -79,6 +83,7 @@ struct SlideshowSettingsView: View {
         self.onConnectionChanged = onConnectionChanged
         self.makeSourceLibraryViewModel = makeSourceLibraryViewModel
         self.makeServerAPI = makeServerAPI
+        self.makePhotoGateway = makePhotoGateway
         self.onReset = onReset
         self.diskCache = diskCache
         self.snapshotStore = snapshotStore
@@ -170,7 +175,7 @@ struct SlideshowSettingsView: View {
                 if let sourceLibraryViewModel {
                     Section {
                         NavigationLink {
-                            SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI)
+                            SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway)
                         } label: {
                             Label("Sources", systemImage: "photo.stack")
                                 .accessibilityIdentifier("settings.sources")

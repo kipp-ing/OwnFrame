@@ -11,6 +11,7 @@ import HAControlKit
 import HAControlMQTT
 import ImmichClient
 import OnboardingKit
+import PhotoLibraryKit
 import PhotoSourceKit
 import PowerKit
 import SlideshowKit
@@ -52,6 +53,10 @@ struct Immich_SlideshowApp: App {
         // Builds the Settings source manager's view model (120, US2). The caller passes
         // an `onSwitchActive` that restarts the running slideshow (RootView.switchSource).
         let makeSourceLibraryViewModel: @MainActor @Sendable (@escaping (String) -> Void) -> SourceLibraryViewModel
+        // The PhotoKit seam for the Photos-album pickers (900, US1): the real
+        // PHKitGateway in production, a scripted in-memory fake under `--uitest` so the
+        // hermetic tests never hit a real permission prompt or library.
+        let makePhotoLibraryGateway: @MainActor @Sendable () -> any PhotoLibraryGateway
         // Keeps the display awake during the slideshow and can control brightness.
         // Backed by the live screen in production, a fake under `--uitest` so the
         // hermetic test never touches real device brightness.
@@ -153,6 +158,7 @@ struct Immich_SlideshowApp: App {
                 makeSourceLibraryViewModel: { @MainActor @Sendable onSwitchActive in
                     SourceLibraryViewModel(store: sourceStore, secretStore: secretStore, resolver: resolver, onSwitchActive: onSwitchActive)
                 },
+                makePhotoLibraryGateway: { @MainActor @Sendable in UITestPhotoLibraryGateway() },
                 makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
                 makeCoordinator: { @MainActor @Sendable _, _, _ in nil },
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
@@ -356,6 +362,7 @@ struct Immich_SlideshowApp: App {
             makeServerAPI: makeServerAPI,
             switchActiveSource: switchActiveSource,
             makeSourceLibraryViewModel: makeSourceLibraryViewModel,
+            makePhotoLibraryGateway: { @MainActor @Sendable in PHKitGateway() },
             makePowerManager: makePowerManager,
             makeCoordinator: makeCoordinator,
             makeConnectionSettingsViewModel: makeConnectionSettingsViewModel,
@@ -439,6 +446,7 @@ private struct RootView: View {
                               onConnectionChanged: handleConnectionChange,
                               makeSourceLibraryViewModel: { factories.makeSourceLibraryViewModel { id in switchSource(id: id) } },
                               makeServerAPI: { await factories.makeServerAPI() },
+                              makePhotoGateway: { factories.makePhotoLibraryGateway() },
                               diskCache: factories.diskCache,
                               snapshotStore: factories.snapshotStore,
                               budgetStore: factories.cacheBudgetStore)
@@ -466,7 +474,8 @@ private struct RootView: View {
             OnboardingFlowView(
                 viewModel: onboarding,
                 sharedLinkPrefill: incomingPrefill,
-                makeSourceLibrary: { factories.makeSourceLibraryViewModel { _ in } }
+                makeSourceLibrary: { factories.makeSourceLibraryViewModel { _ in } },
+                makePhotoGateway: { factories.makePhotoLibraryGateway() }
             )
         }
     }
@@ -650,7 +659,7 @@ enum UITestSupport {
         case let .album(id): albumID = id
         case .sharedLink: albumID = "a2"
         // 900: hermetic photoLibrary sources reuse the stub's default album until the
-        // US1 uitest seam (--uitest-photos, T019) brings its own fake gateway.
+        // US1 factory-by-SourceKind wiring (T020) routes them through the fake gateway.
         case .photoLibrary: albumID = "a1"
         case nil: albumID = "a1"
         }
@@ -941,5 +950,70 @@ private struct UITestSharedLinkResolver: SharedLinkResolving {
         }
         return SharedLinkResolution(key: "uitest-key", albumID: "a2", expiresAt: nil)
     }
+}
+
+// 900 / US1 (T019): the hermetic PhotoLibraryGateway behind the Photos-album pickers.
+// Mirrors real PhotoKit authorization semantics — `.notDetermined` until the picker calls
+// `requestAuthorization()`, then the level scripted by `--uitest-photos-auth=full|limited|
+// denied|notDetermined` (default full) — so "access is requested at that moment"
+// (FR-900-04) is exactly what the UI test drives. Collections are deterministic; the
+// asset-serving paths are minimal because the hermetic slideshow still plays through
+// `StubImmichAPI` until the T020 factory wiring.
+private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked Sendable {
+    private let lock = NSLock()
+    private var hasRequested = false
+
+    private var scriptedLevel: PhotoAuthorizationState {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.first(where: { $0.hasPrefix("--uitest-photos-auth=") }) else {
+            return .full
+        }
+        switch flag.split(separator: "=").last {
+        case "limited": return .limited
+        case "denied": return .denied
+        case "notDetermined": return .notDetermined
+        default: return .full
+        }
+    }
+
+    func authorizationStatus() -> PhotoAuthorizationState {
+        lock.withLock { hasRequested ? scriptedLevel : .notDetermined }
+    }
+
+    func requestAuthorization() async -> PhotoAuthorizationState {
+        lock.withLock {
+            hasRequested = true
+            return scriptedLevel
+        }
+    }
+
+    func fetchCollections() throws -> [SourceCollection] {
+        [
+            SourceCollection(id: "pl-family", title: "Family", assetCount: 3, coverAssetID: nil),
+            SourceCollection(id: "pl-holiday", title: "Holiday 2024", assetCount: 5, coverAssetID: nil),
+        ]
+    }
+
+    func fetchAssets(in collectionID: String) throws -> [SourceAsset] {
+        [
+            SourceAsset(id: "pl-asset-1", kind: .image),
+            SourceAsset(id: "pl-asset-2", kind: .image),
+            SourceAsset(id: "pl-asset-3", kind: .image),
+        ]
+    }
+
+    func fetchGrantedAssets() throws -> [SourceAsset] {
+        [SourceAsset(id: "pl-asset-1", kind: .image)]
+    }
+
+    func requestImageData(assetID: String, fidelity: ImageFidelity) async throws -> Data {
+        Data()
+    }
+
+    func fetchMetadata(assetID: String) throws -> AssetMetadata {
+        AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: nil)
+    }
+
+    func setChangeHandler(_ handler: (@Sendable () -> Void)?) {}
 }
 #endif

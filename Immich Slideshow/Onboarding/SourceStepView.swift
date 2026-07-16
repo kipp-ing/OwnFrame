@@ -14,18 +14,22 @@
 
 import ImmichClient
 import OnboardingKit
+import PhotoLibraryKit
 import SwiftUI
 
 struct SourceStepView: View {
     @Bindable var onboarding: OnboardingViewModel
     @Bindable var sourceLibrary: SourceLibraryViewModel
+    // 900 / US1: builds the PhotoKit seam for the Photos-album tab on demand — the real
+    // gateway in production, the scripted fake under `--uitest` (injected from the app).
+    var makePhotoGateway: () -> any PhotoLibraryGateway = { PHKitGateway() }
 
-    enum Kind: Hashable { case album, sharedLink }
+    enum Kind: Hashable { case album, sharedLink, photoLibrary }
     @State private var kind: Kind = .album
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Add at least one source to play — an Immich album or a shared link. The first source you add starts the slideshow.")
+            Text("Add at least one source to play — an Immich album, a shared link, or an album from your Photos library. The first source you add starts the slideshow.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,15 +41,16 @@ struct SourceStepView: View {
             Picker("Source type", selection: $kind) {
                 Text("Album").tag(Kind.album)
                 Text("Shared link").tag(Kind.sharedLink)
+                Text("Photos album").tag(Kind.photoLibrary)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top, 8)
             .accessibilityIdentifier("onboarding.source.type")
 
-            // Album-add errors surface here; the shared-link form reports its own resolve /
-            // password errors inline (210, US4), so this stays scoped to the album tab.
-            if kind == .album, let errorMessage = sourceLibrary.errorMessage {
+            // Album-add errors (Immich and Photos alike) surface here; the shared-link form
+            // reports its own resolve / password errors inline (210, US4).
+            if kind != .sharedLink, let errorMessage = sourceLibrary.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle")
                     .font(.callout)
                     .foregroundStyle(.red)
@@ -66,6 +71,8 @@ struct SourceStepView: View {
                         submitIDSuffix: "add"
                     )
                 }
+            case .photoLibrary:
+                PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: sourceLibrary, idPrefix: "onboarding.photos")
             }
         }
         .navigationTitle("Add a source")
@@ -165,8 +172,6 @@ private extension SourceKind {
         switch self {
         case .album: "photo.stack"
         case .sharedLink: "link"
-        // 900: not offered by onboarding yet (US1/T019 adds the picker entry); the icon
-        // exists so a photoLibrary source saved elsewhere renders sensibly in lists.
         case .photoLibrary: "photo.on.rectangle.angled"
         }
     }
