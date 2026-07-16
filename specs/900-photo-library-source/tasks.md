@@ -113,11 +113,11 @@ selected album plays through the unchanged engine, source persists in the 120 li
       add `INFOPLIST_KEY_NSPhotoLibraryUsageDescription` to
       `Immich Slideshow.xcodeproj/project.pbxproj` (pbxproj explicitly IN SCOPE for this
       key only) — green T018
-- [ ] T020 [US1] Cross-backend switching: red engine test (backend change → `.rebuild`, no
+- [x] T020 [US1] Cross-backend switching: red engine test (backend change → `.rebuild`, no
       leaked timers — SC-900-06 seed) in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowViewModelTests.swift`; wire
       provider factory by `SourceKind` in `Immich Slideshow/Immich_SlideshowApp.swift`
-- [ ] T021 [US1] **Checkpoint**: US1 acceptance 1–5 pass (saved Photos source persists,
+- [x] T021 [US1] **Checkpoint**: US1 acceptance 1–5 pass (saved Photos source persists,
       relaunch resumes, app-UI switching works) — `test_sim` whole classes + new UITest
 
 ---

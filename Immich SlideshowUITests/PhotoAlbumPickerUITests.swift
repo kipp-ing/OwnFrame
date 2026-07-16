@@ -88,18 +88,24 @@ final class PhotoAlbumPickerUITests: XCTestCase {
 
         XCTAssertTrue(image.waitForExistence(timeout: 5),
                       "the rebuilt slideshow should play from the Photos source")
-        XCTAssertTrue(["asset-1", "asset-2", "asset-3"].contains(image.value as? String ?? ""),
-                      "the hermetic photoLibrary source should play the stub assets")
+        // The pl-* asset ids come from the fake photo gateway through the REAL
+        // PhotoLibraryProvider — proof the switch landed on the Photos backend, not
+        // merely that a slideshow is running.
+        let photosAsset = NSPredicate(format: "value IN %@", ["pl-asset-1", "pl-asset-2", "pl-asset-3"])
+        expectation(for: photosAsset, evaluatedWith: image)
+        waitForExpectations(timeout: 5)
     }
 
     /// Onboarding source step: the Photos-album tab appears next to Album and Shared link;
     /// picking an album adds the first source and the flow continues through confirm into
     /// the running slideshow (US1 acceptance 1–3 from the onboarding entry point).
+    /// No `--uitest-photos-auth` arg: this is the FIRST-RUN path — access starts
+    /// notDetermined and is requested the moment the tab is chosen (FR-900-04), with the
+    /// fake granting full like a user tapping Allow.
     @MainActor
     func testOnboardingPhotosAlbumTabAddsFirstSource() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest", "--uitest-onboarding-source",
-                               "--uitest-photos", "--uitest-photos-auth=full"]
+        app.launchArguments = ["--uitest", "--uitest-onboarding-source", "--uitest-photos"]
         app.launch()
 
         // The source step offers the Photos-album kind.
@@ -128,6 +134,40 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
         XCTAssertTrue(image.waitForExistence(timeout: 5),
                       "finishing onboarding with a Photos source should start the slideshow")
+        XCTAssertTrue(["pl-asset-1", "pl-asset-2", "pl-asset-3"].contains(image.value as? String ?? ""),
+                      "the show should play the Photos backend's assets via the real provider")
+    }
+
+    /// US1 acceptance 4 — startup parity: a launch with a saved, active Photos source
+    /// (seeded by `--uitest-photos-source`, access already granted) resumes directly into
+    /// the Photos slideshow with no picker involved, exactly like an Immich source. The
+    /// hermetic switch also proves the app-UI path back: the Immich source row is still
+    /// there and activating it swaps the show back to the stub album (acceptance 5).
+    @MainActor
+    func testLaunchWithSavedPhotosSourceResumesDirectly() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos-source", "--uitest-photos-auth=full"]
+        app.launch()
+
+        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 5),
+                      "a saved Photos source should resume straight into the slideshow")
+        let photosAsset = NSPredicate(format: "value IN %@", ["pl-asset-1", "pl-asset-2", "pl-asset-3"])
+        expectation(for: photosAsset, evaluatedWith: image)
+        waitForExpectations(timeout: 5)
+
+        // Cross-backend switch in the other direction: Photos → Immich album rebuilds
+        // back onto the stub album's assets.
+        openSources(in: app)
+        let albumRow = app.buttons["sources.row.src-a1"]
+        XCTAssertTrue(albumRow.waitForExistence(timeout: 3))
+        albumRow.tap()
+
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        let immichAsset = NSPredicate(format: "value IN %@", ["asset-1", "asset-2", "asset-3"])
+        expectation(for: immichAsset, evaluatedWith: image)
+        waitForExpectations(timeout: 5)
     }
 
     // MARK: - Helpers
