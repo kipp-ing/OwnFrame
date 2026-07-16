@@ -37,6 +37,8 @@ Packages/*
 !Packages/HAControlKit/
 !Packages/BrokerSetupKit/
 !Packages/ThemeKit/
+!Packages/PhotoSourceKit/
+!Packages/PhotoLibraryKit/
 Package.pins
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
