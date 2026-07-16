@@ -20,11 +20,11 @@ subagents), US1–US3 = slices C/D/E, app-target/UI tasks are Fable-inline.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Scaffold `Packages/PhotoSourceKit` (Package.swift: platforms iOS 17/macOS 14,
+- [x] T001 Scaffold `Packages/PhotoSourceKit` (Package.swift: platforms iOS 17/macOS 14,
       products `PhotoSourceKit` + `PhotoSourceTestSupport`, empty source/test targets)
-- [ ] T002 [P] Scaffold `Packages/PhotoLibraryKit` (Package.swift: depends on
+- [x] T002 [P] Scaffold `Packages/PhotoLibraryKit` (Package.swift: depends on
       `../PhotoSourceKit`, source + test targets)
-- [ ] T003 Add both package references to `Immich Slideshow.xcodeproj/project.pbxproj`
+- [x] T003 Add both package references to `Immich Slideshow.xcodeproj/project.pbxproj`
       (pbxproj explicitly IN SCOPE for this task only) and link products to the app target
 
 ---
@@ -34,46 +34,46 @@ subagents), US1–US3 = slices C/D/E, app-target/UI tasks are Fable-inline.
 **Purpose**: FR-900-01/02 — engine consumes only `PhotoSourceProviding`; ImmichClient
 becomes a peer conformer; snapshot wire format preserved (R2).
 
-- [ ] T004 [P] Red tests: neutral model semantics in
+- [x] T004 [P] Red tests: neutral model semantics in
       `Packages/PhotoSourceKit/Tests/PhotoSourceKitTests/SourceModelsTests.swift` —
       `SourceAsset` encodes/decodes the exact `{id, type}` shape (checked-in legacy JSON
       fixture), unknown `type` string → `.other`, `SourceFailure` case surface per
       data-model.md
-- [ ] T005 Implement `Packages/PhotoSourceKit/Sources/PhotoSourceKit/`
+- [x] T005 Implement `Packages/PhotoSourceKit/Sources/PhotoSourceKit/`
       (`PhotoSourceProviding.swift`, `SourceModels.swift`, `SourceFailure.swift`) per
       contracts — green T004
-- [ ] T006 [P] Implement scriptable `StubPhotoSource` in
+- [x] T006 [P] Implement scriptable `StubPhotoSource` in
       `Packages/PhotoSourceKit/Sources/PhotoSourceTestSupport/StubPhotoSource.swift`
       (per-call results/delays/errors — feature parity with today's `StubImmichAPI`)
-- [ ] T007 Red tests: Immich conformance + error mapping in
+- [x] T007 Red tests: Immich conformance + error mapping in
       `Packages/ImmichClient/Tests/ImmichClientTests/ImmichPhotoSourceTests.swift`
       (MockTransport-driven: collections/assets/imageData/metadata mapping; the full
       ImmichError → SourceFailure table from data-model.md)
-- [ ] T008 Implement `Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift`
+- [x] T008 Implement `Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift`
       (+ Package.swift dep on PhotoSourceKit) — green T007
-- [ ] T009 Migrate SlideshowKit test doubles: replace `StubImmichAPI` usage with
+- [x] T009 Migrate SlideshowKit test doubles: replace `StubImmichAPI` usage with
       `StubPhotoSource` across `Packages/SlideshowKit/Tests/SlideshowKitTests/` (Fakes.swift
       first) — suites red/non-compiling against the yet-unchanged engine is the expected
       state before T010
-- [ ] T010 Refactor `Packages/SlideshowKit/Sources/SlideshowKit/` to the neutral contract:
+- [x] T010 Refactor `Packages/SlideshowKit/Sources/SlideshowKit/` to the neutral contract:
       `SlideshowViewModel.swift` (`source: any PhotoSourceProviding`, `ensureReady()`,
       `kind == .image` filter, `SourceFailure` paths), `RetryPolicy.swift`
       (`classify(SourceFailure)`), `SourceSnapshotStore.swift` (`[SourceAsset]`, wire
       compat), Package.swift (drop ImmichClient, add PhotoSourceKit) — ALL suites green
       incl. the legacy-fixture decode
-- [ ] T011 Red-then-green: `SourceKind.photoLibrary(collectionID:)` + selected-photos
+- [x] T011 Red-then-green: `SourceKind.photoLibrary(collectionID:)` + selected-photos
       sentinel in `Packages/OnboardingKit` — tests in
       `Tests/OnboardingKitTests/SourceLibraryTests.swift` +
       `SourceLibraryViewModelTests.swift`, impl in `Sources/OnboardingKit/Source.swift`,
       `SourceLibrary.swift`, `SourceLibraryViewModel.swift` (additive codable, R11)
-- [ ] T012 Rewire app target to neutral types (Fable-inline):
+- [x] T012 Rewire app target to neutral types (Fable-inline):
       `Immich Slideshow/Immich_SlideshowApp.swift` (factories build
       `ImmichPhotoSource`-backed provider),
       `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` +
       `AlbumBrowserView.swift` (consume `[SourceCollection]`) — build green; red coverage
       is implicit: the existing app-side suites (adapter tests, HA round-trip) go red
       during the rewiring and gate it
-- [ ] T013 **Checkpoint (quickstart Phase-1 gate)**: `swift test` green for PhotoSourceKit,
+- [x] T013 **Checkpoint (quickstart Phase-1 gate)**: `swift test` green for PhotoSourceKit,
       SlideshowKit, ImmichClient, OnboardingKit; XcodeBuildMCP `build_sim` + app-bundle
       `test_sim` green; zero behavioral test edits beyond renames
 
@@ -87,18 +87,18 @@ it plays like any source, persists, survives relaunch, participates in switching
 **Independent Test**: spec US1 — fake provider behind the protocol: album list enumerates,
 selected album plays through the unchanged engine, source persists in the 120 library.
 
-- [ ] T014 [P] [US1] Red tests: provider happy path in
+- [x] T014 [P] [US1] Red tests: provider happy path in
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/PhotoLibraryProviderTests.swift`
       against a new `FakePhotoLibraryGateway` (collections incl. shared albums; windowed
       assets; `ensureReady()` full→ok, notDetermined→`.authentication`; vanish →
       `.notFound`)
-- [ ] T015 [US1] Implement `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/`
+- [x] T015 [US1] Implement `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/`
       (`PhotoLibraryProvider.swift`, `PhotoLibraryGateway.swift`,
       `PhotoLibraryAuthorization.swift` basic states) — green T014
-- [ ] T016 [P] [US1] Seam guard test in
+- [x] T016 [P] [US1] Seam guard test in
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/SeamTests.swift`: `import Photos`
       appears in `PHKitGateway.swift` only (source-grep assertion)
-- [ ] T017 [US1] Implement `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift`
+- [x] T017 [US1] Implement `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift`
       (the ONLY Photos import): `.readWrite` authorization, user albums +
       `.albumCloudShared` fetch, windowed asset fetch, final-quality image request (R5/R6) —
       Fable-inline (privacy-adjacent thin adapter)
