@@ -70,7 +70,9 @@ becomes a peer conformer; snapshot wire format preserved (R2).
       `Immich Slideshow/Immich_SlideshowApp.swift` (factories build
       `ImmichPhotoSource`-backed provider),
       `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` +
-      `AlbumBrowserView.swift` (consume `[SourceCollection]`) — build green
+      `AlbumBrowserView.swift` (consume `[SourceCollection]`) — build green; red coverage
+      is implicit: the existing app-side suites (adapter tests, HA round-trip) go red
+      during the rewiring and gate it
 - [ ] T013 **Checkpoint (quickstart Phase-1 gate)**: `swift test` green for PhotoSourceKit,
       SlideshowKit, ImmichClient, OnboardingKit; XcodeBuildMCP `build_sim` + app-bundle
       `test_sim` green; zero behavioral test edits beyond renames
@@ -105,9 +107,12 @@ selected album plays through the unchanged engine, source persists in the 120 li
       seam with in-memory fake gateway: entry point → request → searchable album list →
       select → slideshow)
 - [ ] T019 [US1] Implement `Immich Slideshow/Onboarding/PhotoAlbumPickerView.swift`
-      (reuse `AlbumPickerView` 210 pattern; purpose-string Info.plist key
-      `NSPhotoLibraryUsageDescription`) + entry points in `SourceStepView.swift` and
-      `SourceLibraryView.swift` — green T018
+      (reuse `AlbumPickerView` 210 pattern) + entry points in `SourceStepView.swift` and
+      `SourceLibraryView.swift`; wire the hermetic `--uitest-photos` seam
+      (FakePhotoLibraryGateway injection) in `Immich Slideshow/Immich_SlideshowApp.swift`;
+      add `INFOPLIST_KEY_NSPhotoLibraryUsageDescription` to
+      `Immich Slideshow.xcodeproj/project.pbxproj` (pbxproj explicitly IN SCOPE for this
+      key only) — green T018
 - [ ] T020 [US1] Cross-backend switching: red engine test (backend change → `.rebuild`, no
       leaked timers — SC-900-06 seed) in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowViewModelTests.swift`; wire
@@ -157,7 +162,8 @@ states; revoked-while-active errors like a failed Immich source.
 - [ ] T027 [P] [US3] Red tests: full authorization matrix in
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/AuthorizationTests.swift`
       (data-model table: limited → albums `.authentication` / selected-photos OK; downgrade
-      transition mid-session; denied) 
+      transition mid-session; denied; platform add-only status maps to `.denied` at the
+      gateway — FR-900-04)
 - [ ] T028 [US3] Implement complete state machine + 
       `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/SelectedPhotosSource.swift`
       (granted-pool enumeration via `fetchGrantedAssets`) — green T027
@@ -189,7 +195,8 @@ states; revoked-while-active errors like a failed Immich source.
       `docs/spec-traceability.md` (900 section)
 - [ ] T035 Full XCUITest suite via XcodeBuildMCP `test_sim` (standing pre-merge rule;
       broker-toggle class re-run isolated if it flakes) + quickstart.md Phase-1/2/3 gate
-      commands re-run clean
+      commands re-run clean + FR-900-14 egress review: grep PhotoLibraryKit for any network
+      API use — only the gateway's PhotoKit calls are permitted
 - [ ] T036 Schedule (do NOT execute now) the manual release gates: SC-900-01/02/04 device
       passes and the SC-900-07 iOS-27-beta ship gate — tracked as a checklist in
       `specs/900-photo-library-source/quickstart.md`

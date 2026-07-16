@@ -187,7 +187,10 @@ revoked-while-active → the source errors calmly like a failed Immich source.
   periodic refresh remains the guaranteed upper bound.
 - **FR-900-10**: The info overlay MUST show the same fields as for Immich assets (date,
   location when available) sourced from asset metadata; the FR-300-25 exclusions (no filename,
-  no album name, no secrets) hold.
+  no album name, no secrets) hold. "Location available" means a display-ready place name in
+  the metadata itself: coordinate-only locations render nothing, because deriving a place
+  name would require a geocoding request off-device (prohibited by FR-900-14; on-device
+  reverse geocoding is Roadmap if it ever exists platform-side).
 - **FR-900-11**: HA integration (topic 700/710) MUST treat a Photos source like any source:
   it appears in the source select, current-photo *metadata* publishes the same fields.
 - **FR-900-12**: Publishing photo *images* from a Photos source to MQTT follows the existing
