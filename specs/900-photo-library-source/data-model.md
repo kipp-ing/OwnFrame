@@ -56,7 +56,7 @@ simply returns ≤ 2048 px data for `.original` on legacy shared assets.
 |---|---|---|---|
 | `.transient(underlying)` | Backoff retry (FR-310) | network/5xx/timeouts | iCloud fetch errors, throttling |
 | `.authentication` | Calm actionable state + slow retry | 401/403 (key revoked, link expired) | denied / downgraded-to-limited for an album source |
-| `.notFound` | **Vanish state** (FR-900-16): calm unavailable, names likely cause, other sources untouched | album deleted (404) | collection missing from fetch (deleted / unshared / iOS-27-upgraded) |
+| `.notFound` | **Vanish state** (FR-900-16): calm unavailable, names likely cause, other sources untouched | *not reachable today*: the client collapses 404 into `.invalidResponse` → `.transient`, preserving current retry+refresh behavior (T008 finding; narrowing needs the client to expose HTTP status — roadmap) | collection missing from fetch (deleted / unshared / iOS-27-upgraded) |
 | `.permanent(underlying)` | Calm error state, manual recovery | decode/contract errors | undecodable asset spills only as per-asset skip, never source-level |
 
 `RetryPolicy.classify(SourceFailure)` replaces `classify(Error)`-over-`ImmichError`; the
