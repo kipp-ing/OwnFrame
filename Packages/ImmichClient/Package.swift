@@ -12,15 +12,27 @@ let package = Package(
         .library(name: "ImmichClient", targets: ["ImmichClient"]),
         .library(name: "ImmichClientTestSupport", targets: ["ImmichClientTestSupport"]),
     ],
+    dependencies: [
+        .package(path: "../PhotoSourceKit"),
+    ],
     targets: [
-        .target(name: "ImmichClient"),
+        .target(
+            name: "ImmichClient",
+            dependencies: [
+                .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
+            ]
+        ),
         .target(
             name: "ImmichClientTestSupport",
             dependencies: ["ImmichClient"]
         ),
         .testTarget(
             name: "ImmichClientTests",
-            dependencies: ["ImmichClient", "ImmichClientTestSupport"]
+            dependencies: [
+                "ImmichClient",
+                "ImmichClientTestSupport",
+                .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
+            ]
         ),
     ]
 )
