@@ -12,6 +12,7 @@
 import HAControlKit
 import ImmichClient
 import OnboardingKit
+import PhotoLibraryKit
 import PowerKit
 import SlideshowKit
 import SwiftUI
@@ -35,6 +36,8 @@ struct SlideshowView: View {
     // client for the add-source album picker.
     var makeSourceLibraryViewModel: () -> SourceLibraryViewModel? = { nil }
     var makeServerAPI: () async -> (any ImmichAPI)? = { nil }
+    // 900 / US1: the PhotoKit seam for the sources manager's Photos-album tab.
+    var makePhotoGateway: () -> any PhotoLibraryGateway = { PHKitGateway() }
     // Storage stores (320): shared with the engine; the settings sheet surfaces
     // usage/budget/Clear against the same instances the slideshow writes to.
     var diskCache: (any DiskImageStoring)?
@@ -179,6 +182,7 @@ struct SlideshowView: View {
                 onConnectionChanged: onConnectionChanged,
                 makeSourceLibraryViewModel: makeSourceLibraryViewModel,
                 makeServerAPI: makeServerAPI,
+                makePhotoGateway: makePhotoGateway,
                 onReset: onReset,
                 diskCache: diskCache,
                 snapshotStore: snapshotStore,
@@ -200,7 +204,7 @@ struct SlideshowView: View {
         .sheet(isPresented: $showSources) {
             if let sourceLibraryViewModel = makeSourceLibraryViewModel() {
                 NavigationStack {
-                    SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI)
+                    SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway)
                 }
             }
         }

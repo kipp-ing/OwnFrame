@@ -102,11 +102,11 @@ selected album plays through the unchanged engine, source persists in the 120 li
       (the ONLY Photos import): `.readWrite` authorization, user albums +
       `.albumCloudShared` fetch, windowed asset fetch, final-quality image request (R5/R6) —
       Fable-inline (privacy-adjacent thin adapter)
-- [ ] T018 [US1] Red UITest: full-access picker flow in
+- [x] T018 [US1] Red UITest: full-access picker flow in
       `Immich SlideshowUITests/PhotoAlbumPickerUITests.swift` (hermetic `--uitest-photos`
       seam with in-memory fake gateway: entry point → request → searchable album list →
       select → slideshow)
-- [ ] T019 [US1] Implement `Immich Slideshow/Onboarding/PhotoAlbumPickerView.swift`
+- [x] T019 [US1] Implement `Immich Slideshow/Onboarding/PhotoAlbumPickerView.swift`
       (reuse `AlbumPickerView` 210 pattern) + entry points in `SourceStepView.swift` and
       `SourceLibraryView.swift`; wire the hermetic `--uitest-photos` seam
       (FakePhotoLibraryGateway injection) in `Immich Slideshow/Immich_SlideshowApp.swift`;

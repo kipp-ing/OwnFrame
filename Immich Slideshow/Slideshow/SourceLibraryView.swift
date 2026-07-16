@@ -11,11 +11,15 @@
 
 import ImmichClient
 import OnboardingKit
+import PhotoLibraryKit
 import SwiftUI
 
 struct SourceLibraryView: View {
     @Bindable var viewModel: SourceLibraryViewModel
     var makeServerAPI: () async -> (any ImmichAPI)? = { nil }
+    // 900 / US1: builds the PhotoKit seam for the add-sheet's Photos-album tab — the real
+    // gateway in production, the scripted fake under `--uitest` (injected from the app).
+    var makePhotoGateway: () -> any PhotoLibraryGateway = { PHKitGateway() }
 
     @State private var showAddSheet = false
     @State private var renameTarget: Source?
@@ -72,7 +76,7 @@ struct SourceLibraryView: View {
             }
         }
         .sheet(isPresented: $showAddSheet) {
-            AddSourceView(viewModel: viewModel, makeServerAPI: makeServerAPI)
+            AddSourceView(viewModel: viewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway)
         }
         .alert("Rename", isPresented: renameAlertPresented, presenting: renameTarget) { source in
             TextField("Name", text: $renameText)
@@ -131,6 +135,7 @@ private struct SourceRow: View {
 private struct AddSourceView: View {
     @Bindable var viewModel: SourceLibraryViewModel
     var makeServerAPI: () async -> (any ImmichAPI)?
+    var makePhotoGateway: () -> any PhotoLibraryGateway
 
     @Environment(\.dismiss) private var dismiss
     @State private var kind: Kind = .album
@@ -138,7 +143,7 @@ private struct AddSourceView: View {
     /// in this pass rather than the library total.
     @State private var initialSourceCount: Int?
 
-    enum Kind: Hashable { case album, sharedLink }
+    enum Kind: Hashable { case album, sharedLink, photoLibrary }
 
     var body: some View {
         NavigationStack {
@@ -146,15 +151,16 @@ private struct AddSourceView: View {
                 Picker("Type", selection: $kind) {
                     Text("Album").tag(Kind.album)
                     Text("Shared link").tag(Kind.sharedLink)
+                    Text("Photos album").tag(Kind.photoLibrary)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
                 .padding(.top, 8)
                 .accessibilityIdentifier("sources.add.type")
 
-                // Album-add errors surface here; the shared-link form reports its own
-                // resolve / password errors inline (210, US4).
-                if kind == .album, let errorMessage = viewModel.errorMessage {
+                // Album-add errors (Immich and Photos alike) surface here; the shared-link
+                // form reports its own resolve / password errors inline (210, US4).
+                if kind != .sharedLink, let errorMessage = viewModel.errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .font(.callout)
                         .foregroundStyle(.red)
@@ -175,6 +181,8 @@ private struct AddSourceView: View {
                             submitIDSuffix: "submit"
                         ) { dismiss() }
                     }
+                case .photoLibrary:
+                    PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: viewModel, idPrefix: "sources.photos")
                 }
             }
             .navigationTitle("Add source")
@@ -185,10 +193,10 @@ private struct AddSourceView: View {
                         .accessibilityIdentifier("sources.add.cancel")
                 }
             }
-            // Albums add on tap; Done finishes. The shared-link tab finishes via its own Add
-            // button, so the pinned Done is album-only (210, FR-210-28).
+            // Albums (Immich and Photos) add on tap; Done finishes. The shared-link tab
+            // finishes via its own Add button, so it carries no pinned Done (210, FR-210-28).
             .safeAreaInset(edge: .bottom) {
-                if kind == .album {
+                if kind != .sharedLink {
                     AddAlbumDoneBar(addedCount: viewModel.sources.count - (initialSourceCount ?? viewModel.sources.count)) {
                         dismiss()
                     }
@@ -280,7 +288,7 @@ private extension SourceKind {
         case let .sharedLink(baseURL, _):
             baseURL.host ?? "Shared link"
         case .photoLibrary:
-            // 900: a device Apple Photos / iCloud album (picker entry lands with US1/T019).
+            // 900: a device Apple Photos / iCloud album.
             "Photos"
         }
     }
