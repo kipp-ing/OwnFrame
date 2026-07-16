@@ -1,5 +1,6 @@
 import Foundation
-import ImmichClient
+import PhotoSourceKit
+import PhotoSourceTestSupport
 import SlideshowKit
 import ThemeKit
 import ThemeKitTestSupport
@@ -172,146 +173,22 @@ final class TestClock: SlideshowClock, @unchecked Sendable {
     }
 }
 
-final class StubImmichAPI: ImmichAPI, @unchecked Sendable {
-    private struct State {
-        var assetsByAlbumID: [String: [Asset]] = [:]
-        var previewDataByAssetID: [String: Data] = [:]
-        var previewErrorsByAssetID: [String: any Error] = [:]
-        var originalDataByAssetID: [String: Data] = [:]
-        var originalErrorsByAssetID: [String: any Error] = [:]
-        var assetErrorsByAlbumID: [String: any Error] = [:]
-        var albumList: [Album] = []
-        var serverVersion = "stub"
-        var serverVersionCallCount = 0
-        var albumsCallCount = 0
-        var assetsCallCount = 0
-        var previewCallCount = 0
-        var previewCallCountByAssetID: [String: Int] = [:]
-        var originalCallCount = 0
-        var originalCallCountByAssetID: [String: Int] = [:]
-    }
+/// Stand-in underlying error for the scripted `SourceFailure` values the engine
+/// suites inject. The engine only ever inspects the `SourceFailure` case (via
+/// `RetryPolicy.classify`), never this payload — it exists so `.transient`/`.permanent`
+/// have a concrete `underlying`.
+enum TestSourceError: Error {
+    case probe
+}
 
-    private let lock = NSLock()
-    private var state = State()
-
-    func setAssets(_ assets: [Asset], for albumID: String) {
-        lock.withLock {
-            state.assetsByAlbumID[albumID] = assets
-            state.assetErrorsByAlbumID[albumID] = nil
-        }
-    }
-
-    func setAssetsError(_ error: any Error, for albumID: String) {
-        lock.withLock {
-            state.assetErrorsByAlbumID[albumID] = error
-            state.assetsByAlbumID[albumID] = nil
-        }
-    }
-
-    func setPreviewData(_ data: Data, for assetID: String) {
-        lock.withLock {
-            state.previewDataByAssetID[assetID] = data
-            state.previewErrorsByAssetID[assetID] = nil
-        }
-    }
-
-    func setPreviewError(_ error: any Error, for assetID: String) {
-        lock.withLock {
-            state.previewErrorsByAssetID[assetID] = error
-            state.previewDataByAssetID[assetID] = nil
-        }
-    }
-
-    func setOriginalData(_ data: Data, for assetID: String) {
-        lock.withLock {
-            state.originalDataByAssetID[assetID] = data
-            state.originalErrorsByAssetID[assetID] = nil
-        }
-    }
-
-    func setOriginalError(_ error: any Error, for assetID: String) {
-        lock.withLock {
-            state.originalErrorsByAssetID[assetID] = error
-            state.originalDataByAssetID[assetID] = nil
-        }
-    }
-
-    func setServerVersion(_ version: String) {
-        lock.withLock { state.serverVersion = version }
-    }
-
-    func serverVersion() async throws -> String {
-        lock.withLock {
-            state.serverVersionCallCount += 1
-            return state.serverVersion
-        }
-    }
-
-    func albums() async throws -> [Album] {
-        lock.withLock {
-            state.albumsCallCount += 1
-            return state.albumList
-        }
-    }
-
-    func assets(albumID: String) async throws -> [Asset] {
-        try lock.withLock {
-            state.assetsCallCount += 1
-            if let error = state.assetErrorsByAlbumID[albumID] {
-                throw error
-            }
-            return state.assetsByAlbumID[albumID] ?? []
-        }
-    }
-
-    func preview(assetID: String) async throws -> Data {
-        try lock.withLock {
-            state.previewCallCount += 1
-            state.previewCallCountByAssetID[assetID, default: 0] += 1
-
-            if let error = state.previewErrorsByAssetID[assetID] {
-                throw error
-            }
-
-            return state.previewDataByAssetID[assetID] ?? Data(assetID.utf8)
-        }
-    }
-
-    func original(assetID: String) async throws -> Data {
-        try lock.withLock {
-            state.originalCallCount += 1
-            state.originalCallCountByAssetID[assetID, default: 0] += 1
-
-            if let error = state.originalErrorsByAssetID[assetID] {
-                throw error
-            }
-
-            return state.originalDataByAssetID[assetID] ?? Data(("original:" + assetID).utf8)
-        }
-    }
-
-    var albumsCallCount: Int {
-        lock.withLock { state.albumsCallCount }
-    }
-
-    var assetsCallCount: Int {
-        lock.withLock { state.assetsCallCount }
-    }
-
-    var previewCallCount: Int {
-        lock.withLock { state.previewCallCount }
-    }
-
-    func previewCallCount(for assetID: String) -> Int {
-        lock.withLock { state.previewCallCountByAssetID[assetID, default: 0] }
-    }
-
-    var originalCallCount: Int {
-        lock.withLock { state.originalCallCount }
-    }
-
-    func originalCallCount(for assetID: String) -> Int {
-        lock.withLock { state.originalCallCountByAssetID[assetID, default: 0] }
+/// Per-fidelity image-request accounting for the engine suites, derived from
+/// `StubPhotoSource.recordedImageRequests`. `StubImmichAPI` exposed separate
+/// `previewCallCount(for:)` / `originalCallCount(for:)` counters; the neutral stub
+/// records `(assetID, fidelity)` requests instead, so tests that care which tier
+/// was fetched filter that log through this helper.
+extension StubPhotoSource {
+    func imageDataCallCount(for assetID: String, fidelity: ImageFidelity) -> Int {
+        recordedImageRequests.filter { $0.assetID == assetID && $0.fidelity == fidelity }.count
     }
 }
 

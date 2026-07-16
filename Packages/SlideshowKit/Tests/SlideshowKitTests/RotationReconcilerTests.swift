@@ -9,21 +9,21 @@
 //
 
 import Foundation
-import ImmichClient
+import PhotoSourceKit
 import Testing
 import ThemeKit
 @testable import SlideshowKit
 
-private func asset(_ id: String) -> Asset {
-    Asset(id: id, type: "IMAGE")
+private func asset(_ id: String) -> SourceAsset {
+    SourceAsset(id: id, kind: .image)
 }
 
-private func assets(_ ids: String...) -> [Asset] {
+private func assets(_ ids: String...) -> [SourceAsset] {
     ids.map(asset)
 }
 
 /// IDs in play sequence, mapped through the play order.
-private func sequence(of playOrder: [Int], in list: [Asset]) -> [String] {
+private func sequence(of playOrder: [Int], in list: [SourceAsset]) -> [String] {
     playOrder.map { list[$0].id }
 }
 

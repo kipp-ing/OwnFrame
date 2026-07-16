@@ -1,15 +1,17 @@
 import Foundation
-import ImmichClient
+import PhotoSourceKit
 
 /// Remembers the active source's last successful photo list (320, FR-320-06) so an
-/// offline relaunch can play from disk. Content is asset IDs + type only — never
-/// credentials or URLs (FR-320-10).
+/// offline relaunch can play from disk. Content is asset IDs + kind only — never
+/// credentials or URLs (FR-320-10). `SourceAsset` encodes byte-identically to the
+/// pre-900 `[Asset]` snapshot (`{"id","type"}`), so fielded files decode without
+/// migration (900 R2, FR-900-01).
 public protocol SourceSnapshotStoring: Sendable {
     /// Replaces the key's previous snapshot.
-    func save(_ assets: [Asset], forKey key: String)
+    func save(_ assets: [SourceAsset], forKey key: String)
 
     /// nil when missing or undecodable — a corrupt snapshot is just absent.
-    func load(forKey key: String) -> [Asset]?
+    func load(forKey key: String) -> [SourceAsset]?
 
     /// Removes all snapshots (part of Clear cache, FR-320-05).
     func clear()
@@ -31,18 +33,18 @@ public final class FileSourceSnapshotStore: SourceSnapshotStoring, Sendable {
         try? url.setResourceValues(values)
     }
 
-    public func save(_ assets: [Asset], forKey key: String) {
+    public func save(_ assets: [SourceAsset], forKey key: String) {
         guard let data = try? JSONEncoder().encode(assets) else {
             return
         }
         try? data.write(to: fileURL(for: key), options: .atomic)
     }
 
-    public func load(forKey key: String) -> [Asset]? {
+    public func load(forKey key: String) -> [SourceAsset]? {
         guard let data = try? Data(contentsOf: fileURL(for: key)) else {
             return nil
         }
-        return try? JSONDecoder().decode([Asset].self, from: data)
+        return try? JSONDecoder().decode([SourceAsset].self, from: data)
     }
 
     public func clear() {

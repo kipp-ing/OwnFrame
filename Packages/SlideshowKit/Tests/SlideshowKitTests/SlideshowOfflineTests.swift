@@ -2,13 +2,14 @@
 //  SlideshowOfflineTests.swift
 //  SlideshowKitTests
 //
-//  320 — disk image cache: engine scenarios against StubImmichAPI + TestClock +
+//  320 — disk image cache: engine scenarios against StubPhotoSource + TestClock +
 //  the REAL DiskImageCache/FileSourceSnapshotStore in per-test temp directories
 //  (quickstart "Engine scenarios → tests"). No real timers, no network.
 //
 
 import Foundation
-import ImmichClient
+import PhotoSourceKit
+import PhotoSourceTestSupport
 import Testing
 import ThemeKit
 import ThemeKitTestSupport
@@ -48,18 +49,18 @@ struct OfflinePlaybackTests {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let disk = DiskImageCache(root: root, budget: 10_000_000)
-        let api = StubImmichAPI()
-        api.setAssets([
-            Asset(id: "image-1", type: "IMAGE"),
-            Asset(id: "image-2", type: "IMAGE"),
-            Asset(id: "image-3", type: "IMAGE")
+        let source = StubPhotoSource()
+        source.setAssets([
+            SourceAsset(id: "image-1", kind: .image),
+            SourceAsset(id: "image-2", kind: .image),
+            SourceAsset(id: "image-3", kind: .image)
         ], for: "album")
-        api.setPreviewData(Data([1]), for: "image-1")
-        api.setPreviewData(Data([2]), for: "image-2")
-        api.setPreviewData(Data([3]), for: "image-3")
+        source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+        source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+        source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
         let model = SlideshowViewModel(
-            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            source: source, collectionID: "album", ticker: ManualTicker(), clock: TestClock(),
             diskCache: disk,
             cache: ImageCache(limit: 2),
             config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
@@ -82,17 +83,17 @@ struct OfflinePlaybackTests {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let disk = DiskImageCache(root: root, budget: 10_000_000)
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let cache = ImageCache(limit: 2)
-        api.setAssets([
-            Asset(id: "image-1", type: "IMAGE"),
-            Asset(id: "image-2", type: "IMAGE")
+        source.setAssets([
+            SourceAsset(id: "image-1", kind: .image),
+            SourceAsset(id: "image-2", kind: .image)
         ], for: "album")
-        api.setPreviewData(Data([1]), for: "image-1")
-        api.setPreviewData(Data([2]), for: "image-2")
+        source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+        source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
         let model = SlideshowViewModel(
-            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            source: source, collectionID: "album", ticker: ManualTicker(), clock: TestClock(),
             diskCache: disk,
             cache: cache,
             config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
@@ -104,7 +105,7 @@ struct OfflinePlaybackTests {
         // Evict the RAM tier entirely; the disk keeps its copies.
         cache.store(Data([9]), for: "unrelated-1")
         cache.store(Data([10]), for: "unrelated-2")
-        let networkCalls = api.previewCallCount
+        let networkCalls = source.imageDataCallCount
 
         await model.advance()
 
@@ -114,7 +115,7 @@ struct OfflinePlaybackTests {
         // Zero new fetches: the shown photo AND the re-pointed prefetch both
         // came from disk.
         await waitUntil(cache.contains("image-1#preview"))
-        #expect(api.previewCallCount == networkCalls)
+        #expect(source.imageDataCallCount == networkCalls)
         // The disk hit repopulated RAM for the shown photo.
         #expect(cache.contains("image-2#preview"))
     }
@@ -126,16 +127,16 @@ struct OfflinePlaybackTests {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let disk = DiskImageCache(root: root, budget: 10_000_000)
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let cache = ImageCache(limit: 2)
         let ids = ["image-1", "image-2", "image-3", "image-4"]
-        api.setAssets(ids.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+        source.setAssets(ids.map { SourceAsset(id: $0, kind: .image) }, for: "album")
         for (index, id) in ids.enumerated() {
-            api.setPreviewData(Data([UInt8(index + 1)]), for: id)
+            source.setImageData(Data([UInt8(index + 1)]), for: id, fidelity: .preview)
         }
 
         let model = SlideshowViewModel(
-            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            source: source, collectionID: "album", ticker: ManualTicker(), clock: TestClock(),
             diskCache: disk,
             cache: cache,
             config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
@@ -154,9 +155,9 @@ struct OfflinePlaybackTests {
 
         // Wi-Fi drops: every image fetch fails from here on.
         for id in ids {
-            api.setPreviewError(ImmichError.unreachable, for: id)
+            source.setImageError(SourceFailure.transient(underlying: TestSourceError.probe), for: id, fidelity: .preview)
         }
-        let networkCalls = api.previewCallCount
+        let networkCalls = source.imageDataCallCount
 
         // A full offline cycle: every photo appears, in order, from disk.
         for expected in ["image-1", "image-2", "image-3", "image-4"] {
@@ -167,7 +168,7 @@ struct OfflinePlaybackTests {
             #expect(model.failureReason == nil)
         }
         await waitUntil(false)   // settle stray prefetch tasks
-        #expect(api.previewCallCount == networkCalls)
+        #expect(source.imageDataCallCount == networkCalls)
     }
 }
 
@@ -181,14 +182,14 @@ struct OfflineRelaunchTests {
     /// First app run: play the album far enough that the snapshot is saved and
     /// every photo is on disk, then tear the engine down (power cut).
     private func playFirstRun(
-        api: StubImmichAPI, disk: DiskImageCache, snapshots: FileSourceSnapshotStore
+        source: StubPhotoSource, disk: DiskImageCache, snapshots: FileSourceSnapshotStore
     ) async {
-        api.setAssets(ids.map { Asset(id: $0, type: "IMAGE") }, for: "album")
+        source.setAssets(ids.map { SourceAsset(id: $0, kind: .image) }, for: "album")
         for (index, id) in ids.enumerated() {
-            api.setPreviewData(Data([UInt8(index + 1)]), for: id)
+            source.setImageData(Data([UInt8(index + 1)]), for: id, fidelity: .preview)
         }
         let model = SlideshowViewModel(
-            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            source: source, collectionID: "album", ticker: ManualTicker(), clock: TestClock(),
             diskCache: disk, snapshots: snapshots,
             cache: ImageCache(limit: 2),
             config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
@@ -203,11 +204,11 @@ struct OfflineRelaunchTests {
     }
 
     private func makeRelaunchedModel(
-        api: StubImmichAPI, disk: DiskImageCache, snapshots: FileSourceSnapshotStore,
+        source: StubPhotoSource, disk: DiskImageCache, snapshots: FileSourceSnapshotStore,
         clock: TestClock, ticker: ManualTicker = ManualTicker()
     ) -> SlideshowViewModel {
         SlideshowViewModel(
-            api: api, albumID: "album", ticker: ticker, clock: clock,
+            source: source, collectionID: "album", ticker: ticker, clock: clock,
             diskCache: disk, snapshots: snapshots,
             cache: ImageCache(limit: 2),
             config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
@@ -221,20 +222,20 @@ struct OfflineRelaunchTests {
     @Test func offlineRelaunchPlaysFromTheRememberedList() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
         let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
-        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+        await playFirstRun(source: source, disk: disk, snapshots: snapshots)
         #expect(snapshots.load(forKey: "album")?.map(\.id) == ids)   // FR-320-06
 
         // Relaunch: router still rebooting — the list fetch fails.
-        api.setAssetsError(ImmichError.unreachable, for: "album")
+        source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
         let clock = TestClock()
-        let calls0 = api.assetsCallCount
-        let model = makeRelaunchedModel(api: api, disk: disk, snapshots: snapshots, clock: clock)
+        let calls0 = source.assetsCallCount
+        let model = makeRelaunchedModel(source: source, disk: disk, snapshots: snapshots, clock: clock)
         await model.start()
 
-        #expect(api.assetsCallCount == calls0 + 1)   // live fetch was attempted
+        #expect(source.assetsCallCount == calls0 + 1)   // live fetch was attempted
         #expect(model.phase == .playing)             // …but the show still starts
         #expect(model.currentAssetID == "image-1")
         #expect(model.currentImageData == Data([1]))
@@ -249,24 +250,24 @@ struct OfflineRelaunchTests {
     @Test func recoveryAfterSnapshotStartMergesTheLiveList() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
         let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
-        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+        await playFirstRun(source: source, disk: disk, snapshots: snapshots)
 
-        api.setAssetsError(ImmichError.unreachable, for: "album")
+        source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
         let clock = TestClock()
         let ticker = ManualTicker()
         let model = makeRelaunchedModel(
-            api: api, disk: disk, snapshots: snapshots, clock: clock, ticker: ticker
+            source: source, disk: disk, snapshots: snapshots, clock: clock, ticker: ticker
         )
         await model.start()
         #expect(model.phase == .playing)
 
         // The network returns — with a new photo in the album.
         let grown = ids + ["image-4"]
-        api.setAssets(grown.map { Asset(id: $0, type: "IMAGE") }, for: "album")
-        api.setPreviewData(Data([4]), for: "image-4")
+        source.setAssets(grown.map { SourceAsset(id: $0, kind: .image) }, for: "album")
+        source.setImageData(Data([4]), for: "image-4", fidelity: .preview)
         await clock.waitUntilSleeperCount(1)
         clock.advance(by: .milliseconds(1200))
         await waitUntil(model.failureReason == nil)
@@ -293,16 +294,16 @@ struct OfflineRelaunchTests {
     @Test func offlineAdvancesDoNotKillTheSourceRetry() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
         let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
-        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+        await playFirstRun(source: source, disk: disk, snapshots: snapshots)
 
-        api.setAssetsError(ImmichError.unreachable, for: "album")
+        source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
         let clock = TestClock()
         let ticker = ManualTicker()
         let model = makeRelaunchedModel(
-            api: api, disk: disk, snapshots: snapshots, clock: clock, ticker: ticker
+            source: source, disk: disk, snapshots: snapshots, clock: clock, ticker: ticker
         )
         await model.start()
         #expect(model.phase == .playing)
@@ -324,19 +325,19 @@ struct OfflineRelaunchTests {
         // must still be alive to notice, whatever backoff attempt it is on:
         // release every parked timer generously.
         let grown = ids + ["image-4"]
-        api.setAssets(grown.map { Asset(id: $0, type: "IMAGE") }, for: "album")
-        api.setPreviewData(Data([4]), for: "image-4")
-        let callsBefore = api.assetsCallCount
+        source.setAssets(grown.map { SourceAsset(id: $0, kind: .image) }, for: "album")
+        source.setImageData(Data([4]), for: "image-4", fidelity: .preview)
+        let callsBefore = source.assetsCallCount
         for _ in 0..<10 {
             clock.advance(by: .seconds(360))
-            await waitUntil(api.assetsCallCount > callsBefore)
-            if api.assetsCallCount > callsBefore {
+            await waitUntil(source.assetsCallCount > callsBefore)
+            if source.assetsCallCount > callsBefore {
                 break
             }
         }
         await waitUntil(model.failureReason == nil)
 
-        #expect(api.assetsCallCount > callsBefore, "the engine must still be fetching")
+        #expect(source.assetsCallCount > callsBefore, "the engine must still be fetching")
         #expect(model.failureReason == nil)
         #expect(snapshots.load(forKey: "album")?.map(\.id) == grown)   // live list adopted
     }
@@ -346,22 +347,22 @@ struct OfflineRelaunchTests {
     @Test func purgedPhotosDegradeToTheCalmErrorState() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let imagesRoot = root.appendingPathComponent("images")
         let disk = DiskImageCache(root: imagesRoot, budget: 10_000_000)
         let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
-        await playFirstRun(api: api, disk: disk, snapshots: snapshots)
+        await playFirstRun(source: source, disk: disk, snapshots: snapshots)
 
         // iOS reclaimed the cache directory; the network is also down.
         try FileManager.default.removeItem(at: imagesRoot)
-        api.setAssetsError(ImmichError.unreachable, for: "album")
+        source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
         for id in ids {
-            api.setPreviewError(ImmichError.unreachable, for: id)
+            source.setImageError(SourceFailure.transient(underlying: TestSourceError.probe), for: id, fidelity: .preview)
         }
 
         let clock = TestClock()
         let freshDisk = DiskImageCache(root: imagesRoot, budget: 10_000_000)
-        let model = makeRelaunchedModel(api: api, disk: freshDisk, snapshots: snapshots, clock: clock)
+        let model = makeRelaunchedModel(source: source, disk: freshDisk, snapshots: snapshots, clock: clock)
         await model.start()
 
         #expect(model.phase == .failed)
@@ -376,13 +377,13 @@ struct OfflineRelaunchTests {
     @Test func launchWithoutASnapshotKeeps310BehaviorVerbatim() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
         let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
-        api.setAssetsError(ImmichError.unreachable, for: "album")
+        source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
 
         let clock = TestClock()
-        let model = makeRelaunchedModel(api: api, disk: disk, snapshots: snapshots, clock: clock)
+        let model = makeRelaunchedModel(source: source, disk: disk, snapshots: snapshots, clock: clock)
         await model.start()
 
         #expect(model.phase == .failed)
@@ -390,8 +391,8 @@ struct OfflineRelaunchTests {
 
         // The server returns before the first retry fires — playback starts by
         // itself (310 US1-2).
-        api.setAssets([Asset(id: "image-9", type: "IMAGE")], for: "album")
-        api.setPreviewData(Data([9]), for: "image-9")
+        source.setAssets([SourceAsset(id: "image-9", kind: .image)], for: "album")
+        source.setImageData(Data([9]), for: "image-9", fidelity: .preview)
         await clock.waitUntilSleeperCount(1)
         clock.advance(by: .milliseconds(1200))
         await waitUntil(model.phase == .playing)
@@ -414,19 +415,19 @@ struct ClearCacheSemanticsTests {
     @Test func clearingBothStoresMidShowKeepsPlayingAndRefills() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let api = StubImmichAPI()
+        let source = StubPhotoSource()
         let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
         let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
         let cache = ImageCache(limit: 2)
-        api.setAssets([
-            Asset(id: "image-1", type: "IMAGE"),
-            Asset(id: "image-2", type: "IMAGE")
+        source.setAssets([
+            SourceAsset(id: "image-1", kind: .image),
+            SourceAsset(id: "image-2", kind: .image)
         ], for: "album")
-        api.setPreviewData(Data([1]), for: "image-1")
-        api.setPreviewData(Data([2]), for: "image-2")
+        source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+        source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
         let model = SlideshowViewModel(
-            api: api, albumID: "album", ticker: ManualTicker(), clock: TestClock(),
+            source: source, collectionID: "album", ticker: ManualTicker(), clock: TestClock(),
             diskCache: disk, snapshots: snapshots,
             cache: cache,
             config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
@@ -450,13 +451,13 @@ struct ClearCacheSemanticsTests {
         // so empty it too — the photo must come from the network again.
         cache.store(Data([8]), for: "unrelated-1")
         cache.store(Data([9]), for: "unrelated-2")
-        let networkCalls = api.previewCallCount(for: "image-2")
+        let networkCalls = source.imageDataCallCount(for: "image-2", fidelity: .preview)
 
         await model.advance()
 
         #expect(model.currentAssetID == "image-2")
         #expect(model.currentImageData == Data([2]))
-        #expect(api.previewCallCount(for: "image-2") == networkCalls + 1)
+        #expect(source.imageDataCallCount(for: "image-2", fidelity: .preview) == networkCalls + 1)
         // …and the fetch re-filled the disk cache as it played (US3-5).
         #expect(await waitForDiskEntry(disk, "image-2#preview") == Data([2]))
     }

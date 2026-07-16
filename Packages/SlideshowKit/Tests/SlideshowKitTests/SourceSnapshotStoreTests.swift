@@ -1,5 +1,5 @@
 import Foundation
-import ImmichClient
+import PhotoSourceKit
 import SlideshowKit
 import Testing
 
@@ -8,9 +8,9 @@ import Testing
 @Suite("SourceSnapshotStore — remembered photo lists")
 struct SourceSnapshotStoreTests {
     private let assets = [
-        Asset(id: "photo-1", type: "IMAGE"),
-        Asset(id: "photo-2", type: "IMAGE"),
-        Asset(id: "photo-3", type: "IMAGE"),
+        SourceAsset(id: "photo-1", kind: .image),
+        SourceAsset(id: "photo-2", kind: .image),
+        SourceAsset(id: "photo-3", kind: .image),
     ]
 
     @Test func roundTripReturnsTheSavedList() throws {
@@ -22,7 +22,26 @@ struct SourceSnapshotStoreTests {
         let loaded = store.load(forKey: "album-1")
 
         #expect(loaded?.map(\.id) == assets.map(\.id))
-        #expect(loaded?.map(\.type) == assets.map(\.type))
+        #expect(loaded?.map(\.kind) == assets.map(\.kind))
+    }
+
+    // 900 R2 (FR-900-01 wire compat): fielded 320 frames have snapshot files on disk
+    // written by the pre-900 `[Asset]` store — raw `{"id","type"}` JSON. The refactored
+    // `[SourceAsset]` store must decode those exact bytes without migration. This fixture
+    // is byte-identical to what `JSONEncoder().encode([Asset])` produced (Immich type
+    // strings as `MediaKind` raw values), so a decode failure here means fielded frames
+    // would lose their offline list on the first post-update launch.
+    @Test func loadsLegacyAssetSnapshotBytesWithoutMigration() throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileSourceSnapshotStore(root: root)
+
+        let legacyJSON = #"[{"id":"legacy-1","type":"IMAGE"},{"id":"legacy-2","type":"VIDEO"}]"#
+        try Data(legacyJSON.utf8).write(to: root.appendingPathComponent("album-legacy.json"))
+
+        let loaded = store.load(forKey: "album-legacy")
+        #expect(loaded?.map(\.id) == ["legacy-1", "legacy-2"])
+        #expect(loaded?.map(\.kind) == [.image, .video])
     }
 
     @Test func loadReturnsNilForAnUnknownKey() throws {
@@ -39,7 +58,7 @@ struct SourceSnapshotStoreTests {
         let store = FileSourceSnapshotStore(root: root)
 
         store.save(assets, forKey: "album-1")
-        let shrunk = [Asset(id: "photo-9", type: "IMAGE")]
+        let shrunk = [SourceAsset(id: "photo-9", kind: .image)]
         store.save(shrunk, forKey: "album-1")
 
         #expect(store.load(forKey: "album-1")?.map(\.id) == ["photo-9"])
@@ -51,7 +70,7 @@ struct SourceSnapshotStoreTests {
         let store = FileSourceSnapshotStore(root: root)
 
         store.save(assets, forKey: "album-a")
-        store.save([Asset(id: "other", type: "IMAGE")], forKey: "album-b")
+        store.save([SourceAsset(id: "other", kind: .image)], forKey: "album-b")
 
         #expect(store.load(forKey: "album-a")?.count == 3)
         #expect(store.load(forKey: "album-b")?.map(\.id) == ["other"])

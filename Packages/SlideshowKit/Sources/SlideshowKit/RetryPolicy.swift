@@ -3,31 +3,37 @@
 //  SlideshowKit
 //
 //  310 — backoff math for the engine's auto-retry (FR-310-01/02) plus the
-//  transient-vs-auth classification over ImmichClient's error taxonomy
-//  (FR-310-05). Policy lives here, not in ImmichClient: the client reports what
-//  happened, the engine decides how to react (research R2). Auth failures skip
-//  the ramp and retry at the cap only — no hot loop against a 401, but the
-//  server may also be misconfigured temporarily, so retrying never stops.
+//  transient-vs-auth classification over the backend-neutral `SourceFailure`
+//  taxonomy (FR-310-05, 900 FR-900-01). Policy lives here, not in the source: the
+//  source reports what happened (`SourceFailure`), the engine decides how to react
+//  (research R3). Auth failures skip the ramp and retry at the cap only — no hot
+//  loop against a 401, but the server may also be misconfigured temporarily, so
+//  retrying never stops.
 //
 
 import Foundation
-import ImmichClient
+import PhotoSourceKit
 
 /// Why the most recent fetch failed — drives the calm error message variant
-/// (FR-310-05) and the backoff mode.
+/// (FR-310-05) and the backoff mode. One arm per `SourceFailure` category (R3).
 public enum SlideshowFailureReason: Sendable, Equatable {
     /// Network/server hiccup — full exponential backoff curve.
     case transient
-    /// 401/403, expired or re-passworded shared link — cap-only retry and an
-    /// actionable message ("check your connection settings").
+    /// 401/403, expired or re-passworded credentials / denied authorization —
+    /// cap-only retry and an actionable message ("check your connection settings").
     case authentication
-    /// Server older than the supported Immich major version (130, FR-130-06).
-    /// Terminal: the app speaks the v3 API only and cannot operate against it, so the engine
-    /// surfaces the "needs Immich v3+" notice and does NOT arm the backoff loop.
+    /// Vanish state (FR-900-16): the source's collection is gone. Its own arm per the
+    /// neutral taxonomy (research R3) — a calm, non-retrying state rather than a backoff
+    /// loop. The full vanish UX lands in a later 900 slice; here it is terminal.
+    case notFound
+    /// Terminal calm-error / manual-recovery state. Also carries the 130 "needs Immich v3+"
+    /// notice: the neutral engine can no longer tell an unsupported server apart from any
+    /// other permanent source failure (both arrive as `SourceFailure.permanent`), so it
+    /// treats them identically — surface the notice, do NOT arm the backoff loop.
     case unsupportedServer
 
     /// Terminal reasons stop the auto-retry loop entirely — no backoff, not even cap-retry.
-    public var isTerminal: Bool { self == .unsupportedServer }
+    public var isTerminal: Bool { self == .unsupportedServer || self == .notFound }
 }
 
 /// Backoff parameters and attempt state. A plain value owned by the engine
@@ -70,15 +76,16 @@ public struct RetryPolicy {
     }
 
     /// Increments the attempt counter and returns the jittered delay for this
-    /// error: transient walks the exponential curve, auth is always the cap.
-    public mutating func nextDelay(for error: any Error) -> Duration {
+    /// failure: transient walks the exponential curve, auth is always the cap.
+    public mutating func nextDelay(for failure: SourceFailure) -> Duration {
         attempt += 1
 
         let maxSeconds = Self.seconds(configuration.maxDelay)
         let nominal: Double
-        switch Self.classify(error) {
-        case .authentication, .unsupportedServer:
-            // Terminal reasons are not scheduled by the engine; cap defensively if ever asked.
+        switch Self.classify(failure) {
+        case .authentication, .unsupportedServer, .notFound:
+            // Auth retries at the cap; terminal reasons are never scheduled by the
+            // engine — cap defensively if ever asked.
             nominal = maxSeconds
         case .transient:
             let initial = Self.seconds(configuration.initialDelay)
@@ -99,19 +106,21 @@ public struct RetryPolicy {
         attempt = 0
     }
 
-    /// FR-310-05: the four unambiguous auth conditions; everything else —
-    /// including non-ImmichError transport surprises — is worth a normal retry.
-    public static func classify(_ error: any Error) -> SlideshowFailureReason {
-        // serverTooOld carries an associated value, so match it before the no-payload cases.
-        if let immich = error as? ImmichError, case .serverTooOld = immich {
-            return .unsupportedServer
-        }
-        switch error {
-        case ImmichError.unauthorized, ImmichError.shareLinkExpired,
-             ImmichError.wrongPassword, ImmichError.passwordRequired:
-            return .authentication
-        default:
+    /// FR-310-05 / R3: map the closed, backend-neutral `SourceFailure` taxonomy onto the
+    /// engine's reason. transient → backoff, authentication → cap-only retry, notFound →
+    /// the vanish arm, permanent → the terminal calm-error reason (which carries the 130
+    /// unsupported-server notice). Which concrete backend error becomes which `SourceFailure`
+    /// arm is the source's concern (Immich: `ImmichPhotoSource`).
+    public static func classify(_ failure: SourceFailure) -> SlideshowFailureReason {
+        switch failure {
+        case .transient:
             return .transient
+        case .authentication:
+            return .authentication
+        case .notFound:
+            return .notFound
+        case .permanent:
+            return .unsupportedServer
         }
     }
 

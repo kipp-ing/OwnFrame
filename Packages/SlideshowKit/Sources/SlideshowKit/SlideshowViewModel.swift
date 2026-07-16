@@ -1,6 +1,6 @@
 import Foundation
-import ImmichClient
 import Observation
+import PhotoSourceKit
 import ThemeKit
 
 @MainActor
@@ -22,10 +22,11 @@ public final class SlideshowViewModel {
     /// showing, failures stay invisible (FR-310-03/09).
     public private(set) var failureReason: SlideshowFailureReason?
 
-    /// The album currently being shown. Mutable so Home-Assistant/remote control
-    /// can switch albums at runtime (see `switchAlbum(_:)`).
+    /// The collection currently being shown (Immich album / PhotoKit collection ID).
+    /// Mutable so Home-Assistant/remote control can switch sources at runtime (see
+    /// `switchAlbum(_:)`). Also the snapshot/cache scoping key.
     public private(set) var albumID: String
-    private let api: any ImmichAPI
+    private let source: any PhotoSourceProviding
     private let ticker: any SlideshowTicker
     /// Monotonic clock for retry backoff and refresh staleness (310, FR-310-12).
     private let clock: any SlideshowClock
@@ -43,7 +44,7 @@ public final class SlideshowViewModel {
     private let settingsStore: any ThemeSettingsStore
     /// RNG for the shuffle play order; injectable so shuffle is deterministic in tests.
     private var rng: AnyRandomNumberGenerator
-    private var imageAssets: [Asset] = []
+    private var imageAssets: [SourceAsset] = []
 
     /// The play order for the current cycle — a permutation of asset indices.
     /// Sequential is album order; shuffle is a random permutation that reshuffles each
@@ -81,8 +82,8 @@ public final class SlideshowViewModel {
     private var lastSuccessfulRefresh: Duration?
 
     public init(
-        api: any ImmichAPI,
-        albumID: String,
+        source: any PhotoSourceProviding,
+        collectionID: String,
         ticker: any SlideshowTicker,
         clock: any SlideshowClock = ContinuousSlideshowClock(),
         retryPolicy: RetryPolicy = RetryPolicy(),
@@ -93,8 +94,8 @@ public final class SlideshowViewModel {
         settingsStore: any ThemeSettingsStore,
         rng: any RandomNumberGenerator = SystemRandomNumberGenerator()
     ) {
-        self.api = api
-        self.albumID = albumID
+        self.source = source
+        self.albumID = collectionID
         self.ticker = ticker
         self.clock = clock
         self.retryPolicy = retryPolicy
@@ -118,10 +119,11 @@ public final class SlideshowViewModel {
         phase = .loading
 
         do {
-            // 130 FR-130-05/06: reject a pre-v3 server up front so a relaunch straight into the
-            // slideshow (bypassing onboarding) still surfaces the upgrade notice.
-            try await api.ensureServerSupported()
-            imageAssets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
+            // R10: the source's readiness precondition (Immich = 130 FR-130-05/06 server-version
+            // gate; Photos = authorization) up front, so a relaunch straight into the slideshow
+            // (bypassing onboarding) still surfaces the upgrade/permission notice.
+            try await source.ensureReady()
+            imageAssets = try await source.assets(in: albumID).filter { $0.kind == .image }
             markRefreshSucceeded(with: imageAssets)
             guard !imageAssets.isEmpty else {
                 resetCurrent()
@@ -140,7 +142,7 @@ public final class SlideshowViewModel {
             } else {
                 // The list arrived but no photo loads: keep whatever is on
                 // screen (FR-310-03) and retry the image loads in the background.
-                handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+                handleFailure(lastLoadError ?? EngineFailure.noLoadableImage, kind: .imageReload)
             }
         } catch {
             // 320 FR-320-07: stale-beats-broken extends to launch — a
@@ -150,7 +152,7 @@ public final class SlideshowViewModel {
             // state, auto-retry behind it either way (310 US1-2).
             // A too-old server (130) must show the upgrade notice, not silently play cached
             // photos — skip the offline snapshot fallback for that terminal case.
-            if !RetryPolicy.classify(error).isTerminal, await startFromSnapshot() {
+            if !RetryPolicy.classify(Self.sourceFailure(from: error)).isTerminal, await startFromSnapshot() {
                 handleFailure(error, kind: .sourceReload)
                 startTickerLoop()
             } else {
@@ -164,7 +166,7 @@ public final class SlideshowViewModel {
     /// exists or every remembered photo is gone (purged) — the caller then
     /// takes the ordinary failure path (SC-320-06).
     private func startFromSnapshot() async -> Bool {
-        guard let snapshot = snapshots?.load(forKey: albumID)?.filter({ $0.type == "IMAGE" }),
+        guard let snapshot = snapshots?.load(forKey: albumID)?.filter({ $0.kind == .image }),
               !snapshot.isEmpty else {
             return false
         }
@@ -278,7 +280,7 @@ public final class SlideshowViewModel {
             // (recovery-jump / paused-jump bugs).
             cursor = displayedCursor
             stopTicker()
-            handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+            handleFailure(lastLoadError ?? EngineFailure.noLoadableImage, kind: .imageReload)
         }
     }
 
@@ -314,7 +316,8 @@ public final class SlideshowViewModel {
     /// Record a failure, classify it, and arm the backoff retry. The phase only
     /// becomes `.failed` when there is nothing on screen (FR-310-03).
     private func handleFailure(_ error: any Error, kind: PendingRetry) {
-        let reason = RetryPolicy.classify(error)
+        let failure = Self.sourceFailure(from: error)
+        let reason = RetryPolicy.classify(failure)
         failureReason = reason
         if currentImageData == nil {
             resetCurrent()
@@ -328,12 +331,12 @@ public final class SlideshowViewModel {
             cancelRetry()
             return
         }
-        scheduleRetry(for: error, kind: kind)
+        scheduleRetry(for: failure, kind: kind)
     }
 
-    private func scheduleRetry(for error: any Error, kind: PendingRetry) {
+    private func scheduleRetry(for failure: SourceFailure, kind: PendingRetry) {
         pendingRetry = kind
-        let delay = retryPolicy.nextDelay(for: error)
+        let delay = retryPolicy.nextDelay(for: failure)
         nextRetryDue = clock.now + delay
         armRetryTask(delay: delay)
     }
@@ -374,10 +377,11 @@ public final class SlideshowViewModel {
     /// via RotationReconciler instead of rebuilding (FR-310-07/08).
     private func reloadSource() async {
         do {
-            // 130 FR-130-06: re-check on every refresh so a server downgraded to v2 mid-run
-            // surfaces the notice terminally instead of looping the backoff.
-            try await api.ensureServerSupported()
-            let assets = try await api.assets(albumID: albumID).filter { $0.type == "IMAGE" }
+            // R10: re-check readiness on every refresh so a source that lost its precondition
+            // mid-run (Immich downgraded to v2 / Photos access revoked) surfaces the notice
+            // terminally instead of looping the backoff.
+            try await source.ensureReady()
+            let assets = try await source.assets(in: albumID).filter { $0.kind == .image }
             clearFailure()
             markRefreshSucceeded(with: assets)
 
@@ -402,7 +406,7 @@ public final class SlideshowViewModel {
                 prefetchImages()
                 restartTickerIfPlaying()
             } else {
-                handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+                handleFailure(lastLoadError ?? EngineFailure.noLoadableImage, kind: .imageReload)
             }
         } catch {
             handleFailure(error, kind: .sourceReload)
@@ -412,7 +416,7 @@ public final class SlideshowViewModel {
     /// Merge a fresh asset list into the running rotation without touching the
     /// on-screen photo, the auto-advance wait, or the cycle position
     /// (FR-310-07). Only the prefetch is re-pointed at the new remainder.
-    private func applyReconciledAssets(_ assets: [Asset]) {
+    private func applyReconciledAssets(_ assets: [SourceAsset]) {
         let order = builtOrder ?? settingsStore.settings.order
         let result = RotationReconciler.reconcile(
             oldAssets: imageAssets, newAssets: assets,
@@ -434,7 +438,7 @@ public final class SlideshowViewModel {
     /// succeeded" choke point, so the source snapshot rides it (320,
     /// FR-320-06) — with the fresh list passed in, because reloadSource calls
     /// this before `imageAssets` is reassigned.
-    private func markRefreshSucceeded(with assets: [Asset]) {
+    private func markRefreshSucceeded(with assets: [SourceAsset]) {
         snapshots?.save(assets, forKey: albumID)
         lastSuccessfulRefresh = clock.now
         armRefreshTask()
@@ -495,7 +499,7 @@ public final class SlideshowViewModel {
             // pending-retry guard — re-arm it (fires immediately if overdue).
             armRefreshTask()
         } else {
-            handleFailure(lastLoadError ?? ImmichError.invalidResponse, kind: .imageReload)
+            handleFailure(lastLoadError ?? EngineFailure.noLoadableImage, kind: .imageReload)
         }
     }
 
@@ -693,12 +697,7 @@ public final class SlideshowViewModel {
             return stored
         }
 
-        let data = switch quality {
-        case .preview:
-            try await api.preview(assetID: assetID)
-        case .original:
-            try await api.original(assetID: assetID)
-        }
+        let data = try await source.imageData(for: assetID, fidelity: Self.fidelity(for: quality))
         cache.store(data, for: key)
         persistToDisk(data, key: key)
         return data
@@ -717,6 +716,25 @@ public final class SlideshowViewModel {
 
     private func cacheKey(for assetID: String, quality: ImageQuality) -> String {
         "\(assetID)#\(quality.rawValue)"
+    }
+
+    /// Maps the display-quality tier (ThemeKit) to the neutral fidelity the source serves
+    /// (R6). The two enums share the "preview"/"original" raw values, so the cache key above
+    /// (`"\(id)#\(quality.rawValue)"`) stays byte-identical to the pre-900 one — fielded 320
+    /// disk caches keep hitting.
+    private static func fidelity(for quality: ImageQuality) -> ImageFidelity {
+        switch quality {
+        case .preview: return .preview
+        case .original: return .original
+        }
+    }
+
+    /// Coerce a caught error into the neutral taxonomy `RetryPolicy` classifies. Sources throw
+    /// `SourceFailure`; anything else (the defensive fallbacks below, an unexpected transport
+    /// surprise) is treated as transient — the same category the pre-900 engine gave every
+    /// non-auth, non-serverTooOld error.
+    private static func sourceFailure(from error: any Error) -> SourceFailure {
+        error as? SourceFailure ?? .transient(underlying: error)
     }
 
     private func showLoadedImage(_ loaded: LoadedImage) {
@@ -749,7 +767,7 @@ public final class SlideshowViewModel {
         let assetIDs = (1...depth).map { offset in
             imageAssets[playOrder[(cursor + offset) % count]].id
         }
-        let api = api
+        let source = source
         let cache = cache
         let diskCache = diskCache
 
@@ -770,12 +788,7 @@ public final class SlideshowViewModel {
                 }
 
                 do {
-                    let data = switch quality {
-                    case .preview:
-                        try await api.preview(assetID: assetID)
-                    case .original:
-                        try await api.original(assetID: assetID)
-                    }
+                    let data = try await source.imageData(for: assetID, fidelity: Self.fidelity(for: quality))
                     cache.store(data, for: key)
                     await diskCache?.store(data, forKey: key)
                 } catch {
@@ -789,6 +802,13 @@ public final class SlideshowViewModel {
 private struct LoadedImage {
     let assetID: String
     let data: Data
+}
+
+/// Neutral placeholder for the defensive `?? ` arms where the cursor walk exhausted without
+/// capturing a concrete source error. Coerced to `.transient` (via `sourceFailure(from:)`) —
+/// matching the classification the pre-900 `ImmichError.invalidResponse` fallback carried.
+private enum EngineFailure: Error {
+    case noLoadableImage
 }
 
 /// Type-erased RNG so the view model can store an injected generator (system in
