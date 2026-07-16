@@ -12,14 +12,14 @@ let package = Package(
         .library(name: "SlideshowKit", targets: ["SlideshowKit"]),
     ],
     dependencies: [
-        .package(path: "../ImmichClient"),
+        .package(path: "../PhotoSourceKit"),
         .package(path: "../ThemeKit"),
     ],
     targets: [
         .target(
             name: "SlideshowKit",
             dependencies: [
-                .product(name: "ImmichClient", package: "ImmichClient"),
+                .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
                 .product(name: "ThemeKit", package: "ThemeKit"),
             ]
         ),
@@ -27,8 +27,8 @@ let package = Package(
             name: "SlideshowKitTests",
             dependencies: [
                 "SlideshowKit",
-                .product(name: "ImmichClient", package: "ImmichClient"),
-                .product(name: "ImmichClientTestSupport", package: "ImmichClient"),
+                .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
+                .product(name: "PhotoSourceTestSupport", package: "PhotoSourceKit"),
                 .product(name: "ThemeKitTestSupport", package: "ThemeKit"),
             ]
         ),

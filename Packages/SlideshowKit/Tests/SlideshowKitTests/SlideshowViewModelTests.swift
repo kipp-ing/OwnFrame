@@ -1,21 +1,22 @@
 import Foundation
-import ImmichClient
+import PhotoSourceKit
+import PhotoSourceTestSupport
 import SlideshowKit
 import Testing
 
 @MainActor
 @Test func startShowsFirstImageAssetAndFiltersVideos() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "video", type: "VIDEO"),
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "video", kind: .video),
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     #expect(model.phase == .playing)
@@ -25,14 +26,14 @@ import Testing
 
 @MainActor
 @Test func switchAlbumLoadsNewAlbumAndExposesCurrentAlbumID() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([Asset(id: "a1-image", type: "IMAGE")], for: "a1")
-    api.setAssets([Asset(id: "a2-image", type: "IMAGE")], for: "a2")
-    api.setPreviewData(Data([1]), for: "a1-image")
-    api.setPreviewData(Data([2]), for: "a2-image")
+    source.setAssets([SourceAsset(id: "a1-image", kind: .image)], for: "a1")
+    source.setAssets([SourceAsset(id: "a2-image", kind: .image)], for: "a2")
+    source.setImageData(Data([1]), for: "a1-image", fidelity: .preview)
+    source.setImageData(Data([2]), for: "a2-image", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "a1", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "a1", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
     #expect(model.albumID == "a1")
     #expect(model.currentAssetID == "a1-image")
@@ -46,16 +47,16 @@ import Testing
 
 @MainActor
 @Test func manualTickAdvancesExactlyOneImageAndWraps() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     await ticker.waitUntilWaiting()
@@ -75,16 +76,16 @@ import Testing
 
 @MainActor
 @Test func slideshowDoesNotAdvanceWithoutTickAndPauseStopsTickerUntilResume() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
     await settleMainActor()
     #expect(model.currentAssetID == "image-1")
@@ -105,12 +106,12 @@ import Testing
 
 @MainActor
 @Test func singleImageAlbumRemainsStableOnTick() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([Asset(id: "image-1", type: "IMAGE")], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
+    source.setAssets([SourceAsset(id: "image-1", kind: .image)], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     await ticker.waitUntilWaiting()
@@ -139,18 +140,18 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func advanceCanBeCalledDirectlyAndWrapsInAlbumOrder() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+    source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     await model.advance()
@@ -165,65 +166,65 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func startPrefetchesNextImageWithoutBlockingDisplay() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
     let cache = ImageCache(limit: 3)
     let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 3)
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
     await model.start()
 
     #expect(model.currentAssetID == "image-1")
     await waitUntil(cache.contains("image-2#preview"))
     #expect(cache.contains("image-2#preview"))
-    #expect(api.previewCallCount(for: "image-2") == 1)
+    #expect(source.imageDataCallCount(for: "image-2", fidelity: .preview) == 1)
 }
 
 @MainActor
 @Test func advanceUsesPrefetchedImageWithoutAdditionalPreviewCall() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
     let cache = ImageCache(limit: 3)
     let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 3)
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+    source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
     await model.start()
     await waitUntil(cache.contains("image-2"))
-    #expect(api.previewCallCount(for: "image-2") == 1)
+    #expect(source.imageDataCallCount(for: "image-2", fidelity: .preview) == 1)
 
     await model.advance()
 
     #expect(model.currentAssetID == "image-2")
-    #expect(api.previewCallCount(for: "image-2") == 1)
+    #expect(source.imageDataCallCount(for: "image-2", fidelity: .preview) == 1)
 }
 
 @MainActor
 @Test func prefetchWrapsAndRespectsCacheLimitAcrossTicks() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
     let cache = ImageCache(limit: 3)
     let config = SlideshowConfig(prefetchDepth: 2, cacheLimit: 3)
-    let assets = (1...6).map { Asset(id: "image-\($0)", type: "IMAGE") }
-    api.setAssets(assets, for: "album")
+    let assets = (1...6).map { SourceAsset(id: "image-\($0)", kind: .image) }
+    source.setAssets(assets, for: "album")
     for value in 1...6 {
-        api.setPreviewData(Data([UInt8(value)]), for: "image-\(value)")
+        source.setImageData(Data([UInt8(value)]), for: "image-\(value)", fidelity: .preview)
     }
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore())
     await model.start()
     await waitUntil(cache.contains("image-2") && cache.contains("image-3"))
 
@@ -238,16 +239,16 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func startSkipsInitialPreviewErrorsAndShowsFirstLoadableImage() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewError(ImmichError.unreachable, for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageError(SourceFailure.transient(underlying: TestSourceError.probe), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     #expect(model.phase == .playing)
@@ -257,18 +258,18 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func advanceSkipsPreviewErrorAndShowsNextLoadableImage() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewError(ImmichError.unreachable, for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageError(SourceFailure.transient(underlying: TestSourceError.probe), for: "image-2", fidelity: .preview)
+    source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
     await model.advance()
 
@@ -279,34 +280,34 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func emptyAndVideoOnlyAlbumsEnterEmptyPhase() async {
-    let emptyAPI = StubImmichAPI()
-    emptyAPI.setAssets([], for: "empty")
-    let emptyModel = SlideshowViewModel(api: emptyAPI, albumID: "empty", ticker: ManualTicker(), settingsStore: sequentialThemeStore())
+    let emptySource = StubPhotoSource()
+    emptySource.setAssets([], for: "empty")
+    let emptyModel = SlideshowViewModel(source: emptySource, collectionID: "empty", ticker: ManualTicker(), settingsStore: sequentialThemeStore())
     await emptyModel.start()
     #expect(emptyModel.phase == .empty)
 
-    let videoAPI = StubImmichAPI()
-    videoAPI.setAssets([
-        Asset(id: "video-1", type: "VIDEO"),
-        Asset(id: "video-2", type: "VIDEO")
+    let videoSource = StubPhotoSource()
+    videoSource.setAssets([
+        SourceAsset(id: "video-1", kind: .video),
+        SourceAsset(id: "video-2", kind: .video)
     ], for: "videos")
-    let videoModel = SlideshowViewModel(api: videoAPI, albumID: "videos", ticker: ManualTicker(), settingsStore: sequentialThemeStore())
+    let videoModel = SlideshowViewModel(source: videoSource, collectionID: "videos", ticker: ManualTicker(), settingsStore: sequentialThemeStore())
     await videoModel.start()
     #expect(videoModel.phase == .empty)
 }
 
 @MainActor
 @Test func assetsErrorFailsAndRetryStartsAgainWhenAssetsRecover() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssetsError(ImmichError.unreachable, for: "album")
+    source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
     #expect(model.phase == .failed)
 
-    api.setAssets([Asset(id: "image-1", type: "IMAGE")], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
+    source.setAssets([SourceAsset(id: "image-1", kind: .image)], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
     await model.retry()
 
     #expect(model.phase == .playing)
@@ -315,18 +316,18 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func showPreviousStepsBackwardAndWraps() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+    source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
     #expect(model.currentAssetID == "image-1")
 
@@ -340,18 +341,18 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func showNextStepsForwardAndResetsTicker() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+    source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     await model.showNext()
@@ -367,16 +368,16 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func togglePauseStopsTickerAndSurvivesForegroundResume() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
     await ticker.waitUntilWaiting()
 
@@ -411,18 +412,18 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
 @MainActor
 @Test func jumpGoesToRequestedAssetAndIgnoresUnknown() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE"),
-        Asset(id: "image-3", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
-    api.setPreviewData(Data([3]), for: "image-3")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+    source.setImageData(Data([3]), for: "image-3", fidelity: .preview)
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
     await model.start()
 
     await model.jump(to: "image-3")

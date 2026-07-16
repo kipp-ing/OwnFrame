@@ -12,7 +12,7 @@
 //
 
 import Foundation
-import ImmichClient
+import PhotoSourceKit
 import ThemeKit
 
 public enum RotationReconciler {
@@ -22,7 +22,7 @@ public enum RotationReconciler {
     /// just before its successor so the next advance shows that successor
     /// (FR-310-08, SC-310-03).
     public static func reconcile(
-        oldAssets: [Asset], newAssets: [Asset],
+        oldAssets: [SourceAsset], newAssets: [SourceAsset],
         playOrder: [Int], cursor: Int,
         order: PlayOrder, currentAssetID: String?,
         rng: inout some RandomNumberGenerator
@@ -61,7 +61,7 @@ public enum RotationReconciler {
     // MARK: - Sequential: identity order, anchored cursor
 
     private static func reconcileSequential(
-        oldAssets: [Asset], newAssets: [Asset],
+        oldAssets: [SourceAsset], newAssets: [SourceAsset],
         currentAssetID: String?, newIndexByID: [String: Int]
     ) -> (playOrder: [Int], cursor: Int) {
         let identity = Array(newAssets.indices)
@@ -91,7 +91,7 @@ public enum RotationReconciler {
     // MARK: - Shuffle: preserve the cycle, additions in the remainder only
 
     private static func reconcileShuffle(
-        oldAssets: [Asset], newAssets: [Asset],
+        oldAssets: [SourceAsset], newAssets: [SourceAsset],
         playOrder: [Int], cursor: Int,
         currentAssetID: String?, newIndexByID: [String: Int],
         rng: inout some RandomNumberGenerator

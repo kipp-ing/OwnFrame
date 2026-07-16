@@ -1,5 +1,6 @@
 import Foundation
-import ImmichClient
+import PhotoSourceKit
+import PhotoSourceTestSupport
 import SlideshowKit
 import ThemeKit
 import ThemeKitTestSupport
@@ -11,17 +12,17 @@ import Testing
 
 @MainActor
 @Test func tickerWaitsCurrentDurationAndReArmsWhenDurationChangesMidShow() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    api.setAssets([
-        Asset(id: "image-1", type: "IMAGE"),
-        Asset(id: "image-2", type: "IMAGE")
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
     ], for: "album")
-    api.setPreviewData(Data([1]), for: "image-1")
-    api.setPreviewData(Data([2]), for: "image-2")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
     let store = InMemoryThemeStore(settings: ThemeSettings(order: .sequential, duration: .seconds(15)))
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: store)
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: store)
     await model.start()
 
     // First cycle waits the current duration.

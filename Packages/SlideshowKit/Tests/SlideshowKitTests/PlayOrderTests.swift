@@ -1,5 +1,6 @@
 import Foundation
-import ImmichClient
+import PhotoSourceKit
+import PhotoSourceTestSupport
 import SlideshowKit
 import ThemeKit
 import ThemeKitTestSupport
@@ -10,16 +11,16 @@ import Testing
 
 @MainActor
 @Test func sequentialOrderVisitsAlbumOrderAndWraps() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    let assets = (1...3).map { Asset(id: "image-\($0)", type: "IMAGE") }
-    api.setAssets(assets, for: "album")
+    let assets = (1...3).map { SourceAsset(id: "image-\($0)", kind: .image) }
+    source.setAssets(assets, for: "album")
     for value in 1...3 {
-        api.setPreviewData(Data([UInt8(value)]), for: "image-\(value)")
+        source.setImageData(Data([UInt8(value)]), for: "image-\(value)", fidelity: .preview)
     }
     let store = InMemoryThemeStore(settings: ThemeSettings(order: .sequential))
 
-    let model = SlideshowViewModel(api: api, albumID: "album", ticker: ticker, settingsStore: store)
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: store)
     await model.start()
 
     var shown = [model.currentAssetID]
@@ -33,19 +34,19 @@ import Testing
 
 @MainActor
 @Test func shuffleShowsEveryPhotoOncePerCycleThenReshuffles() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
     let count = 6
-    let assets = (1...count).map { Asset(id: "image-\($0)", type: "IMAGE") }
-    api.setAssets(assets, for: "album")
+    let assets = (1...count).map { SourceAsset(id: "image-\($0)", kind: .image) }
+    source.setAssets(assets, for: "album")
     for value in 1...count {
-        api.setPreviewData(Data([UInt8(value)]), for: "image-\(value)")
+        source.setImageData(Data([UInt8(value)]), for: "image-\(value)", fidelity: .preview)
     }
     let store = InMemoryThemeStore(settings: ThemeSettings(order: .shuffle))
 
     let model = SlideshowViewModel(
-        api: api,
-        albumID: "album",
+        source: source,
+        collectionID: "album",
         ticker: ticker,
         settingsStore: store,
         rng: SeededRandomNumberGenerator(seed: 0xCAFE)
@@ -78,18 +79,18 @@ import Testing
 
 @MainActor
 @Test func switchingOrderMidShowKeepsCurrentPhotoAsAnchor() async {
-    let api = StubImmichAPI()
+    let source = StubPhotoSource()
     let ticker = ManualTicker()
-    let assets = (1...4).map { Asset(id: "image-\($0)", type: "IMAGE") }
-    api.setAssets(assets, for: "album")
+    let assets = (1...4).map { SourceAsset(id: "image-\($0)", kind: .image) }
+    source.setAssets(assets, for: "album")
     for value in 1...4 {
-        api.setPreviewData(Data([UInt8(value)]), for: "image-\(value)")
+        source.setImageData(Data([UInt8(value)]), for: "image-\(value)", fidelity: .preview)
     }
     let store = InMemoryThemeStore(settings: ThemeSettings(order: .sequential))
 
     let model = SlideshowViewModel(
-        api: api,
-        albumID: "album",
+        source: source,
+        collectionID: "album",
         ticker: ticker,
         settingsStore: store,
         rng: SeededRandomNumberGenerator(seed: 7)
