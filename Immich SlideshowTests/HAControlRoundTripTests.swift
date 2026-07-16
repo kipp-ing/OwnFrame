@@ -13,6 +13,7 @@ import Foundation
 import Testing
 import HAControlKit
 import ImmichClient
+import PhotoSourceKit
 import PowerKit
 import SlideshowKit
 import ThemeKit
@@ -29,8 +30,8 @@ struct HAControlRoundTripTests {
 
         let store = UserDefaultsThemeStore(defaults: defaults)
         let slideshow = SlideshowViewModel(
-            api: RoundTripStubAPI(),
-            albumID: "album-1",
+            source: RoundTripStubAPI(),
+            collectionID: "album-1",
             ticker: RoundTripStubTicker(),
             settingsStore: store
         )
@@ -86,8 +87,8 @@ struct HAControlRoundTripTests {
         // must observe the ViewModel's own `isPaused`, not rely on being called
         // through, or a genuinely local pause never reaches HA.
         let slideshow = SlideshowViewModel(
-            api: RoundTripStubAPI(),
-            albumID: "album-1",
+            source: RoundTripStubAPI(),
+            collectionID: "album-1",
             ticker: RoundTripStubTicker(),
             settingsStore: UserDefaultsThemeStore(defaults: try #require(UserDefaults(suiteName: "de.kippings.ImmichSlideshow.tests.roundtrip.playback")))
         )
@@ -139,8 +140,8 @@ struct HAControlRoundTripTests {
         store.settings.order = .shuffle // the live default
         let assets = (1...6).map { Asset(id: "asset-\($0)", type: "IMAGE") }
         let slideshow = SlideshowViewModel(
-            api: NextStubAPI(assets: assets),
-            albumID: "album-1",
+            source: NextStubAPI(assets: assets),
+            collectionID: "album-1",
             ticker: NonFiringTicker(),
             settingsStore: store,
             rng: SeededRNG(seed: 42)
@@ -239,6 +240,18 @@ private struct RoundTripStubAPI: ImmichAPI {
     func preview(assetID: String) async throws -> Data { Data() }
 }
 
+// 900 (T012): the engine consumes the neutral protocol; the adapter still takes ImmichAPI,
+// so the stubs conform to both.
+extension RoundTripStubAPI: PhotoSourceProviding {
+    func ensureReady() async throws {}
+    func collections() async throws -> [SourceCollection] { [] }
+    func assets(in collectionID: String) async throws -> [SourceAsset] { [] }
+    func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data { Data() }
+    func metadata(for assetID: String) async throws -> AssetMetadata {
+        AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: nil)
+    }
+}
+
 private struct RoundTripStubTicker: SlideshowTicker {
     func waitForNextTick(duration: Duration) async throws {
         try await Task.sleep(for: .milliseconds(1))
@@ -261,6 +274,18 @@ private struct NextStubAPI: ImmichAPI {
     func albums() async throws -> [Album] { [] }
     func assets(albumID: String) async throws -> [Asset] { assets }
     func preview(assetID: String) async throws -> Data { Data() }
+}
+
+extension NextStubAPI: PhotoSourceProviding {
+    func ensureReady() async throws {}
+    func collections() async throws -> [SourceCollection] { [] }
+    func assets(in collectionID: String) async throws -> [SourceAsset] {
+        assets.map { SourceAsset(id: $0.id, kind: MediaKind(rawValue: $0.type) ?? .other) }
+    }
+    func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data { Data() }
+    func metadata(for assetID: String) async throws -> AssetMetadata {
+        AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: nil)
+    }
 }
 
 /// Deterministic RNG (SplitMix64) so the shuffle order is reproducible in tests.

@@ -11,6 +11,7 @@ import HAControlKit
 import HAControlMQTT
 import ImmichClient
 import OnboardingKit
+import PhotoSourceKit
 import PowerKit
 import SlideshowKit
 import SwiftUI
@@ -226,9 +227,12 @@ struct Immich_SlideshowApp: App {
 
         let makeSlideshow: @MainActor @Sendable (any ThemeSettingsStore) async -> SlideshowViewModel? = { settingsStore in
             guard let resolved = await resolveActiveSource() else { return nil }
+            // 900: the engine consumes the neutral source protocol; ImmichClient is one
+            // conformer. Photos-library sources get their own provider branch here in the
+            // US1 wiring (T020) — resolveActiveSource is Immich-only by design.
             return SlideshowViewModel(
-                api: ImmichClient(config: resolved.serverConfig),
-                albumID: resolved.albumID,
+                source: ImmichClient(config: resolved.serverConfig),
+                collectionID: resolved.albumID,
                 ticker: RealTicker(),
                 diskCache: diskCache,
                 snapshots: snapshotStore,
@@ -645,11 +649,14 @@ enum UITestSupport {
         switch library.active?.kind {
         case let .album(id): albumID = id
         case .sharedLink: albumID = "a2"
+        // 900: hermetic photoLibrary sources reuse the stub's default album until the
+        // US1 uitest seam (--uitest-photos, T019) brings its own fake gateway.
+        case .photoLibrary: albumID = "a1"
         case nil: albumID = "a1"
         }
         return SlideshowViewModel(
-            api: StubImmichAPI(),
-            albumID: albumID,
+            source: StubImmichAPI(),
+            collectionID: albumID,
             ticker: RealTicker(),
             diskCache: diskCache,
             snapshots: snapshots,
@@ -835,6 +842,56 @@ private struct StubImmichAPI: ImmichAPI {
             UIBezierPath(ovalIn: CGRect(x: size.width / 2 - 60, y: size.height / 2 - 60, width: 120, height: 120)).fill()
         }
         return image.pngData() ?? Data()
+    }
+}
+
+// 900 (T012) — the hermetic stub also speaks the neutral protocol the engine now consumes,
+// with the same ImmichError → SourceFailure mapping production uses (ImmichPhotoSource), so
+// the 310 resilience UI tests keep observing identical retry/auth behavior.
+extension StubImmichAPI: PhotoSourceProviding {
+    func ensureReady() async throws {}
+
+    func collections() async throws -> [SourceCollection] {
+        try await albums().map {
+            SourceCollection(id: $0.id, title: $0.name, assetCount: $0.assetCount ?? 0, coverAssetID: nil)
+        }
+    }
+
+    func assets(in collectionID: String) async throws -> [SourceAsset] {
+        do {
+            return try await assets(albumID: collectionID).map {
+                SourceAsset(id: $0.id, kind: MediaKind(rawValue: $0.type) ?? .other)
+            }
+        } catch let error as ImmichError {
+            throw Self.sourceFailure(for: error)
+        }
+    }
+
+    func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data {
+        switch fidelity {
+        case .thumbnail: return try await thumbnail(assetID: assetID)
+        case .preview: return try await preview(assetID: assetID)
+        case .original: return try await original(assetID: assetID)
+        }
+    }
+
+    func metadata(for assetID: String) async throws -> AssetMetadata {
+        let info = try await assetInfo(assetID: assetID)
+        let parts = [info.city, info.country].compactMap { $0 }.filter { !$0.isEmpty }
+        return AssetMetadata(
+            capturedAt: info.takenAt,
+            latitude: nil,
+            longitude: nil,
+            placeName: parts.isEmpty ? nil : parts.joined(separator: ", ")
+        )
+    }
+
+    /// Mirrors `ImmichSourceFailureMapping` for the two failures this stub can throw.
+    private static func sourceFailure(for error: ImmichError) -> SourceFailure {
+        switch error {
+        case .unauthorized: .authentication
+        default: .transient(underlying: error)
+        }
     }
 }
 

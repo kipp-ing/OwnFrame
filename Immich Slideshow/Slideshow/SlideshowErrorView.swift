@@ -49,6 +49,7 @@ struct SlideshowErrorView: View {
         switch reason {
         case .unsupportedServer: return "exclamationmark.triangle"
         case .authentication: return "key.slash"
+        case .notFound: return "photo.on.rectangle.angled"
         case .transient, nil: return "wifi.exclamationmark"
         }
     }
@@ -57,6 +58,7 @@ struct SlideshowErrorView: View {
         switch reason {
         case .unsupportedServer: return "Immich update required"
         case .authentication: return "Access was denied"
+        case .notFound: return "This source is gone"
         case .transient, nil: return "Couldn’t load the album"
         }
     }
@@ -70,6 +72,12 @@ struct SlideshowErrorView: View {
         case .authentication:
             return "Check your connection settings — the API key or shared link "
                 + "may have expired. Retrying automatically in the background."
+        case .notFound:
+            // 900 FR-900-16: terminal vanish state — the album was deleted, unshared, or is
+            // no longer visible to this app. Interim copy; the full per-cause wording (incl.
+            // the iOS 27 upgraded-album hint) lands with the US3 slice (T030).
+            return "This album is no longer available — it may have been deleted or "
+                + "unshared. Pick another source to keep the show going."
         case .transient, nil:
             return "Check the connection to your Immich server and try again. "
                 + "Retrying automatically in the background."
