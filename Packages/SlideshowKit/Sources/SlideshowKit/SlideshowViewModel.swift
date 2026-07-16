@@ -350,23 +350,44 @@ public final class SlideshowViewModel {
 
     // MARK: - Auto-retry (310, US1)
 
-    /// Record a failure, classify it, and arm the backoff retry. The phase only
-    /// becomes `.failed` when there is nothing on screen (FR-310-03).
+    /// Record a failure, classify it, and (for non-terminal reasons) arm the backoff retry.
+    ///
+    /// Two regimes, split by `reason.isTerminal`:
+    ///
+    /// - **Terminal** (`.notFound` vanish / `.unsupportedServer`): surface the calm
+    ///   unavailable state immediately, *even while a photo is on screen*. Terminal reasons
+    ///   never retry, so FR-310-03 ("while retrying, keep showing the current image") does
+    ///   not apply — there is no silent recovery to hold the stale photo for. Looping a
+    ///   vanished collection's remembered photos forever contradicts FR-900-16 (a vanished
+    ///   collection MUST resolve to the calm unavailable state — "a first-class state, not an
+    ///   error path") and FR-130-05/06 ("surface the notice"). So: clear the stale image,
+    ///   land `.failed`, keep the reason, and never arm the retry. The hourly refresh is left
+    ///   untouched, so the show still recovers on its own if the collection returns.
+    /// - **Non-terminal** (`.transient` / `.authentication`): FR-310-03 wins while a photo is
+    ///   on screen — it stays stale-but-visible and the backoff retry recovers it silently;
+    ///   `.failed` only when there is nothing on screen. Spec 310 pins the auth case
+    ///   explicitly ("while a photo is on screen, FR-310-03 wins" for auth).
     private func handleFailure(_ error: any Error, kind: PendingRetry) {
         let failure = Self.sourceFailure(from: error)
         let reason = RetryPolicy.classify(failure)
         failureReason = reason
+
+        // FR-900-16 / FR-130-05/06: a terminal failure is surfaced now, even mid-play. No
+        // retry is armed (nothing to recover to), so the stale photo cannot be kept "while
+        // retrying" — clear it and land the calm `.failed` state instead of looping it forever.
+        guard !reason.isTerminal else {
+            resetCurrent()
+            phase = .failed
+            cancelRetry()
+            return
+        }
+
+        // FR-310-03: a non-terminal failure keeps whatever is on screen and recovers silently.
         if currentImageData == nil {
             resetCurrent()
             phase = .failed
         } else {
             phase = .playing
-        }
-        // 130 FR-130-06: an unsupported (v<3) server is terminal — surface the notice, but do
-        // not arm the backoff loop against a server the app can never satisfy.
-        guard !reason.isTerminal else {
-            cancelRetry()
-            return
         }
         scheduleRetry(for: failure, kind: kind)
     }

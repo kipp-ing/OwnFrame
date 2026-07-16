@@ -593,11 +593,17 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
     await model.refreshNow()
 
-    // FR-900-16: vanish is terminal and calm — the reason names it, the last photo stays
-    // on the wall (recovery is picking another source, handled in a later slice), and NO
-    // backoff retry is armed. Only the pre-existing hourly refresh remains parked.
+    // FR-900-16: vanish is terminal and calm — a first-class unavailable state, NOT an error
+    // path that keeps looping a dead collection's remembered photos. Because a terminal reason
+    // never retries, FR-310-03 ("keep the current image while retrying") does not apply: there
+    // is no silent recovery to hold the stale photo for. So the calm `.failed` state is
+    // surfaced at once even though a photo was on screen — the stale image is cleared, the
+    // reason names it, and NO backoff retry is armed. The pre-existing hourly refresh survives
+    // (terminal cancels only the retry), so the show still recovers on its own if the
+    // collection returns.
     #expect(model.failureReason == .notFound)
-    #expect(model.currentAssetID == "image-1")
-    #expect(model.phase == .playing)
+    #expect(model.currentAssetID == nil)
+    #expect(model.currentImageData == nil)
+    #expect(model.phase == .failed)
     #expect(clock.sleeperCount == 1)
 }
