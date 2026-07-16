@@ -61,7 +61,9 @@ struct Immich_SlideshowApp: App {
         // Backed by the live screen in production, a fake under `--uitest` so the
         // hermetic test never touches real device brightness.
         let makePowerManager: @MainActor @Sendable () -> PowerManager
-        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore) async -> HAControlCoordinator?
+        // The last parameter is the app-level source switch (900, FR-900-11): the HA
+        // source select routes through it so cross-backend switches rebuild correctly.
+        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) async -> HAControlCoordinator?
         // Builds the in-app connection editor view model (009): same config/Keychain
         // seams as the slideshow, validating against a freshly built ImmichClient.
         let makeConnectionSettingsViewModel: @MainActor @Sendable () -> ConnectionSettingsViewModel?
@@ -172,7 +174,7 @@ struct Immich_SlideshowApp: App {
                 },
                 makePhotoLibraryGateway: { @MainActor @Sendable in photoGateway },
                 makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
-                makeCoordinator: { @MainActor @Sendable _, _, _ in nil },
+                makeCoordinator: { @MainActor @Sendable _, _, _, _ in nil },
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
                 saveSelectedAlbum: { @MainActor @Sendable _ in },
                 takePendingLink: { pendingLinkStore.takePendingURL() },
@@ -324,7 +326,7 @@ struct Immich_SlideshowApp: App {
         let makePowerManager: @MainActor @Sendable () -> PowerManager = {
             PowerManager(screen: UIScreenController())
         }
-        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore) async -> HAControlCoordinator? = { slideshow, powerManager, themeStore in
+        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) async -> HAControlCoordinator? = { slideshow, powerManager, themeStore, onSwitchSource in
             guard let brokerConfig = brokerProvider.load() else { return nil }
 
             // Build the API client once (best-effort): serves both the HA album
@@ -346,11 +348,22 @@ struct Immich_SlideshowApp: App {
             // discovery below.
             let publishOptions = HAPublishOptionsStoreFactory.make()
 
+            // 900 (FR-900-11): the HA select lists the saved source library — every kind,
+            // Photos included — and routes selection through the app-level switch.
+            let library = sourceStore.load()
+            let isPhotoLibrarySource: Bool = {
+                if case .photoLibrary = library.active?.kind { return true }
+                return false
+            }()
             let adapter = SlideshowRemoteControlAdapter(
                 slideshow: slideshow,
                 powerManager: powerManager,
                 albums: albums,
                 currentAlbumID: config.load()?.selectedAlbumID,
+                sources: library.sources,
+                activeSourceID: library.active?.id,
+                onSelectSource: onSwitchSource,
+                isPhotoLibrarySource: isPhotoLibrarySource,
                 themeStore: themeStore,
                 api: client,
                 metadataCache: MetadataCache(limit: 64),
@@ -474,7 +487,7 @@ private struct RootView: View {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
                               isPhotoLibrarySource: activeSourceIsPhotoLibrary,
                               themeStore: themeStore,
-                              makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager, themeStore) },
+                              makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager, themeStore, { id in switchSource(id: id) }) },
                               onReset: {
                     self.slideshow = nil
                     self.powerManager = nil

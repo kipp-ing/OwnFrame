@@ -179,7 +179,7 @@ states; revoked-while-active errors like a failed Immich source.
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T031 [P] HA parity (FR-900-11/12): Photos sources in the HA source select +
+- [x] T031 [P] HA parity (FR-900-11/12): Photos sources in the HA source select +
       current-photo metadata (date + coordinates, no placeName — R7) in
       `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift`; red round-trip
       addition in `Immich SlideshowTests/HAControlRoundTripTests.swift`; publish-images

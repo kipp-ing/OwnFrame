@@ -455,6 +455,40 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(metadata.placeName == "Berlin, Germany")
 }
 
+// 900 T031 (FR-900-12): HA image publishing reads bytes through the engine's neutral
+// pass-through, so a Photos source publishes under the same opt-in as Immich.
+@MainActor
+@Test func imageDataPassesThroughFromTheSource() async throws {
+    let source = StubPhotoSource()
+    source.setAssets([SourceAsset(id: "image-1", kind: .image)], for: "album")
+    source.setImageData(Data([7]), for: "image-1", fidelity: .thumbnail)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ManualTicker(), settingsStore: sequentialThemeStore())
+    let data = try await model.imageData(for: "image-1", fidelity: .thumbnail)
+
+    #expect(data == Data([7]))
+}
+
+// 900 T031 (FR-710-07 parity): the photo-count diagnostic can come from the engine's own
+// rotation — correct for backends whose collections the server album list doesn't know.
+@MainActor
+@Test func photoCountReflectsTheLoadedRotation() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([
+        SourceAsset(id: "video", kind: .video),
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
+    ], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    #expect(model.photoCount == 0)
+    await model.start()
+    #expect(model.photoCount == 2, "videos are filtered — the rotation holds two images")
+}
+
 // The former advanceFailsWhenEveryImageInRingNowFails test asserted the pre-310
 // dead-end (`phase == .failed` on total image exhaustion). FR-310-03 supersedes
 // it: the current image stays up and a backoff retry recovers the show — see

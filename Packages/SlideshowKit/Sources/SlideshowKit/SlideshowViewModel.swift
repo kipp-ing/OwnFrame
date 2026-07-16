@@ -338,6 +338,16 @@ public final class SlideshowViewModel {
         try await source.metadata(for: assetID)
     }
 
+    /// Neutral image-bytes pass-through (900 T031, FR-900-12): HA's opt-in image
+    /// publishing fetches through the engine's source, so it works for every backend.
+    public func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data {
+        try await source.imageData(for: assetID, fidelity: fidelity)
+    }
+
+    /// The loaded rotation's size (images only). Backend-true where a server album list
+    /// can't know the active collection (900 T031, FR-710-07 parity).
+    public var photoCount: Int { imageAssets.count }
+
     // MARK: - Auto-retry (310, US1)
 
     /// Record a failure, classify it, and arm the backoff retry. The phase only

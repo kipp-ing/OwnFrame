@@ -81,6 +81,14 @@ struct BrokerSettingsSection: View {
                     publishOptions.options.imageEnabled = newValue
                 }
 
+            // FR-900-12: the opt-in is global — say plainly that it also covers photos
+            // from the device library, which otherwise never leave the device (FR-900-14).
+            Text("Applies to every source — Immich albums, shared links, and albums from "
+                 + "your Photos library.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("broker.imagePublishScope")
+
             if imageEnabled {
                 Stepper("Max image size: \(Int(byteCapKB)) KB", value: $byteCapKB, in: 100...2000, step: 100)
                     .accessibilityIdentifier("broker.byteCap")
