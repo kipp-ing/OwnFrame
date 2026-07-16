@@ -58,6 +58,22 @@ public final class SourceLibraryViewModel {
         persist(library)
     }
 
+    /// Add a device photo-library source (an Apple Photos / iCloud album, or the limited-access
+    /// "Selected Photos" pool) by its collection ID (900, FR-900-02). Mirrors `addAlbumSource`:
+    /// the label is taken as-is at save time, with the same duplicate-label guard.
+    public func addPhotoLibrarySource(collectionID: String, label: String) {
+        errorMessage = nil
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isLabelAvailable(trimmed) else {
+            errorMessage = Self.duplicateLabelMessage
+            return
+        }
+
+        var library = self.library
+        library.add(Source(label: trimmed, kind: .photoLibrary(collectionID: collectionID)))
+        persist(library)
+    }
+
     // MARK: - Two-phase resolve (210, D6)
 
     /// Reset the add-link flow to `.idle` — call when (re)opening the add-link surface.

@@ -111,6 +111,23 @@ import Testing
     }
 }
 
+// A photo-library source has no Immich server to resolve against — the app builds its
+// provider directly by SourceKind (900). This Immich-only resolver rejects it calmly rather
+// than fabricating a server config, and never crashes.
+@Test func activeSourceResolverThrowsForPhotoLibrarySource() async {
+    let source = Source(id: "source-1", label: "Beach 2019", kind: .photoLibrary(collectionID: "col-1"))
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: URL(string: "https://photos.example.test")!,
+        apiKey: "secret-api-key",
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver()
+    )
+
+    await #expect(throws: (any Error).self) {
+        _ = try await resolver.resolve(source)
+    }
+}
+
 private final class StubSharedLinkResolver: SharedLinkResolving, @unchecked Sendable {
     struct Request: Equatable {
         let baseURL: URL

@@ -56,6 +56,21 @@ import Testing
     #expect(store.load() == library)
 }
 
+@Test func userDefaultsSourceLibraryStorePersistsPhotoLibrarySource() {
+    let defaults = makeSourceLibraryDefaults()
+    let store = UserDefaultsSourceLibraryStore(defaults: defaults)
+    var library = SourceLibrary()
+    library.add(Source(id: "album-source", label: "Album", kind: .album(albumID: "album-1")))
+    library.add(Source(id: "shared-source", label: "Shared", kind: .sharedLink(baseURL: URL(string: "https://photos.example.test")!, slug: "summer")))
+    library.add(Source(id: "photos-source", label: "Selected Photos", kind: .photoLibrary(collectionID: "selected-photos")))
+    library.setActive(id: "photos-source")
+
+    store.save(library)
+
+    #expect(store.load() == library)
+    #expect(store.load().active?.kind == .photoLibrary(collectionID: "selected-photos"))
+}
+
 @Test func inMemorySourceLibraryStoreRoundTripsAndClears() {
     let store = InMemorySourceLibraryStore()
     var library = SourceLibrary()
