@@ -48,14 +48,18 @@ assertions, both green.
 - Full XCUITest suite before merge (standing rule; broker-toggle flake: rerun that class
   isolated before suspecting the diff).
 
-## Phase-4 / release gates (manual, scheduled — not this session)
+## Phase-4 / release gates (manual checklist — T036; scheduled, NOT executed in-session)
 
-- **SC-900-02**: real iPad, optimized storage, cold cache — full album cycle, zero blank
-  frames (verify by video luminance method if in doubt).
-- **SC-900-04**: add/remove a photo in Photos app → frame updates without restart.
-- **SC-900-01**: stopwatch a fresh source-picker → playing flow (< 1 min).
-- **SC-900-07** (ship gate): newest iOS beta + real legacy shared album; exercise the
-  owner-upgrade vanish drill.
+- [ ] **SC-900-01**: stopwatch a fresh source-picker → playing flow (< 1 min).
+- [ ] **SC-900-02**: real iPad, optimized storage, cold cache — full album cycle, zero blank
+      frames (verify by video luminance method if in doubt).
+- [ ] **SC-900-04**: add/remove a photo in Photos app → frame updates without restart
+      (change observer; also verify the foreground refetch on a shared album).
+- [ ] **SC-900-05 (manual half)**: real device authorization round-trip — deny, re-grant,
+      limited via iOS Settings while the app runs.
+- [ ] **SC-900-07** (ship gate): newest iOS 27 beta + real legacy shared album; exercise the
+      owner-upgrade vanish drill; recheck third-party PhotoKit visibility of upgraded albums
+      (memory: iOS 27, not 28).
 
 ## HA parity spot-check (Phase 4)
 

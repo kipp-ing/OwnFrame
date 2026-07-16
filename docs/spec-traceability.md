@@ -249,6 +249,41 @@ SC-130-01…06 map to the same tests (paging/order, no-query-password, connect n
 | FR-700-11 | Unknown commands ignored safely | `HAControlCoordinatorTests.swift` `invalidPlaybackPayloadDoesNotChangeStateButEchoesCurrentState` | covered | host-unit |
 | FR-700-12 | Latest valid rapid command wins; echo actual state | `HAControlCoordinatorTests.swift` `playbackCommandsPauseResumeAndEchoActualState`; rapid/conflicting sequence not directly tested | partial | host-unit |
 
+## 900 - Photo Library Source *(added 2026-07-16, implemented — device/beta gates pending)*
+
+Host-unit tests live in `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/`
+(`PhotoLibraryProviderTests`, `AuthorizationTests`, `ImageDeliveryTests`,
+`ChangeObservationTests`, `SeamTests`) and `Packages/SlideshowKit/Tests/SlideshowKitTests/`
+(`DualBackendScenarioTests`, additions to the offline/resilience/view-model suites). UI-sim
+coverage is `PhotoAlbumPickerUITests` (hermetic `--uitest-photos*` seams) plus round-trip
+additions in `Immich SlideshowTests/HAControlRoundTripTests`.
+
+| FR | Requirement (short) | Covering test(s) | Status | Testability |
+|---|---|---|---|---|
+| FR-900-01 | Backend-neutral source protocol; engine unchanged | Phase-1 gate (all SlideshowKit suites through `PhotoSourceProviding`); `DualBackendScenarioTests` (SC-900-03) | covered | host-unit |
+| FR-900-03 | User albums + iCloud Shared Albums enumerable (full access) | `PHKitGateway.fetchCollections` (adapter, sim-verified); picker UITests `testAddPhotosAlbumFromSettingsPlaysSlideshow` | covered | UI-sim + device gate |
+| FR-900-04 | Access requested at choice, `.readWrite` level API, purpose string | `AuthorizationTests` (matrix + transitions); `testOnboardingPhotosAlbumTabAddsFirstSource` (first-run request path); purpose string in build settings (verified in built Info.plist) | covered | host-unit + UI-sim |
+| FR-900-06 | iCloud originals on demand, no-blank rules hold | `ImageDeliveryTests` (opaque error → `.transient`); `PhotosDeliveryTests` slow-load no-blank | covered | host-unit |
+| FR-900-07 | Never show degraded deliveries | `ImageDeliveryTests` decision table over `ImageDeliveryRules` (extracted from the gateway callbacks) | covered | host-unit |
+| FR-900-08 | Live Photos as stills; non-stills skipped | `ImageDeliveryTests` kind pass-through (provider filters nothing); engine `.image` filter tests | covered | host-unit |
+| FR-900-09 | Change observation → rotation; foreground refetch | `ChangeObservationTests`; `refreshNow` engine tests; app hooks (change handler + scenePhase, T025) | covered | host-unit + wiring review |
+| FR-900-10 | Info overlay: date; place only when the source has one | `metadataPassesThroughFromTheSource`; `testPhotosSourceInfoOverlayShowsDateOnly`; Immich path pinned by `PhotoInfoUITests` | covered | host-unit + UI-sim |
+| FR-900-11 | HA: source select + metadata parity | `sourceSelectListsLibrarySourcesAndRoutesToAppSwitch`, `photosSourceReportsDateOnlyMetadataThroughNeutralPath` | covered | app-hosted |
+| FR-900-12 | Image publishing under the global opt-in, copy covers all sources | engine `imageDataPassesThroughFromTheSource`; adapter neutral image path; `broker.imagePublishScope` copy | covered | host-unit + UI copy |
+| FR-900-13 | Host-testable behind the protocol; PhotoKit stays a thin adapter | `SeamTests` (import confined to `PHKitGateway.swift`); all suites host-green | covered | host-unit |
+| FR-900-14 | Nothing leaves the device beyond HA opt-ins | egress grep (T035): no network API in PhotoLibraryKit; `placeName` nil (no geocoding) | covered | static audit |
+| FR-900-15 | Never imply better quality than the source ceiling | `testPhotosSourceShowsQualityCeilingNote` (Display footer) | covered | UI-sim |
+| FR-900-16 | Vanish → calm terminal state with cause copy | `ChangeObservationTests` vanish mapping; `refreshNow` `.notFound` terminal test; `testVanishedAlbumShowsCauseCopyIncludingUpgradeHint`, `testDowngradeMakesActiveAlbumSourceCalmlyUnavailable` | covered | host-unit + UI-sim |
+| SC-900-03 | Same engine tests over both backends | `DualBackendScenarioTests` (5 scenarios × 2 backends) | covered | host-unit |
+| SC-900-05 | Authorization surfaces honest | `testLimitedAccessOffersSelectedPhotosOnly`, `testDeniedAccessShowsCalmMessageWithSettingsPath` | covered | UI-sim |
+| SC-900-06 | Cross-backend switching, no leaked timers | `droppedViewModelDeallocatesAndStopsItsTickerLoop`; switch-both-directions UITests | covered | host-unit + UI-sim |
+| SC-900-01/02/04/07 | Device/beta release gates | scheduled checklist in `specs/900-photo-library-source/quickstart.md` (T036) | scheduled | manual |
+
+Additional 900 engine rule: `SlideshowConfig.snapshotMasksAuthenticationFailures` — a
+photo-access revocation is never masked by remembered snapshots
+(`revokedAccessAtLaunchIsNotMaskedBySnapshotWhenConfigured`); the Immich stale-beats-broken
+default is pinned unchanged (`expiredCredentialsAtLaunchStillPlayFromSnapshotByDefault`).
+
 ## Gaps to close (host-unit)
 
 - FR-200-02: startup cannot resume at album selection when URL and key exist but selected album is missing.
