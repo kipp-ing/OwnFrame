@@ -19,6 +19,11 @@ public struct StartupGate: Sendable {
                 // A shared link authenticates itself — complete with no API key and no
                 // separately saved base URL (210, D2).
                 return .done
+            case .photoLibrary:
+                // A device photo-library source needs no Immich connection; photo
+                // authorization is (re)checked by the provider at engine start (900, R5),
+                // so relaunch resumes straight into the slideshow (US1-4 startup parity).
+                return .done
             case .album:
                 // Album sources still need the authenticated client: API key + base URL.
                 guard keychain.read() != nil, config.loadBaseURL() != nil else { return .connection }

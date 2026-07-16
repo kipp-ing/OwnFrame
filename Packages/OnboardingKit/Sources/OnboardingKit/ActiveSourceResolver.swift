@@ -51,6 +51,11 @@ public struct ActiveSourceResolver: Sendable {
                 serverConfig: ServerConfig(baseURL: baseURL, auth: .shareKey(resolution.key)),
                 albumID: resolution.albumID
             )
+        case .photoLibrary:
+            // A device photo-library source has no Immich server to resolve against — the app
+            // builds its provider directly by SourceKind (900). This Immich-only resolver
+            // rejects it calmly rather than fabricating a server config.
+            throw ImmichError.unauthorized
         }
     }
 }

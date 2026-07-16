@@ -29,6 +29,43 @@ import Testing
 }
 
 @MainActor
+@Test func sourceLibraryViewModelAddPhotoLibrarySourcePersistsAndActivatesFirst() {
+    let store = InMemorySourceLibraryStore()
+    let viewModel = makeViewModel(store: store)
+
+    viewModel.addPhotoLibrarySource(collectionID: "selected-photos", label: "Selected Photos")
+
+    #expect(viewModel.sources.count == 1)
+    #expect(viewModel.sources[0].kind == .photoLibrary(collectionID: "selected-photos"))
+    #expect(viewModel.sources[0].label == "Selected Photos")
+    #expect(viewModel.activeID == viewModel.sources[0].id)
+    #expect(store.load().sources.map(\.label) == ["Selected Photos"])
+}
+
+@MainActor
+@Test func sourceLibraryViewModelListsAndActivatesPhotoLibrarySourceLikeAnyOther() {
+    var seeded = SourceLibrary()
+    seeded.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
+    seeded.add(Source(id: "source-2", label: "Beach 2019", kind: .photoLibrary(collectionID: "col-2")))
+    let store = InMemorySourceLibraryStore(library: seeded)
+    var switched: [String] = []
+    let viewModel = makeViewModel(store: store, onSwitchActive: { id in
+        switched.append(id)
+        var lib = store.load()
+        lib.setActive(id: id)
+        store.save(lib)
+    })
+
+    // Listed with the label set at save time — no special casing for the photoLibrary kind.
+    #expect(viewModel.sources.map(\.label) == ["Family", "Beach 2019"])
+
+    viewModel.setActive(id: "source-2")
+
+    #expect(switched == ["source-2"])
+    #expect(viewModel.activeID == "source-2")
+}
+
+@MainActor
 @Test func sourceLibraryViewModelRejectsDuplicateLabel() {
     let store = InMemorySourceLibraryStore()
     let viewModel = makeViewModel(store: store)

@@ -16,6 +16,12 @@ private func sharedLinkLibrary() -> InMemorySourceLibraryStore {
     return InMemorySourceLibraryStore(library: library)
 }
 
+private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
+    var library = SourceLibrary()
+    library.add(Source(label: "Beach 2019", kind: .photoLibrary(collectionID: "col-1")))
+    return InMemorySourceLibraryStore(library: library)
+}
+
 @Test func startupGateReturnsDoneForConnectionAndActiveAlbumSource() {
     let config = InMemoryConfigStore(
         configuration: AppConfiguration(baseURL: url, selectedAlbumID: "a1")
@@ -32,6 +38,17 @@ private func sharedLinkLibrary() -> InMemorySourceLibraryStore {
     let config = InMemoryConfigStore()
     let keychain = InMemoryKeychainStore()
     let gate = StartupGate(config: config, keychain: keychain, sourceStore: sharedLinkLibrary())
+
+    #expect(gate.initialStep() == .done)
+}
+
+@Test func startupGateReturnsDoneForPhotoLibrarySourceWithoutAPIKeyOrBaseURL() {
+    // A device photo-library source is self-authenticating — photo permission is (re)checked
+    // by the provider at engine start (900/R5), so startup resumes straight into the
+    // slideshow with no Immich API key or base URL (US1-4 startup parity).
+    let config = InMemoryConfigStore()
+    let keychain = InMemoryKeychainStore()
+    let gate = StartupGate(config: config, keychain: keychain, sourceStore: photoLibraryLibrary())
 
     #expect(gate.initialStep() == .done)
 }
