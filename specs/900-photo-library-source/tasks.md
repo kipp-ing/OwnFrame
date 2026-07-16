@@ -190,14 +190,14 @@ states; revoked-while-active errors like a failed Immich source.
 - [x] T033 Quality honesty (FR-900-15): Settings copy notes the shared-album ceiling where
       the quality picker shows for a Photos source, in
       `Immich Slideshow/Slideshow/SlideshowSettingsView.swift`
-- [ ] T034 [P] Docs: flip 900 status in `docs/spec-overview.md` (Deferred → Active/
+- [x] T034 [P] Docs: flip 900 status in `docs/spec-overview.md` (Deferred → Active/
       Implemented as reached) and record FR→test traceability in
       `docs/spec-traceability.md` (900 section)
-- [ ] T035 Full XCUITest suite via XcodeBuildMCP `test_sim` (standing pre-merge rule;
+- [x] T035 Full XCUITest suite via XcodeBuildMCP `test_sim` (standing pre-merge rule;
       broker-toggle class re-run isolated if it flakes) + quickstart.md Phase-1/2/3 gate
       commands re-run clean + FR-900-14 egress review: grep PhotoLibraryKit for any network
       API use — only the gateway's PhotoKit calls are permitted
-- [ ] T036 Schedule (do NOT execute now) the manual release gates: SC-900-01/02/04 device
+- [x] T036 Schedule (do NOT execute now) the manual release gates: SC-900-01/02/04 device
       passes and the SC-900-07 iOS-27-beta ship gate — tracked as a checklist in
       `specs/900-photo-library-source/quickstart.md`
 
