@@ -6,22 +6,32 @@
 import HAControlKit
 import ImmichClient
 import Observation
+import OnboardingKit
+import PhotoSourceKit
 import PowerKit
 import SlideshowKit
 import ThemeKit
 import UIKit
 
 /// Bridges Home-Assistant remote control onto the running app: pause/play onto the
-/// `SlideshowViewModel`, brightness onto the foreground-gated `PowerManager`, and
-/// album selection onto the slideshow's runtime album switch. Also mirrors the
-/// full `ThemeSettings` surface to HA (`SettingsControlling`): remote applies are
-/// written through the theme store with the local-change callback suppressed, so
+/// `SlideshowViewModel`, brightness onto the foreground-gated `PowerManager`, and the
+/// source select onto the app-level source switch (900, FR-900-11 — the select lists the
+/// saved LIBRARY's sources of every kind; the app owns the cross-backend rebuild). Also
+/// mirrors the full `ThemeSettings` surface to HA (`SettingsControlling`): remote applies
+/// are written through the theme store with the local-change callback suppressed, so
 /// only genuinely local edits echo back (FR-710-12/20).
 @MainActor
 public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     private let slideshow: SlideshowViewModel
     private let powerManager: PowerManager
     private let albums: [Album]
+    /// The saved source library (900): the select's options. When empty, the legacy
+    /// album-list select remains (pre-900 constructions and tests).
+    private let sources: [Source]
+    private let onSelectSource: ((String) -> Void)?
+    /// The active source is Photos-backed (900): current-photo metadata/image publish
+    /// through the engine's neutral pass-throughs instead of the Immich API.
+    private let isPhotoLibrarySource: Bool
     private let themeStore: (any ThemeSettingsStore)?
     private var suppressSettingsCallback = false
 
@@ -32,7 +42,9 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     // screen and only applies it in the foreground (Konstitution V); we mirror the
     // requested target so HA echoes a stable value.
     public private(set) var brightness: Double
-    public var albumOptions: [String] { albums.map(\.name) }
+    public var albumOptions: [String] {
+        sources.isEmpty ? albums.map(\.name) : sources.map(\.label)
+    }
     public private(set) var currentAlbum: String?
     public var onLocalChange: (@MainActor () -> Void)?
     public var onSettingsChange: (@MainActor () -> Void)?
@@ -51,6 +63,10 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         powerManager: PowerManager,
         albums: [Album] = [],
         currentAlbumID: String? = nil,
+        sources: [Source] = [],
+        activeSourceID: String? = nil,
+        onSelectSource: ((String) -> Void)? = nil,
+        isPhotoLibrarySource: Bool = false,
         initialBrightness: Double = 1.0,
         themeStore: (any ThemeSettingsStore)? = nil,
         api: (any ImmichAPI)? = nil,
@@ -60,8 +76,12 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         self.slideshow = slideshow
         self.powerManager = powerManager
         self.albums = albums
+        self.sources = sources
+        self.onSelectSource = onSelectSource
+        self.isPhotoLibrarySource = isPhotoLibrarySource
         self.brightness = min(max(initialBrightness, 0), 1)
-        self.currentAlbum = albums.first { $0.id == currentAlbumID }?.name
+        self.currentAlbum = sources.first { $0.id == activeSourceID }?.label
+            ?? albums.first { $0.id == currentAlbumID }?.name
         self.themeStore = themeStore
         self.api = api
         self.metadataCache = metadataCache
@@ -103,6 +123,16 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     }
 
     public func selectAlbum(_ name: String) {
+        // 900 (FR-900-11): with a source library, the option is a source LABEL and the
+        // switch goes through the app (it owns the cross-backend rebuild strategy).
+        // An unknown option changes nothing either way (FR-700-14 semantics).
+        if !sources.isEmpty {
+            guard let source = sources.first(where: { $0.label == name }) else { return }
+            currentAlbum = name
+            onSelectSource?(source.id)
+            onLocalChange?()
+            return
+        }
         guard let album = albums.first(where: { $0.name == name }) else { return }
         currentAlbum = name
         Task { await slideshow.switchAlbum(album.id) }
@@ -182,21 +212,37 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     private func buildPhotoReport() async -> PhotoReport {
         let assetID = slideshow.currentAssetID
         let albumID = slideshow.albumID
+        // For a Photos source the server album list can't know the collection — the
+        // active source's label (mirrored in currentAlbum) names it instead (900).
         let albumName = albums.first { $0.id == albumID }?.name
+            ?? (isPhotoLibrarySource ? currentAlbum : nil)
         let phase = Self.mapPhase(slideshow.phase)
         let count = albumPhotoCount(albumID)
 
-        guard let assetID, let api else {
+        guard let assetID else {
             return PhotoReport(
-                assetID: assetID, imageData: nil,
+                assetID: nil, imageData: nil,
                 takenAt: nil, city: nil, state: nil, country: nil,
                 albumID: albumID, albumName: albumName,
                 phase: phase, photoCount: count
             )
         }
 
-        let meta = await metadata(for: assetID, api: api)
-        let image = await imageData(for: assetID, api: api)
+        // 900 (FR-900-11/12): a Photos source publishes through the engine's neutral
+        // pass-throughs — capture date only, no place fields (R7, no geocoding); image
+        // bytes under the same global opt-in. Immich keeps its richer EXIF path.
+        let meta: CachedMetadata?
+        let image: Data?
+        if isPhotoLibrarySource {
+            meta = await neutralMetadata(for: assetID)
+            image = await neutralImageData(for: assetID)
+        } else if let api {
+            meta = await metadata(for: assetID, api: api)
+            image = await imageData(for: assetID, api: api)
+        } else {
+            meta = nil
+            image = nil
+        }
 
         return PhotoReport(
             assetID: assetID, imageData: image,
@@ -207,10 +253,11 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     }
 
     /// Photo count for the `photo_count` diagnostic sensor (FR-710-07): the active
-    /// album's asset count as reported by Immich, or 0 when the album isn't in the
-    /// (best-effort) list.
+    /// album's asset count as reported by Immich, or — when the album isn't in the
+    /// (best-effort) list, e.g. any Photos collection — the engine's own loaded
+    /// rotation size (900).
     private func albumPhotoCount(_ albumID: String) -> Int {
-        albums.first { $0.id == albumID }?.assetCount ?? 0
+        albums.first { $0.id == albumID }?.assetCount ?? slideshow.photoCount
     }
 
     /// Metadata via the bounded LRU cache; a fetch failure yields `nil` (never
@@ -229,6 +276,28 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         } catch {
             return nil
         }
+    }
+
+    /// Neutral metadata for a Photos-backed show (900, R7): the capture date through the
+    /// engine's pass-through; place fields stay empty — no geocoding. Same bounded cache.
+    private func neutralMetadata(for assetID: String) async -> CachedMetadata? {
+        if let cached = metadataCache.metadata(for: assetID) {
+            return cached
+        }
+        guard let metadata = try? await slideshow.metadata(for: assetID) else { return nil }
+        let meta = CachedMetadata(takenAt: metadata.capturedAt, city: nil, state: nil, country: nil)
+        metadataCache.store(meta, for: assetID)
+        return meta
+    }
+
+    /// Image bytes for a Photos-backed show (900, FR-900-12): the same global opt-in and
+    /// byte cap as Immich, fetched through the engine's neutral pass-through.
+    private func neutralImageData(for assetID: String) async -> Data? {
+        let options = publishOptions?.options ?? HAPublishOptions()
+        guard options.imageEnabled else { return nil }
+        let fidelity: ImageFidelity = options.imageSource == .thumbnail ? .thumbnail : .preview
+        guard let raw = try? await slideshow.imageData(for: assetID, fidelity: fidelity) else { return nil }
+        return Self.downscaledJPEG(from: raw, cap: options.byteCap)
     }
 
     /// Image bytes for HA: only when publishing images is enabled; fetched via the

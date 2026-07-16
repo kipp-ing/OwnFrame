@@ -13,6 +13,7 @@ import Foundation
 import Testing
 import HAControlKit
 import ImmichClient
+import OnboardingKit
 import PhotoSourceKit
 import PowerKit
 import SlideshowKit
@@ -79,6 +80,80 @@ struct HAControlRoundTripTests {
         #expect(echoes.first?.retain == true)
 
         await coordinator.stop()
+    }
+
+    // 900 T031 (FR-900-11): the HA select lists the LIBRARY's sources — Photos sources
+    // included — and a selection routes through the app-level switch (which owns the
+    // cross-backend rebuild), not the engine's same-client album swap. Unknown options
+    // still leave state unchanged (FR-700-14 semantics).
+    @Test func sourceSelectListsLibrarySourcesAndRoutesToAppSwitch() async throws {
+        let suiteName = "de.kippings.ImmichSlideshow.tests.sourceselect"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let slideshow = SlideshowViewModel(
+            source: RoundTripStubAPI(),
+            collectionID: "album-1",
+            ticker: NonFiringTicker(),
+            settingsStore: UserDefaultsThemeStore(defaults: defaults)
+        )
+        var switched: [String] = []
+        let adapter = SlideshowRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            sources: [
+                Source(id: "src-a1", label: "Wohnzimmer", kind: .album(albumID: "album-1")),
+                Source(id: "src-photos", label: "Family", kind: .photoLibrary(collectionID: "pl-family")),
+            ],
+            activeSourceID: "src-a1",
+            onSelectSource: { switched.append($0) }
+        )
+
+        #expect(adapter.albumOptions == ["Wohnzimmer", "Family"],
+                "the select lists library sources of every kind")
+        #expect(adapter.currentAlbum == "Wohnzimmer")
+
+        adapter.selectAlbum("Family")
+        #expect(switched == ["src-photos"], "selection routes to the app-level source switch")
+        #expect(adapter.currentAlbum == "Family")
+
+        adapter.selectAlbum("Unknown Option")
+        #expect(switched == ["src-photos"], "an unknown option changes nothing")
+        #expect(adapter.currentAlbum == "Family")
+    }
+
+    // 900 T031 (FR-900-11, R7): a Photos-backed show publishes current-photo metadata
+    // through the engine's neutral pass-through — the capture date flows, the place
+    // fields stay empty (no geocoding), and nothing errors on the missing Immich API.
+    @Test func photosSourceReportsDateOnlyMetadataThroughNeutralPath() async throws {
+        let suiteName = "de.kippings.ImmichSlideshow.tests.photosmeta"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let slideshow = SlideshowViewModel(
+            source: PhotosStubSource(),
+            collectionID: "pl-family",
+            ticker: NonFiringTicker(),
+            settingsStore: UserDefaultsThemeStore(defaults: defaults)
+        )
+        let adapter = SlideshowRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            isPhotoLibrarySource: true
+        )
+
+        await slideshow.start()
+        for _ in 0..<10 { await Task.yield() }
+        try await Task.sleep(for: .milliseconds(50))
+
+        let report = adapter.currentPhotoReport
+        #expect(report.assetID != nil, "the report follows the running show")
+        #expect(report.takenAt == PhotosStubSource.capturedAt, "the capture date publishes")
+        #expect(report.city == nil, "no geocoding — place fields stay empty (R7)")
+        #expect(report.state == nil)
+        #expect(report.country == nil)
     }
 
     @Test func chromeTogglePauseEchoesPlaybackStateToHA() async throws {
@@ -249,6 +324,23 @@ extension RoundTripStubAPI: PhotoSourceProviding {
     func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data { Data() }
     func metadata(for assetID: String) async throws -> AssetMetadata {
         AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: nil)
+    }
+}
+
+/// Photos-shaped source: playable images whose neutral metadata carries a capture date
+/// (and coordinates) but no place name — exactly what a PhotoLibraryProvider-backed
+/// show reports (R7, no geocoding).
+private struct PhotosStubSource: PhotoSourceProviding {
+    static let capturedAt = Date(timeIntervalSince1970: 1_718_462_400)
+
+    func ensureReady() async throws {}
+    func collections() async throws -> [SourceCollection] { [] }
+    func assets(in collectionID: String) async throws -> [SourceAsset] {
+        [SourceAsset(id: "pl-1", kind: .image), SourceAsset(id: "pl-2", kind: .image)]
+    }
+    func imageData(for assetID: String, fidelity: ImageFidelity) async throws -> Data { Data([9]) }
+    func metadata(for assetID: String) async throws -> AssetMetadata {
+        AssetMetadata(capturedAt: Self.capturedAt, latitude: 52.5, longitude: 13.4, placeName: nil)
     }
 }
 
