@@ -1,14 +1,18 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.0.1
-Bump rationale: PATCH — translated constitution from German to English. Wording only,
-  no semantic change to principles, constraints, workflow, or governance.
+Version change: 1.0.1 → 1.1.0
+Bump rationale: MINOR — principle III materially expanded: a single sanctioned channel for
+  syncing secrets between the user's own devices (Apple's end-to-end-encrypted CloudKit
+  private-database encrypted fields, system-managed keys) is now permitted, motivated by the
+  Apple TV target (spec 1000) where iCloud Keychain sync does not exist. At-rest rules are
+  unchanged: on every device the keychain remains the only permitted storage. Decided by Jan
+  on 2026-07-16 during the 900/1000 roadmap research session.
 
-Principles defined (7, unchanged):
+Principles defined (7, III amended):
   I.   Test-First (NON-NEGOTIABLE)
   II.  Modular Isolation
-  III. No Secrets in Plaintext (NON-NEGOTIABLE)
+  III. No Secrets in Plaintext (NON-NEGOTIABLE, amended 1.1.0)
   IV.  Transport-Layer Security
   V.   Respect Platform Boundaries
   VI.  Verifiable Acceptance Criteria
@@ -19,9 +23,10 @@ Added sections: none
 Removed sections: none
 
 Templates requiring updates:
-  ✅ .specify/templates/plan-template.md   (already English — no change needed)
-  ✅ .specify/templates/spec-template.md   (already English — no change needed)
-  ✅ .specify/templates/tasks-template.md  (already English — no change needed)
+  ✅ .specify/templates/plan-template.md   (no change needed — references principles generically)
+  ✅ .specify/templates/spec-template.md   (no change needed)
+  ✅ .specify/templates/tasks-template.md  (no change needed)
+  ✅ specs/1000-apple-tv/spec.md           (updated in the same change: FR-1000-12)
 
 Follow-up TODOs: none
 -->
@@ -53,11 +58,19 @@ prohibited; dependencies are injected.
 and independent of external infrastructure.
 
 ### III. No Secrets in Plaintext (NON-NEGOTIABLE)
-The Immich API key and MQTT credentials live exclusively in the keychain. They never appear in
-UserDefaults, in source code, in logs, or in committed files.
+The Immich API key, MQTT credentials, and shared-link passwords live exclusively in the
+keychain at rest, on every device. They never appear in UserDefaults, in source code, in logs,
+or in committed files. Exactly one transport between the user's own devices is sanctioned:
+Apple's end-to-end-encrypted CloudKit **private-database encrypted fields**
+(`CKRecord.encryptedValues`), whose keys are system-managed — the app implements no
+cryptography of its own. Secrets never transit or rest in iCloud key-value storage, in
+plaintext CloudKit fields, or in any custom encryption scheme; a secret received via the
+sanctioned channel is stored into the local keychain and used only from there.
 
 **Rationale:** Plaintext secrets are a permanent leak risk that no later fix can heal; the
-keychain is the only permitted storage.
+keychain is the only permitted storage. Device-to-device sync is confined to the one channel
+where key management is the platform's responsibility end to end — hand-rolled crypto or
+semi-encrypted stores would reintroduce exactly the risk this principle exists to prevent.
 
 ### IV. Transport-Layer Security
 TLS validation is never disabled. The Immich server has a valid certificate (standard
@@ -120,4 +133,4 @@ Every spec, plan, and review checks compliance with these principles. Deviations
 explicitly justified; a NON-NEGOTIABLE violation blocks the merge. Ongoing development
 guidelines live in `CLAUDE.md` and `tdd-workflow.md`.
 
-**Version**: 1.0.1 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-06-23
+**Version**: 1.1.0 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-07-16

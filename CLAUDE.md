@@ -122,7 +122,8 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `320-disk-image-cache` (next to build; 310 is implemented and is its base) —
-implementation plan at `specs/320-disk-image-cache/plan.md` (research, data-model, contracts,
-quickstart, tasks alongside it).
+Active feature: none in flight — v1.0 is in App Store review; `310`/`320` are implemented.
+Next up: `800-app-intents` (v1.1), then the roadmap majors `900-photo-library-source`
+(amended 2026-07-16: full-access gate, shared-album limits, iOS 27 risk) and `1000-apple-tv`
+(specced 2026-07-16; secret sync via CloudKit encrypted fields per constitution v1.1.0).
 <!-- SPECKIT END -->
