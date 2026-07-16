@@ -1,13 +1,19 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.1 → 1.1.0
-Bump rationale: MINOR — principle III materially expanded: a single sanctioned channel for
-  syncing secrets between the user's own devices (Apple's end-to-end-encrypted CloudKit
-  private-database encrypted fields, system-managed keys) is now permitted, motivated by the
-  Apple TV target (spec 1000) where iCloud Keychain sync does not exist. At-rest rules are
-  unchanged: on every device the keychain remains the only permitted storage. Decided by Jan
-  on 2026-07-16 during the 900/1000 roadmap research session.
+Version change: 1.1.0 → 1.1.1
+Bump rationale: PATCH — corrected the stale platform line in Additional Constraints
+  ("iPadOS 18+" → "iPadOS/iOS 17+"): the shipped deployment floor has been 17.0 since the
+  iOS-17-floor work landed; no semantic change to any principle. Flagged by /speckit-analyze
+  (finding C1) during 900 planning, 2026-07-16.
+
+Previous change (1.0.1 → 1.1.0, same day): MINOR — principle III materially expanded: a
+  single sanctioned channel for syncing secrets between the user's own devices (Apple's
+  end-to-end-encrypted CloudKit private-database encrypted fields, system-managed keys) is
+  now permitted, motivated by the Apple TV target (spec 1000) where iCloud Keychain sync
+  does not exist. At-rest rules are unchanged: on every device the keychain remains the only
+  permitted storage. Decided by Jan on 2026-07-16 during the 900/1000 roadmap research
+  session.
 
 Principles defined (7, III amended):
   I.   Test-First (NON-NEGOTIABLE)
@@ -104,8 +110,9 @@ state.
 
 ## Additional Constraints (Tech Stack & Architecture)
 
-- Platform: iPadOS 18+ (iPhone optional). Language: Swift 6. UI: SwiftUI. Architecture: MVVM
-  with `@Observable`. Package manager: Swift Package Manager.
+- Platform: iPadOS/iOS 17+ deployment floor (iPad-first, iPhone optional; built against the
+  current SDK, newer-OS features availability-gated). Language: Swift 6. UI: SwiftUI.
+  Architecture: MVVM with `@Observable`. Package manager: Swift Package Manager.
 - Test framework: Swift Testing (`@Test`); XCTest only where strictly necessary.
 - Builds and tests run via XcodeBuildMCP; raw `xcodebuild` output is not parsed by hand.
 - API paths are checked against the OpenAPI spec of the running Immich version
@@ -133,4 +140,4 @@ Every spec, plan, and review checks compliance with these principles. Deviations
 explicitly justified; a NON-NEGOTIABLE violation blocks the merge. Ongoing development
 guidelines live in `CLAUDE.md` and `tdd-workflow.md`.
 
-**Version**: 1.1.0 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-07-16
+**Version**: 1.1.1 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-07-16

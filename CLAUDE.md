@@ -4,7 +4,7 @@ iPad slideshow app for Immich. Standalone, **not a fork** of the official Immich
 Immich serves only as a data source via the REST API.
 
 ## Quick Reference
-- Platform: iPadOS 26+ (iPhone optional)
+- Platform: iPadOS/iOS 17+ deployment floor, built against the current SDK (iPad-first, iPhone optional)
 - Language: Swift 6
 - UI: SwiftUI
 - Architecture: MVVM with `@Observable`
