@@ -107,6 +107,12 @@ public final class SlideshowViewModel {
         self.rng = AnyRandomNumberGenerator(rng)
     }
 
+    // No deinit teardown: Swift 6 forbids a nonisolated deinit touching the isolated
+    // task properties (and `isolated deinit` needs a newer runtime than the iOS 17
+    // floor). Instead every timer task — ticker loop, retry, refresh — captures `self`
+    // weakly and re-checks it after each sleep, so a dropped engine deallocates
+    // immediately and its orphaned tasks exit on their next wake (900, SC-900-06).
+
     public func start() async {
         stopTicker()
         // Rebind every timer to whatever this start() targets: a source switch
@@ -565,19 +571,21 @@ public final class SlideshowViewModel {
         stopTicker()
         let ticker = ticker
         runTask = Task.detached { [weak self, ticker] in
-            guard let self else { return }
-
+            // Self is held only transiently per cycle (900, SC-900-06 seed): a
+            // cross-backend switch rebuilds by dropping the engine, and this loop —
+            // parked in the ticker wait most of its life — must let it deallocate
+            // instead of keeping a leaked timer advancing the abandoned source.
             while !Task.isCancelled {
                 // Review R1: read the live duration on the MainActor at the top of each
                 // cycle (never read @MainActor store state from the detached task), then
                 // sleep that value. A duration change auto-applies on the next cycle.
-                let duration = await self.currentTickDuration()
+                guard let duration = await self?.currentTickDuration() else { return }
                 do {
                     try await ticker.waitForNextTick(duration: duration)
                     if Task.isCancelled {
                         break
                     }
-                    await self.advance()
+                    await self?.advance()
                 } catch is CancellationError {
                     break
                 } catch {

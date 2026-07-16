@@ -21,7 +21,10 @@ import ThemeKit
 struct SlideshowView: View {
     let viewModel: SlideshowViewModel
     let powerManager: PowerManager
-    let api: any ImmichAPI
+    // nil for a Photos-library source (900, US1): there is no Immich behind it, so the
+    // Immich-backed surfaces (photo info, album browser) hide until T031/T032 bring
+    // source-neutral parity.
+    let api: (any ImmichAPI)?
     // The shared, concrete settings store. Render-time preferences (transition, fit,
     // Ken Burns, clock) are read from it directly; the settings sheet binds it (008).
     let themeStore: UserDefaultsThemeStore
@@ -159,20 +162,22 @@ struct SlideshowView: View {
             }
         }
         .sheet(isPresented: $showAlbumBrowser) {
-            AlbumBrowserView(
-                api: api,
-                currentAlbumID: viewModel.albumID,
-                onSelect: { albumID, assetID in
-                    Task {
-                        // Switch source album only when it actually changes, then jump
-                        // to the tapped photo. One album is active at a time.
-                        if albumID != viewModel.albumID {
-                            await viewModel.switchAlbum(albumID)
+            if let api {
+                AlbumBrowserView(
+                    api: api,
+                    currentAlbumID: viewModel.albumID,
+                    onSelect: { albumID, assetID in
+                        Task {
+                            // Switch source album only when it actually changes, then jump
+                            // to the tapped photo. One album is active at a time.
+                            if albumID != viewModel.albumID {
+                                await viewModel.switchAlbum(albumID)
+                            }
+                            await viewModel.jump(to: assetID)
                         }
-                        await viewModel.jump(to: assetID)
                     }
-                }
-            )
+                )
+            }
         }
         .sheet(isPresented: $showSettings) {
             SlideshowSettingsView(
@@ -306,12 +311,14 @@ struct SlideshowView: View {
     private var chromeOverlay: some View {
         SlideshowChrome(
             viewModel: viewModel,
-            onInfo: { showInfo.toggle(); scheduleAutoHide() },
-            onAlbums: { showAlbumBrowser = true },
+            // Immich-backed affordances hide for a Photos source (api == nil) until
+            // T031/T032 bring source-neutral parity.
+            onInfo: api == nil ? nil : { showInfo.toggle(); scheduleAutoHide() },
+            onAlbums: api == nil ? nil : { showAlbumBrowser = true },
             onSettings: { showSettings = true },
             onInteraction: { scheduleAutoHide() }
         ) {
-            if showInfo, let assetID = viewModel.currentAssetID {
+            if showInfo, let api, let assetID = viewModel.currentAssetID {
                 PhotoInfoView(api: api, assetID: assetID)
                     .padding(.top, 12)
                     .transition(.opacity)

@@ -438,3 +438,34 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 // dead-end (`phase == .failed` on total image exhaustion). FR-310-03 supersedes
 // it: the current image stays up and a backoff retry recovers the show — see
 // imageExhaustionKeepsCurrentImageAndAutoRecovers in SlideshowResilienceTests.
+
+// 900 US1 / SC-900-06 seed: a cross-backend source switch uses the rebuild strategy —
+// the app drops the old engine and builds a fresh one against the other provider.
+// Nothing calls pause() on the way out, so the engine itself must not outlive its last
+// external reference: a playing view model that is dropped mid-tick has to deallocate
+// (its ticker loop must hold it only weakly and die with it), or every rebuild leaks a
+// live timer still advancing — and fetching — against the abandoned source.
+@MainActor
+@Test func droppedViewModelDeallocatesAndStopsItsTickerLoop() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
+    ], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+
+    var model: SlideshowViewModel? = SlideshowViewModel(
+        source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore()
+    )
+    await model!.start()
+    #expect(model!.phase == .playing)
+    // The auto-advance loop is armed and parked inside the ticker wait.
+    await ticker.waitUntilWaiting()
+
+    weak var dropped = model
+    model = nil
+
+    #expect(dropped == nil, "the rebuild path just drops the engine — its ticker loop must not keep it alive")
+}

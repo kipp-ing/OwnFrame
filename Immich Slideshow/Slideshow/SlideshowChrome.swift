@@ -16,8 +16,11 @@ import SwiftUI
 
 struct SlideshowChrome<Info: View>: View {
     let viewModel: SlideshowViewModel
-    var onInfo: () -> Void = {}
-    var onAlbums: () -> Void = {}
+    // The photo-info and album-browser affordances are Immich-backed: `nil` hides the
+    // button. A Photos-library source runs without an Immich API (900, US1) until
+    // T031/T032 bring source-neutral parity for these surfaces.
+    var onInfo: (() -> Void)?
+    var onAlbums: (() -> Void)?
     var onSettings: () -> Void = {}
     /// Called whenever the user touches a control, so the parent can reset the
     /// auto-hide countdown.
@@ -72,11 +75,15 @@ struct SlideshowChrome<Info: View>: View {
             Spacer()
             glassGroup(spacing: 14) {
                 HStack(spacing: 14) {
-                    iconButton("info.circle", label: "Photo info", id: "slideshow.chrome.info") {
-                        onInteraction(); onInfo()
+                    if let onInfo {
+                        iconButton("info.circle", label: "Photo info", id: "slideshow.chrome.info") {
+                            onInteraction(); onInfo()
+                        }
                     }
-                    iconButton("photo.stack", label: "Albums", id: "slideshow.chrome.albums") {
-                        onInteraction(); onAlbums()
+                    if let onAlbums {
+                        iconButton("photo.stack", label: "Albums", id: "slideshow.chrome.albums") {
+                            onInteraction(); onAlbums()
+                        }
                     }
                     iconButton("gearshape", label: "Settings", id: "slideshow.chrome.settings") {
                         onInteraction(); onSettings()

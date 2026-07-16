@@ -105,6 +105,9 @@ struct Immich_SlideshowApp: App {
             // build exercises the production disk paths. They persist across
             // relaunches within a test; `--uitest-reset-storage` starts clean.
             let storage = UITestSupport.makeStorageStores()
+            // 900: ONE fake gateway per process, shared by the picker and the slideshow
+            // factory — the picker's grant must be the grant the engine later sees.
+            let photoGateway = UITestPhotoLibraryGateway()
 
             let uitestViewModel = OnboardingViewModel(
                 api: { _ in StubImmichAPI() },
@@ -119,7 +122,15 @@ struct Immich_SlideshowApp: App {
             if ProcessInfo.processInfo.arguments.contains("--uitest-slideshow") {
                 config.save(AppConfiguration(baseURL: URL(string: "https://photos.example.test")!, selectedAlbumID: "a1"))
                 try? keychain.save("uitest-key")
-                sourceStore.save(UITestSupport.seededLibrary())
+                // 900 (US1 acceptance 4): `--uitest-photos-source` seeds a saved, ACTIVE
+                // Photos source, so a fresh launch is the hermetic "relaunch resumes
+                // directly into the Photos slideshow" — the startup path from persisted
+                // state, no picker involved.
+                if ProcessInfo.processInfo.arguments.contains("--uitest-photos-source") {
+                    sourceStore.save(UITestSupport.seededPhotosLibrary())
+                } else {
+                    sourceStore.save(UITestSupport.seededLibrary())
+                }
                 uitestViewModel.step = .done
             } else if ProcessInfo.processInfo.arguments.contains("--uitest-onboarding-source") {
                 // Visual-verification seam: jump straight to the add-source step with the
@@ -149,7 +160,8 @@ struct Immich_SlideshowApp: App {
                 makeSlideshow: { @MainActor @Sendable store in
                     UITestSupport.makeSlideshowViewModel(
                         settingsStore: store, library: sourceStore.load(),
-                        diskCache: storage.diskCache, snapshots: storage.snapshotStore
+                        diskCache: storage.diskCache, snapshots: storage.snapshotStore,
+                        photoGateway: photoGateway
                     )
                 },
                 makeAPI: { @MainActor @Sendable in StubImmichAPI() },
@@ -158,7 +170,7 @@ struct Immich_SlideshowApp: App {
                 makeSourceLibraryViewModel: { @MainActor @Sendable onSwitchActive in
                     SourceLibraryViewModel(store: sourceStore, secretStore: secretStore, resolver: resolver, onSwitchActive: onSwitchActive)
                 },
-                makePhotoLibraryGateway: { @MainActor @Sendable in UITestPhotoLibraryGateway() },
+                makePhotoLibraryGateway: { @MainActor @Sendable in photoGateway },
                 makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
                 makeCoordinator: { @MainActor @Sendable _, _, _ in nil },
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
@@ -232,10 +244,22 @@ struct Immich_SlideshowApp: App {
         }
 
         let makeSlideshow: @MainActor @Sendable (any ThemeSettingsStore) async -> SlideshowViewModel? = { settingsStore in
+            // 900 (T020): branch on SourceKind BEFORE the resolver — resolveActiveSource
+            // is Immich-only by design (it throws for .photoLibrary) and a Photos source
+            // needs no server credentials at all.
+            if case let .photoLibrary(collectionID) = sourceStore.load().active?.kind {
+                return SlideshowViewModel(
+                    source: PhotoLibraryProvider(gateway: PHKitGateway(), collectionID: collectionID),
+                    collectionID: collectionID,
+                    ticker: RealTicker(),
+                    diskCache: diskCache,
+                    snapshots: snapshotStore,
+                    settingsStore: settingsStore
+                )
+            }
             guard let resolved = await resolveActiveSource() else { return nil }
-            // 900: the engine consumes the neutral source protocol; ImmichClient is one
-            // conformer. Photos-library sources get their own provider branch here in the
-            // US1 wiring (T020) — resolveActiveSource is Immich-only by design.
+            // The engine consumes the neutral source protocol; ImmichClient is one
+            // conformer, PhotoLibraryProvider (above) the other.
             return SlideshowViewModel(
                 source: ImmichClient(config: resolved.serverConfig),
                 collectionID: resolved.albumID,
@@ -432,7 +456,8 @@ private struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if onboarding.step == .done {
-            if let slideshow, let powerManager, let api {
+            // `api` is nil for a Photos-library source (900) — never a gate for the show.
+            if let slideshow, let powerManager {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
                               themeStore: themeStore,
                               makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager, themeStore) },
@@ -452,10 +477,13 @@ private struct RootView: View {
                               budgetStore: factories.cacheBudgetStore)
                 .id(connectionGeneration)
                 .sheet(isPresented: $showAlbumReselect) {
-                    AlbumBrowserView(api: api, currentAlbumID: nil) { albumID, _ in
-                        factories.saveSelectedAlbum(albumID)
-                        showAlbumReselect = false
-                        rebuildSlideshow()
+                    // Only reachable from the Immich connection editor, where api exists.
+                    if let api {
+                        AlbumBrowserView(api: api, currentAlbumID: nil) { albumID, _ in
+                            factories.saveSelectedAlbum(albumID)
+                            showAlbumReselect = false
+                            rebuildSlideshow()
+                        }
                     }
                 }
             } else {
@@ -646,20 +674,44 @@ enum UITestSupport {
         return library
     }
 
+    /// The Immich album source plus a Photos-library source ("Family" → pl-family) as the
+    /// ACTIVE one (900, US1): a launch with this library must resume straight into the
+    /// Photos slideshow, and switching back to the album source stays testable.
+    static func seededPhotosLibrary() -> SourceLibrary {
+        var library = SourceLibrary()
+        library.add(Source(id: "src-a1", label: "Wohnzimmer", kind: .album(albumID: "a1")))
+        library.add(Source(id: "src-photos", label: "Family", kind: .photoLibrary(collectionID: "pl-family")))
+        library.setActive(id: "src-photos")
+        return library
+    }
+
     static func makeSlideshowViewModel(
         settingsStore: any ThemeSettingsStore,
         library: SourceLibrary = UITestSupport.seededLibrary(),
         diskCache: (any DiskImageStoring)? = nil,
-        snapshots: (any SourceSnapshotStoring)? = nil
+        snapshots: (any SourceSnapshotStoring)? = nil,
+        photoGateway: (any PhotoLibraryGateway)? = nil
     ) -> SlideshowViewModel {
+        // 900 (T020): a photoLibrary active source plays through the REAL provider over
+        // the scripted fake gateway — the same factory-by-SourceKind branch production
+        // takes, so the hermetic tests exercise the actual Photos engine path.
+        if case let .photoLibrary(collectionID) = library.active?.kind, let photoGateway {
+            return SlideshowViewModel(
+                source: PhotoLibraryProvider(gateway: photoGateway, collectionID: collectionID),
+                collectionID: collectionID,
+                ticker: RealTicker(),
+                diskCache: diskCache,
+                snapshots: snapshots,
+                settingsStore: settingsStore
+            )
+        }
         // Resolve the active source to a stub album id (shared links → a2 like the stub
         // resolver) so switching the active source visibly changes the photos.
         let albumID: String
         switch library.active?.kind {
         case let .album(id): albumID = id
         case .sharedLink: albumID = "a2"
-        // 900: hermetic photoLibrary sources reuse the stub's default album until the
-        // US1 factory-by-SourceKind wiring (T020) routes them through the fake gateway.
+        // photoLibrary without an injected gateway: legacy stub fallback.
         case .photoLibrary: albumID = "a1"
         case nil: albumID = "a1"
         }
@@ -828,7 +880,9 @@ private struct StubImmichAPI: ImmichAPI {
     // Renders a portrait (3:4) test image per asset: a landscape screen letterboxes
     // it left/right, which makes the centering fix visually verifiable. The white
     // inset border marks the image bounds and the centered dot marks its midpoint.
-    private static func renderPortrait(for assetID: String) -> Data {
+    // fileprivate: the 900 fake photo gateway serves the same renders (pl-* falls
+    // through to the purple default, visually marking the Photos backend).
+    fileprivate static func renderPortrait(for assetID: String) -> Data {
         let size = CGSize(width: 810, height: 1080)
         let colors: [String: UIColor] = [
             "asset-1": .systemRed,
@@ -952,38 +1006,41 @@ private struct UITestSharedLinkResolver: SharedLinkResolving {
     }
 }
 
-// 900 / US1 (T019): the hermetic PhotoLibraryGateway behind the Photos-album pickers.
-// Mirrors real PhotoKit authorization semantics — `.notDetermined` until the picker calls
-// `requestAuthorization()`, then the level scripted by `--uitest-photos-auth=full|limited|
-// denied|notDetermined` (default full) — so "access is requested at that moment"
-// (FR-900-04) is exactly what the UI test drives. Collections are deterministic; the
-// asset-serving paths are minimal because the hermetic slideshow still plays through
-// `StubImmichAPI` until the T020 factory wiring.
+// 900 / US1 (T019/T020): the hermetic PhotoLibraryGateway behind the Photos-album pickers
+// AND the Photos slideshow path (via the real PhotoLibraryProvider). Authorization mirrors
+// the device: `--uitest-photos-auth=full|limited|denied` scripts the system-persisted
+// level (a device whose prompt was already answered — relaunch parity, US1 acceptance 4);
+// absent or `=notDetermined` scripts a first run, `.notDetermined` until
+// `requestAuthorization()` grants full (the "Allow" path) — so "access is requested at
+// that moment" (FR-900-04) is exactly what the picker UITest drives. Collections and
+// assets are deterministic; images render as real PNGs so the engine plays them.
 private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked Sendable {
     private let lock = NSLock()
     private var hasRequested = false
 
-    private var scriptedLevel: PhotoAuthorizationState {
+    private var persistedLevel: PhotoAuthorizationState? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let flag = arguments.first(where: { $0.hasPrefix("--uitest-photos-auth=") }) else {
-            return .full
+            return nil
         }
         switch flag.split(separator: "=").last {
+        case "full": return .full
         case "limited": return .limited
         case "denied": return .denied
-        case "notDetermined": return .notDetermined
-        default: return .full
+        default: return nil
         }
     }
 
     func authorizationStatus() -> PhotoAuthorizationState {
-        lock.withLock { hasRequested ? scriptedLevel : .notDetermined }
+        if let persistedLevel { return persistedLevel }
+        return lock.withLock { hasRequested ? .full : .notDetermined }
     }
 
     func requestAuthorization() async -> PhotoAuthorizationState {
-        lock.withLock {
+        if let persistedLevel { return persistedLevel }
+        return lock.withLock {
             hasRequested = true
-            return scriptedLevel
+            return .full
         }
     }
 
@@ -1007,7 +1064,7 @@ private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked S
     }
 
     func requestImageData(assetID: String, fidelity: ImageFidelity) async throws -> Data {
-        Data()
+        StubImmichAPI.renderPortrait(for: assetID)
     }
 
     func fetchMetadata(assetID: String) throws -> AssetMetadata {
