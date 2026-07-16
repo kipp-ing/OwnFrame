@@ -138,13 +138,13 @@ hold, skips accumulate calmly, prefetch flows through the abstraction.
 - [x] T023 [US2] Implement delivery paths in `PhotoLibraryProvider.swift` +
       `PHKitGateway.swift` (network-allowed, single high-quality delivery, degraded guard,
       Live-Photo still mapping) — green T022
-- [ ] T024 [US2] Red tests: change observation + refetch in
+- [x] T024 [US2] Red tests: change observation + refetch in
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/ChangeObservationTests.swift`
       (change handler fires engine refresh; mid-play vanish → `.notFound` calm — FR-900-09/16)
-- [ ] T025 [US2] Implement change-handler wiring (`setChangeHandler` → engine refresh path)
+- [x] T025 [US2] Implement change-handler wiring (`setChangeHandler` → engine refresh path)
       + foreground refetch hook in `Immich Slideshow/Immich_SlideshowApp.swift` scenePhase
       observer — green T024
-- [ ] T026 [US2] **Dual-fake gate (SC-900-03)**: parameterized engine scenario suite in
+- [x] T026 [US2] **Dual-fake gate (SC-900-03)**: parameterized engine scenario suite in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/DualBackendScenarioTests.swift` running
       identical assertions over `StubPhotoSource` AND
       `PhotoLibraryProvider(FakePhotoLibraryGateway)` — both green
@@ -184,10 +184,10 @@ states; revoked-while-active errors like a failed Immich source.
       `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift`; red round-trip
       addition in `Immich SlideshowTests/HAControlRoundTripTests.swift`; publish-images
       opt-in copy covers all sources
-- [ ] T032 [P] Info overlay (FR-900-10): verify date-only rendering for Photos assets in
+- [x] T032 [P] Info overlay (FR-900-10): verify date-only rendering for Photos assets in
       `Immich Slideshow/Slideshow/PhotoInfoView.swift` (absent placeName renders nothing —
       existing FR-300-24 path; add test/preview case)
-- [ ] T033 Quality honesty (FR-900-15): Settings copy notes the shared-album ceiling where
+- [x] T033 Quality honesty (FR-900-15): Settings copy notes the shared-album ceiling where
       the quality picker shows for a Photos source, in
       `Immich Slideshow/Slideshow/SlideshowSettingsView.swift`
 - [ ] T034 [P] Docs: flip 900 status in `docs/spec-overview.md` (Deferred → Active/

@@ -252,8 +252,9 @@ struct Immich_SlideshowApp: App {
                 // mask it (900, US3-3/4); Immich keeps the stale-beats-broken default.
                 var config = SlideshowConfig.default
                 config.snapshotMasksAuthenticationFailures = false
-                return SlideshowViewModel(
-                    source: PhotoLibraryProvider(gateway: PHKitGateway(), collectionID: collectionID),
+                let provider = PhotoLibraryProvider(gateway: PHKitGateway(), collectionID: collectionID)
+                let viewModel = SlideshowViewModel(
+                    source: provider,
                     collectionID: collectionID,
                     ticker: RealTicker(),
                     diskCache: diskCache,
@@ -261,6 +262,13 @@ struct Immich_SlideshowApp: App {
                     config: config,
                     settingsStore: settingsStore
                 )
+                // FR-900-09 (T025): PhotoKit library changes drive an immediate quiet
+                // refresh. Weak: the engine owns provider → gateway → handler, so a strong
+                // capture here would cycle; a rebuilt/dropped engine just no-ops.
+                provider.setChangeHandler { [weak viewModel] in
+                    Task { @MainActor in await viewModel?.refreshNow() }
+                }
+                return viewModel
             }
             guard let resolved = await resolveActiveSource() else { return nil }
             // The engine consumes the neutral source protocol; ImmichClient is one
@@ -713,8 +721,9 @@ enum UITestSupport {
             // Same config as production: revoked access is never masked by the snapshot.
             var config = SlideshowConfig.default
             config.snapshotMasksAuthenticationFailures = false
-            return SlideshowViewModel(
-                source: PhotoLibraryProvider(gateway: photoGateway, collectionID: collectionID),
+            let provider = PhotoLibraryProvider(gateway: photoGateway, collectionID: collectionID)
+            let viewModel = SlideshowViewModel(
+                source: provider,
                 collectionID: collectionID,
                 ticker: RealTicker(),
                 diskCache: diskCache,
@@ -722,6 +731,11 @@ enum UITestSupport {
                 config: config,
                 settingsStore: settingsStore
             )
+            // Same change-handler wiring as production (FR-900-09, T025).
+            provider.setChangeHandler { [weak viewModel] in
+                Task { @MainActor in await viewModel?.refreshNow() }
+            }
+            return viewModel
         }
         // Resolve the active source to a stub album id (shared links → a2 like the stub
         // resolver) so switching the active source visibly changes the photos.
@@ -1091,7 +1105,12 @@ private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked S
     }
 
     func fetchMetadata(assetID: String) throws -> AssetMetadata {
-        AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: nil)
+        // FR-900-10 date-only shape: same deterministic instant as the Immich stub
+        // (15 June 2024, 14:30 UTC) but no place — PhotoKit has no geocoding (R7).
+        AssetMetadata(
+            capturedAt: Date(timeIntervalSince1970: 1_718_462_400),
+            latitude: nil, longitude: nil, placeName: nil
+        )
     }
 
     func setChangeHandler(_ handler: (@Sendable () -> Void)?) {}

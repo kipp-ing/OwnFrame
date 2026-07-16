@@ -34,6 +34,9 @@ struct SlideshowSettingsView: View {
     var makeServerAPI: () async -> (any ImmichAPI)? = { nil }
     // 900 / US1: the PhotoKit seam for the add-sheet's Photos-album tab.
     var makePhotoGateway: () -> any PhotoLibraryGateway = { PHKitGateway() }
+    // 900 / T033 (FR-900-15): the active source is a Photos-library source — the Display
+    // footer then notes the iCloud Shared Album pixel ceiling next to the quality picker.
+    var isPhotoLibrarySource = false
     // Reset lives here rather than on the chrome (300/FR-300-28): a wall-mounted photo
     // frame has no real "exit," so the only thing a chrome button could do was reset —
     // better placed as an explicit, clearly destructive Settings action.
@@ -72,6 +75,7 @@ struct SlideshowSettingsView: View {
         makeSourceLibraryViewModel: @escaping () -> SourceLibraryViewModel? = { nil },
         makeServerAPI: @escaping () async -> (any ImmichAPI)? = { nil },
         makePhotoGateway: @escaping () -> any PhotoLibraryGateway = { PHKitGateway() },
+        isPhotoLibrarySource: Bool = false,
         onReset: @escaping () -> Void = {},
         diskCache: (any DiskImageStoring)? = nil,
         snapshotStore: (any SourceSnapshotStoring)? = nil,
@@ -84,6 +88,7 @@ struct SlideshowSettingsView: View {
         self.makeSourceLibraryViewModel = makeSourceLibraryViewModel
         self.makeServerAPI = makeServerAPI
         self.makePhotoGateway = makePhotoGateway
+        self.isPhotoLibrarySource = isPhotoLibrarySource
         self.onReset = onReset
         self.diskCache = diskCache
         self.snapshotStore = snapshotStore
@@ -169,7 +174,17 @@ struct SlideshowSettingsView: View {
                 } header: {
                     Text("Display")
                 } footer: {
-                    Text("Order and duration take effect immediately. More options to follow.")
+                    if isPhotoLibrarySource {
+                        // FR-900-15: never imply better quality exists — iOS caps legacy
+                        // iCloud Shared Album photos; the frame shows the source's best.
+                        Text("Order and duration take effect immediately. Photos from iCloud "
+                             + "Shared Albums are capped by iOS at roughly 2048 px — the frame "
+                             + "always shows the best your library provides, and Quality has "
+                             + "no effect above that ceiling.")
+                            .accessibilityIdentifier("settings.quality.ceilingNote")
+                    } else {
+                        Text("Order and duration take effect immediately. More options to follow.")
+                    }
                 }
 
                 if let sourceLibraryViewModel {
