@@ -38,6 +38,7 @@ final class FakePhotoLibraryGateway: PhotoLibraryGateway, @unchecked Sendable {
         var requestImageDataCallCount = 0
         var fetchMetadataCallCount = 0
         var setChangeHandlerCallCount = 0
+        var presentManageSelectionCallCount = 0
     }
 
     private let lock = NSLock()
@@ -162,6 +163,11 @@ final class FakePhotoLibraryGateway: PhotoLibraryGateway, @unchecked Sendable {
         }
     }
 
+    @MainActor
+    func presentManageSelection() {
+        lock.withLock { state.presentManageSelectionCallCount += 1 }
+    }
+
     // MARK: - Recorded call counts / observers
 
     var authorizationStatusCallCount: Int { lock.withLock { state.authorizationStatusCallCount } }
@@ -174,6 +180,7 @@ final class FakePhotoLibraryGateway: PhotoLibraryGateway, @unchecked Sendable {
     var requestImageDataCallCount: Int { lock.withLock { state.requestImageDataCallCount } }
     var fetchMetadataCallCount: Int { lock.withLock { state.fetchMetadataCallCount } }
     var setChangeHandlerCallCount: Int { lock.withLock { state.setChangeHandlerCallCount } }
+    var presentManageSelectionCallCount: Int { lock.withLock { state.presentManageSelectionCallCount } }
     var capturedChangeHandler: (@Sendable () -> Void)? { lock.withLock { state.changeHandler } }
 
     /// Invokes the captured change handler, mimicking a PhotoKit library-change callback.

@@ -157,8 +157,13 @@ public final class SlideshowViewModel {
             // .playing-degraded; without a playable snapshot it is the calm
             // state, auto-retry behind it either way (310 US1-2).
             // A too-old server (130) must show the upgrade notice, not silently play cached
-            // photos — skip the offline snapshot fallback for that terminal case.
-            if !RetryPolicy.classify(Self.sourceFailure(from: error)).isTerminal, await startFromSnapshot() {
+            // photos — skip the offline snapshot fallback for that terminal case. Auth
+            // failures skip it too when the config says so (900 US3: a photo-access
+            // revocation must not be masked by remembered photos).
+            let reason = RetryPolicy.classify(Self.sourceFailure(from: error))
+            let snapshotMayMask = !reason.isTerminal
+                && (reason != .authentication || config.snapshotMasksAuthenticationFailures)
+            if snapshotMayMask, await startFromSnapshot() {
                 handleFailure(error, kind: .sourceReload)
                 startTickerLoop()
             } else {

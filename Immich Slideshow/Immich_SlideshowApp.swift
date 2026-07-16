@@ -248,12 +248,17 @@ struct Immich_SlideshowApp: App {
             // is Immich-only by design (it throws for .photoLibrary) and a Photos source
             // needs no server credentials at all.
             if case let .photoLibrary(collectionID) = sourceStore.load().active?.kind {
+                // Access revocation is a privacy statement — remembered photos must not
+                // mask it (900, US3-3/4); Immich keeps the stale-beats-broken default.
+                var config = SlideshowConfig.default
+                config.snapshotMasksAuthenticationFailures = false
                 return SlideshowViewModel(
                     source: PhotoLibraryProvider(gateway: PHKitGateway(), collectionID: collectionID),
                     collectionID: collectionID,
                     ticker: RealTicker(),
                     diskCache: diskCache,
                     snapshots: snapshotStore,
+                    config: config,
                     settingsStore: settingsStore
                 )
             }
@@ -459,6 +464,7 @@ private struct RootView: View {
             // `api` is nil for a Photos-library source (900) — never a gate for the show.
             if let slideshow, let powerManager {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
+                              isPhotoLibrarySource: activeSourceIsPhotoLibrary,
                               themeStore: themeStore,
                               makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager, themeStore) },
                               onReset: {
@@ -532,6 +538,14 @@ private struct RootView: View {
         case .rebuild:
             rebuildSlideshow()
         }
+    }
+
+    /// The active source is a Photos-library source (900, US3). Read live from the store:
+    /// every source switch recreates SlideshowView (`.id(connectionGeneration)` or the
+    /// initial build), so body re-evaluation always sees the current active kind.
+    private var activeSourceIsPhotoLibrary: Bool {
+        if case .photoLibrary = factories.loadLibrary().active?.kind { return true }
+        return false
     }
 
     /// Rebuild the slideshow view model (and the API client) from the updated stores and
@@ -696,12 +710,16 @@ enum UITestSupport {
         // the scripted fake gateway — the same factory-by-SourceKind branch production
         // takes, so the hermetic tests exercise the actual Photos engine path.
         if case let .photoLibrary(collectionID) = library.active?.kind, let photoGateway {
+            // Same config as production: revoked access is never masked by the snapshot.
+            var config = SlideshowConfig.default
+            config.snapshotMasksAuthenticationFailures = false
             return SlideshowViewModel(
                 source: PhotoLibraryProvider(gateway: photoGateway, collectionID: collectionID),
                 collectionID: collectionID,
                 ticker: RealTicker(),
                 diskCache: diskCache,
                 snapshots: snapshots,
+                config: config,
                 settingsStore: settingsStore
             )
         }
@@ -1052,7 +1070,12 @@ private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked S
     }
 
     func fetchAssets(in collectionID: String) throws -> [SourceAsset] {
-        [
+        // FR-900-16 vanish drill: the backing collection is gone (deleted / unshared /
+        // upgraded out of PhotoKit's view) — the provider maps this to `.notFound`.
+        if ProcessInfo.processInfo.arguments.contains("--uitest-photos-vanish") {
+            throw PhotoLibraryGatewayError.collectionNotFound
+        }
+        return [
             SourceAsset(id: "pl-asset-1", kind: .image),
             SourceAsset(id: "pl-asset-2", kind: .image),
             SourceAsset(id: "pl-asset-3", kind: .image),
@@ -1072,5 +1095,10 @@ private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked S
     }
 
     func setChangeHandler(_ handler: (@Sendable () -> Void)?) {}
+
+    // The system manage-selection sheet has no hermetic equivalent — the UITest only
+    // asserts the affordance exists (US3-2).
+    @MainActor
+    func presentManageSelection() {}
 }
 #endif

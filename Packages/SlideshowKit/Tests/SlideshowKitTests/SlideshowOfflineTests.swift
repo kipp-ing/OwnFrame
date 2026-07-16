@@ -205,13 +205,14 @@ struct OfflineRelaunchTests {
 
     private func makeRelaunchedModel(
         source: StubPhotoSource, disk: DiskImageCache, snapshots: FileSourceSnapshotStore,
-        clock: TestClock, ticker: ManualTicker = ManualTicker()
+        clock: TestClock, ticker: ManualTicker = ManualTicker(),
+        config: SlideshowConfig = SlideshowConfig(prefetchDepth: 1, cacheLimit: 2)
     ) -> SlideshowViewModel {
         SlideshowViewModel(
             source: source, collectionID: "album", ticker: ticker, clock: clock,
             diskCache: disk, snapshots: snapshots,
             cache: ImageCache(limit: 2),
-            config: SlideshowConfig(prefetchDepth: 1, cacheLimit: 2),
+            config: config,
             settingsStore: sequentialThemeStore()
         )
     }
@@ -242,6 +243,49 @@ struct OfflineRelaunchTests {
         #expect(model.failureReason == .transient)   // degraded, not broken
         await clock.waitUntilSleeperCount(1)         // the retry is armed
         #expect(clock.sleeperCount >= 1)
+    }
+
+    // 900 US3-3/4: an access revocation must never be masked by remembered photos.
+    // The Photos factory disables the auth-snapshot fallback — the user just said
+    // "this app may not see these photos", so playing cached copies would defy the
+    // revocation. The engine lands in the calm error state with the auth reason.
+    @Test func revokedAccessAtLaunchIsNotMaskedBySnapshotWhenConfigured() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = StubPhotoSource()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        await playFirstRun(source: source, disk: disk, snapshots: snapshots)
+
+        source.setEnsureReadyError(SourceFailure.authentication)
+        var config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 2)
+        config.snapshotMasksAuthenticationFailures = false
+        let model = makeRelaunchedModel(
+            source: source, disk: disk, snapshots: snapshots, clock: TestClock(), config: config
+        )
+        await model.start()
+
+        #expect(model.phase == .failed)
+        #expect(model.failureReason == .authentication)
+    }
+
+    // The 320 default is untouched: expired server credentials (Immich) still play
+    // the remembered list degraded — stale-beats-broken — while the retry runs.
+    @Test func expiredCredentialsAtLaunchStillPlayFromSnapshotByDefault() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = StubPhotoSource()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        await playFirstRun(source: source, disk: disk, snapshots: snapshots)
+
+        source.setEnsureReadyError(SourceFailure.authentication)
+        let model = makeRelaunchedModel(source: source, disk: disk, snapshots: snapshots, clock: TestClock())
+        await model.start()
+
+        #expect(model.phase == .playing)
+        #expect(model.currentAssetID == "image-1")
+        #expect(model.failureReason == .authentication)
     }
 
     // US2-2 (scenario 5): when the retry reaches the server, the live list

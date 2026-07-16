@@ -130,12 +130,12 @@ final-quality renders; Live Photos show their still; library changes reach the r
 **Independent Test**: spec US2 — fake gateway with delayed/failed delivery: no-blank rules
 hold, skips accumulate calmly, prefetch flows through the abstraction.
 
-- [ ] T022 [P] [US2] Red tests: delivery semantics in
+- [x] T022 [P] [US2] Red tests: delivery semantics in
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/ImageDeliveryTests.swift`
       (degraded delivery dropped — FR-900-07; iCloud error → `.transient`; Live Photo →
       `.image` kind — FR-900-08) and engine slow-source scenario additions in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowResilienceTests.swift`
-- [ ] T023 [US2] Implement delivery paths in `PhotoLibraryProvider.swift` +
+- [x] T023 [US2] Implement delivery paths in `PhotoLibraryProvider.swift` +
       `PHKitGateway.swift` (network-allowed, single high-quality delivery, degraded guard,
       Live-Photo still mapping) — green T022
 - [ ] T024 [US2] Red tests: change observation + refetch in
@@ -159,19 +159,19 @@ limited, calm actionable states, downgrade mid-life handled.
 **Independent Test**: spec US3 — fake authorization states drive picker content and calm
 states; revoked-while-active errors like a failed Immich source.
 
-- [ ] T027 [P] [US3] Red tests: full authorization matrix in
+- [x] T027 [P] [US3] Red tests: full authorization matrix in
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/AuthorizationTests.swift`
       (data-model table: limited → albums `.authentication` / selected-photos OK; downgrade
       transition mid-session; denied; platform add-only status maps to `.denied` at the
       gateway — FR-900-04)
-- [ ] T028 [US3] Implement complete state machine + 
+- [x] T028 [US3] Implement complete state machine + 
       `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/SelectedPhotosSource.swift`
       (granted-pool enumeration via `fetchGrantedAssets`) — green T027
-- [ ] T029 [US3] Red UITests: limited/denied/downgrade surfaces in
+- [x] T029 [US3] Red UITests: limited/denied/downgrade surfaces in
       `Immich SlideshowUITests/PhotoAlbumPickerUITests.swift` (Selected-Photos row +
       manage-selection + honest album note; denied message + Settings path; downgrade →
       calm unavailable with cause copy incl. iOS-27 wording — US3-1/2/4, FR-900-16)
-- [ ] T030 [US3] Implement calm-state UI: picker limited/denied variants in
+- [x] T030 [US3] Implement calm-state UI: picker limited/denied variants in
       `PhotoAlbumPickerView.swift`, vanish/downgrade copy in
       `Immich Slideshow/Slideshow/SlideshowErrorView.swift` — green T029
 

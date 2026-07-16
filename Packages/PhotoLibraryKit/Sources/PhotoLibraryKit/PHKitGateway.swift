@@ -6,6 +6,9 @@
 
 import Foundation
 import Photos
+// PhotosUI carries the limited-library management sheet (US3-2); it stays confined to this
+// adapter exactly like Photos itself.
+import PhotosUI
 import PhotoSourceKit
 import UIKit
 
@@ -218,6 +221,21 @@ public final class PHKitGateway: NSObject, PhotoLibraryGateway, @unchecked Senda
             longitude: asset.location?.coordinate.longitude,
             placeName: nil // R7: no reverse geocoding — nothing leaves the device (FR-900-14)
         )
+    }
+
+    // MARK: - Manage selection (US3-2)
+
+    @MainActor
+    public func presentManageSelection() {
+        // The system picker needs a presenting view controller; find the topmost one so it
+        // is not swallowed underneath the settings/add-source sheets.
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+            let root = scene.keyWindow?.rootViewController else { return }
+        var top = root
+        while let presented = top.presentedViewController { top = presented }
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top)
     }
 
     // MARK: - Change observation (FR-900-09)

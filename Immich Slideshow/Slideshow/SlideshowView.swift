@@ -25,6 +25,9 @@ struct SlideshowView: View {
     // Immich-backed surfaces (photo info, album browser) hide until T031/T032 bring
     // source-neutral parity.
     let api: (any ImmichAPI)?
+    // 900 US3: the active source is a Photos-library source — switches the error state's
+    // auth copy/fix to the photo-access wording and the iOS Settings path.
+    var isPhotoLibrarySource = false
     // The shared, concrete settings store. Render-time preferences (transition, fit,
     // Ken Burns, clock) are read from it directly; the settings sheet binds it (008).
     let themeStore: UserDefaultsThemeStore
@@ -242,9 +245,12 @@ struct SlideshowView: View {
                 SlideshowErrorView(
                     reason: viewModel.failureReason,
                     onRetry: { Task { await viewModel.retry() } },
-                    onFixConnection: {
+                    // The connection editor is the Immich fix; a Photos source gets the
+                    // iOS Settings path inside the error view instead (900, US3).
+                    onFixConnection: isPhotoLibrarySource ? nil : {
                         errorConnectionViewModel = makeConnectionViewModel()
-                    }
+                    },
+                    isPhotoLibrarySource: isPhotoLibrarySource
                 )
             }
         }

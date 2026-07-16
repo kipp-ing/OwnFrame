@@ -35,6 +35,10 @@ public protocol PhotoLibraryGateway: Sendable {
     /// Registers (or clears with `nil`) the library-change observer that drives engine refresh
     /// (FR-900-09). Consumed by a later wiring slice.
     func setChangeHandler(_ handler: (@Sendable () -> Void)?)
+
+    /// Presents the system's limited-library "manage selection" UI (US3-2). Only meaningful
+    /// under `.limited`; a no-op wherever the platform surface is unavailable (fakes, macOS).
+    @MainActor func presentManageSelection()
 }
 
 /// The `.readWrite` authorization levels the provider gates on (R5). `notDetermined`
