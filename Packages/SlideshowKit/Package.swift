@@ -14,6 +14,10 @@ let package = Package(
     dependencies: [
         .package(path: "../PhotoSourceKit"),
         .package(path: "../ThemeKit"),
+        // Test-only: the dual-backend engine gate (SC-900-03) drives a real
+        // PhotoLibraryProvider over the shared gateway fake. PhotoLibraryKit does not
+        // depend on SlideshowKit, so this dependency direction introduces no cycle.
+        .package(path: "../PhotoLibraryKit"),
     ],
     targets: [
         .target(
@@ -29,6 +33,8 @@ let package = Package(
                 "SlideshowKit",
                 .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
                 .product(name: "PhotoSourceTestSupport", package: "PhotoSourceKit"),
+                .product(name: "PhotoLibraryKit", package: "PhotoLibraryKit"),
+                .product(name: "PhotoLibraryTestSupport", package: "PhotoLibraryKit"),
                 .product(name: "ThemeKitTestSupport", package: "ThemeKit"),
             ]
         ),

@@ -11,6 +11,7 @@ let package = Package(
     ],
     products: [
         .library(name: "PhotoLibraryKit", targets: ["PhotoLibraryKit"]),
+        .library(name: "PhotoLibraryTestSupport", targets: ["PhotoLibraryTestSupport"]),
     ],
     dependencies: [
         .package(path: "../PhotoSourceKit"),
@@ -22,9 +23,18 @@ let package = Package(
                 .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
             ]
         ),
+        // The scriptable gateway fake, shared so downstream suites (the SlideshowKit
+        // dual-backend gate, SC-900-03) can drive a real provider over it.
+        .target(
+            name: "PhotoLibraryTestSupport",
+            dependencies: [
+                "PhotoLibraryKit",
+                .product(name: "PhotoSourceKit", package: "PhotoSourceKit"),
+            ]
+        ),
         .testTarget(
             name: "PhotoLibraryKitTests",
-            dependencies: ["PhotoLibraryKit"]
+            dependencies: ["PhotoLibraryKit", "PhotoLibraryTestSupport"]
         ),
     ]
 )

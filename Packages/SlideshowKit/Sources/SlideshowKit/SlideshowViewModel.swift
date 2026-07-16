@@ -322,6 +322,15 @@ public final class SlideshowViewModel {
         }
     }
 
+    /// Quiet, immediate source re-fetch (900, FR-900-09): same semantics as the periodic
+    /// refresh — no loading state, live list reconciled into the running rotation (310
+    /// rules), failures classified like any refresh failure. Called by the app when the
+    /// platform reports a library change or the app foregrounds with a Photos source active.
+    /// Delegates to the shared quiet-reload path so there is exactly one refresh semantics.
+    public func refreshNow() async {
+        await reloadSource()
+    }
+
     // MARK: - Auto-retry (310, US1)
 
     /// Record a failure, classify it, and arm the backoff retry. The phase only
