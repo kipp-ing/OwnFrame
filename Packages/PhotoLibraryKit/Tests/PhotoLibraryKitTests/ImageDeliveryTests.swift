@@ -6,6 +6,7 @@
 import Foundation
 import Testing
 import PhotoSourceKit
+import PhotoLibraryTestSupport
 @testable import PhotoLibraryKit
 
 @Suite struct ImageDeliveryTests {

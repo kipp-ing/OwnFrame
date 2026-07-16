@@ -469,3 +469,80 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 
     #expect(dropped == nil, "the rebuild path just drops the engine — its ticker loop must not keep it alive")
 }
+
+// MARK: - refreshNow (900, FR-900-09)
+//
+// The app calls refreshNow() when the platform reports a library change or the app
+// foregrounds with a Photos source active. It is the same quiet re-fetch the hourly
+// refresh runs — no loading state, the live list reconciled into the running rotation
+// (310 rules), failures classified like any refresh failure — just triggered on demand.
+
+@MainActor
+@Test func refreshNowReconcilesAListAdditionWithoutDisturbingPlayback() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([
+        SourceAsset(id: "image-a", kind: .image),
+        SourceAsset(id: "image-c", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("image-a".utf8), for: "image-a", fidelity: .preview)
+    source.setImageData(Data("image-c".utf8), for: "image-c", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+    #expect(model.currentAssetID == "image-a")
+
+    // The library gains image-b between a and c; an immediate refresh (change callback /
+    // foreground) reconciles it in — without a phase change and without a frame swap.
+    source.setAssets([
+        SourceAsset(id: "image-a", kind: .image),
+        SourceAsset(id: "image-b", kind: .image),
+        SourceAsset(id: "image-c", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("image-b".utf8), for: "image-b", fidelity: .preview)
+
+    await model.refreshNow()
+
+    // FR-310-07: quiet — the shown photo and the phase are untouched.
+    #expect(model.phase == .playing)
+    #expect(model.currentAssetID == "image-a")
+    #expect(model.currentImageData == Data("image-a".utf8))
+
+    // …but image-b is now part of the running rotation.
+    await ticker.waitUntilWaiting()
+    ticker.tick()
+    await waitUntil(model.currentAssetID == "image-b")
+    #expect(model.currentAssetID == "image-b")
+}
+
+@MainActor
+@Test func refreshNowOnAVanishedSourceLandsCalmNotFoundState() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    let clock = TestClock()
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
+    ], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, clock: clock, settingsStore: sequentialThemeStore())
+    await model.start()
+    #expect(model.currentAssetID == "image-1")
+    await clock.waitUntilSleeperCount(1)   // only the hourly refresh is parked
+
+    // The source's collection vanishes (album deleted / unshared / upgraded to the new
+    // iCloud format); every fetch now raises the not-found signal.
+    source.setAssetsError(SourceFailure.notFound, for: "album")
+
+    await model.refreshNow()
+
+    // FR-900-16: vanish is terminal and calm — the reason names it, the last photo stays
+    // on the wall (recovery is picking another source, handled in a later slice), and NO
+    // backoff retry is armed. Only the pre-existing hourly refresh remains parked.
+    #expect(model.failureReason == .notFound)
+    #expect(model.currentAssetID == "image-1")
+    #expect(model.phase == .playing)
+    #expect(clock.sleeperCount == 1)
+}
