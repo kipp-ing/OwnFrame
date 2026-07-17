@@ -10,6 +10,7 @@
 //  every control intent and error copy matching the contract exactly.
 //
 
+import AppIntents
 import Foundation
 import Testing
 import AppIntentsKit
@@ -116,6 +117,73 @@ struct FrameIntentGlueTests {
         #expect(SetBrightnessIntent.openAppWhenRun)
     }
 
+    // MARK: - US3: source select + state read (T023)
+
+    @Test func selectSourceIntentAppliesViaTheLibraryResolvedLabel() async throws {
+        let fixture = try Fixture(sources: [SourceOption(id: "s1", label: "Iceland 2021")])
+        defer { fixture.restore() }
+
+        let intent = SelectSourceIntent()
+        intent.source = SourceEntity(id: "s1", label: "Stale Old Name")
+        _ = try await intent.perform()
+        // Applied with the label resolved from the CURRENT library, the exact HA path.
+        #expect(fixture.surface.calls == [.selectAlbum("Iceland 2021")])
+    }
+
+    @Test func selectSourceIntentSurfacesTheDeletedSourceCopy() async throws {
+        let fixture = try Fixture(sources: [SourceOption(id: "s1", label: "Iceland 2021")])
+        defer { fixture.restore() }
+
+        let intent = SelectSourceIntent()
+        intent.source = SourceEntity(id: "deleted", label: "Vacation")
+        await #expect(throws: FrameIntentError.sourceMissing) {
+            _ = try await intent.perform()
+        }
+        #expect(fixture.surface.calls.isEmpty)
+    }
+
+    @Test func sourceEntityQueryAnswersFromTheRegistryOptions() async throws {
+        let fixture = try Fixture(sources: [
+            SourceOption(id: "s1", label: "Iceland 2021"),
+            SourceOption(id: "s2", label: "Family"),
+        ])
+        defer { fixture.restore() }
+
+        let byID = try await SourceEntity.defaultQuery.entities(for: ["s2", "missing"])
+        #expect(byID.map(\.id) == ["s2"])
+        #expect(byID.map(\.label) == ["Family"])
+
+        let suggested = try await SourceEntity.defaultQuery.suggestedEntities()
+        #expect(suggested.map(\.id) == ["s1", "s2"])
+        #expect(suggested.map(\.label) == ["Iceland 2021", "Family"])
+    }
+
+    @Test func getFrameStateIntentNeverOpensTheAppAndMirrorsTheSnapshot() async throws {
+        let taken = Date(timeIntervalSince1970: 1_600_000_000)
+        let fixture = try Fixture()
+        defer { fixture.restore() }
+        fixture.surface.playbackState = .playing
+        fixture.surface.brightness = 0.4
+        fixture.surface.currentAlbum = "Iceland 2021"
+        fixture.surface.currentPhotoReport = PhotoReport(
+            assetID: "SECRET-ASSET", imageData: Data([0xFF]),
+            takenAt: taken, city: "Berlin", state: "BE", country: "DE",
+            albumID: "SECRET-ALBUM", albumName: "Iceland 2021",
+            phase: .playing, photoCount: 42
+        )
+
+        #expect(GetFrameStateIntent.openAppWhenRun == false)
+
+        let result = try await GetFrameStateIntent().perform()
+        let state = try #require(result.value)
+        #expect(state.isPlaying == true)
+        #expect(state.brightnessPercent == 40)
+        #expect(state.sourceLabel == "Iceland 2021")
+        #expect(state.photoDate == taken)
+        #expect(state.photoCity == "Berlin")
+        #expect(state.photoCountry == "DE")
+    }
+
     // MARK: - Fixture
 
     /// Snapshot-and-restore around the app's process registry: the host app set
@@ -127,12 +195,17 @@ struct FrameIntentGlueTests {
         let registry: FrameControlRegistry
         let surface: RecordingControlSurface
         private let previousConfigured: Bool
+        private let previousSourceOptions: @MainActor () -> [SourceOption]
 
-        init(configured: Bool = true) throws {
+        init(configured: Bool = true, sources: [SourceOption]? = nil) throws {
             registry = try #require(FrameIntentContext.registry)
             previousConfigured = registry.isConfigured
+            previousSourceOptions = registry.sourceOptions
             surface = RecordingControlSurface()
             registry.isConfigured = configured
+            if let sources {
+                registry.sourceOptions = { sources }
+            }
             if configured {
                 registry.register(surface)
             } else {
@@ -143,6 +216,7 @@ struct FrameIntentGlueTests {
         func restore() {
             registry.unregister()
             registry.isConfigured = previousConfigured
+            registry.sourceOptions = previousSourceOptions
         }
     }
 }

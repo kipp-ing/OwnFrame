@@ -100,6 +100,46 @@ struct PreviousPhotoIntent: AppIntent {
     }
 }
 
+struct SelectSourceIntent: AppIntent {
+    static let title: LocalizedStringResource = "Set Frame Source"
+    static let description = IntentDescription("Switches the slideshow to one of the frame's saved sources.")
+    static let openAppWhenRun = true
+
+    @Parameter(title: "Source")
+    var source: SourceEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Set frame source to \(\.$source)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let registry = try FrameIntentContext.requireRegistry()
+        do { try await FrameCommandService(registry: registry).selectSource(id: source.id, label: source.label) }
+        catch { throw FrameIntentError(error) }
+        return .result()
+    }
+}
+
+struct GetFrameStateIntent: AppIntent {
+    static let title: LocalizedStringResource = "Get Frame State"
+    static let description = IntentDescription("Reads the frame's playback state, brightness, active source, and current photo date and place.")
+    // The read intent never yanks the frame open — it answers when the app is
+    // live and fails readably otherwise (research R1, FR-800-04).
+    static let openAppWhenRun = false
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<FrameStateEntity> {
+        let registry = try FrameIntentContext.requireRegistry()
+        do {
+            let snapshot = try await FrameCommandService(registry: registry).frameState()
+            return .result(value: FrameStateEntity(snapshot))
+        } catch {
+            throw FrameIntentError(error)
+        }
+    }
+}
+
 struct SetBrightnessIntent: AppIntent {
     static let title: LocalizedStringResource = "Set Frame Brightness"
     static let description = IntentDescription("Sets the frame's screen brightness (0–100 %). Applies while the app is in the foreground.")
