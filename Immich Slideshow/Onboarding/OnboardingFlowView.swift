@@ -41,6 +41,12 @@ struct OnboardingFlowView: View {
                     OnboardingChoiceView(viewModel: viewModel)
                 case .sharedLinkSetup:
                     SharedLinkSetupView(onboarding: viewModel, sourceLibrary: sourceLibrary, prefill: sharedLinkPrefill)
+                case .photoLibrarySetup:
+                    PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: sourceLibrary, idPrefix: "onboarding.photos")
+                        .navigationTitle("iCloud album")
+                        .onChange(of: sourceLibrary.sources.count) { old, new in
+                            if new > old { viewModel.finish() }
+                        }
                 case .connection:
                     ConnectionStepView(viewModel: viewModel)
                 case .source:
