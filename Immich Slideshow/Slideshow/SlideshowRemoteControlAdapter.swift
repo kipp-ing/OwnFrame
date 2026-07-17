@@ -24,7 +24,8 @@ import UIKit
 public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     private let slideshow: SlideshowViewModel
     private let powerManager: PowerManager
-    private let albums: [Album]
+    private var albums: [Album]
+    private let currentAlbumID: String?
     /// The saved source library (900): the select's options. When empty, the legacy
     /// album-list select remains (pre-900 constructions and tests).
     private let sources: [Source]
@@ -76,6 +77,7 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         self.slideshow = slideshow
         self.powerManager = powerManager
         self.albums = albums
+        self.currentAlbumID = currentAlbumID
         self.sources = sources
         self.onSelectSource = onSelectSource
         self.isPhotoLibrarySource = isPhotoLibrarySource
@@ -120,6 +122,17 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         let clamped = min(max(value, 0), 1)
         brightness = clamped
         await powerManager.setBrightness(clamped, animated: true)
+    }
+
+    /// The album list arrives after init (800): the adapter is built synchronously at
+    /// the slideshow composition point, and the HA coordinator's best-effort `albums()`
+    /// fetch lands here later. With a source library the sources keep owning the select
+    /// options and the current label; the album list then only enriches photo reports.
+    public func updateAlbums(_ albums: [Album]) {
+        self.albums = albums
+        if sources.isEmpty, currentAlbum == nil {
+            currentAlbum = albums.first { $0.id == currentAlbumID }?.name
+        }
     }
 
     public func selectAlbum(_ name: String) {
