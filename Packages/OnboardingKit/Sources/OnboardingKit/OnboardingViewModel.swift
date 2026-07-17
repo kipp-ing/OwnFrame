@@ -2,10 +2,12 @@ import Foundation
 import ImmichClient
 import Observation
 
-/// The user's selection on the first-run choice screen (210, US1).
+/// The user's selection on the first-run choice screen (210, US1; `.photoLibrary` added
+/// by 220 — an on-device Photos/iCloud album, no server/API key involved).
 public enum OnboardingPathChoice: Sendable, Equatable {
     case sharedLink
     case server
+    case photoLibrary
 }
 
 @MainActor @Observable public final class OnboardingViewModel {
@@ -47,7 +49,9 @@ public enum OnboardingPathChoice: Sendable, Equatable {
     }
 
     /// Route from the first-run choice screen: the shared-link path goes to the in-place
-    /// link entry (no API key needed); the server path goes to the connection form (210, US1).
+    /// link entry (no API key needed); the server path goes to the connection form (210,
+    /// US1); the photo-library path goes to on-device album setup, also with no API key
+    /// (220).
     public func choosePath(_ choice: OnboardingPathChoice) {
         errorMessage = nil
         switch choice {
@@ -55,6 +59,8 @@ public enum OnboardingPathChoice: Sendable, Equatable {
             step = .sharedLinkSetup
         case .server:
             step = .connection
+        case .photoLibrary:
+            step = .photoLibrarySetup
         }
     }
 
@@ -63,18 +69,18 @@ public enum OnboardingPathChoice: Sendable, Equatable {
     public var canGoBack: Bool {
         switch step {
         case .choice, .done: false
-        case .sharedLinkSetup, .connection, .source, .confirm: true
+        case .sharedLinkSetup, .photoLibrarySetup, .connection, .source, .confirm: true
         }
     }
 
     /// Step back to the immediately preceding onboarding screen in-place, without restarting
-    /// the app and without discarding entered configuration (FR-210-26). The shared-link and
-    /// server paths both fold back to the choice screen; the source/confirm steps fold back
-    /// toward connection. `.choice` (and `.done`) have nowhere to go.
+    /// the app and without discarding entered configuration (FR-210-26). The shared-link,
+    /// photo-library, and server paths all fold back to the choice screen; the source/confirm
+    /// steps fold back toward connection. `.choice` (and `.done`) have nowhere to go.
     public func back() {
         errorMessage = nil
         switch step {
-        case .sharedLinkSetup, .connection:
+        case .sharedLinkSetup, .photoLibrarySetup, .connection:
             step = .choice
         case .source:
             step = .connection
