@@ -24,6 +24,13 @@ struct OnboardingChoiceView: View {
 
             Section {
                 ChoiceRow(
+                    title: "Use an iCloud album",
+                    description: "Easiest — play photos from an album on this iPad or in iCloud. No server needed.",
+                    systemImage: "photo.on.rectangle.angled",
+                    identifier: "onboarding.choice.photoLibrary"
+                ) { viewModel.choosePath(.photoLibrary) }
+
+                ChoiceRow(
                     title: "Use a shared link",
                     description: "Paste an Immich share link — no account or API key needed.",
                     systemImage: "link",
