@@ -4,9 +4,13 @@
 
 **Created**: 2026-07-17
 
-**Status**: Draft — *(sub-spec of 200 connection-onboarding)*. Specced 2026-07-17; branch
-`220-onboarding-welcome` cut from the `900-photo-library-source` tip (this feature surfaces the
-900 iCloud/Photos source, so it needs that code). Not yet planned or implemented.
+**Status**: Implemented on branch (2026-07-17) — *(sub-spec of 200 connection-onboarding)*.
+Specced 2026-07-17; branch `220-onboarding-welcome` cut from the `900-photo-library-source` tip
+(this feature surfaces the 900 iCloud/Photos source, so it needs that code). Host + UI-sim gates
+are green (OnboardingKit host suites; `WelcomeICloudUITests` and the extended onboarding UITests;
+full XCUITest suite before merge); the camera QR end-to-end + camera-denied fallback is a manual
+device gate (SC-220-07), riding the 900/800 device day. Cannot merge ahead of 900 (depends on the
+photoLibrary source).
 
 **Input**: User description: "Initial-onboarding gap — no iCloud on the welcome screen. Overhaul
 the first-run welcome into an explaining, noob-welcoming screen offering, in friction order: an
