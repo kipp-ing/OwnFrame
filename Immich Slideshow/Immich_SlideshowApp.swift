@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import AppIntents
+import AppIntentsKit
 import BrokerSetupKit
 import HAControlKit
 import HAControlMQTT
@@ -61,9 +63,16 @@ struct Immich_SlideshowApp: App {
         // Backed by the live screen in production, a fake under `--uitest` so the
         // hermetic test never touches real device brightness.
         let makePowerManager: @MainActor @Sendable () -> PowerManager
-        // The last parameter is the app-level source switch (900, FR-900-11): the HA
-        // source select routes through it so cross-backend switches rebuild correctly.
-        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) async -> HAControlCoordinator?
+        // The ONE remote-control adapter per slideshow generation (800, FR-800-02):
+        // built synchronously, broker or not — HA and the App Intents drive the same
+        // instance. The last parameter is the app-level source switch (900, FR-900-11).
+        let makeAdapter: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter
+        // The HA coordinator over an already-built adapter; nil without a broker
+        // config. Its best-effort album fetch lands via `adapter.updateAlbums` (800).
+        let makeCoordinator: @MainActor @Sendable (SlideshowRemoteControlAdapter) async -> HAControlCoordinator?
+        // The process-stable handle the App Intent shells resolve via @Dependency;
+        // per-generation adapters register into it (800, contracts § Dependency).
+        let controlRegistry: FrameControlRegistry
         // Builds the in-app connection editor view model (009): same config/Keychain
         // seams as the slideshow, validating against a freshly built ImmichClient.
         let makeConnectionSettingsViewModel: @MainActor @Sendable () -> ConnectionSettingsViewModel?
@@ -86,6 +95,12 @@ struct Immich_SlideshowApp: App {
     }
 
     init() {
+        // The intents registry exists before either factory branch (800): created
+        // once per process and handed to AppIntents' dependency container so the
+        // intent shells can resolve it; each branch wires its own stores below.
+        let controlRegistry = FrameControlRegistry()
+        AppDependencyManager.shared.add(dependency: controlRegistry)
+
         #if DEBUG
         // Hermetic seam for XCUITests: when launched with `--uitest`, drive both the
         // onboarding flow and the slideshow against in-memory stubs — no network, no
@@ -158,6 +173,10 @@ struct Immich_SlideshowApp: App {
                 guard let next = library.active else { return nil }
                 return SourceLibrary.restartStrategy(from: previous, to: next)
             }
+            controlRegistry.sourceOptions = {
+                sourceStore.load().sources.map { SourceOption(id: $0.id, label: $0.label) }
+            }
+            controlRegistry.isConfigured = sourceStore.load().active != nil
             factories = Factories(
                 makeSlideshow: { @MainActor @Sendable store in
                     UITestSupport.makeSlideshowViewModel(
@@ -174,7 +193,25 @@ struct Immich_SlideshowApp: App {
                 },
                 makePhotoLibraryGateway: { @MainActor @Sendable in photoGateway },
                 makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
-                makeCoordinator: { @MainActor @Sendable _, _, _, _ in nil },
+                makeAdapter: { @MainActor @Sendable slideshow, powerManager, themeStore, onSwitchSource in
+                    let library = sourceStore.load()
+                    let isPhotoLibrarySource: Bool = {
+                        if case .photoLibrary = library.active?.kind { return true }
+                        return false
+                    }()
+                    return SlideshowRemoteControlAdapter(
+                        slideshow: slideshow,
+                        powerManager: powerManager,
+                        currentAlbumID: config.load()?.selectedAlbumID,
+                        sources: library.sources,
+                        activeSourceID: library.active?.id,
+                        onSelectSource: onSwitchSource,
+                        isPhotoLibrarySource: isPhotoLibrarySource,
+                        themeStore: themeStore
+                    )
+                },
+                makeCoordinator: { @MainActor @Sendable _ in nil },
+                controlRegistry: controlRegistry,
                 makeConnectionSettingsViewModel: { @MainActor @Sendable in UITestSupport.makeConnectionSettingsViewModel() },
                 saveSelectedAlbum: { @MainActor @Sendable _ in },
                 takePendingLink: { pendingLinkStore.takePendingURL() },
@@ -326,39 +363,23 @@ struct Immich_SlideshowApp: App {
         let makePowerManager: @MainActor @Sendable () -> PowerManager = {
             PowerManager(screen: UIScreenController())
         }
-        let makeCoordinator: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) async -> HAControlCoordinator? = { slideshow, powerManager, themeStore, onSwitchSource in
-            guard let brokerConfig = brokerProvider.load() else { return nil }
-
-            // Build the API client once (best-effort): serves both the HA album
-            // select list and the adapter's current-photo metadata/image fetches.
+        // 800 (FR-800-02): the ONE adapter per slideshow generation, built
+        // synchronously — broker or not — so App Intents and HA drive the same
+        // instance. The client serves the adapter's current-photo metadata/image
+        // fetches; the select options come from the source library (900, FR-900-11).
+        let makeAdapter: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter = { slideshow, powerManager, themeStore, onSwitchSource in
             let client: (any ImmichAPI)? = {
                 guard let appConfig = config.load(), let apiKey = keychain.read() else { return nil }
                 return ImmichClient(config: ServerConfig(baseURL: appConfig.baseURL, apiKey: apiKey))
             }()
-
-            // Empty album list on failure so pause/play and brightness still work
-            // (FR-003 — the broker is never blocking).
-            var albums: [Album] = []
-            if let client {
-                albums = (try? await client.albums()) ?? []
-            }
-
-            // Photo publishing prefs (image off by default, FR-710-07). The same
-            // store gates both the adapter's image fetch and the image entity's
-            // discovery below.
-            let publishOptions = HAPublishOptionsStoreFactory.make()
-
-            // 900 (FR-900-11): the HA select lists the saved source library — every kind,
-            // Photos included — and routes selection through the app-level switch.
             let library = sourceStore.load()
             let isPhotoLibrarySource: Bool = {
                 if case .photoLibrary = library.active?.kind { return true }
                 return false
             }()
-            let adapter = SlideshowRemoteControlAdapter(
+            return SlideshowRemoteControlAdapter(
                 slideshow: slideshow,
                 powerManager: powerManager,
-                albums: albums,
                 currentAlbumID: config.load()?.selectedAlbumID,
                 sources: library.sources,
                 activeSourceID: library.active?.id,
@@ -367,8 +388,26 @@ struct Immich_SlideshowApp: App {
                 themeStore: themeStore,
                 api: client,
                 metadataCache: MetadataCache(limit: 64),
-                publishOptions: publishOptions
+                publishOptions: HAPublishOptionsStoreFactory.make()
             )
+        }
+        let makeCoordinator: @MainActor @Sendable (SlideshowRemoteControlAdapter) async -> HAControlCoordinator? = { adapter in
+            guard let brokerConfig = brokerProvider.load() else { return nil }
+
+            // Best-effort album list, empty on failure so pause/play and brightness
+            // still work (FR-003 — the broker is never blocking). Lands post-init
+            // via updateAlbums (800): legacy select fallback + report enrichment.
+            let client: (any ImmichAPI)? = {
+                guard let appConfig = config.load(), let apiKey = keychain.read() else { return nil }
+                return ImmichClient(config: ServerConfig(baseURL: appConfig.baseURL, apiKey: apiKey))
+            }()
+            if let client {
+                adapter.updateAlbums((try? await client.albums()) ?? [])
+            }
+
+            // Photo publishing prefs (image off by default, FR-710-07): a fresh
+            // store over the same persisted defaults the adapter's instance reads.
+            let publishOptions = HAPublishOptionsStoreFactory.make()
             let transport = NIOMQTTTransport(config: brokerConfig)
 
             var enabledEntities: Set<HAEntity> = HAEntity.defaultEnabled
@@ -406,6 +445,11 @@ struct Immich_SlideshowApp: App {
             sourceStore.save(library)
         }
 
+        controlRegistry.sourceOptions = {
+            sourceStore.load().sources.map { SourceOption(id: $0.id, label: $0.label) }
+        }
+        controlRegistry.isConfigured = sourceStore.load().active != nil
+
         factories = Factories(
             makeSlideshow: makeSlideshow,
             makeAPI: makeAPI,
@@ -414,7 +458,9 @@ struct Immich_SlideshowApp: App {
             makeSourceLibraryViewModel: makeSourceLibraryViewModel,
             makePhotoLibraryGateway: { @MainActor @Sendable in PHKitGateway() },
             makePowerManager: makePowerManager,
+            makeAdapter: makeAdapter,
             makeCoordinator: makeCoordinator,
+            controlRegistry: controlRegistry,
             makeConnectionSettingsViewModel: makeConnectionSettingsViewModel,
             saveSelectedAlbum: saveSelectedAlbum,
             takePendingLink: { pendingLinkStore.takePendingURL() },
@@ -446,6 +492,10 @@ private struct RootView: View {
     @State private var slideshow: SlideshowViewModel?
     @State private var powerManager: PowerManager?
     @State private var api: (any ImmichAPI)?
+    // The generation-scoped STRONG owner of the remote-control adapter (800): the
+    // registry only holds it weakly and the coordinator exists only with a broker,
+    // so without this reference a broker-less adapter would deallocate instantly.
+    @State private var remoteAdapter: SlideshowRemoteControlAdapter?
     @Environment(\.scenePhase) private var scenePhase
     // A shared link handed in while unconfigured pre-fills the onboarding setup field;
     // handed into the configured app it drives the resolve-and-activate sheet (210, US2).
@@ -483,12 +533,15 @@ private struct RootView: View {
     private var content: some View {
         if onboarding.step == .done {
             // `api` is nil for a Photos-library source (900) — never a gate for the show.
-            if let slideshow, let powerManager {
+            if let slideshow, let powerManager, let remoteAdapter {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
                               isPhotoLibrarySource: activeSourceIsPhotoLibrary,
                               themeStore: themeStore,
-                              makeCoordinator: { await factories.makeCoordinator(slideshow, powerManager, themeStore, { id in switchSource(id: id) }) },
+                              makeCoordinator: { await factories.makeCoordinator(remoteAdapter) },
                               onReset: {
+                    factories.controlRegistry.unregister()
+                    factories.controlRegistry.isConfigured = false
+                    self.remoteAdapter = nil
                     self.slideshow = nil
                     self.powerManager = nil
                     self.api = nil
@@ -520,6 +573,7 @@ private struct RootView: View {
                         slideshow = await factories.makeSlideshow(themeStore)
                         powerManager = factories.makePowerManager()
                         api = await factories.makeAPI()
+                        registerAdapter()
                     }
             }
         } else {
@@ -576,8 +630,21 @@ private struct RootView: View {
         Task {
             slideshow = await factories.makeSlideshow(themeStore)
             api = await factories.makeAPI()
+            registerAdapter()
             connectionGeneration += 1
         }
+    }
+
+    /// Build and register THE remote-control adapter for the current slideshow
+    /// generation (800, FR-800-02): retained here, registered (weakly) with the
+    /// intents registry, and handed to the HA coordinator when a broker exists.
+    /// Registration implies a configured frame; reset is the only way back.
+    private func registerAdapter() {
+        guard let slideshow, let powerManager else { return }
+        let adapter = factories.makeAdapter(slideshow, powerManager, themeStore, { id in switchSource(id: id) })
+        remoteAdapter = adapter
+        factories.controlRegistry.isConfigured = true
+        factories.controlRegistry.register(adapter)
     }
 
     /// Take any pending shared link and route it (210, US2). Unconfigured ⇒ pre-fill the
