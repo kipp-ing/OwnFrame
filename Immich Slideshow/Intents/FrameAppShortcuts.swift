@@ -44,5 +44,17 @@ struct FrameAppShortcuts: AppShortcutsProvider {
             shortTitle: "Set Brightness",
             systemImageName: "sun.max.fill"
         )
+        AppShortcut(
+            intent: SelectSourceIntent(),
+            phrases: ["Set \(.applicationName) source"],
+            shortTitle: "Set Source",
+            systemImageName: "photo.on.rectangle"
+        )
+        AppShortcut(
+            intent: GetFrameStateIntent(),
+            phrases: ["Get \(.applicationName) state"],
+            shortTitle: "Frame State",
+            systemImageName: "info.circle"
+        )
     }
 }
