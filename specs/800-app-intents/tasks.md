@@ -201,11 +201,11 @@ of leaking (SC-800-04).
       `Immich Slideshow/Intents/FrameIntents.swift`, and the two remaining
       AppShortcuts phrases in `Immich Slideshow/Intents/FrameAppShortcuts.swift`
       (7 total, cap 10) — green T023
-- [~] T025 [US3] **Checkpoint**: all AppIntentsKit suites (40) + `FrameIntentGlueTests`
-      (13) green via `test_sim` ✅ (2026-07-17); `build_sim` clean ✅. PENDING: the
-      simulator spot-check — Set Frame Source shows the saved sources, a switch
-      restarts the show exactly like the in-app/HA switch; Get Frame State returns
-      the six fields in Shortcuts (folds into the T028 sim pass)
+- [x] T025 [US3] **Checkpoint**: all AppIntentsKit suites (40) + `FrameIntentGlueTests`
+      (13) green via `test_sim` ✅ (2026-07-17); `build_sim` clean ✅. The Shortcuts-app
+      spot-check (Set Frame Source shows saved sources + restarts the show; Get Frame
+      State returns the six fields) is device-only — App Shortcuts don't reliably
+      surface in the simulator Shortcuts app, so it's covered by SC-800-03 in T029
 
 ---
 
@@ -215,10 +215,13 @@ of leaking (SC-800-04).
       `docs/spec-traceability.md` (test names per requirement, manual gates marked)
 - [x] T027 Flip `specs/800-app-intents/spec.md` Status to implemented-on-branch and
       update the 800 row in `docs/spec-overview.md`
-- [ ] T028 Full XCUITest suite via XcodeBuildMCP `test_sim` before merge (standing
-      rule — SwiftUI/app-target changes shipped; broker-toggle flake: rerun
-      `BrokerSetupUITests` isolated before suspecting the diff) + the complete
-      quickstart Phase-2 gate
+- [x] T028 Full XCUITest suite via XcodeBuildMCP `test_sim` before merge ✅
+      (2026-07-17): 108 passed / 0 failed / 2 intentional skips
+      (`AppStoreScreenshotUITests` behind the screenshot flag, `LiveSmokeUITests`
+      the live-demo network test). Broker-toggle flake
+      (`testImagePublishTogglePersistsAcrossRelaunch`) passed under full load this
+      run. Quickstart Phase-2 gate satisfied — glue suite + `SlideshowRemoteControl-
+      AdapterTests` + `HAControlRoundTripTests` all green in the same run
 - [ ] T029 Manual device checklist from `specs/800-app-intents/quickstart.md`
       (SC-800-03 Siri/Shortcuts discovery, US1 sweep, FR-800-04 honesty drills,
       deleted-source + fresh-reset edges, and the SC-800-02 overnight automation —
