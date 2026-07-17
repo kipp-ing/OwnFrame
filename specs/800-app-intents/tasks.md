@@ -172,47 +172,48 @@ FR-800-06/07.
 library, stale id errors with state untouched, snapshot is structurally incapable
 of leaking (SC-800-04).
 
-- [ ] T020 [P] [US3] Red tests:
+- [x] T020 [P] [US3] Red tests:
       `Packages/AppIntentsKit/Tests/AppIntentsKitTests/SourceSelectTests.swift` —
       a live id resolves and applies via `selectAlbum(label)` (the recorded call is
       the label, byte-identical to the HA path); a stale id throws
       `.sourceMissing` with zero calls; duplicate labels: first match wins (HA
       parity, contracts § SourceEntity)
-- [ ] T021 [P] [US3] Red tests:
+- [x] T021 [P] [US3] Red tests:
       `Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift` —
       from a fully-populated fake `PhotoReport` (bytes, asset/album IDs, region,
       version all planted): the snapshot carries exactly the six whitelisted fields
       and `Mirror`-reflection shows no other stored properties (structural
       whitelist, SC-800-04); `brightnessPercent` rounds 0.0/0.4/1.0 → 0/40/100;
       `isPlaying` maps from `playbackState`
-- [ ] T022 [US3] Implement `selectSource(id:)` + `frameState()` in
+- [x] T022 [US3] Implement `selectSource(id:)` + `frameState()` in
       `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift` and
       `FrameStateSnapshot.swift` — green T020 + T021
-- [ ] T023 [US3] Red tests (app-hosted): extend
+- [x] T023 [US3] Red tests (app-hosted): extend
       `Immich SlideshowTests/FrameIntentGlueTests.swift` — SelectSourceIntent and
       GetFrameStateIntent forward correctly; `GetFrameStateIntent.openAppWhenRun ==
       false`; `SourceEntity` query answers `entities(for:)` and
       `suggestedEntities()` from the registry's `sourceOptions` (same closure the HA
       select list is built from); `FrameStateEntity` mirrors the snapshot
       field-for-field. Expected red = doesn't compile until T024
-- [ ] T024 [US3] Implement `Immich Slideshow/Intents/SourceEntity.swift`
+- [x] T024 [US3] Implement `Immich Slideshow/Intents/SourceEntity.swift`
       (`AppEntity` + query), `Immich Slideshow/Intents/FrameStateEntity.swift`
       (`TransientAppEntity` mirror), the two shells in
       `Immich Slideshow/Intents/FrameIntents.swift`, and the two remaining
       AppShortcuts phrases in `Immich Slideshow/Intents/FrameAppShortcuts.swift`
       (7 total, cap 10) — green T023
-- [ ] T025 [US3] **Checkpoint**: all AppIntentsKit suites + `FrameIntentGlueTests`
-      green; simulator spot-check: Set Frame Source shows the saved sources, a
-      switch restarts the show exactly like the in-app/HA switch; Get Frame State
-      returns the six fields in Shortcuts
+- [~] T025 [US3] **Checkpoint**: all AppIntentsKit suites (40) + `FrameIntentGlueTests`
+      (13) green via `test_sim` ✅ (2026-07-17); `build_sim` clean ✅. PENDING: the
+      simulator spot-check — Set Frame Source shows the saved sources, a switch
+      restarts the show exactly like the in-app/HA switch; Get Frame State returns
+      the six fields in Shortcuts (folds into the T028 sim pass)
 
 ---
 
 ## Phase 6: Polish & Ship Gates
 
-- [ ] T026 [P] Record the FR-800-xx / SC-800-xx traceability rows in
+- [x] T026 [P] Record the FR-800-xx / SC-800-xx traceability rows in
       `docs/spec-traceability.md` (test names per requirement, manual gates marked)
-- [ ] T027 Flip `specs/800-app-intents/spec.md` Status to implemented-on-branch and
+- [x] T027 Flip `specs/800-app-intents/spec.md` Status to implemented-on-branch and
       update the 800 row in `docs/spec-overview.md`
 - [ ] T028 Full XCUITest suite via XcodeBuildMCP `test_sim` before merge (standing
       rule — SwiftUI/app-target changes shipped; broker-toggle flake: rerun
