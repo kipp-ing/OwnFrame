@@ -39,6 +39,7 @@ Packages/*
 !Packages/ThemeKit/
 !Packages/PhotoSourceKit/
 !Packages/PhotoLibraryKit/
+!Packages/AppIntentsKit/
 Package.pins
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
