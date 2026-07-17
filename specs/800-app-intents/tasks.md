@@ -22,11 +22,11 @@ cross-cutting work is not delegated).
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Scaffold `Packages/AppIntentsKit` (Package.swift: platforms to match
+- [x] T001 Scaffold `Packages/AppIntentsKit` (Package.swift: platforms to match
       HAControlKit, dependency `../HAControlKit` — the `HAControlKit` product only,
       never `HAControlMQTT`; products `AppIntentsKit` + `AppIntentsTestSupport`;
       empty source/test targets so `swift test` runs zero tests green)
-- [ ] T002 Add the package reference to `Immich Slideshow.xcodeproj/project.pbxproj`
+- [x] T002 Add the package reference to `Immich Slideshow.xcodeproj/project.pbxproj`
       and link the `AppIntentsKit` product to the app target (pbxproj explicitly IN
       SCOPE for this task only); create the synchronized group folder
       `Immich Slideshow/Intents/` (empty)
@@ -39,31 +39,31 @@ cross-cutting work is not delegated).
 the single `SlideshowRemoteControlAdapter` is built for every user — broker or not
 (research R2/R3/R8). No intent can land before this phase completes.
 
-- [ ] T003 [P] Red tests: `Packages/AppIntentsKit/Tests/AppIntentsKitTests/RegistryTests.swift` —
+- [x] T003 [P] Red tests: `Packages/AppIntentsKit/Tests/AppIntentsKitTests/RegistryTests.swift` —
       state derivation (`.notConfigured` beats `.notLive`; `.ready` only while an
       adapter is registered), register replaces previous / unregister clears / the
       reference is weak (a dropped adapter → `.notLive`), and `awaitReady(timeout:)`
       via an injected test clock: unconfigured → immediate `.notConfigured` throw;
       configured-but-empty → `.frameNotOpen` after timeout; register mid-wait →
       waiter resumes with the adapter (data-model.md transitions)
-- [ ] T004 Implement `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameControlRegistry.swift`,
+- [x] T004 Implement `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameControlRegistry.swift`,
       `FrameCommandError.swift`, `SourceOption.swift` per data-model.md — green T003;
       the awaitReady grace is a named constant (`coldLaunchGrace = 5.0 s`) referenced
       by tests, contract copy, and the manual drills (analyze A1)
-- [ ] T005 [P] Implement `Packages/AppIntentsKit/Sources/AppIntentsTestSupport/RecordingControlSurface.swift` —
+- [x] T005 [P] Implement `Packages/AppIntentsKit/Sources/AppIntentsTestSupport/RecordingControlSurface.swift` —
       scriptable `PlaybackControlling & PhotoReporting` fake: records every call with
       arguments in order, scriptable `playbackState`/`brightness`/`currentAlbum`/
       `currentPhotoReport` (parity with the HAControlKit test fakes' surface)
-- [ ] T006 Red tests (app-hosted): extend
+- [x] T006 Red tests (app-hosted): extend
       `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift` —
       `updateAlbums(_:)` after init feeds `albumOptions` (legacy no-library fallback),
       photo-report `albumName`/`photoCount` enrichment, and a sources-present adapter
       ignores albums for options (900 semantics unchanged)
-- [ ] T007 Implement `updateAlbums(_:)` in
+- [x] T007 Implement `updateAlbums(_:)` in
       `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` (albums becomes
       private var; `albums:` init parameter keeps its default — existing tests compile
       unchanged) — green T006
-- [ ] T008 Hoist the adapter in `Immich Slideshow/Immich_SlideshowApp.swift`
+- [x] T008 Hoist the adapter in `Immich Slideshow/Immich_SlideshowApp.swift`
       (Fable-inline): extract `makeAdapter` from `makeCoordinator` and build the ONE
       adapter per slideshow generation unconditionally (sync — sources from the loaded
       library); `makeCoordinator(adapter:)` keeps its broker gate and its async
@@ -76,7 +76,7 @@ the single `SlideshowRemoteControlAdapter` is built for every user — broker or
       weak and the coordinator no longer exists broker-less — analyze U1). Red
       coverage is implicit: `HAControlRoundTripTests` +
       `SlideshowRemoteControlAdapterTests` gate the refactor by staying green
-- [ ] T009 **Checkpoint**: `swift test` green in `Packages/AppIntentsKit`;
+- [x] T009 **Checkpoint**: `swift test` green in `Packages/AppIntentsKit`;
       XcodeBuildMCP `build_sim` green; app-hosted `SlideshowRemoteControlAdapterTests`
       + `HAControlRoundTripTests` green — zero observable HA behavior change
 
@@ -92,25 +92,25 @@ frame through the exact HA command path (FR-800-01/02/03/04/08).
 out-of-range brightness rejected with zero calls; shells forward and map errors
 (app-hosted glue).
 
-- [ ] T010 [P] [US1] Red tests:
+- [x] T010 [P] [US1] Red tests:
       `Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameCommandServiceTests.swift` —
       pause/resume/next/previous each produce exactly the call sequence the HA entity
       command produces (expected sequences documented inline next to their
       HAControlKit counterparts); paused + next steps without resuming (topic-710 US3
       parity); every verb runs `awaitReady` first (`.notConfigured`/`.frameNotOpen`
       surface unchanged from T003 semantics, state untouched)
-- [ ] T011 [P] [US1] Red tests:
+- [x] T011 [P] [US1] Red tests:
       `Packages/AppIntentsKit/Tests/AppIntentsKitTests/BrightnessValidationTests.swift` —
       0 and 100 pass and map to `setBrightness(0.0)` / `setBrightness(1.0)`; 40 →
       0.4; −1 and 101 throw `.brightnessOutOfRange` with ZERO recorded calls
       (US1 acceptance 4, research R5); plus the race pin (spec Edge #2): two
       interleaved setBrightness calls on the MainActor → last write wins, the
       recorded call order ends with the second value (analyze G1)
-- [ ] T012 [US1] Implement
+- [x] T012 [US1] Implement
       `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift`
       (pause/resume/nextPhoto/previousPhoto/setBrightness + the shared awaitReady
       plumbing) — green T010 + T011
-- [ ] T013 [US1] Red tests (app-hosted): new
+- [x] T013 [US1] Red tests (app-hosted): new
       `Immich SlideshowTests/FrameIntentGlueTests.swift` — each of the five control
       shells forwards to the matching service verb against a fake-backed registry;
       `FrameCommandError` cases map to the contract's exact localized copy;
@@ -119,16 +119,16 @@ out-of-range brightness rejected with zero calls; shells forward and map errors
       Injection route (analyze U2): tests use the app's REAL registry and
       `register(...)` a `RecordingControlSurface` into it — never re-register
       `AppDependencyManager`. Expected red = suite doesn't compile until T014
-- [ ] T014 [US1] Implement the five `AppIntent` shells + localized error mapping in
+- [x] T014 [US1] Implement the five `AppIntent` shells + localized error mapping in
       `Immich Slideshow/Intents/FrameIntents.swift` (`openAppWhenRun = true`,
       `ParameterSummary` on every intent, brightness `Int` parameter with
       `inclusiveRange` 0–100 — contracts § Intents) — green T013
-- [ ] T015 [US1] Implement `Immich Slideshow/Intents/FrameAppShortcuts.swift`
+- [x] T015 [US1] Implement `Immich Slideshow/Intents/FrameAppShortcuts.swift`
       (`AppShortcutsProvider`) with the five US1 phrases from contracts § App
       Shortcuts (every phrase carries `\(.applicationName)`; English-only).
       No red pair — phrases are extracted metadata, manual-gated by SC-800-03
       (analyze I1; same stance for the T024 phrase additions)
-- [ ] T016 [US1] **Checkpoint (MVP)**: quickstart Phase-1 gate green (`swift test` in
+- [x] T016 [US1] **Checkpoint (MVP)**: quickstart Phase-1 gate green (`swift test` in
       the package), `FrameIntentGlueTests` green via `test_sim`, `build_sim` green;
       simulator spot-check: Shortcuts app lists the five actions and Pause/Resume
       work against the running frame
@@ -144,19 +144,19 @@ morning wake) — no prompts, ever (FR-800-05) — and the recipe docs ship
 **Independent Test**: the CI-testable half is prompt-freedom (pinned app-hosted);
 the automation triggers themselves are OS-owned → quickstart manual gate SC-800-02.
 
-- [ ] T017 [P] [US2] Red-then-green (app-hosted): unattended-conformance pins in
+- [x] T017 [P] [US2] Red-then-green (app-hosted): unattended-conformance pins in
       `Immich SlideshowTests/FrameIntentGlueTests.swift` — every control intent
       declares `openAppWhenRun == true`, no intent invokes
       `requestConfirmation`/dialog APIs in any service path (recording fake shows
       command calls only), and a fully-parameterized SetBrightness/SelectSource
       resolves without parameter prompts (US2 independent test)
-- [ ] T018 [P] [US2] Write `docs/automation-recipes.md` — the 22:00 dim+pause and
+- [x] T018 [P] [US2] Write `docs/automation-recipes.md` — the 22:00 dim+pause and
       07:00 wake+resume recipes step by step on the frame iPad
       (Ask-Before-Running off), the foreground + never-locked operating assumptions
       stated plainly, and the HomeKit boundary: what works today via HA's HomeKit
       Bridge, what iOS does not allow (accessory-event triggers, hub-run intents)
       — US2 acceptance 2, spec's out-of-scope list
-- [ ] T019 [US2] **Checkpoint**: T017 green in `test_sim`; docs page committed;
+- [x] T019 [US2] **Checkpoint**: T017 green in `test_sim`; docs page committed;
       SC-800-02 (overnight cycle) recorded as a pending manual device gate in
       quickstart — not claimable from the simulator
 
