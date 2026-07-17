@@ -4,8 +4,11 @@
 
 **Created**: 2026-07-09
 
-**Status**: Deferred — planned post-release fast-follow (v1.1), after `310-slideshow-resilience`
-ships. Specced now so scope and boundaries are settled.
+**Status**: Implemented on branch `800-app-intents` (2026-07-17) — T001–T027 complete;
+host + app-hosted gates green (40 AppIntentsKit tests, 13 `FrameIntentGlueTests`,
+`build_sim` clean). Remaining before ship: T028 (full XCUITest suite pre-merge) and
+T029 — the quickstart manual device checklist (SC-800-02 overnight automation,
+SC-800-03 Siri/Shortcuts discovery, honesty/edge drills) — then merge.
 
 **Input**: New module (next free hundreds-block). Expose the slideshow's existing remote-control
 command surface as **App Intents**, so Shortcuts, Siri, and on-device personal automations can
