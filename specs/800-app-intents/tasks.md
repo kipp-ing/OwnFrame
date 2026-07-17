@@ -47,7 +47,9 @@ the single `SlideshowRemoteControlAdapter` is built for every user — broker or
       configured-but-empty → `.frameNotOpen` after timeout; register mid-wait →
       waiter resumes with the adapter (data-model.md transitions)
 - [ ] T004 Implement `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameControlRegistry.swift`,
-      `FrameCommandError.swift`, `SourceOption.swift` per data-model.md — green T003
+      `FrameCommandError.swift`, `SourceOption.swift` per data-model.md — green T003;
+      the awaitReady grace is a named constant (`coldLaunchGrace = 5.0 s`) referenced
+      by tests, contract copy, and the manual drills (analyze A1)
 - [ ] T005 [P] Implement `Packages/AppIntentsKit/Sources/AppIntentsTestSupport/RecordingControlSurface.swift` —
       scriptable `PlaybackControlling & PhotoReporting` fake: records every call with
       arguments in order, scriptable `playbackState`/`brightness`/`currentAlbum`/
@@ -69,7 +71,9 @@ the single `SlideshowRemoteControlAdapter` is built for every user — broker or
       the process-stable `FrameControlRegistry` in `AppDependencyManager` at app init
       with `sourceOptions` wired to the source-library store and `isConfigured` to the
       startup gate; `registry.register(adapter)` per generation,
-      `registry.unregister()` on teardown (contracts § Dependency contract). Red
+      `registry.unregister()` on teardown (contracts § Dependency contract). The
+      generation-scoped slideshow wiring RETAINS the adapter (the registry ref is
+      weak and the coordinator no longer exists broker-less — analyze U1). Red
       coverage is implicit: `HAControlRoundTripTests` +
       `SlideshowRemoteControlAdapterTests` gate the refactor by staying green
 - [ ] T009 **Checkpoint**: `swift test` green in `Packages/AppIntentsKit`;
@@ -99,7 +103,9 @@ out-of-range brightness rejected with zero calls; shells forward and map errors
       `Packages/AppIntentsKit/Tests/AppIntentsKitTests/BrightnessValidationTests.swift` —
       0 and 100 pass and map to `setBrightness(0.0)` / `setBrightness(1.0)`; 40 →
       0.4; −1 and 101 throw `.brightnessOutOfRange` with ZERO recorded calls
-      (US1 acceptance 4, research R5)
+      (US1 acceptance 4, research R5); plus the race pin (spec Edge #2): two
+      interleaved setBrightness calls on the MainActor → last write wins, the
+      recorded call order ends with the second value (analyze G1)
 - [ ] T012 [US1] Implement
       `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift`
       (pause/resume/nextPhoto/previousPhoto/setBrightness + the shared awaitReady
@@ -110,14 +116,18 @@ out-of-range brightness rejected with zero calls; shells forward and map errors
       `FrameCommandError` cases map to the contract's exact localized copy;
       `openAppWhenRun == true` on all five; HA and the intents resolve the SAME
       adapter instance (the hoisting invariant, contracts § Dependency contract).
-      Expected red = suite doesn't compile until T014
+      Injection route (analyze U2): tests use the app's REAL registry and
+      `register(...)` a `RecordingControlSurface` into it — never re-register
+      `AppDependencyManager`. Expected red = suite doesn't compile until T014
 - [ ] T014 [US1] Implement the five `AppIntent` shells + localized error mapping in
       `Immich Slideshow/Intents/FrameIntents.swift` (`openAppWhenRun = true`,
       `ParameterSummary` on every intent, brightness `Int` parameter with
       `inclusiveRange` 0–100 — contracts § Intents) — green T013
 - [ ] T015 [US1] Implement `Immich Slideshow/Intents/FrameAppShortcuts.swift`
       (`AppShortcutsProvider`) with the five US1 phrases from contracts § App
-      Shortcuts (every phrase carries `\(.applicationName)`; English-only)
+      Shortcuts (every phrase carries `\(.applicationName)`; English-only).
+      No red pair — phrases are extracted metadata, manual-gated by SC-800-03
+      (analyze I1; same stance for the T024 phrase additions)
 - [ ] T016 [US1] **Checkpoint (MVP)**: quickstart Phase-1 gate green (`swift test` in
       the package), `FrameIntentGlueTests` green via `test_sim`, `build_sim` green;
       simulator spot-check: Shortcuts app lists the five actions and Pause/Resume
