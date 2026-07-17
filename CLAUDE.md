@@ -122,10 +122,13 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `900-photo-library-source` (branch `900-photo-library-source`) —
-implementation plan at `specs/900-photo-library-source/plan.md` (research, data-model,
-contracts, quickstart alongside it; session orchestration in
-`docs/implementation-session-plan.md`). v1.0 is in App Store review; `310`/`320` are
-implemented; `800-app-intents` and `1000-apple-tv` remain queued (constitution v1.1.0
-sanctions the 1000 secret-sync channel).
+Active feature: `220-onboarding-welcome` (branch `220-onboarding-welcome`, cut from the
+`900-photo-library-source` tip) — implementation plan at
+`specs/220-onboarding-welcome/plan.md` (research, data-model, contracts, quickstart
+alongside it). A welcome-screen overhaul (sub-spec of 200): iCloud album at the top,
+shared-link QR scanning, three friction-ordered paths; reuses the 900 photoLibrary source.
+Branches awaiting their manual device gates + merge: `900-photo-library-source` (the iCloud
+source this one needs) and `800-app-intents` (Shortcuts/Siri — all automated gates green);
+`1000-apple-tv` remains queued (constitution v1.1.0 sanctions the 1000 secret-sync channel).
+v1.0 is in App Store review; `310`/`320` are implemented.
 <!-- SPECKIT END -->
