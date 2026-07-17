@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import AppIntents
 import AppIntentsKit
 import BrokerSetupKit
 import HAControlKit
@@ -96,10 +95,11 @@ struct Immich_SlideshowApp: App {
 
     init() {
         // The intents registry exists before either factory branch (800): created
-        // once per process and handed to AppIntents' dependency container so the
-        // intent shells can resolve it; each branch wires its own stores below.
+        // once per process and handed to the intent shells' composition seam
+        // (FrameIntentContext — see there for why not AppDependencyManager);
+        // each branch wires its own stores below.
         let controlRegistry = FrameControlRegistry()
-        AppDependencyManager.shared.add(dependency: controlRegistry)
+        FrameIntentContext.registry = controlRegistry
 
         #if DEBUG
         // Hermetic seam for XCUITests: when launched with `--uitest`, drive both the

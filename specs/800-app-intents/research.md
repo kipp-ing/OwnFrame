@@ -79,12 +79,17 @@ and `PhotoReporting` protocols plus `PhotoReport`) and nothing else.
   through the same protocol methods HA calls. The `HAControlKit` *product* is
   protocol + coordinator logic only — MQTT (mqtt-nio/NIOSSL) links solely into the
   separate `HAControlMQTT` product, so AppIntentsKit inherits no transport.
-- `AppDependencyManager` is the platform's sanctioned way to hand dependencies to
-  intent structs (the system instantiates them; init injection is impossible).
-  Constitution II's "no hidden singletons" is honored by registering exactly one
-  object — the `FrameControlRegistry` — at the app's composition root, and by the
-  package never touching `AppDependencyManager` at all (shells pass the registry
-  into the service; tests inject fakes directly).
+- ~~`AppDependencyManager` is the platform's sanctioned way~~ **Amended during
+  T014 (2026-07-17)**: `AppDependencyManager` turned out untestable app-hosted —
+  every `add` variant registers a *lazy* provider with no public getter, and
+  `@AppDependency` access outside the platform's own intent-execution flow traps
+  (`Fatal error: AppDependency … was not initialized prior to access`), including
+  direct `perform()` calls from tests. The shells therefore resolve through
+  **`FrameIntentContext`**, a documented app-target composition seam set once at
+  app init — one object, one assignment, same "no hidden singletons" posture (the
+  seam is the composition root's, mirrored on what `AppDependencyManager` would
+  have been). The package still never touches any container; tests reach the
+  same instance via the seam (analyze U2 unchanged in spirit).
 - The registry (not the adapter) is registered because the adapter is **per
   slideshow generation** (see R3): `SlideshowView` is keyed by
   `connectionGeneration`, and every source switch/connection change rebuilds it.

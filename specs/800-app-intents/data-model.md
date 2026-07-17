@@ -87,9 +87,10 @@ Thin conformances only — no logic, no state (research R2):
 - `PauseSlideshowIntent`, `ResumeSlideshowIntent`, `NextPhotoIntent`,
   `PreviousPhotoIntent`, `SetBrightnessIntent` (Int parameter, `inclusiveRange`
   0–100), `SelectSourceIntent` (`SourceEntity` parameter), `GetFrameStateIntent` —
-  each: resolve registry via `@Dependency`, call the matching service method, map
-  `FrameCommandError` to localized errors. Control intents `openAppWhenRun = true`;
-  the read intent `false` (research R1).
+  each: resolve the registry via `FrameIntentContext.requireRegistry()` (the
+  composition seam — see research R2 amendment for why not `@AppDependency`),
+  call the matching service method, map `FrameCommandError` to localized errors.
+  Control intents `openAppWhenRun = true`; the read intent `false` (research R1).
 - `SourceEntity: AppEntity` — `id`/`label` from `SourceOption`; query answers
   `entities(for:)` and `suggestedEntities()` from `registry.sourceOptions()`.
 - `FrameStateEntity: TransientAppEntity` — mirrors `FrameStateSnapshot`.
