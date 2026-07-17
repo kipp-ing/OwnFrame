@@ -46,7 +46,7 @@ method per intent verb — the shells stay one-call thin (research R2, FR-800-09
 | `nextPhoto()` | → `surface.showNext()` — steps without resuming when paused (topic 710 US3 parity). |
 | `previousPhoto()` | → `surface.showPrevious()`. |
 | `setBrightness(percent: Int)` | Validate `0...100` else throw `.brightnessOutOfRange(percent)` (state untouched); map `percent/100.0` → `surface.setBrightness(_:)` (research R5). |
-| `selectSource(id: String)` | Resolve id in `registry.sourceOptions()`; missing → throw `.sourceMissing(label:)` with the *requested* entity's display name, state untouched; found → `surface.selectAlbum(option.label)` — the byte-identical HA path (research R4). |
+| `selectSource(id: String, label: String)` | Resolve id in `registry.sourceOptions()` BEFORE `awaitReady` (a stale id fails fast even when the frame is closed); missing → throw `.sourceMissing(label:)` carrying the caller's `label` (error payload only), state untouched; found → `surface.selectAlbum(option.label)` with the label resolved from the library — the byte-identical HA path (research R4). |
 | `frameState()` | Build `FrameStateSnapshot` from `surface` (below). Requires `.ready` — never guesses (R1). |
 
 ## FrameStateSnapshot (struct, `Sendable`, `Equatable`)

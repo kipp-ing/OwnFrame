@@ -45,6 +45,9 @@ Rules every intent obeys:
 - Options/suggestions: exactly the saved source library at query time — every kind
   (Immich album, shared link, Photos), no filtering, no extras.
 - Duplicate labels resolve like HA: first match wins on apply (documented parity).
+- Apply uses the label resolved from the CURRENT library for the entity's id — a
+  renamed-but-same-id source selects correctly; the entity's stored label appears
+  only in the deleted-source error payload.
 
 ## `FrameStateEntity` (result of Get Frame State)
 
