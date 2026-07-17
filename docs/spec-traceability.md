@@ -292,7 +292,9 @@ Host-unit tests live in `Packages/AppIntentsKit/Tests/AppIntentsKitTests/`
 host, SC-800-05). App-hosted glue coverage is
 `Immich SlideshowTests/FrameIntentGlueTests` (13 tests over the shells against the
 process registry). The shells resolve via `FrameIntentContext`, not
-`AppDependencyManager` (untestable app-hosted — research R2 amendment).
+`AppDependencyManager` (untestable app-hosted — research R2 amendment). Pre-merge
+full XCUITest suite green 2026-07-17 (108 passed / 0 failed / 2 intentional skips;
+the T008 entry-point hoist did not regress the broader app) — T028.
 
 | FR | Requirement (short) | Covering test(s) | Status | Testability |
 |---|---|---|---|---|
