@@ -55,6 +55,24 @@ final class OnboardingBackUITests: XCTestCase {
         XCTAssertTrue(serverChoice.waitForExistence(timeout: 5), "Back should return to the choice screen")
     }
 
+    /// iCloud path → Back returns to the choice screen (220 / US3 parity with the other two paths).
+    @MainActor
+    func testBackFromICloudReturnsToChoice() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-onboarding-choice", "--uitest-photos-auth=full"]
+        app.launch()
+
+        let photoLibraryChoice = app.buttons["onboarding.choice.photoLibrary"]
+        XCTAssertTrue(photoLibraryChoice.waitForExistence(timeout: 5))
+        photoLibraryChoice.tap()
+
+        let back = app.buttons["onboarding.back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5), "the iCloud step should offer Back")
+        back.tap()
+
+        XCTAssertTrue(photoLibraryChoice.waitForExistence(timeout: 5), "Back should return to the choice screen")
+    }
+
     /// The choice screen is the first step and has no Back.
     @MainActor
     func testChoiceScreenHasNoBack() throws {
