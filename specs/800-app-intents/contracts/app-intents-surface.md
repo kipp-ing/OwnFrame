@@ -78,9 +78,11 @@ so they stay clear of HomeKit's device-control namespace:
 
 The app target must, in this order:
 
-1. Register the one `FrameControlRegistry` in `AppDependencyManager` at app init,
-   wiring `sourceOptions` to the source-library store and `isConfigured` to the
-   startup gate.
+1. Set the one `FrameControlRegistry` into `FrameIntentContext` at app init
+   (the documented composition seam — `AppDependencyManager` resolves only
+   inside the platform's own intent-execution flow and is untestable app-hosted;
+   see research R2 amendment), wiring `sourceOptions` to the source-library
+   store and `isConfigured` to the startup gate.
 2. On every slideshow generation (the `connectionGeneration`-keyed rebuild):
    build the **single** `SlideshowRemoteControlAdapter` (hoisted, broker or not),
    `registry.register(adapter)`, and hand the same instance to

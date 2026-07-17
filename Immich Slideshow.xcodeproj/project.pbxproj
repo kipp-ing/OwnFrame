@@ -21,6 +21,7 @@
 		3DAA01000000000000000022 /* PhotoSourceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000021 /* PhotoSourceKit */; };
 		3DAA01000000000000000025 /* PhotoLibraryKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000024 /* PhotoLibraryKit */; };
 		3DAA01000000000000000028 /* AppIntentsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000027 /* AppIntentsKit */; };
+		3DAA0100000000000000002A /* AppIntentsTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000029 /* AppIntentsTestSupport */; };
 		5E000000000000000000000B /* Immich SlideshowShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -130,6 +131,7 @@
 			files = (
 				3DAA01000000000000000006 /* ImmichClient in Frameworks */,
 				3DAA01000000000000000007 /* ImmichClientTestSupport in Frameworks */,
+				3DAA0100000000000000002A /* AppIntentsTestSupport in Frameworks */,
 				3DAA0100000000000000000C /* OnboardingKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -231,6 +233,7 @@
 			packageProductDependencies = (
 				3DAA01000000000000000004 /* ImmichClient */,
 				3DAA01000000000000000005 /* ImmichClientTestSupport */,
+				3DAA01000000000000000029 /* AppIntentsTestSupport */,
 				3DAA0100000000000000000B /* OnboardingKit */,
 			);
 			productName = "Immich SlideshowTests";
@@ -959,6 +962,10 @@
 		3DAA01000000000000000027 /* AppIntentsKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppIntentsKit;
+		};
+		3DAA01000000000000000029 /* AppIntentsTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppIntentsTestSupport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
