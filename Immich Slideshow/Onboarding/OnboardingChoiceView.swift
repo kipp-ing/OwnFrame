@@ -16,10 +16,21 @@ struct OnboardingChoiceView: View {
     var body: some View {
         List {
             Section {
-                Text("Choose how to reach your photos. You can add more sources later in Settings.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("onboarding.choice.intro")
+                VStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "photo.stack")
+                        .font(.system(size: 40, weight: .light))
+                        .foregroundStyle(.tint)
+                    Text("Welcome")
+                        .font(.title2.weight(.semibold))
+                    Text("Choose how to reach your photos. You can add more sources later in Settings.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("onboarding.choice.intro")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .listRowBackground(Color.clear)
             }
 
             Section {
