@@ -529,6 +529,6 @@ private struct SlidePhotoView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .kenBurns(isActive: kenBurnsActive, durationSeconds: durationSeconds)
+        .kenBurnsMotion(isActive: kenBurnsActive, durationSeconds: durationSeconds, pan: 16)
     }
 }
