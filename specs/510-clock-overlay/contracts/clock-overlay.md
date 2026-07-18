@@ -40,10 +40,12 @@ All compose with the existing `--uitest --uitest-slideshow [--uitest-chrome]` se
 
 ## Accessibility identifiers
 
-- `slideshow.clock` — ambient container (exists iff clock enabled and slideshow playing).
-- `slideshow.clock.digits` / `slideshow.clock.pill` / `slideshow.clock.analog` — style body.
-- Time text is queryable for content assertions (digits/pill); analog asserts existence +
-  place only.
+- `slideshow.clock` — the ambient clock, a single combined accessibility element. It exists
+  while the clock is enabled and the slideshow is playing, and it leaves the accessibility
+  tree whenever the chrome is visible (this removal is the vanish signal — SC-500-07).
+- The active style is exposed as the element's accessibility **value** (`digits` / `pill` /
+  `analog`), so tests assert the style without per-style identifiers.
+- The element's frame gives its on-screen place (used for the screen-third assertions).
 
 ## Behavioral invariants (test-facing)
 

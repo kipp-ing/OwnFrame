@@ -20,7 +20,7 @@ final class SettingsUITests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsShowsBrightnessAndPlannedOptionsAndDismisses() throws {
+    func testSettingsShowsBrightnessAndLiveDisplayOptionsAndDismisses() throws {
         let app = XCUIApplication()
         // Pin the chrome so opening settings isn't racing the idle auto-hide.
         app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
@@ -39,12 +39,10 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(slider.waitForExistence(timeout: 3), "brightness slider should appear")
         slider.adjust(toNormalizedSliderPosition: 0.4)
 
-        // A planned (disabled) option is previewed in the shell. Order/duration/
-        // transition/Ken Burns/fit/quality are now live (008); the clock overlay is the
-        // remaining placeholder until US4.
-        let plannedRow = app.descendants(matching: .any)
-            .matching(identifier: "settings.row.Clock overlay").firstMatch
-        XCTAssertTrue(plannedRow.exists, "the clock-overlay option should be previewed")
+        // Every Display option is live now — the clock overlay was the last placeholder
+        // and shipped in 510. The live Clock toggle is present.
+        let clockToggle = app.switches["settings.clock"]
+        XCTAssertTrue(clockToggle.waitForExistence(timeout: 2), "the Clock overlay control should be live")
 
         // Dismiss back to the slideshow.
         app.buttons["Done"].tap()

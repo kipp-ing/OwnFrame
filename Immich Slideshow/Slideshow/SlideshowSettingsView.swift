@@ -388,17 +388,6 @@ struct SlideshowSettingsView: View {
         return "\(seconds) s"
     }
 
-    /// A disabled preview of a planned setting (lights up once its module exists).
-    private func placeholderRow(_ title: String, value: String, systemImage: String) -> some View {
-        HStack {
-            Label(title, systemImage: systemImage)
-            Spacer()
-            Text(value)
-        }
-        .foregroundStyle(.secondary)
-        .accessibilityIdentifier("settings.row.\(title)")
-    }
-
     /// Live built-in-screen brightness via the active window scene (iOS 26 dropped
     /// `UIScreen.main`), mirroring UIScreenController so the slider starts accurate.
     private static func currentScreenBrightness() -> Double {
