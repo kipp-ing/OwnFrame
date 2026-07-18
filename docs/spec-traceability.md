@@ -284,6 +284,35 @@ photo-access revocation is never masked by remembered snapshots
 (`revokedAccessAtLaunchIsNotMaskedBySnapshotWhenConfigured`); the Immich stale-beats-broken
 default is pinned unchanged (`expiredCredentialsAtLaunchStillPlayFromSnapshotByDefault`).
 
+## 800 - App Intents *(added 2026-07-17, implemented — device gates pending)*
+
+Host-unit tests live in `Packages/AppIntentsKit/Tests/AppIntentsKitTests/`
+(`RegistryTests`, `FrameCommandServiceTests`, `BrightnessValidationTests`,
+`SourceSelectTests`, `FrameStateSnapshotTests` — 40 tests, all `swift test` on the
+host, SC-800-05). App-hosted glue coverage is
+`Immich SlideshowTests/FrameIntentGlueTests` (13 tests over the shells against the
+process registry). The shells resolve via `FrameIntentContext`, not
+`AppDependencyManager` (untestable app-hosted — research R2 amendment). Pre-merge
+full XCUITest suite green 2026-07-17 (108 passed / 0 failed / 2 intentional skips;
+the T008 entry-point hoist did not regress the broader app) — T028.
+
+| FR | Requirement (short) | Covering test(s) | Status | Testability |
+|---|---|---|---|---|
+| FR-800-01 | Seven intents exposed | `FrameIntentGlueTests` (all shells) + `Metadata.appintents` extraction check (T016/T025) | covered | app-hosted + build artifact |
+| FR-800-02 | One command path (the shared adapter) | `FrameCommandServiceTests` HA-parity sequences (SC-800-01); hoist gated by `SlideshowRemoteControlAdapterTests` + `HAControlRoundTripTests` staying green | covered | host-unit + app-hosted |
+| FR-800-03 | App Shortcuts + Siri phrases | metadata extraction carries `FrameAppShortcuts` + all 7 intents; live discovery = SC-800-03 | partial (manual gate) | build artifact + manual |
+| FR-800-04 | Foreground-or-fail, never silent | `pause_configuredButNothingRegistered_throwsFrameNotOpenAfterTimeout`, `unconfiguredFrameThrowsTheSetupCopy`, `everyControlIntentOpensTheAppWhenRun` | covered | host-unit + app-hosted |
+| FR-800-05 | Unattended (no prompts) | T017 pins in `FrameIntentGlueTests`; overnight cycle = SC-800-02 | partial (manual gate) | app-hosted + manual |
+| FR-800-06 | Select options = library; HA restart strategy | `SourceSelectTests` (resolved-label apply, duplicate-label parity), `sourceEntityQueryAnswersFromTheRegistryOptions` | covered | host-unit + app-hosted |
+| FR-800-07 | State whitelist, nothing else | `FrameStateSnapshotTests` incl. Mirror pin (SC-800-04) | covered | host-unit |
+| FR-800-08 | HA-range validation, reject not clamp | `BrightnessValidationTests` incl. out-of-range-beats-availability + race pin (analyze G1) | covered | host-unit |
+| FR-800-09 | Host-testable intent logic | the whole AppIntentsKit package (no `import AppIntents`) | covered | host-unit |
+| FR-800-10 | Recipes docs page | `docs/automation-recipes.md` | covered | docs |
+| SC-800-01 | Parity call sequences | `FrameCommandServiceTests` | covered | host-unit |
+| SC-800-02/03 | Overnight automation; Siri discovery | scheduled checklist in `specs/800-app-intents/quickstart.md` | scheduled | manual |
+| SC-800-04 | No secrets/bytes in state output | `fullyPopulatedSurface…` leak probe + Mirror whitelist | covered | host-unit |
+| SC-800-05 | All logic tests on host | `swift test` in `Packages/AppIntentsKit` (40) | covered | host-unit |
+
 ## 220 - Onboarding Welcome *(added 2026-07-17, implemented on branch — camera device gate pending)*
 
 *(Sub-spec of 200.)* Welcome-screen overhaul: iCloud album at the top, a camera QR-scan

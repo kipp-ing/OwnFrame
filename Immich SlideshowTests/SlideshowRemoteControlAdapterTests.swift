@@ -14,6 +14,7 @@ import Testing
 import UIKit
 import HAControlKit
 import ImmichClient
+import OnboardingKit
 import PhotoSourceKit
 import PowerKit
 import SlideshowKit
@@ -257,6 +258,63 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(calls["asset-2"] == 1)
     }
 
+    // MARK: - updateAlbums (800, T006)
+
+    // The 800 hoist builds the adapter synchronously; the HA coordinator's async
+    // best-effort album fetch lands post-init via updateAlbums(_:). These pin the
+    // late-arrival semantics: legacy fallback options appear, a stored album ID
+    // backfills currentAlbum, and a source library keeps owning both.
+
+    @Test func updateAlbumsFeedsLegacyAlbumOptionsPostInit() throws {
+        let fixture = try makeAdapter(suite: "adapter.updateAlbums.options")
+        defer { fixture.cleanUp() }
+
+        #expect(fixture.adapter.albumOptions.isEmpty)
+        fixture.adapter.updateAlbums([Album(id: "album-1", name: "Family")])
+        #expect(fixture.adapter.albumOptions == ["Family"])
+    }
+
+    @Test func updateAlbumsBackfillsCurrentAlbumFromStoredID() throws {
+        let fixture = try makeAdapter(
+            suite: "adapter.updateAlbums.backfill",
+            currentAlbumID: "album-1"
+        )
+        defer { fixture.cleanUp() }
+
+        #expect(fixture.adapter.currentAlbum == nil)
+        fixture.adapter.updateAlbums([Album(id: "album-1", name: "Family")])
+        #expect(fixture.adapter.currentAlbum == "Family")
+    }
+
+    @Test func updateAlbumsDoesNotOverrideSourceLibraryOptions() throws {
+        let fixture = try makeAdapter(
+            suite: "adapter.updateAlbums.sources",
+            sources: [Source(id: "s1", label: "Iceland", kind: .album(albumID: "album-1"))],
+            activeSourceID: "s1"
+        )
+        defer { fixture.cleanUp() }
+
+        fixture.adapter.updateAlbums([Album(id: "album-1", name: "Family")])
+        #expect(fixture.adapter.albumOptions == ["Iceland"])
+        #expect(fixture.adapter.currentAlbum == "Iceland")
+    }
+
+    @Test func updateAlbumsEnrichesSubsequentPhotoReports() async throws {
+        let fixture = try makePhotoFixture(
+            suite: "photo.updateAlbums",
+            albumsAtInit: false,
+            image: makeJPEG()
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        fixture.adapter.updateAlbums([Album(id: "album-1", name: "Family")])
+        await fixture.slideshow.start()
+        await settle()
+
+        #expect(fixture.adapter.currentPhotoReport.albumName == "Family")
+    }
+
     // MARK: - Fixture
 
     private struct Fixture {
@@ -270,7 +328,12 @@ struct SlideshowRemoteControlAdapterTests {
         }
     }
 
-    private func makeAdapter(suite: String) throws -> Fixture {
+    private func makeAdapter(
+        suite: String,
+        currentAlbumID: String? = nil,
+        sources: [Source] = [],
+        activeSourceID: String? = nil
+    ) throws -> Fixture {
         let suiteName = "de.kippings.ImmichSlideshow.tests.\(suite)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
@@ -286,6 +349,9 @@ struct SlideshowRemoteControlAdapterTests {
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
             powerManager: powerManager,
+            currentAlbumID: currentAlbumID,
+            sources: sources,
+            activeSourceID: activeSourceID,
             themeStore: store
         )
         return Fixture(adapter: adapter, store: store, defaults: defaults, suiteName: suiteName)
@@ -327,6 +393,7 @@ struct SlideshowRemoteControlAdapterTests {
         options: HAPublishOptions = HAPublishOptions(),
         failAdapterImage: Bool = false,
         failAdapterInfo: Bool = false,
+        albumsAtInit: Bool = true,
         image: Data
     ) throws -> PhotoFixture {
         let suiteName = "de.kippings.ImmichSlideshow.tests.\(suite)"
@@ -356,7 +423,7 @@ struct SlideshowRemoteControlAdapterTests {
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
             powerManager: powerManager,
-            albums: [Album(id: "album-1", name: "Family")],
+            albums: albumsAtInit ? [Album(id: "album-1", name: "Family")] : [],
             themeStore: store,
             api: haAPI,
             metadataCache: MetadataCache(limit: 64),

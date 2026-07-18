@@ -128,9 +128,10 @@ quickstart alongside it). First renderer for the clock settings per the Quiet Gl
 round (agreed 2026-07-18): digits/pill/analog, six places + Random, Room/Cozy sizes,
 vanishes while chrome shows; binding FRs live in `specs/500-display-options/spec.md`
 (FR-500-12/17/18/19). Two-session aim: housekeeping session = merge train
-(`900-photo-library-source`, `800-app-intents`, `220-onboarding-welcome` — device gates +
-merges) then implement 510 (iOS only); Apple TV session = topic `1000` (reuses the clock
-components, adds tvOS sizes + FR-1000-10 pixel-shift). `220-onboarding-welcome` is
-implemented (T001–T020 done, only its camera device gate left); v1.0 is in App Store
-review; `310`/`320` are implemented.
+(`900-photo-library-source`, `800-app-intents`, `220-onboarding-welcome` — merged; device
+ship-gates deferred to a real-hardware device day) then implement 510 (iOS only); Apple TV
+session = topic `1000` (reuses the clock components, adds tvOS sizes + FR-1000-10
+pixel-shift). `900`/`800`/`220` are merged to main and implemented (T001–T020 for 220, only
+their real-hardware ship gates left); v1.0 is in App Store review; `310`/`320` are
+implemented.
 <!-- SPECKIT END -->
