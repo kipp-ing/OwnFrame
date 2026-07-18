@@ -14,6 +14,8 @@ struct HATopicsTests {
         #expect(HAEntity.quality.rawValue == "quality")
         #expect(HAEntity.clock.rawValue == "clock")
         #expect(HAEntity.clockCorner.rawValue == "clock_corner")
+        #expect(HAEntity.clockStyle.rawValue == "clock_style")
+        #expect(HAEntity.clockSize.rawValue == "clock_size")
         #expect(HAEntity.clockDate.rawValue == "clock_date")
         #expect(HAEntity.next.rawValue == "next")
         #expect(HAEntity.previous.rawValue == "previous")
@@ -26,7 +28,7 @@ struct HATopicsTests {
 
     @Test
     func haEntityAllCasesCount() {
-        #expect(HAEntity.allCases.count == 19)
+        #expect(HAEntity.allCases.count == 21)
     }
 
     @Test
@@ -40,6 +42,8 @@ struct HATopicsTests {
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .quality) == "homeassistant/select/dev1/quality/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .clock) == "homeassistant/switch/dev1/clock/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .clockCorner) == "homeassistant/select/dev1/clock_corner/config")
+        #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .clockStyle) == "homeassistant/select/dev1/clock_style/config")
+        #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .clockSize) == "homeassistant/select/dev1/clock_size/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .clockDate) == "homeassistant/switch/dev1/clock_date/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .next) == "homeassistant/button/dev1/next/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .previous) == "homeassistant/button/dev1/previous/config")

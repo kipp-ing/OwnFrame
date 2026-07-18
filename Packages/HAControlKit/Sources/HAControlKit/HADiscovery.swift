@@ -62,6 +62,10 @@ public enum HADiscovery {
             json["payload_off"] = "OFF"
         case .clockCorner:
             json["options"] = ClockCornerSetting.allCases.map(\.rawValue)
+        case .clockStyle:
+            json["options"] = ClockStyleSetting.allCases.map(\.rawValue)
+        case .clockSize:
+            json["options"] = ClockSizeSetting.allCases.map(\.rawValue)
         case .next, .previous:
             // Stateless HA button: command topic + payload_press, no state topic.
             json["state_topic"] = nil
@@ -110,7 +114,11 @@ public enum HADiscovery {
         case .clock:
             "Slideshow Clock"
         case .clockCorner:
-            "Slideshow Clock Corner"
+            "Slideshow Clock Place"
+        case .clockStyle:
+            "Slideshow Clock Style"
+        case .clockSize:
+            "Slideshow Clock Size"
         case .clockDate:
             "Slideshow Clock Date"
         case .next:

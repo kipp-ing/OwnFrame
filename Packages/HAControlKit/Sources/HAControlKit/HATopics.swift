@@ -45,6 +45,10 @@ public enum HATopics {
             "switch"
         case .clockCorner:
             "select"
+        case .clockStyle:
+            "select"
+        case .clockSize:
+            "select"
         case .clockDate:
             "switch"
         case .next:

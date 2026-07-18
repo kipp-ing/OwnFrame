@@ -175,16 +175,51 @@ struct HADiscoveryTests {
     }
 
     @Test
-    func clockCornerDiscoveryHasOptionsArray() throws {
+    func clockCornerDiscoveryHasWidenedOptionsAndPlaceName() throws {
         let data = HADiscovery.config(for: .clockCorner, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
         let json = try Self.object(from: data)
 
+        // Entity id / topics stay `clock_corner` (retained-state compatibility), but
+        // the options widen to the seven ClockCornerSetting raws and the display name
+        // becomes "Slideshow Clock Place" (510 data-model).
         #expect(json["unique_id"] as? String == "dev1_clock_corner")
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockCorner))
         #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner))
+        #expect(json["name"] as? String == "Slideshow Clock Place")
 
         let options = try #require(json["options"] as? [String])
-        #expect(options == ["topLeading", "topTrailing", "bottomLeading", "bottomTrailing"])
+        #expect(options == ["topLeading", "topCenter", "topTrailing", "bottomLeading", "bottomCenter", "bottomTrailing", "random"])
+        #expect(options == ClockCornerSetting.allCases.map(\.rawValue))
+    }
+
+    @Test
+    func clockStyleDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .clockStyle, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_clock_style")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockStyle))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockStyle))
+        #expect(json["name"] as? String == "Slideshow Clock Style")
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["digits", "pill", "analog"])
+        #expect(options == ClockStyleSetting.allCases.map(\.rawValue))
+    }
+
+    @Test
+    func clockSizeDiscoveryHasOptionsArray() throws {
+        let data = HADiscovery.config(for: .clockSize, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
+        let json = try Self.object(from: data)
+
+        #expect(json["unique_id"] as? String == "dev1_clock_size")
+        #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockSize))
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockSize))
+        #expect(json["name"] as? String == "Slideshow Clock Size")
+
+        let options = try #require(json["options"] as? [String])
+        #expect(options == ["room", "cozy"])
+        #expect(options == ClockSizeSetting.allCases.map(\.rawValue))
     }
 
     private static func object(from data: Data) throws -> [String: Any] {
