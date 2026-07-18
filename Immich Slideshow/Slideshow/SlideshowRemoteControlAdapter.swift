@@ -406,7 +406,7 @@ extension SlideshowRemoteControlAdapter: SettingsControlling {
         themeStore.settings = Self.themeSettings(from: settings)
     }
 
-    // The 9-field mapping bridges via raw values so HAControlKit stays free of a
+    // The 11-field mapping bridges via raw values so HAControlKit stays free of a
     // ThemeKit dependency (Modular Isolation); the fallbacks are unreachable as
     // long as both enums list identical cases.
     private static func snapshot(from settings: ThemeSettings) -> ThemeSettingsSnapshot {
@@ -418,7 +418,9 @@ extension SlideshowRemoteControlAdapter: SettingsControlling {
             fit: FitSetting(rawValue: settings.fit.rawValue) ?? .fit,
             quality: QualitySetting(rawValue: settings.quality.rawValue) ?? .preview,
             clockOn: settings.clock.isOn,
-            clockCorner: ClockCornerSetting(rawValue: settings.clock.corner.rawValue) ?? .bottomTrailing,
+            clockPlace: ClockCornerSetting(rawValue: settings.clock.place.rawValue) ?? .bottomTrailing,
+            clockStyle: ClockStyleSetting(rawValue: settings.clock.style.rawValue) ?? .digits,
+            clockSize: ClockSizeSetting(rawValue: settings.clock.size.rawValue) ?? .room,
             clockDate: settings.clock.showDate
         )
     }
@@ -433,7 +435,9 @@ extension SlideshowRemoteControlAdapter: SettingsControlling {
             quality: ImageQuality(rawValue: snapshot.quality.rawValue) ?? .preview,
             clock: ClockSettings(
                 isOn: snapshot.clockOn,
-                corner: ClockCorner(rawValue: snapshot.clockCorner.rawValue) ?? .bottomTrailing,
+                style: ClockStyle(rawValue: snapshot.clockStyle.rawValue) ?? .digits,
+                place: ClockPlace(rawValue: snapshot.clockPlace.rawValue) ?? .bottomTrailing,
+                size: ClockSize(rawValue: snapshot.clockSize.rawValue) ?? .room,
                 showDate: snapshot.clockDate
             )
         )
