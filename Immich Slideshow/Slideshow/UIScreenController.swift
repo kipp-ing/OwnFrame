@@ -26,7 +26,10 @@ final class UIScreenController: ScreenControlling {
     }
 
     var brightness: Double {
-        get { Double(activeScreen?.brightness ?? 0) }
+        // Fall back BRIGHT when no window scene resolves (scene activation, Stage
+        // Manager/external-display transitions): consumers seed UI from this value
+        // (settings slider) and a 0 fallback would read as — and then commit — black.
+        get { Double(activeScreen?.brightness ?? 1.0) }
         set {
             guard let screen = activeScreen else { return }
             // Allow dimming below the hardware minimum (software-emulated) so the
