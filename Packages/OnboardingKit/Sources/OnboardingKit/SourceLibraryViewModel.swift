@@ -58,6 +58,36 @@ public final class SourceLibraryViewModel {
         persist(library)
     }
 
+    /// Record an onboarding album pick so it can never dead-end (1000, US2): an existing
+    /// source for the **same album** is reused and activated; a genuinely new album gets a
+    /// unique label (counter-suffixed on collision, album-id fallback when empty) and is
+    /// activated. Returns the id of the now-active source. Unlike `addAlbumSource`, a
+    /// duplicate label is resolved rather than rejected — onboarding has no error surface.
+    @discardableResult
+    public func activateAlbumSource(albumID: String, label: String) -> String? {
+        errorMessage = nil
+
+        if let existing = library.sources.first(where: { $0.kind == .album(albumID: albumID) }) {
+            setActive(id: existing.id)
+            return existing.id
+        }
+
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        var candidate = trimmed.isEmpty ? albumID : trimmed
+        var suffix = 2
+        while library.sources.contains(where: { $0.label == candidate }) {
+            candidate = "\(trimmed.isEmpty ? albumID : trimmed) \(suffix)"
+            suffix += 1
+        }
+
+        let source = Source(label: candidate, kind: .album(albumID: albumID))
+        var library = self.library
+        library.add(source)
+        persist(library)
+        setActive(id: source.id)
+        return source.id
+    }
+
     /// Add a device photo-library source (an Apple Photos / iCloud album, or the limited-access
     /// "Selected Photos" pool) by its collection ID (900, FR-900-02). Mirrors `addAlbumSource`:
     /// the label is taken as-is at save time, with the same duplicate-label guard.
