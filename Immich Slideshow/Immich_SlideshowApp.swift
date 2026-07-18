@@ -718,6 +718,30 @@ private struct RootView: View {
                let transition = Transition(rawValue: String(arg.dropFirst("--uitest-transition=".count))) {
                 store.settings.transition = transition
             }
+            // Clock overlay seams (510): any `--uitest-clock*` seam turns the clock on and
+            // resets it to defaults first, then applies the given overrides — so a launch
+            // is deterministic regardless of what an earlier test persisted in this suite.
+            // `--uitest-clock-seed` is read by SlideshowView's place picker, not here.
+            let clockArgs = ProcessInfo.processInfo.arguments
+            if clockArgs.contains(where: { $0 == "--uitest-clock" || $0.hasPrefix("--uitest-clock-") }) {
+                var clock = ClockSettings(isOn: true)
+                if let arg = clockArgs.first(where: { $0.hasPrefix("--uitest-clock-style=") }),
+                   let style = ClockStyle(rawValue: String(arg.dropFirst("--uitest-clock-style=".count))) {
+                    clock.style = style
+                }
+                if let arg = clockArgs.first(where: { $0.hasPrefix("--uitest-clock-place=") }),
+                   let place = ClockPlace(rawValue: String(arg.dropFirst("--uitest-clock-place=".count))) {
+                    clock.place = place
+                }
+                if let arg = clockArgs.first(where: { $0.hasPrefix("--uitest-clock-size=") }),
+                   let size = ClockSize(rawValue: String(arg.dropFirst("--uitest-clock-size=".count))) {
+                    clock.size = size
+                }
+                if clockArgs.contains("--uitest-clock-date") {
+                    clock.showDate = true
+                }
+                store.settings.clock = clock
+            }
             return store
         }
         #endif
