@@ -78,7 +78,23 @@ struct SlideshowView: View {
     // @State raced SwiftUI's first sheet render and showed an empty card (310 UI bug).
     @State private var errorConnectionViewModel: ConnectionSettingsViewModel?
 
+    // 510: the clock overlay's Random place picker. Seeded deterministically under
+    // `--uitest-clock-seed=<n>` for stable UI tests; otherwise from the system generator.
+    // It relocates at most once per its 6-min cadence, only on a photo-advance boundary.
+    @State private var randomPicker = RandomPlacePicker(rng: SplitMix64(seed: SlideshowView.clockSeed))
+    @State private var clockEpoch = ContinuousClock().now
+    @State private var resolvedRandomPlace: ClockPlace = .bottomTrailing
+    @State private var randomResolved = false
+
     private static let chromeAutoHide: Duration = .seconds(4.5)
+
+    private static var clockSeed: UInt64 {
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--uitest-clock-seed=") }),
+           let seed = UInt64(arg.dropFirst("--uitest-clock-seed=".count)) {
+            return seed
+        }
+        return UInt64.random(in: .min ... .max)
+    }
 
     var body: some View {
         // The chrome owns the layout and is laid out against a stable full-screen frame; the
@@ -88,6 +104,17 @@ struct SlideshowView: View {
         // (FR-300-33). The image still owns the gestures and covers the whole screen, incl.
         // under the hidden status bar, via `.ignoresSafeArea()`.
         ZStack {
+            // Ambient clock layer (510): a sibling of the chrome branch, above the photo
+            // background. Present while the clock is on and a photo is showing; it fades
+            // out on its own whenever the chrome is up (FR-510-02).
+            if themeStore.settings.clock.isOn, viewModel.phase == .playing {
+                ClockOverlayView(
+                    settings: themeStore.settings.clock,
+                    place: clockRenderPlace,
+                    idiom: clockIdiom,
+                    chromeVisible: chromeVisible
+                )
+            }
             if chromeVisible {
                 chromeOverlay
                     .transition(.opacity)
@@ -148,6 +175,10 @@ struct SlideshowView: View {
             default:
                 break
             }
+        }
+        .onChange(of: viewModel.currentAssetID) { _, _ in
+            // Photo-advance boundary: the only moment a Random clock may relocate.
+            relocateRandomClockIfNeeded()
         }
         .onChange(of: scenePhase) { _, newPhase in
             // Foreground-only effects (Konstitution V, FR-003/FR-004/FR-012): iOS hands
@@ -406,6 +437,28 @@ struct SlideshowView: View {
 
     private var photoDurationSeconds: Double {
         Double(themeStore.settings.duration.components.seconds)
+    }
+
+    // MARK: - Clock overlay (510)
+
+    private var clockIdiom: ClockIdiom {
+        UIDevice.current.userInterfaceIdiom == .phone ? .phone : .pad
+    }
+
+    /// The place the clock renders at: the fixed setting directly, or the picker's
+    /// current resolution when the user chose Random.
+    private var clockRenderPlace: ClockPlace {
+        themeStore.settings.clock.place == .random ? resolvedRandomPlace : themeStore.settings.clock.place
+    }
+
+    /// Relocate a Random clock, but only on a photo-advance and at most once per the
+    /// picker's cadence; a fixed place is a no-op (FR-510-03).
+    private func relocateRandomClockIfNeeded() {
+        guard themeStore.settings.clock.isOn, themeStore.settings.clock.place == .random else { return }
+        let now = ContinuousClock().now - clockEpoch
+        let current: ClockPlace? = randomResolved ? resolvedRandomPlace : nil
+        resolvedRandomPlace = randomPicker.place(now: now, current: current, occupied: [])
+        randomResolved = true
     }
 
     /// Fading both photos at once lets the black backdrop bleed through at the midpoint
