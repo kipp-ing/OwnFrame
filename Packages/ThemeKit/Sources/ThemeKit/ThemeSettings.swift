@@ -1,4 +1,4 @@
-public struct ThemeSettings: Sendable, Equatable {
+public struct ThemeSettings: Sendable, Equatable, Codable {
     public var order: PlayOrder
     public var duration: Duration
     public var transition: Transition
@@ -44,29 +44,29 @@ public struct ThemeSettings: Sendable, Equatable {
     }
 }
 
-public enum PlayOrder: String, Sendable, Equatable, CaseIterable {
+public enum PlayOrder: String, Sendable, Equatable, CaseIterable, Codable {
     case shuffle
     case sequential
 }
 
-public enum Transition: String, Sendable, Equatable, CaseIterable {
+public enum Transition: String, Sendable, Equatable, CaseIterable, Codable {
     case crossfade
     case slide
     case dissolve
     case `none`
 }
 
-public enum ImageFit: String, Sendable, Equatable, CaseIterable {
+public enum ImageFit: String, Sendable, Equatable, CaseIterable, Codable {
     case fit
     case fill
 }
 
-public enum ImageQuality: String, Sendable, Equatable, CaseIterable {
+public enum ImageQuality: String, Sendable, Equatable, CaseIterable, Codable {
     case preview
     case original
 }
 
-public enum ClockStyle: String, Sendable, Equatable, CaseIterable {
+public enum ClockStyle: String, Sendable, Equatable, CaseIterable, Codable {
     case digits   // default — bare rounded numerals on a soft halo
     case pill     // compact glass capsule (today's design language)
     case analog   // round glass face, hour + minute hands, no date line
@@ -75,7 +75,7 @@ public enum ClockStyle: String, Sendable, Equatable, CaseIterable {
 /// Supersedes the old `ClockCorner`. The four corner cases keep their exact raw
 /// values, so values stored under `theme.clock.corner` (and HA retained states)
 /// decode unchanged (FR-510-05).
-public enum ClockPlace: String, Sendable, Equatable, CaseIterable {
+public enum ClockPlace: String, Sendable, Equatable, CaseIterable, Codable {
     case topLeading
     case topCenter
     case topTrailing
@@ -88,12 +88,12 @@ public enum ClockPlace: String, Sendable, Equatable, CaseIterable {
     public static var fixedPlaces: [ClockPlace] { allCases.filter { $0 != .random } }
 }
 
-public enum ClockSize: String, Sendable, Equatable, CaseIterable {
+public enum ClockSize: String, Sendable, Equatable, CaseIterable, Codable {
     case room   // default — readable from ~1.5 m (SC-500-08 floor)
     case cozy   // arm's-reach placement
 }
 
-public struct ClockSettings: Sendable, Equatable {
+public struct ClockSettings: Sendable, Equatable, Codable {
     public var isOn: Bool
     public var style: ClockStyle
     public var place: ClockPlace

@@ -91,6 +91,9 @@ struct Immich_SlideshowApp: App {
         let diskCache: any DiskImageStoring
         let snapshotStore: any SourceSnapshotStoring
         let cacheBudgetStore: any CacheBudgetStore
+        // iPad companion (topic 1000, FR-1000-06/12): mirror config to the sync channels.
+        // Invoked on launch and on every foreground; a no-op without iCloud (device-gated).
+        let publishCompanionSync: @MainActor @Sendable () async -> Void
     }
 
     init() {
@@ -218,7 +221,8 @@ struct Immich_SlideshowApp: App {
                 loadLibrary: { sourceStore.load() },
                 diskCache: storage.diskCache,
                 snapshotStore: storage.snapshotStore,
-                cacheBudgetStore: storage.budgetStore
+                cacheBudgetStore: storage.budgetStore,
+                publishCompanionSync: {}
             )
             return
         }
@@ -259,9 +263,11 @@ struct Immich_SlideshowApp: App {
             config: config,
             sourceStore: sourceStore,
             budgetStore: cacheBudgetStore,
-            keychain: keychain
+            keychain: keychain,
+            themeStore: UserDefaultsThemeStore(),
+            brokerStore: brokerStore,
+            sharedLinkSecretStore: secretStore
         )
-        Task { await companionSync.publish() }
         let viewModel = OnboardingViewModel(
             api: { serverConfig in ImmichClient(config: serverConfig) },
             config: config,
@@ -478,7 +484,8 @@ struct Immich_SlideshowApp: App {
             loadLibrary: { sourceStore.load() },
             diskCache: diskCache,
             snapshotStore: snapshotStore,
-            cacheBudgetStore: cacheBudgetStore
+            cacheBudgetStore: cacheBudgetStore,
+            publishCompanionSync: { await companionSync.publish() }
         )
     }
 
@@ -529,8 +536,14 @@ private struct RootView: View {
             // when the Share Extension opens the host scheme (210, US2). Each path takes the
             // URL once and routes it; a no-op when there is none.
             .task { consumePendingLink() }
+            // Mirror config to the Apple TV via the sync channels on launch and every
+            // foreground (topic 1000, FR-1000-06/12). Device-gated no-op without iCloud.
+            .task { await factories.publishCompanionSync() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { consumePendingLink() }
+                if phase == .active {
+                    consumePendingLink()
+                    Task { await factories.publishCompanionSync() }
+                }
             }
             .onOpenURL { _ in consumePendingLink() }
             .sheet(item: $incomingSheet) { context in

@@ -15,6 +15,8 @@ struct TVSlideshowChrome: View {
     let onPrevious: () -> Void
     let onPlayPause: () -> Void
     let onNext: () -> Void
+    /// Opens the tvOS settings surface (Home Assistant / MQTT broker). US4.
+    var onSettings: () -> Void = {}
 
     var body: some View {
         VStack {
@@ -28,6 +30,9 @@ struct TVSlideshowChrome: View {
                 }
                 Button(action: onNext) {
                     Image(systemName: "forward.end.fill")
+                }
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape.fill")
                 }
             }
             .font(.system(size: 48, weight: .semibold))
