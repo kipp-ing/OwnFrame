@@ -97,7 +97,12 @@ Bugs/observations from the real-iPad test pass (iPad jk, iPad16,3). To be batch-
   1. Brightness/display tuning (dominant).
   2. Image **downsample to display size + async pre-decode** (`byPreparingForDisplay()` / `CGImageSource`
      thumbnail), optionally cache decoded bitmaps — also fixes per-swap hitches. (`SlideshowKit`/`SlideshowView`.)
+     *(Pre-decode half DONE 2026-07-18: `DecodedImageStore` + `DisplayImagePreparing` seam, measured
+     swap-hitch elimination. Downsampling deliberately skipped — preview tier ≈ panel resolution;
+     re-open only if device profiling shows GPU-bound hitches.)*
   3. If Ken Burns must be cheaper on ProMotion: redo it via `TimelineView`/`CADisplayLink` with a
      capped `preferredFramesPerSecond` (~30) instead of implicit `withAnimation` — a rewrite, modest win.
+     *(Superseded 2026-07-18: Ken Burns is now ONE scoped linear animation per photo
+     (`KenBurnsMotionModifier`) — near-zero per-frame cost, cheaper than any capped-tick sampler.)*
 - **Scope:** perf area (300-slideshow / 400-power-manager). Not a discrete bug; gate any work on a
   measurement.

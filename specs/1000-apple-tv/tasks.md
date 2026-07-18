@@ -18,8 +18,18 @@ routing + iCloud-KVS prefill/restore + secret hydration seam; US3 purge-toleranc
 broker onboarding + software-dim brightness + lifecycle). T012 FR-1000-07 bypass removed. iPad
 companion (T021) publishes the full non-secret + secret payload to KVS/CloudKit on launch +
 foreground; tvOS consumer restores it. `ThemeSettings` is Codable. All host suites green
-(ThemeKit 31, ConfigSyncKit 21, SlideshowKit 161, PowerKit 19, HAControlKit 92, …); iOS + tvOS
+(ThemeKit 31, ConfigSyncKit 21, SlideshowKit 182, PowerKit 19, HAControlKit 92, …); iOS + tvOS
 sim builds green; full iOS XCUITest 120/0/2.
+
+**Ken Burns smoothness redesign (2026-07-18, after the test-review fixes):** the micro-judder
+report led to replacing per-frame TimelineView sampling with ONE scoped linear animation per
+photo — shared `KenBurnsMotionModifier` in SlideshowKit (pan 16 iOS / 24 tvOS; deletes
+`TVKenBurns` + the iOS `KenBurnsModifier`, resolving the byte-copy cleanup item) driven by the
+pure `KenBurnsAnimator` step machine, plus a `DisplayImagePreparing`/`DecodedImageStore`
+decode-ahead seam (all prefetch tiers + show path) that eliminated the measured 27–35 ms
+swap-boundary decode stall. Motion contract is unchanged and theorem-tested
+(settle-exactly-at-swap); sim-verified sawtooth/fades/no-black-dip; perceived-smoothness ground
+truth joins the existing device-day gates.
 
 **Remaining (device-gated / follow-up, NO physical testing this session):** real MQTT connection
 (needs a broker), real CloudKit secret sync (needs iCloud entitlements + account), tvOS clock

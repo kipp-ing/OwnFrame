@@ -15,7 +15,8 @@
 - **Slideshow UI is in the app target** (`Immich Slideshow/Slideshow/…`), not SlideshowKit
   (which holds the ViewModel + KenBurnsDrift). Chrome state = `SlideshowView.chromeVisible`;
   auto-hide 4.5s; input = one `TapGesture` (toggle) + `DragGesture(40)` (next/prev). Ken Burns
-  is TimelineView-driven (tvOS-safe). tvOS blockers: `.statusBarHidden`, `DragGesture`,
+  is TimelineView-driven (tvOS-safe) *(superseded 2026-07-18: now a shared scoped-animation
+  `KenBurnsMotionModifier` in SlideshowKit)*. tvOS blockers: `.statusBarHidden`, `DragGesture`,
   `UIDevice.userInterfaceIdiom` (needs a `.tv`/idiom case for clock sizing).
 - **HAControlKit/BrokerSetupKit** are Foundation/NIO-only; identity (`deviceID`/`deviceName`)
   injected from the app entry (`Immich_SlideshowApp.swift:239/:424`). mqtt-nio pinned 2.13.0;

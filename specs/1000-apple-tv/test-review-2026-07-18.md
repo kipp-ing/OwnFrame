@@ -182,7 +182,9 @@ onboarding with no message.
   `SlideshowRemoteControlAdapter` verbatim (observation re-arm blocks, mapPhase, the
   full 11-field snapshot mapping) — belongs in a shared package.
 - `TVKenBurns` is a byte-for-byte copy of the iOS `KenBurnsModifier` (pan 24 vs 16) —
-  parameterize one shared modifier.
+  parameterize one shared modifier. **RESOLVED 2026-07-18:** both files deleted; one shared
+  `KenBurnsMotionModifier(pan:)` in SlideshowKit (part of the scoped-animation smoothness
+  redesign — see tasks.md Status).
 - `startCoordinator`/`stopCoordinator` lifecycle duplicated verbatim from iOS
   `SlideshowView` — extract a shared helper.
 - `makeSecretStore()` duplicated verbatim (CompanionSync + TVRootView) — belongs in
