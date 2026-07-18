@@ -170,7 +170,47 @@ struct SlideshowSettingsView: View {
                     }
                     .accessibilityIdentifier("settings.quality")
 
-                    placeholderRow("Clock overlay", value: "Off", systemImage: "clock")
+                    Toggle(isOn: $themeStore.settings.clock.isOn) {
+                        Label("Clock", systemImage: "clock")
+                    }
+                    .accessibilityIdentifier("settings.clock")
+
+                    if themeStore.settings.clock.isOn {
+                        Picker(selection: $themeStore.settings.clock.style) {
+                            Text("Digits").tag(ClockStyle.digits)
+                            Text("Pill").tag(ClockStyle.pill)
+                            Text("Analog").tag(ClockStyle.analog)
+                        } label: {
+                            Label("Clock style", systemImage: "clock.badge")
+                        }
+                        .accessibilityIdentifier("settings.clock.style")
+
+                        Picker(selection: $themeStore.settings.clock.place) {
+                            Text("Top left").tag(ClockPlace.topLeading)
+                            Text("Top middle").tag(ClockPlace.topCenter)
+                            Text("Top right").tag(ClockPlace.topTrailing)
+                            Text("Bottom left").tag(ClockPlace.bottomLeading)
+                            Text("Bottom middle").tag(ClockPlace.bottomCenter)
+                            Text("Bottom right").tag(ClockPlace.bottomTrailing)
+                            Text("Random").tag(ClockPlace.random)
+                        } label: {
+                            Label("Clock place", systemImage: "square.grid.3x3.topleft.filled")
+                        }
+                        .accessibilityIdentifier("settings.clock.place")
+
+                        Picker(selection: $themeStore.settings.clock.size) {
+                            Text("Room").tag(ClockSize.room)
+                            Text("Cozy").tag(ClockSize.cozy)
+                        } label: {
+                            Label("Clock size", systemImage: "arrow.up.left.and.arrow.down.right")
+                        }
+                        .accessibilityIdentifier("settings.clock.size")
+
+                        Toggle(isOn: $themeStore.settings.clock.showDate) {
+                            Label("Date line", systemImage: "calendar")
+                        }
+                        .accessibilityIdentifier("settings.clock.date")
+                    }
                 } header: {
                     Text("Display")
                 } footer: {

@@ -147,4 +147,48 @@ final class ClockOverlayUITests: XCTestCase {
         XCTAssertEqual(after.midX, before.midX, accuracy: 1, "no relocation within cadence (x)")
         XCTAssertEqual(after.midY, before.midY, accuracy: 1, "no relocation within cadence (y)")
     }
+
+    // MARK: - Live settings rows drive the overlay and persist (T011, FR-500-05)
+
+    @MainActor
+    func testClockPersistsAcrossRelaunch() throws {
+        // Seam sets a non-default clock (on, analog) from reset defaults; with the chrome
+        // hidden the overlay reflects it, and the store persists it.
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--uitest", "--uitest-slideshow", "--uitest-reset-theme", "--uitest-clock-style=analog"
+        ]
+        app.launch()
+        let clock = el(app, "slideshow.clock")
+        XCTAssertTrue(clock.waitForExistence(timeout: 5), "seam clock shows")
+        XCTAssertEqual(clock.value as? String, "analog", "overlay reflects the seam style")
+
+        // Relaunch WITHOUT seams: the clock persists on, in Analog (FR-500-05).
+        app.terminate()
+        let relaunch = XCUIApplication()
+        relaunch.launchArguments = ["--uitest", "--uitest-slideshow"]
+        relaunch.launch()
+        let persisted = relaunch.descendants(matching: .any).matching(identifier: "slideshow.clock").firstMatch
+        XCTAssertTrue(persisted.waitForExistence(timeout: 5), "clock persisted on across relaunch")
+        XCTAssertEqual(persisted.value as? String, "analog", "style persisted across relaunch")
+    }
+
+    // MARK: - Live settings rows reflect the store (T012, FR-500-13)
+
+    @MainActor
+    func testSettingsRowsReflectClockStore() throws {
+        // Clock on with non-default style/place via seams; Settings open, chrome pinned.
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings",
+            "--uitest-reset-theme", "--uitest-clock-style=analog", "--uitest-clock-place=topCenter"
+        ]
+        app.launch()
+
+        // The rows exist and read back the store's values (they are live bindings).
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "settings.clock.style").firstMatch
+            .waitForExistence(timeout: 5), "clock rows present while the clock is on")
+        XCTAssertTrue(app.staticTexts["Analog"].firstMatch.exists, "style row reflects Analog")
+        XCTAssertTrue(app.staticTexts["Top middle"].firstMatch.exists, "place row reflects Top middle")
+    }
 }
