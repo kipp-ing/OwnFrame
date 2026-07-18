@@ -68,10 +68,15 @@ everything to start over.
 This project is built with Swift 6, SwiftUI, and Swift Package Manager, following a
 spec-driven, test-first workflow.
 
+- [CONTRIBUTING.md](CONTRIBUTING.md) — contribution terms (licensing) and how to submit changes.
 - [docs/testing.md](docs/testing.md) — how the project is tested and how to run each layer.
 - [docs/engineering-notes.md](docs/engineering-notes.md) — learnings, gotchas, and conventions.
 - [CLAUDE.md](CLAUDE.md) — architecture, modules, constraints, and the working agreement.
 
 ## License
 
-[MIT](LICENSE) © 2026 Jan Kipping
+[FSL-1.1-MIT](LICENSE) © 2026 Jan Kipping
+
+[Fair Source](https://fair.io): the code is public — read it, build it, modify it, run it
+yourself. What the [FSL](https://fsl.software) doesn't allow is offering a competing product
+with it. Each release automatically becomes plain MIT two years after publication.
