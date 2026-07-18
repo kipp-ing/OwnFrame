@@ -13,6 +13,12 @@ public final class PowerManager {
 
     public private(set) var isKeepingAwake = false
 
+    /// Current brightness read *through* the `ScreenControlling` seam — the live panel
+    /// brightness on iOS, the software-dim level on tvOS. Lets UI (e.g. the settings
+    /// brightness slider) seed itself without reaching past the seam to `UIScreen`
+    /// directly (FR-1000-07: eliminate the bypass rather than duplicate it).
+    public var currentBrightness: Double { screen.brightness }
+
     public init(
         screen: any ScreenControlling,
         clock: any PowerClock = RealClock(),

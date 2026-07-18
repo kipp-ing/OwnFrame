@@ -18,7 +18,6 @@ import PowerKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
-import UIKit
 
 struct SlideshowSettingsView: View {
     let powerManager: PowerManager
@@ -94,7 +93,7 @@ struct SlideshowSettingsView: View {
         self.snapshotStore = snapshotStore
         self.budgetStore = budgetStore
         _selectedBudget = State(initialValue: budgetStore?.load() ?? .default)
-        _brightness = State(initialValue: Self.currentScreenBrightness())
+        _brightness = State(initialValue: powerManager.currentBrightness)
         _connectionViewModel = State(initialValue: makeConnectionViewModel())
         _sourceLibraryViewModel = State(initialValue: makeSourceLibraryViewModel())
         let broker = BrokerSetupViewModel(store: BrokerSettingsStoreFactory.make())
@@ -386,15 +385,6 @@ struct SlideshowSettingsView: View {
             return "\(seconds / 60) min"
         }
         return "\(seconds) s"
-    }
-
-    /// Live built-in-screen brightness via the active window scene (iOS 26 dropped
-    /// `UIScreen.main`), mirroring UIScreenController so the slider starts accurate.
-    private static func currentScreenBrightness() -> Double {
-        let windowScenes = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-        let screen = (windowScenes.first { $0.activationState == .foregroundActive } ?? windowScenes.first)?.screen
-        return Double(screen?.brightness ?? 1.0)
     }
 
     /// Decimal byte label ("500 MB", "1 GB") matching CacheBudget's decimal
