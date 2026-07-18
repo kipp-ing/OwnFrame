@@ -135,7 +135,14 @@ verified auto-cycling + a real demo shared-link playing actual photos), US2 onbo
 parity** (`TVRemoteControlAdapter` + `HAControlCoordinator` with a distinct `FrameIdentity` +
 `TVBrokerSetupView` broker onboarding + software-dim brightness + lifecycle). The **iPad
 companion** publishes the full non-secret+secret payload to KVS/CloudKit on launch + foreground;
-the tvOS consumer restores it (`ThemeSettings` is now Codable). iOS XCUITest 120/0/2. **Remaining
+the tvOS consumer restores it (`ThemeSettings` is now Codable). **Ken Burns was redesigned
+(2026-07-18, micro-judder fix):** one shared `KenBurnsMotionModifier` (SlideshowKit, scoped
+`.animation(_:body:)` — ONE linear animation per photo instead of per-frame TimelineView
+sampling; pan 16 iOS / 24 tvOS) driven by the pure `KenBurnsAnimator` step machine, plus a
+`DisplayImagePreparing`/`DecodedImageStore` decode-ahead seam so swaps never pay a lazy
+first-render decode. Motion contract unchanged (settle-at-swap theorem is host-tested);
+animated steps must land one render commit after their snap (see the modifier header).
+iOS XCUITest 120/0/2. **Remaining
 (device-gated / follow-up):** real MQTT (needs a broker), real CloudKit secret sync (needs iCloud
 entitlements + account), the tvOS clock overlay + FR-1000-10 pixel-shift (not started; clock is
 off by default), and the real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof
