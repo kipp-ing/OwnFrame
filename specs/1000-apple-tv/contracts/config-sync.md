@@ -34,11 +34,20 @@ enum SecretSyncError: Error { case iCloudUnavailable, notFound, transport(Error)
 
 - `ConfigPublisher.publishNonSecret(from: stores…)` gathers the six UserDefaults stores → one
   `SyncedConfig` → `ConfigSyncStore.save`. `publishSecrets(from: keychainSeams…)` → `SyncedSecret`
-  → `SecretSyncStore.publish`. Idempotent; called on config change.
+  → `SecretSyncStore.publish`. Idempotent; the iPad publishes on launch and on every foreground
+  (a full re-gather each time), not per config change — per-change publishing is a possible
+  follow-up once real sync is device-verified.
+- The secret store is built via `SecretSyncStoreFactory.make()`: CloudKit only when the binary
+  carries the iCloud/CloudKit entitlements (compile-time capability flag, unit-asserted OFF
+  until they land — `CKContainer.default()` aborts without them, even with an account signed
+  in) AND an iCloud account is present; otherwise the in-memory store (publish no-ops,
+  hydration degrades to manual).
 - `ConfigConsumer.prefill() -> SyncedConfig?` = `ConfigSyncStore.load` (drives onboarding
   prefill). `ConfigConsumer.hydrateSecrets(into: keychainSeams…)` = `SecretSyncStore.fetch`, then
   write each secret into the local keychain; return `.hydrated` / `.manualRequired` (never throws
-  to the UI). Manual path always available (US2-3/4).
+  to the UI). Manual path always available (US2-3/4). The tvOS app hydrates on FRESH installs
+  only, and its writer never overwrites an existing local keychain value — a key entered on the
+  TV always wins over a stale synced one.
 
 ## Acceptance (host, fakes) — US2 scenarios
 
