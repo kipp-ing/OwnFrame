@@ -9,6 +9,60 @@ passes. Nothing here runs in CI.
 
 ---
 
+## FINAL DEVICE DAY — consolidated tick-list (added 2026-07-18, everything merged to main)
+
+Everything below is hardware-gated; all sim/host gates are green (182 SlideshowKit host tests,
+iOS XCUITest 120/0/2, tvOS builds). One device day covers it. Details live in the linked specs —
+this list is the single place to tick.
+
+### A. Ken Burns smoothness redesign (needs only eyes + devices)
+
+The micro-judder fix (scoped-animation drift + decode-ahead, see `specs/1000-apple-tv/tasks.md`
+Status): the sim proves the mechanics, your eyes prove the elegance.
+
+- [ ] Old iPad (2017/2018 trio, 60 Hz): Ken Burns on, crossfade, 15 s slides — steady drift reads
+      buttery at panel distance; **no stutter at photo swaps** (the decode hitch is fixed).
+- [ ] Newer/ProMotion iPad: same check (tick-rate beating was a suspected judder source — gone).
+- [ ] Apple TV 4K on a real TV: same check (shared modifier, pan 24).
+- [ ] Pause via chrome → photo snaps to the calm full frame instantly (no slow settle);
+      resume → arc restarts tight at 1.10 (no zoom-in pop, no slow-motion snap).
+- [ ] Change photo duration in settings mid-photo → drift rate retunes without a visible jump.
+- [ ] Optional numbers: Instruments → **Animation Hitches** during steady drift + across ~10 swaps;
+      expect no app-attributable hitches. (Objective sim recipe: memory
+      `verify-animations-by-video-luminance` — dot-sawtooth + frame-gap traces.)
+
+### B. 1000 Apple TV hardware gates (real ATV + iCloud account + broker)
+
+- [ ] Add **iCloud entitlements** to both targets AND flip the `SecretSyncStoreFactory` capability
+      flag **in the same change** (a unit test asserts it OFF until entitlements exist —
+      CKContainer.default() would crash signed-in devices otherwise).
+- [ ] **SC-1000-08** CloudKit secret proof: API key published encrypted from the iPad → decrypted on
+      the real Apple TV; audit that secrets appear ONLY in CloudKit encrypted fields.
+- [ ] KVS non-secret sync on hardware: iPad companion publish → TV restores theme/broker config
+      (under 2 min to playing, zero secrets typed on the TV — SC-1000-01 path).
+- [ ] Real MQTT broker (`home.kippings.de:8883`): TV appears as its own HA device
+      **"Photo Frame (Apple TV)"**; **SC-1000-06** pause/play, source select, dim from HA while the
+      iPad frame runs simultaneously — no cross-talk. Include the B8/B9 broker orderings from the
+      1000 test review.
+- [ ] **SC-1000-02** Siri-Remote-only walkthrough: every function reachable with the remote alone
+      (App Review requirement).
+- [ ] **SC-1000-05** 24 h soak on the real TV: no screensaver, no suspension while frontmost,
+      HA availability truthful, no static UI element ever on screen (burn-in review; Ken Burns +
+      pixel-shift are the mitigation — note the tvOS clock overlay + FR-1000-10 pixel-shift are
+      still unimplemented, clock stays off).
+- [ ] tvOS **device build** signing: fix provisioning (`No profiles for ing.kipp...`) before any of
+      the above.
+
+### C. Shared device-day gates from the merged 900/800/220 (already ticked per-spec once done)
+
+- [ ] **SC-220-07**: scan a shared-link QR with the real camera → onboarding completes
+      (`specs/220-onboarding-welcome/tasks.md`).
+- [ ] **800 T029**: Siri phrase checklist on device (`specs/800-app-intents/tasks.md`).
+- [ ] **900 quickstart** device/beta gates: real Photos library end-to-end + the iOS 27 beta
+      shared-album rebuild check (`specs/900-photo-library-source/quickstart.md`).
+
+---
+
 ## Feature 005 — HAControl (real broker + Home Assistant)
 
 **✅ VERIFIED LIVE 2026-07-08** — `T019` (US1), `T023` (US2), `T027` (US3) all pass against a real
