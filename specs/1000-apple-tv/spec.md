@@ -61,7 +61,9 @@ simulator with transitions and options applying live.
    interrupt it (idle timer disabled during playback, released when playback stops — the
    topic-400 rule, brightness aside).
 3. **Given** transitions/Ken Burns settings, **Then** they render with the same timing
-   semantics as on the iPad (same engine, same TimelineView-driven drift).
+   semantics as on the iPad (same engine, same shared drift modifier — since the 2026-07-18
+   smoothness redesign both platforms run `KenBurnsMotionModifier`, one scoped linear
+   animation per photo).
 4. **Given** the app is at its root with chrome hidden, **When** Menu is pressed, **Then**
    the app returns to the tvOS Home screen (never trapped).
 
