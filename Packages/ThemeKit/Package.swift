@@ -5,7 +5,7 @@ let package = Package(
     name: "ThemeKit",
     platforms: [
         // iPadOS target for the app; macOS enables `swift test` on the host without a simulator.
-        .iOS(.v17),
+        .iOS(.v17), .tvOS(.v17),
         .macOS(.v14),
     ],
     products: [

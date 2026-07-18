@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2B1B030F23EA2126EBB1E0C2 /* HAControlKit in Frameworks */ = {isa = PBXBuildFile; productRef = B8012F3C646A370EABD43D81 /* HAControlKit */; };
+		371BE1826CC0F784F1222780 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5E12524C138529E4D0F291E6 /* Foundation.framework */; };
 		3DAA01000000000000000003 /* ImmichClient in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000002 /* ImmichClient */; };
 		3DAA01000000000000000006 /* ImmichClient in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000004 /* ImmichClient */; };
 		3DAA01000000000000000007 /* ImmichClientTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000005 /* ImmichClientTestSupport */; };
@@ -22,7 +24,16 @@
 		3DAA01000000000000000025 /* PhotoLibraryKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000024 /* PhotoLibraryKit */; };
 		3DAA01000000000000000028 /* AppIntentsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000027 /* AppIntentsKit */; };
 		3DAA0100000000000000002A /* AppIntentsTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000029 /* AppIntentsTestSupport */; };
+		42CEF14337FFC5D76724DC60 /* HAControlMQTT in Frameworks */ = {isa = PBXBuildFile; productRef = 787741AD88B282A2153DB26D /* HAControlMQTT */; };
+		52FFB2721A042589FB6D961D /* PhotoSourceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6B2537CBF0CEFBBD235DAE5D /* PhotoSourceKit */; };
 		5E000000000000000000000B /* Immich SlideshowShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		80501A9281D34D7B17EEFF99 /* ConfigSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7AA69E366DAE3A1B01E3DA52 /* ConfigSyncKit */; };
+		931D92D1BBAEBE054345291D /* ImmichClient in Frameworks */ = {isa = PBXBuildFile; productRef = 13E39FCB1976CF0BAA0436BF /* ImmichClient */; };
+		93BB4C43A753C68E6CFE0B6F /* SlideshowKit in Frameworks */ = {isa = PBXBuildFile; productRef = ADF9207437AC262176389FAE /* SlideshowKit */; };
+		AB28B7AD074419638E0D27C8 /* OnboardingKit in Frameworks */ = {isa = PBXBuildFile; productRef = F23B7F05150785A4952012B7 /* OnboardingKit */; };
+		ACD4ED5A8D21C2170ADEAB7A /* BrokerSetupKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6E4D873BF0C1B3B59EC8FB86 /* BrokerSetupKit */; };
+		D7987E06FCA54CFFE5426AB0 /* PowerKit in Frameworks */ = {isa = PBXBuildFile; productRef = FED39158DFF4B0231F69352B /* PowerKit */; };
+		E2EF89E8EAF7D93D36F5CD3A /* ThemeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 19A1F3336CD41FC0CE089E66 /* ThemeKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,10 +75,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		240BAFBF4EE5009EB9DB62ED /* Immich SlideshowTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Immich SlideshowTV.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DDA115E2FE2D16C0059B8FD /* Immich Slideshow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Immich Slideshow.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DDA116B2FE2D16E0059B8FD /* Immich SlideshowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Immich SlideshowTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DDA11752FE2D16E0059B8FD /* Immich SlideshowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Immich SlideshowUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Immich SlideshowShareExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E12524C138529E4D0F291E6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -94,6 +107,11 @@
 		3DDA11782FE2D16E0059B8FD /* Immich SlideshowUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Immich SlideshowUITests";
+			sourceTree = "<group>";
+		};
+		47D1FF4F078A2834988AD6DB /* Immich SlideshowTV */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Immich SlideshowTV";
 			sourceTree = "<group>";
 		};
 		5E0000000000000000000009 /* Immich SlideshowShareExtension */ = {
@@ -150,9 +168,35 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		965DB2E784170DBBF17FE2F1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				371BE1826CC0F784F1222780 /* Foundation.framework in Frameworks */,
+				931D92D1BBAEBE054345291D /* ImmichClient in Frameworks */,
+				AB28B7AD074419638E0D27C8 /* OnboardingKit in Frameworks */,
+				93BB4C43A753C68E6CFE0B6F /* SlideshowKit in Frameworks */,
+				D7987E06FCA54CFFE5426AB0 /* PowerKit in Frameworks */,
+				2B1B030F23EA2126EBB1E0C2 /* HAControlKit in Frameworks */,
+				42CEF14337FFC5D76724DC60 /* HAControlMQTT in Frameworks */,
+				ACD4ED5A8D21C2170ADEAB7A /* BrokerSetupKit in Frameworks */,
+				E2EF89E8EAF7D93D36F5CD3A /* ThemeKit in Frameworks */,
+				52FFB2721A042589FB6D961D /* PhotoSourceKit in Frameworks */,
+				80501A9281D34D7B17EEFF99 /* ConfigSyncKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0109221A53BC7C8684079F44 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				951621FA393421F8E9AC3017 /* tvOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		3DDA11552FE2D16C0059B8FD = {
 			isa = PBXGroup;
 			children = (
@@ -161,6 +205,8 @@
 				3DDA11782FE2D16E0059B8FD /* Immich SlideshowUITests */,
 				5E0000000000000000000009 /* Immich SlideshowShareExtension */,
 				3DDA115F2FE2D16C0059B8FD /* Products */,
+				0109221A53BC7C8684079F44 /* Frameworks */,
+				47D1FF4F078A2834988AD6DB /* Immich SlideshowTV */,
 			);
 			sourceTree = "<group>";
 		};
@@ -171,8 +217,17 @@
 				3DDA116B2FE2D16E0059B8FD /* Immich SlideshowTests.xctest */,
 				3DDA11752FE2D16E0059B8FD /* Immich SlideshowUITests.xctest */,
 				5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */,
+				240BAFBF4EE5009EB9DB62ED /* Immich SlideshowTV.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		951621FA393421F8E9AC3017 /* tvOS */ = {
+			isa = PBXGroup;
+			children = (
+				5E12524C138529E4D0F291E6 /* Foundation.framework */,
+			);
+			name = tvOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -257,8 +312,6 @@
 				3DDA11782FE2D16E0059B8FD /* Immich SlideshowUITests */,
 			);
 			name = "Immich SlideshowUITests";
-			packageProductDependencies = (
-			);
 			productName = "Immich SlideshowUITests";
 			productReference = 3DDA11752FE2D16E0059B8FD /* Immich SlideshowUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -279,11 +332,41 @@
 				5E0000000000000000000009 /* Immich SlideshowShareExtension */,
 			);
 			name = "Immich SlideshowShareExtension";
-			packageProductDependencies = (
-			);
 			productName = "Immich SlideshowShareExtension";
 			productReference = 5E0000000000000000000001 /* Immich SlideshowShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		F0AAFE602C577D7151CE2ECE /* Immich SlideshowTV */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84CF151B1FEFE4338B69CAF1 /* Build configuration list for PBXNativeTarget "Immich SlideshowTV" */;
+			buildPhases = (
+				EA22F9FC40B6FC52B18F88B5 /* Sources */,
+				965DB2E784170DBBF17FE2F1 /* Frameworks */,
+				8B35C492E3A6ECA9885A389A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47D1FF4F078A2834988AD6DB /* Immich SlideshowTV */,
+			);
+			name = "Immich SlideshowTV";
+			packageProductDependencies = (
+				13E39FCB1976CF0BAA0436BF /* ImmichClient */,
+				F23B7F05150785A4952012B7 /* OnboardingKit */,
+				ADF9207437AC262176389FAE /* SlideshowKit */,
+				FED39158DFF4B0231F69352B /* PowerKit */,
+				B8012F3C646A370EABD43D81 /* HAControlKit */,
+				787741AD88B282A2153DB26D /* HAControlMQTT */,
+				6E4D873BF0C1B3B59EC8FB86 /* BrokerSetupKit */,
+				19A1F3336CD41FC0CE089E66 /* ThemeKit */,
+				6B2537CBF0CEFBBD235DAE5D /* PhotoSourceKit */,
+				7AA69E366DAE3A1B01E3DA52 /* ConfigSyncKit */,
+			);
+			productName = "Immich SlideshowTV";
+			productReference = 240BAFBF4EE5009EB9DB62ED /* Immich SlideshowTV.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -331,6 +414,7 @@
 				3DAA01000000000000000020 /* XCLocalSwiftPackageReference "Packages/PhotoSourceKit" */,
 				3DAA01000000000000000023 /* XCLocalSwiftPackageReference "Packages/PhotoLibraryKit" */,
 				3DAA01000000000000000026 /* XCLocalSwiftPackageReference "Packages/AppIntentsKit" */,
+				C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "Packages/ConfigSyncKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3DDA115F2FE2D16C0059B8FD /* Products */;
@@ -341,6 +425,7 @@
 				3DDA116A2FE2D16E0059B8FD /* Immich SlideshowTests */,
 				3DDA11742FE2D16E0059B8FD /* Immich SlideshowUITests */,
 				5E0000000000000000000002 /* Immich SlideshowShareExtension */,
+				F0AAFE602C577D7151CE2ECE /* Immich SlideshowTV */,
 			);
 		};
 /* End PBXProject section */
@@ -374,6 +459,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8B35C492E3A6ECA9885A389A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -399,6 +491,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5E0000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EA22F9FC40B6FC52B18F88B5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -815,6 +914,61 @@
 			};
 			name = Release;
 		};
+		ACE51B17D7EF5083575E3FF6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 8;
+				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Photo Frame";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ing.kipp.Immich-Slideshow";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 17.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C1786E0E46D8FCCC18907F0C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 8;
+				DEVELOPMENT_TEAM = 8Z4SNYUKQ2;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Photo Frame";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ing.kipp.Immich-Slideshow";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 17.0;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -863,6 +1017,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		84CF151B1FEFE4338B69CAF1 /* Build configuration list for PBXNativeTarget "Immich SlideshowTV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ACE51B17D7EF5083575E3FF6 /* Release */,
+				C1786E0E46D8FCCC18907F0C /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -906,9 +1069,21 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/AppIntentsKit;
 		};
+		C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "Packages/ConfigSyncKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ConfigSyncKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		13E39FCB1976CF0BAA0436BF /* ImmichClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImmichClient;
+		};
+		19A1F3336CD41FC0CE089E66 /* ThemeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ThemeKit;
+		};
 		3DAA01000000000000000002 /* ImmichClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ImmichClient;
@@ -968,6 +1143,38 @@
 		3DAA01000000000000000029 /* AppIntentsTestSupport */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppIntentsTestSupport;
+		};
+		6B2537CBF0CEFBBD235DAE5D /* PhotoSourceKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PhotoSourceKit;
+		};
+		6E4D873BF0C1B3B59EC8FB86 /* BrokerSetupKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrokerSetupKit;
+		};
+		787741AD88B282A2153DB26D /* HAControlMQTT */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HAControlMQTT;
+		};
+		7AA69E366DAE3A1B01E3DA52 /* ConfigSyncKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConfigSyncKit;
+		};
+		ADF9207437AC262176389FAE /* SlideshowKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SlideshowKit;
+		};
+		B8012F3C646A370EABD43D81 /* HAControlKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HAControlKit;
+		};
+		F23B7F05150785A4952012B7 /* OnboardingKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OnboardingKit;
+		};
+		FED39158DFF4B0231F69352B /* PowerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PowerKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
