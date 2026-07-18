@@ -11,17 +11,21 @@ gates (quickstart.md), not blockers.
 
 ## Status (2026-07-18)
 
-**Done + verified on the Apple TV 4K simulator:** T001–T014, T016–T020, T022 (US1 frame plays
-+ auto-cycle + real demo-link end-to-end; US2 onboarding choice/shared-link/server + real-source
-routing), T012 (FR-1000-07 bypass removed), T013 (US3 purge-tolerance). ConfigSyncKit 21 tests,
-SlideshowKit 161, PowerKit 19, plus the rest — all host suites green; iOS + tvOS sim builds green.
+**Done + verified on the Apple TV 4K simulator:** T001–T022 (all user stories). US1 frame plays
+(auto-cycle + real demo-link end-to-end); US2 onboarding (choice/shared-link/server) + real-source
+routing + iCloud-KVS prefill/restore + secret hydration seam; US3 purge-tolerance; US4 HA parity
+(TVRemoteControlAdapter Playback/Settings/PhotoReporting + coordinator with distinct identity +
+broker onboarding + software-dim brightness + lifecycle). T012 FR-1000-07 bypass removed. iPad
+companion (T021) publishes the full non-secret + secret payload to KVS/CloudKit on launch +
+foreground; tvOS consumer restores it. `ThemeSettings` is Codable. All host suites green
+(ThemeKit 31, ConfigSyncKit 21, SlideshowKit 161, PowerKit 19, HAControlKit 92, …); iOS + tvOS
+sim builds green; full iOS XCUITest 120/0/2.
 
-**Remaining (largely device-gated):** T015 (US4 HA parity — needs a tvOS `PlaybackControlling`
-adapter + broker onboarding; MQTT device-gated), T021 (iPad companion publish — KVS non-secret
-wireable; CloudKit secret publish + iCloud entitlements device-gated), tvOS clock overlay +
-FR-1000-10 pixel-shift, and the real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt proof).
-Reusable building blocks for these are already built + tested (`FrameIdentity`, `ConfigPublisher`,
-`ConfigConsumer`, `SoftwareDimScreenController`).
+**Remaining (device-gated / follow-up, NO physical testing this session):** real MQTT connection
+(needs a broker), real CloudKit secret sync (needs iCloud entitlements + account), tvOS clock
+overlay + FR-1000-10 pixel-shift (not started — clock is off by default so US1 is unaffected),
+current-photo capture-date on tvOS HA (would add PhotoSourceKit to the target), and the
+real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h soak).
 
 ## Phase 1: Setup
 
