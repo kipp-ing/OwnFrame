@@ -254,3 +254,7 @@ has no Back affordance, and the existing choice-screen behavioural contract stil
   is deferred; this spec asks only for a welcoming, clearly explained screen.
 - **Reskinning downstream steps** — the connection / source / confirm steps keep today's look; a
   full onboarding visual refresh is a separate, later concern.
+- **Pre-explain each system permission prompt** — before iOS raises a permission alert, the
+  welcome should calmly explain *why* it pops up and *what it is used for*: local network (reach
+  the Immich server), photos (read an iCloud album), camera (scan a shared-link QR). Include a
+  link to the privacy policy. Low-priority polish, but directly serves the ease-of-use goal.
