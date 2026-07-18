@@ -122,13 +122,15 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `220-onboarding-welcome` (branch `220-onboarding-welcome`, cut from the
-`900-photo-library-source` tip) — implementation plan at
-`specs/220-onboarding-welcome/plan.md` (research, data-model, contracts, quickstart
-alongside it). A welcome-screen overhaul (sub-spec of 200): iCloud album at the top,
-shared-link QR scanning, three friction-ordered paths; reuses the 900 photoLibrary source.
-Branches awaiting their manual device gates + merge: `900-photo-library-source` (the iCloud
-source this one needs) and `800-app-intents` (Shortcuts/Siri — all automated gates green);
-`1000-apple-tv` remains queued (constitution v1.1.0 sanctions the 1000 secret-sync channel).
-v1.0 is in App Store review; `310`/`320` are implemented.
+Active feature: `510-clock-overlay` (branch `510-clock-overlay`, cut from the `220` tip) —
+implementation plan at `specs/510-clock-overlay/plan.md` (research, data-model, contracts,
+quickstart alongside it). First renderer for the clock settings per the Quiet Glass clock
+round (agreed 2026-07-18): digits/pill/analog, six places + Random, Room/Cozy sizes,
+vanishes while chrome shows; binding FRs live in `specs/500-display-options/spec.md`
+(FR-500-12/17/18/19). Two-session aim: housekeeping session = merge train
+(`900-photo-library-source`, `800-app-intents`, `220-onboarding-welcome` — device gates +
+merges) then implement 510 (iOS only); Apple TV session = topic `1000` (reuses the clock
+components, adds tvOS sizes + FR-1000-10 pixel-shift). `220-onboarding-welcome` is
+implemented (T001–T020 done, only its camera device gate left); v1.0 is in App Store
+review; `310`/`320` are implemented.
 <!-- SPECKIT END -->
