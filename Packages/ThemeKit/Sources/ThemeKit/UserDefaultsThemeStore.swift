@@ -58,9 +58,22 @@ public final class UserDefaultsThemeStore: ThemeSettingsStore {
             settings.clock.isOn = defaults.bool(forKey: Keys.clockIsOn)
         }
 
+        if let rawValue = defaults.string(forKey: Keys.clockStyle),
+           let style = ClockStyle(rawValue: rawValue) {
+            settings.clock.style = style
+        }
+
+        // The `theme.clock.corner` key now holds a `ClockPlace` raw. Legacy corner
+        // raws are a subset, so they decode unchanged; an unknown raw leaves the
+        // default place (never a startup failure).
         if let rawValue = defaults.string(forKey: Keys.clockCorner),
-           let corner = ClockCorner(rawValue: rawValue) {
-            settings.clock.corner = corner
+           let place = ClockPlace(rawValue: rawValue) {
+            settings.clock.place = place
+        }
+
+        if let rawValue = defaults.string(forKey: Keys.clockSize),
+           let size = ClockSize(rawValue: rawValue) {
+            settings.clock.size = size
         }
 
         if defaults.object(forKey: Keys.clockShowDate) != nil {
@@ -82,7 +95,9 @@ public final class UserDefaultsThemeStore: ThemeSettingsStore {
         defaults.set(settings.fit.rawValue, forKey: Keys.fit)
         defaults.set(settings.quality.rawValue, forKey: Keys.quality)
         defaults.set(settings.clock.isOn, forKey: Keys.clockIsOn)
-        defaults.set(settings.clock.corner.rawValue, forKey: Keys.clockCorner)
+        defaults.set(settings.clock.style.rawValue, forKey: Keys.clockStyle)
+        defaults.set(settings.clock.place.rawValue, forKey: Keys.clockCorner)
+        defaults.set(settings.clock.size.rawValue, forKey: Keys.clockSize)
         defaults.set(settings.clock.showDate, forKey: Keys.clockShowDate)
     }
 
@@ -108,7 +123,10 @@ public final class UserDefaultsThemeStore: ThemeSettingsStore {
         static let fit = "theme.fit"
         static let quality = "theme.quality"
         static let clockIsOn = "theme.clock.isOn"
+        // Key name kept for back-compat; now holds a `ClockPlace` raw.
         static let clockCorner = "theme.clock.corner"
+        static let clockStyle = "theme.clock.style"
+        static let clockSize = "theme.clock.size"
         static let clockShowDate = "theme.clock.showDate"
     }
 }

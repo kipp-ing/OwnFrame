@@ -12,7 +12,7 @@ import ThemeKit
     #expect(settings.quality == .preview)
     #expect(settings.clock == ClockSettings.off)
     #expect(settings.clock.isOn == false)
-    #expect(settings.clock.corner == .bottomTrailing)
+    #expect(settings.clock.place == .bottomTrailing)
     #expect(settings.clock.showDate == false)
 }
 
