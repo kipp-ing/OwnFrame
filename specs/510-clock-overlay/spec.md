@@ -4,7 +4,10 @@
 
 **Created**: 2026-07-18
 
-**Status**: Specced (design agreed 2026-07-18 — "Quiet Glass" clock round)
+**Status**: Implemented (iOS/iPadOS, 2026-07-18) — renderer + live settings rows + HA
+entities shipped; FR-510-01…06 and SC-510-01/02 covered by `ClockOverlayUITests` and the
+ThemeKit/HAControlKit host suites. tvOS rendering rides topic 1000. Device-only visual polish
+(bright-backdrop label flip) deferred to Quiet Glass.
 
 **Input**: Sub-spec of topic 500. The clock's user-facing contract lives in the durable
 module spec [500-display-options](../500-display-options/spec.md) — **FR-500-12

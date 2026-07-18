@@ -350,6 +350,27 @@ green. The live camera QR decode + permission prompt is a manual **device gate**
 | SC-220-06 | Every pre-existing onboarding behaviour still passes | full XCUITest suite (T020): `SharedLinkOnboardingUITests`, `SourceOnboardingUITests`, `OnboardingBackUITests`, `ShareSheetIncomingUITests` | covered |
 | SC-220-07 | QR parse/validate/route host-tested; camera end-to-end on device | `ScannedShareLinkTests`/`ScannedLinkRoutingTests` (host); manual device gate in `specs/220-onboarding-welcome/quickstart.md` | covered (host) + scheduled (device) |
 
+## 510 - Clock Overlay *(added 2026-07-18, implemented — iOS/iPadOS)*
+
+*(Sub-spec of 500; renderer for the Quiet Glass clock.)* Ambient-layer clock over the
+slideshow: Digits/Pill/Analog styles, six places + Random, Room/Cozy sizes, optional date
+line; it vanishes whenever the chrome is visible and returns on auto-hide. Model + placement
+in `Packages/ThemeKit` (`ClockStyle`/`ClockPlace`/`ClockSize`, `ClockPlacement`), HA entities
+in `Packages/HAControlKit`, renderer in `Immich Slideshow/Slideshow/ClockOverlayView.swift`.
+
+| FR/SC | Requirement (short) | Covering test(s) | Status |
+|---|---|---|---|
+| FR-510-01 | Minute-boundary updates, stable layout, no per-second timers | `ClockOverlayView` `TimelineView(.everyMinute)` + tabular numerals | covered (code) |
+| FR-510-02 | Vanish = 0.3 s opacity fade on `chromeVisible`, sibling layer | `ClockOverlayUITests.testChromeRevealHidesClockAndAutoHideReturnsIt` | covered |
+| FR-510-03 | Random relocates only on photo-advance, once per cadence, injectable | `ThemeKitTests` RandomPlacePicker + `testRandomSeededStableWithinCadence` | covered |
+| FR-510-04 | Stable a11y id + hermetic seams | `slideshow.clock` + `--uitest-clock*` seams across `ClockOverlayUITests` | covered |
+| FR-510-05 | Widened model decodes legacy corner raws; HA ids/raws kept | `ClockSettingsTests` legacy decode; `HADiscoveryTests` clock_corner options | covered |
+| FR-510-06 | Shared glass shims, no clock-only material | `ClockOverlayView` uses `View+Compat.glassCard` only | covered (code) |
+| SC-510-01 | Full XCUITest + host suites green | `ClockOverlayUITests` (9) in the full suite; ThemeKit/HAControlKit host | covered |
+| SC-510-02 | No timer churn beyond minute updates | `TimelineView(.everyMinute)` only, no per-second path | covered (code) |
+| SC-500-07 | Clock and chrome never co-visible | `testChromeRevealHidesClockAndAutoHideReturnsIt`, `testFailedPhaseKeepsClockHidden` | covered |
+| SC-500-08 | Room digit floor (~12 mm) | `ClockSettingsTests` size-floor (≥ 74 iPhone / ≥ 62 iPad) | covered |
+
 ## Gaps to close (host-unit)
 
 - FR-200-02: startup cannot resume at album selection when URL and key exist but selected album is missing.
@@ -377,6 +398,6 @@ green. The live camera QR decode + permission prompt is a manual **device gate**
 - FR-200-25 (200 spec FR text): superseded by 120 — the inert shared-link *placeholder* was replaced by a real add-source step (album or shared link) in onboarding and the Settings Sources manager. Spec 200 FR text still to be reconciled Roadmap→Active under task 120/T030.
 - FR-300-08 / FR-300-27: the spec requires a disk image cache with size limit and Clear cache action surfaced in Settings. Current `ImageCache` is memory-only, and Settings does not expose disk-cache size or clear controls.
 - FR-300-11 / FR-300-12: the spec requires auto-retry with backoff and periodic source refresh. `SlideshowViewModel` exposes manual `retry()` and `start()`, but no backoff loop or periodic refresh path was found.
-- FR-300-29 / FR-500-12: the spec requires a rendered optional clock overlay. Theme settings store clock fields exist, but Settings still labels the clock overlay as a planned/placeholder row and no renderer was found.
+- FR-300-29 / FR-500-12: **resolved** — the optional clock overlay is implemented in `510-clock-overlay` (`ClockOverlayView` + live settings rows + HA `clock_style`/`clock_size`/`clock_corner` entities), iOS/iPadOS.
 - FR-700-08: the spec says inbound `"pause"` and `"play"` commands. `HAControlCoordinator` handles HA switch payloads `"OFF"` and `"ON"` for playback; tests assert `"OFF"`/`"ON"`, not literal `"pause"`/`"play"`.
 - Topic 700 roadmap drift: active spec 700 defers brightness and album entities to sub-specs 710/720, but `Immich_SlideshowApp.swift` enables `[.playback, .brightness, .album]` and `HAControlCoordinatorTests.swift` covers brightness and album commands.

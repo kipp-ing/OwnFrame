@@ -107,7 +107,7 @@ From the chrome, the user can toggle an info overlay showing only capture date/t
 
 ### User Story 7 - Reach settings, brightness, reset, and localization (Priority: P3)
 
-From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from Settings. All slideshow UI strings ship in English through localizable string catalogs; other device languages fall back to English. (German translations and a rendered clock overlay are deferred — see Roadmap.)
+From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from Settings. All slideshow UI strings ship in English through localizable string catalogs; other device languages fall back to English. (German translations are deferred — see Roadmap; the clock overlay is implemented per `510-clock-overlay`.)
 
 **Why this priority**: These controls round out a usable frame while keeping feature ownership clear and the default overlay-free.
 
@@ -210,8 +210,8 @@ Spec Kit feature.
   three styles (Digits default / Pill / Analog), six places plus Random, Room/Cozy sizes,
   optional date line. The clock is ambient-layer: it hides whenever the chrome is visible and
   returns on auto-hide, and the photo-details caption yields its place rather than overlap.
-  The settings are already stored and HA-controllable (topics 500/710) but no renderer exists
-  yet. Off by default.
+  **Implemented in `510-clock-overlay`** (iOS/iPadOS; tvOS rendering rides topic 1000). Off
+  by default.
 - Multi-album source pooling and Memories source selection belong to topic 100. Acceptance
   preserved from the source: selecting multiple albums pools photos from all of them, and selecting
   Memories plays that source when topic 100 supports it.
