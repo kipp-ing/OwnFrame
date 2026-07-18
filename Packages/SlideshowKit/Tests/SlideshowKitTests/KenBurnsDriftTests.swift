@@ -90,3 +90,24 @@ private var span: Double { duration + drift.swapOverlapSeconds }
     let mid = (drift.startScale + drift.floorScale) / 2
     #expect(abs(drift.panFraction(forScale: mid) - 0.5) < 0.0001)
 }
+
+@Test func floorDriftDurationRunsStartToFloorAtTheConstantRate() {
+    // The one-shot animation span: the whole start→floor travel at the same
+    // constant rate the sampled curve uses. The sampled curve lands exactly on
+    // the floor when this span ends — the clamp becomes "the animation completes".
+    let total = drift.floorDriftDuration(durationSeconds: duration)
+    let expected = (drift.startScale - drift.floorScale) / drift.rate(durationSeconds: duration)
+    #expect(abs(total - expected) < 0.0001)
+    #expect(abs(drift.scale(elapsedSeconds: total, durationSeconds: duration) - drift.floorScale) < 0.0001)
+}
+
+@Test func oneShotLinearAnimationPassesThroughSettleAtTheExpectedSwap() {
+    // The theorem behind the scoped-animation redesign: ONE linear animation from
+    // startScale to floorScale over floorDriftDuration is point-for-point the
+    // sampled drift — evaluated at the expected swap moment it sits exactly at
+    // settleScale (still zoomed, still moving), like the per-frame math.
+    let total = drift.floorDriftDuration(durationSeconds: duration)
+    #expect(total > span)
+    let interpolated = drift.startScale + (drift.floorScale - drift.startScale) * (span / total)
+    #expect(abs(interpolated - drift.settleScale) < 0.0001)
+}

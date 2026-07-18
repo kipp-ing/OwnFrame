@@ -61,4 +61,12 @@ public struct KenBurnsDrift: Equatable, Sendable {
     public func panFraction(forScale scale: Double) -> Double {
         (scale - floorScale) / (startScale - floorScale)
     }
+
+    /// The whole start→floor travel time at `rate` — the span of the ONE linear
+    /// animation that reproduces the sampled curve point-for-point: it passes
+    /// `settleScale` exactly at the expected swap moment and the floor clamp
+    /// becomes "the animation completes and holds".
+    public func floorDriftDuration(durationSeconds: Double) -> Double {
+        (startScale - floorScale) / rate(durationSeconds: durationSeconds)
+    }
 }
