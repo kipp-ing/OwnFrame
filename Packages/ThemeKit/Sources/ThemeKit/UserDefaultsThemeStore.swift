@@ -4,22 +4,27 @@ import Observation
 @MainActor
 @Observable
 public final class UserDefaultsThemeStore: ThemeSettingsStore {
-    private var _settings: ThemeSettings
     private let defaults: UserDefaults
 
+    /// Stored (not a computed wrapper over a private backing field) so that every mutation
+    /// — including the deep SwiftUI bindings the live clock rows use, e.g.
+    /// `$store.settings.clock.style` — reliably persists via `didSet`, regardless of how
+    /// the binding routes the write.
     public var settings: ThemeSettings {
-        get { _settings }
-        set {
-            var clamped = newValue
-            clamped.duration = Self.clamp(newValue.duration)
-            _settings = clamped
-            persist(clamped)
+        didSet {
+            let clamped = Self.clamp(settings.duration)
+            if settings.duration != clamped {
+                settings.duration = clamped   // re-enters didSet once, then persists below
+                return
+            }
+            persist(settings)
         }
     }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        _settings = Self.load(from: defaults)
+        // didSet does not fire for the initial value assigned in init.
+        self.settings = Self.load(from: defaults)
     }
 
     static func load(from defaults: UserDefaults) -> ThemeSettings {
