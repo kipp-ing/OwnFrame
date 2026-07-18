@@ -24,7 +24,7 @@ import ThemeKit
 @MainActor
 struct SlideshowRemoteControlAdapterTests {
 
-    @Test func themeSettingsSnapshotMapsAllNineFieldsFromStore() throws {
+    @Test func themeSettingsSnapshotMapsAllElevenFieldsFromStore() throws {
         let fixture = try makeAdapter(suite: "adapter.mapsFromStore")
         defer { fixture.cleanUp() }
 
@@ -35,7 +35,7 @@ struct SlideshowRemoteControlAdapterTests {
             kenBurns: true,
             fit: .fill,
             quality: .original,
-            clock: ClockSettings(isOn: true, corner: .topLeading, showDate: true)
+            clock: ClockSettings(isOn: true, style: .pill, place: .topLeading, size: .cozy, showDate: true)
         )
 
         let snapshot = fixture.adapter.themeSettings
@@ -46,11 +46,13 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(snapshot.fit == .fill)
         #expect(snapshot.quality == .original)
         #expect(snapshot.clockOn == true)
-        #expect(snapshot.clockCorner == .topLeading)
+        #expect(snapshot.clockPlace == .topLeading)
+        #expect(snapshot.clockStyle == .pill)
+        #expect(snapshot.clockSize == .cozy)
         #expect(snapshot.clockDate == true)
     }
 
-    @Test func applyMapsAllNineFieldsIntoStore() throws {
+    @Test func applyMapsAllElevenFieldsIntoStore() throws {
         let fixture = try makeAdapter(suite: "adapter.applyMaps")
         defer { fixture.cleanUp() }
 
@@ -62,7 +64,9 @@ struct SlideshowRemoteControlAdapterTests {
             fit: .fill,
             quality: .original,
             clockOn: true,
-            clockCorner: .bottomLeading,
+            clockPlace: .bottomLeading,
+            clockStyle: .analog,
+            clockSize: .cozy,
             clockDate: true
         ))
 
@@ -74,7 +78,9 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(settings.fit == .fill)
         #expect(settings.quality == .original)
         #expect(settings.clock.isOn == true)
-        #expect(settings.clock.corner == .bottomLeading)
+        #expect(settings.clock.place == .bottomLeading)
+        #expect(settings.clock.style == .analog)
+        #expect(settings.clock.size == .cozy)
         #expect(settings.clock.showDate == true)
     }
 
