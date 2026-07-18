@@ -79,11 +79,15 @@ struct ClockOverlayView: View {
     }
 }
 
-/// 24-hour "HH:mm" time (via a 24-hour locale), matching the Quiet Glass mock and keeping
-/// the digits compact enough to stay on one line on the smallest screens (e.g. iPhone SE,
-/// where a 12-hour "10:58 AM" at the Room point size wrapped).
-private let clockTimeFormat = Date.FormatStyle(date: .omitted, time: .shortened)
-    .locale(Locale(identifier: "en_GB"))
+/// 24-hour "HH:mm" time, matching the Quiet Glass mock. Built as a verbatim string on purpose:
+/// a `Date.FormatStyle`'s locale is overridden by SwiftUI's environment locale, so a
+/// format-style approach followed the device's 12/24-hour setting instead. Fixed 5-char width
+/// keeps it on one line and compact on every screen (a 12-hour "10:58 AM" at the Room point
+/// size overflowed/wrapped on the iPhone SE).
+private func clockTimeString(_ date: Date) -> String {
+    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+    return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+}
 
 // MARK: - Styles
 
@@ -96,7 +100,7 @@ private struct DigitsClock: View {
 
     var body: some View {
         VStack(spacing: pointSize * 0.05) {
-            Text(date, format: clockTimeFormat)
+            Text(verbatim: clockTimeString(date))
                 .font(.system(size: pointSize, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
@@ -135,7 +139,7 @@ private struct PillClock: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: pointSize * 0.16) {
-            Text(date, format: clockTimeFormat)
+            Text(verbatim: clockTimeString(date))
                 .font(.system(size: pointSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
