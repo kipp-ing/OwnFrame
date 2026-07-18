@@ -60,7 +60,7 @@ struct TVSlideshowView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if let data = viewModel.currentImageData, let image = UIImage(data: data) {
+            if let data = viewModel.currentImageData, let image = preparedImage ?? UIImage(data: data) {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: fillsScreen ? .fill : .fit)
@@ -170,6 +170,14 @@ struct TVSlideshowView: View {
     }
 
     // MARK: - Derived settings
+
+    /// The decode-ahead bitmap when it already landed (1000 Ken Burns: no lazy
+    /// first-render decode mid-swap); `UIImage(data:)` stays the fallback in
+    /// body. Mirrors the iOS renderer.
+    private var preparedImage: UIImage? {
+        guard let id = viewModel.currentAssetID else { return nil }
+        return (viewModel.preparer as? DecodedImageStore<UIImage>)?.image(for: id)
+    }
 
     /// Fill framing when the user chose Fill, or while Ken Burns is on (so the pan/zoom
     /// never reveals a letterbox gap). Mirrors the iOS renderer.
