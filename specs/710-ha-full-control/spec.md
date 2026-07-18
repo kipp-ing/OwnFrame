@@ -155,10 +155,14 @@ Numbering continues the 700 series in the `710` sub-spec block.
 
 - **FR-710-01**: The app MUST expose every `ThemeSettings` field as its own HA entity via MQTT
   discovery: `order`, `duration`, `transition`, `kenBurns`, `fit`, `quality`, `clock.isOn`,
-  `clock.corner`, `clock.showDate`.
+  `clock.place`, `clock.showDate`, and — once the widened clock model (500, FR-500-17/18/19)
+  ships — `clock.style` and `clock.size`. `clock.place` is the widened successor of the
+  original `clock.corner` entity: it keeps the entity id and the four corner raw values (so
+  retained broker state stays valid) and adds the center and random options.
 - **FR-710-02**: Select-type entities MUST list exactly the app's enum cases as options
-  (`PlayOrder`, `Transition`, `ImageFit`, `ImageQuality`, `ClockCorner`); the option strings are
-  the enum raw values (stable API, not localized).
+  (`PlayOrder`, `Transition`, `ImageFit`, `ImageQuality`, and the clock's place/style/size
+  enums); the option strings are the enum raw values (stable API, not localized), so new enum
+  cases flow into HA discovery automatically.
 - **FR-710-03**: The `duration` entity MUST be an HA `number` in seconds with min 3, max 600,
   step 1 (mirrors `ThemeSettings.durationRange`); the value is published in seconds.
 - **FR-710-04**: The app MUST expose `next` and `previous` as HA `button` entities that invoke
