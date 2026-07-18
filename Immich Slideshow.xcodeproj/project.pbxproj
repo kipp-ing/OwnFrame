@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		10C4B171EB73829FE84A6A3C /* ConfigSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4149220E87322FC30D2467CB /* ConfigSyncKit */; };
 		2B1B030F23EA2126EBB1E0C2 /* HAControlKit in Frameworks */ = {isa = PBXBuildFile; productRef = B8012F3C646A370EABD43D81 /* HAControlKit */; };
 		371BE1826CC0F784F1222780 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5E12524C138529E4D0F291E6 /* Foundation.framework */; };
 		3DAA01000000000000000003 /* ImmichClient in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA01000000000000000002 /* ImmichClient */; };
@@ -96,21 +97,29 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3DDA11602FE2D16C0059B8FD /* Immich Slideshow */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Immich Slideshow";
 			sourceTree = "<group>";
 		};
 		3DDA116E2FE2D16E0059B8FD /* Immich SlideshowTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Immich SlideshowTests";
 			sourceTree = "<group>";
 		};
 		3DDA11782FE2D16E0059B8FD /* Immich SlideshowUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Immich SlideshowUITests";
 			sourceTree = "<group>";
 		};
 		47D1FF4F078A2834988AD6DB /* Immich SlideshowTV */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Immich SlideshowTV";
 			sourceTree = "<group>";
 		};
@@ -140,6 +149,7 @@
 				3DAA01000000000000000022 /* PhotoSourceKit in Frameworks */,
 				3DAA01000000000000000025 /* PhotoLibraryKit in Frameworks */,
 				3DAA01000000000000000028 /* AppIntentsKit in Frameworks */,
+				10C4B171EB73829FE84A6A3C /* ConfigSyncKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,6 +273,7 @@
 				3DAA01000000000000000021 /* PhotoSourceKit */,
 				3DAA01000000000000000024 /* PhotoLibraryKit */,
 				3DAA01000000000000000027 /* AppIntentsKit */,
+				4149220E87322FC30D2467CB /* ConfigSyncKit */,
 			);
 			productName = "Immich Slideshow";
 			productReference = 3DDA115E2FE2D16C0059B8FD /* Immich Slideshow.app */;
@@ -404,17 +415,17 @@
 			mainGroup = 3DDA11552FE2D16C0059B8FD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3DAA01000000000000000001 /* XCLocalSwiftPackageReference "Packages/ImmichClient" */,
-				3DAA01000000000000000008 /* XCLocalSwiftPackageReference "Packages/OnboardingKit" */,
-				3DAA0100000000000000000D /* XCLocalSwiftPackageReference "Packages/SlideshowKit" */,
-				3DAA01000000000000000010 /* XCLocalSwiftPackageReference "Packages/PowerKit" */,
-				3DAA01000000000000000013 /* XCLocalSwiftPackageReference "Packages/HAControlKit" */,
-				3DAA01000000000000000018 /* XCLocalSwiftPackageReference "Packages/BrokerSetupKit" */,
-				3DAA0100000000000000001D /* XCLocalSwiftPackageReference "Packages/ThemeKit" */,
-				3DAA01000000000000000020 /* XCLocalSwiftPackageReference "Packages/PhotoSourceKit" */,
-				3DAA01000000000000000023 /* XCLocalSwiftPackageReference "Packages/PhotoLibraryKit" */,
-				3DAA01000000000000000026 /* XCLocalSwiftPackageReference "Packages/AppIntentsKit" */,
-				C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "Packages/ConfigSyncKit" */,
+				3DAA01000000000000000001 /* XCLocalSwiftPackageReference "ImmichClient" */,
+				3DAA01000000000000000008 /* XCLocalSwiftPackageReference "OnboardingKit" */,
+				3DAA0100000000000000000D /* XCLocalSwiftPackageReference "SlideshowKit" */,
+				3DAA01000000000000000010 /* XCLocalSwiftPackageReference "PowerKit" */,
+				3DAA01000000000000000013 /* XCLocalSwiftPackageReference "HAControlKit" */,
+				3DAA01000000000000000018 /* XCLocalSwiftPackageReference "BrokerSetupKit" */,
+				3DAA0100000000000000001D /* XCLocalSwiftPackageReference "ThemeKit" */,
+				3DAA01000000000000000020 /* XCLocalSwiftPackageReference "PhotoSourceKit" */,
+				3DAA01000000000000000023 /* XCLocalSwiftPackageReference "PhotoLibraryKit" */,
+				3DAA01000000000000000026 /* XCLocalSwiftPackageReference "AppIntentsKit" */,
+				C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "ConfigSyncKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3DDA115F2FE2D16C0059B8FD /* Products */;
@@ -1029,47 +1040,47 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		3DAA01000000000000000001 /* XCLocalSwiftPackageReference "Packages/ImmichClient" */ = {
+		3DAA01000000000000000001 /* XCLocalSwiftPackageReference "ImmichClient" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/ImmichClient;
 		};
-		3DAA01000000000000000008 /* XCLocalSwiftPackageReference "Packages/OnboardingKit" */ = {
+		3DAA01000000000000000008 /* XCLocalSwiftPackageReference "OnboardingKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/OnboardingKit;
 		};
-		3DAA0100000000000000000D /* XCLocalSwiftPackageReference "Packages/SlideshowKit" */ = {
+		3DAA0100000000000000000D /* XCLocalSwiftPackageReference "SlideshowKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SlideshowKit;
 		};
-		3DAA01000000000000000010 /* XCLocalSwiftPackageReference "Packages/PowerKit" */ = {
+		3DAA01000000000000000010 /* XCLocalSwiftPackageReference "PowerKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PowerKit;
 		};
-		3DAA01000000000000000013 /* XCLocalSwiftPackageReference "Packages/HAControlKit" */ = {
+		3DAA01000000000000000013 /* XCLocalSwiftPackageReference "HAControlKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/HAControlKit;
 		};
-		3DAA01000000000000000018 /* XCLocalSwiftPackageReference "Packages/BrokerSetupKit" */ = {
+		3DAA01000000000000000018 /* XCLocalSwiftPackageReference "BrokerSetupKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/BrokerSetupKit;
 		};
-		3DAA0100000000000000001D /* XCLocalSwiftPackageReference "Packages/ThemeKit" */ = {
+		3DAA0100000000000000001D /* XCLocalSwiftPackageReference "ThemeKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/ThemeKit;
 		};
-		3DAA01000000000000000020 /* XCLocalSwiftPackageReference "Packages/PhotoSourceKit" */ = {
+		3DAA01000000000000000020 /* XCLocalSwiftPackageReference "PhotoSourceKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PhotoSourceKit;
 		};
-		3DAA01000000000000000023 /* XCLocalSwiftPackageReference "Packages/PhotoLibraryKit" */ = {
+		3DAA01000000000000000023 /* XCLocalSwiftPackageReference "PhotoLibraryKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PhotoLibraryKit;
 		};
-		3DAA01000000000000000026 /* XCLocalSwiftPackageReference "Packages/AppIntentsKit" */ = {
+		3DAA01000000000000000026 /* XCLocalSwiftPackageReference "AppIntentsKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/AppIntentsKit;
 		};
-		C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "Packages/ConfigSyncKit" */ = {
+		C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "ConfigSyncKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/ConfigSyncKit;
 		};
@@ -1143,6 +1154,10 @@
 		3DAA01000000000000000029 /* AppIntentsTestSupport */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppIntentsTestSupport;
+		};
+		4149220E87322FC30D2467CB /* ConfigSyncKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConfigSyncKit;
 		};
 		6B2537CBF0CEFBBD235DAE5D /* PhotoSourceKit */ = {
 			isa = XCSwiftPackageProductDependency;

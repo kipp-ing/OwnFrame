@@ -122,16 +122,21 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `510-clock-overlay` (branch `510-clock-overlay`, cut from the `220` tip) —
-implementation plan at `specs/510-clock-overlay/plan.md` (research, data-model, contracts,
-quickstart alongside it). First renderer for the clock settings per the Quiet Glass clock
-round (agreed 2026-07-18): digits/pill/analog, six places + Random, Room/Cozy sizes,
-vanishes while chrome shows; binding FRs live in `specs/500-display-options/spec.md`
-(FR-500-12/17/18/19). Two-session aim: housekeeping session = merge train
-(`900-photo-library-source`, `800-app-intents`, `220-onboarding-welcome` — merged; device
-ship-gates deferred to a real-hardware device day) then implement 510 (iOS only); Apple TV
-session = topic `1000` (reuses the clock components, adds tvOS sizes + FR-1000-10
-pixel-shift). `900`/`800`/`220` are merged to main and implemented (T001–T020 for 220, only
-their real-hardware ship gates left); v1.0 is in App Store review; `310`/`320` are
+Active feature: `1000-apple-tv` (branch `1000-apple-tv`, cut from `main` at the merged 510
+tip) — plan/tasks/design at `specs/1000-apple-tv/`. **Apple TV (tvOS) port in progress
+(2026-07-18).** Landed + verified on the Apple TV 4K simulator: the platform port (all
+packages gain `.tvOS(.v17)`, PhotoLibraryKit `#if os(iOS)`-guarded), a new `Immich SlideshowTV`
+app target (shared bundle id, tvOS 17, added via the `xcodeproj` gem), US1 (frame plays —
+verified auto-cycling + a real demo shared-link playing actual photos), US2 onboarding
+(choice/shared-link/server, real-source routing via `TVRootView`/`TVAppModel`), the new
+`ConfigSyncKit` package (KVS `ConfigSyncStore` + CloudKit-encrypted `SecretSyncStore` +
+`ConfigPublisher`/`ConfigConsumer`, 21 host tests), a `SoftwareDimScreenController`
+(FR-1000-07 bypass eliminated), `TVChromeModel` remote chrome, `FrameIdentity` (distinct HA
+device), and US3 purge-tolerance. **Remaining (device-gated / follow-up):** US4 HA parity
+wiring on tvOS (a tvOS `PlaybackControlling` adapter + broker onboarding — MQTT device-gated),
+the iPad companion CloudKit secret publish (+ iCloud entitlements — device-gated), the tvOS
+clock overlay + FR-1000-10 pixel-shift, and the real-hardware gates (SC-1000-02/05/06/08 +
+CloudKit-decrypt-on-tvOS proof). Prior context: `510` clock is merged to main; `900`/`800`/`220`
+merged + implemented (real-hardware ship gates left); v1.0 in App Store review; `310`/`320`
 implemented.
 <!-- SPECKIT END -->
