@@ -105,7 +105,7 @@ overhaul so every Active requirement maps to real, tested code):
   [320-disk-image-cache](../specs/320-disk-image-cache/spec.md), implemented 2026-07-09.
 - ~~Auto-retry with backoff~~ / ~~periodic source refresh~~ — promoted to sub-spec
   [310-slideshow-resilience](../specs/310-slideshow-resilience/spec.md), implemented 2026-07-09.
-- Rendered clock overlay — settings are stored (500), renderer deferred (topic 300).
+- Rendered clock overlay — design agreed 2026-07-18 (500, FR-500-12/17/18/19: Digits/Pill/Analog, six places + Random, Room/Cozy sizes, hides while chrome shows); settings stored + HA-wired (500/710), renderer deferred (topic 300).
 - Settings/onboarding source management — now built: `120` owns the source library and `210`
   delivers the choice-first onboarding, shared-link-only setup, iOS Share Sheet acceptance, and the
   shared searchable album picker (onboarding + Settings). Remaining 210 work is polish + a device

@@ -205,9 +205,13 @@ Spec Kit feature.
 - **Periodic source refresh** (was FR-300-12): the active source asset list refreshes periodically
   so newly added Immich photos enter rotation without an app restart. **Now specced** as sub-spec
   `310-slideshow-resilience` (FR-310-06…11) — planned pre-release.
-- **Rendered clock overlay** (was FR-300-29): render the optional clock (corner + optional date)
-  per topic 500 settings; the settings are already stored (topic 500) but no renderer exists yet.
-  Off by default.
+- **Rendered clock overlay** (was FR-300-29): render the optional clock per the topic 500
+  settings contract — design agreed 2026-07-18 ("Quiet Glass" clock round, FR-500-12/17/18/19):
+  three styles (Digits default / Pill / Analog), six places plus Random, Room/Cozy sizes,
+  optional date line. The clock is ambient-layer: it hides whenever the chrome is visible and
+  returns on auto-hide, and the photo-details caption yields its place rather than overlap.
+  The settings are already stored and HA-controllable (topics 500/710) but no renderer exists
+  yet. Off by default.
 - Multi-album source pooling and Memories source selection belong to topic 100. Acceptance
   preserved from the source: selecting multiple albums pools photos from all of them, and selecting
   Memories plays that source when topic 100 supports it.
