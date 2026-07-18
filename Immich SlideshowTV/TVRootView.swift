@@ -11,13 +11,17 @@
 //  resolve-first flow (topic 210 semantics).
 //
 
+import BrokerSetupKit
 import ConfigSyncKit
+import HAControlKit
+import HAControlMQTT
 import ImmichClient
 import OnboardingKit
 import PowerKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
+import UIKit
 
 @main
 struct ImmichSlideshowTVApp: App {
@@ -33,6 +37,7 @@ struct ImmichSlideshowTVApp: App {
 
 struct TVRootView: View {
     @Bindable var model: TVAppModel
+    @State private var showBrokerSetup = false
 
     var body: some View {
         switch model.route {
@@ -44,8 +49,14 @@ struct TVRootView: View {
                     viewModel: slideshow,
                     screen: model.screen,
                     powerManager: model.powerManager,
-                    themeStore: model.themeStore
+                    themeStore: model.themeStore,
+                    makeCoordinator: { await model.makeCoordinator(for: $0) },
+                    onSettings: { showBrokerSetup = true }
                 )
+                .id(ObjectIdentifier(slideshow))
+                .fullScreenCover(isPresented: $showBrokerSetup) {
+                    TVBrokerSetupView(onDone: { showBrokerSetup = false })
+                }
             } else {
                 onboarding
             }
@@ -83,6 +94,12 @@ final class TVAppModel {
     let sharedLinkResolver = SharedLinkResolver()
     let themeStore = UserDefaultsThemeStore()
     let screen = SoftwareDimScreenController()
+    /// Distinct HA identity for the TV frame — own MQTT topics/discovery/unique_id vs the iPad
+    /// frame (FR-1000-08). Broker credentials themselves are entered on the TV (TVBrokerSetupView).
+    let brokerProvider = BrokerConfigProvider(
+        settingsStore: KeychainBrokerSettingsStore(),
+        deviceID: (UIDevice.current.identifierForVendor?.uuidString ?? "immich-slideshow-appletv") + "-appletv"
+    )
     let powerManager: PowerManager
 
     // Shared onboarding view models (reused unchanged from OnboardingKit).
@@ -113,12 +130,30 @@ final class TVAppModel {
         // store stands in on the simulator — hydration degrades to the manual path.
         configConsumer = ConfigConsumer(
             configStore: UbiquitousKVSConfigSyncStore(),
-            secretStore: InMemorySecretSyncStore()
+            secretStore: Self.makeSecretStore()
         )
     }
 
+    /// CloudKit only when an iCloud account is present (avoids `CKContainer.default()` aborting
+    /// without the entitlement/account on the simulator); else an empty in-memory store so
+    /// hydration degrades to the manual path. The CloudKit path is exercised on real hardware
+    /// with the iCloud entitlement (device-gated, FR-1000-12).
+    private static func makeSecretStore() -> any SecretSyncStore {
+        if FileManager.default.ubiquityIdentityToken != nil {
+            return CloudKitSecretSyncStore()
+        }
+        return InMemorySecretSyncStore()
+    }
+
     func start() async {
-        // FR-1000-06: prefill onboarding from synced non-secret config when present.
+        // FR-1000-06/12: on a fresh install, restore synced non-secret config into the local
+        // stores and hydrate secrets from CloudKit into the local keychain — the zero-typing
+        // setup path. Device-gated: a no-op without iCloud, so the manual path stays complete.
+        restoreSyncedConfigIfFresh()
+        _ = await configConsumer.hydrateSecrets(
+            into: TVSecretWriter(keychain: keychain, sharedLinkSecretStore: secretStore)
+        )
+        // Prefill the onboarding server field from synced config for the manual path too.
         if let synced = configConsumer.prefill(), let base = synced.baseURL {
             onboarding.serverURLInput = base.absoluteString
         }
@@ -188,7 +223,68 @@ final class TVAppModel {
         }
     }
 
+    /// US4: build a fresh HA coordinator for the current run — nil without broker credentials.
+    /// Distinct device identity (FR-1000-08) via `brokerProvider`; brightness maps to the
+    /// software dim; image publishing is omitted (`.currentPhotoImage` not in the default set).
+    func makeCoordinator(for slideshow: SlideshowViewModel) async -> HAControlCoordinator? {
+        guard let brokerConfig = brokerProvider.load() else { return nil }
+        let library = sourceStore.load()
+        let adapter = TVRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: powerManager,
+            themeStore: themeStore,
+            sources: library.sources,
+            activeSourceID: library.activeID,
+            onSelectSource: { [weak self] id in self?.switchActiveSource(id) },
+            initialBrightness: screen.brightness
+        )
+        return HAControlCoordinator(
+            transport: NIOMQTTTransport(config: brokerConfig),
+            control: adapter,
+            settings: adapter,
+            photoReporter: adapter,
+            configStore: brokerProvider,
+            deviceName: "Photo Frame (Apple TV)",
+            enabledEntities: HAEntity.defaultEnabled
+        )
+    }
+
+    /// HA source-select: activate the chosen source and rebuild the slideshow against it.
+    func switchActiveSource(_ id: String) {
+        sourceLibrary.setActive(id: id)
+        Task { await evaluateGate() }
+    }
+
+    /// On a fresh install with synced config present, restore the local non-secret stores from
+    /// iCloud KVS (server URL, source library, display options) so the TV needs no re-entry
+    /// (FR-1000-06). Guarded so it never clobbers an already-configured frame.
+    private func restoreSyncedConfigIfFresh() {
+        guard sourceStore.load().sources.isEmpty, config.loadBaseURL() == nil else { return }
+        guard let synced = configConsumer.prefill() else { return }
+        if let base = synced.baseURL { config.saveBaseURL(base) }
+        if let data = synced.sourceLibrary,
+           let library = try? JSONDecoder().decode(SourceLibrary.self, from: data) {
+            sourceStore.save(library)
+        }
+        if let data = synced.theme,
+           let settings = try? JSONDecoder().decode(ThemeSettings.self, from: data) {
+            themeStore.settings = settings
+        }
+    }
+
     func finishOnboarding() async {
         await evaluateGate()
+    }
+}
+
+/// Writes CloudKit-fetched secrets into the local tvOS keychain (FR-1000-05/12). MQTT
+/// credentials are entered directly via the tvOS broker onboarding, not restored here.
+private struct TVSecretWriter: SecretWriting {
+    let keychain: KeychainAPIKeyStore
+    let sharedLinkSecretStore: KeychainSharedLinkSecretStore
+    func writeImmichApiKey(_ apiKey: String) async { try? keychain.save(apiKey) }
+    func writeMqttCredentials(_ credentials: Data) async {}
+    func writeSharedLinkPassword(_ password: String, forSourceID sourceID: String) async {
+        try? sharedLinkSecretStore.savePassword(password, forSourceID: sourceID)
     }
 }

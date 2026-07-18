@@ -14,6 +14,7 @@
 //    decided by the tested `TVChromeModel`.
 //
 
+import HAControlKit
 import PowerKit
 import SlideshowKit
 import SwiftUI
@@ -26,8 +27,14 @@ struct TVSlideshowView: View {
     let powerManager: PowerManager
     /// Needed for the live Ken Burns + duration settings (the engine keeps its store private).
     let themeStore: UserDefaultsThemeStore
+    /// Builds a fresh HA coordinator for this run — nil without broker credentials (US4).
+    var makeCoordinator: (SlideshowViewModel) async -> HAControlCoordinator? = { _ in nil }
+    /// Opens the tvOS settings surface (Home Assistant / MQTT broker).
+    var onSettings: () -> Void = {}
 
     @Environment(\.scenePhase) private var scenePhase
+    @State private var coordinator: HAControlCoordinator?
+    @State private var isStartingCoordinator = false
 
     /// The tested chrome state machine — the single source of truth for chrome visibility and
     /// the Menu-button decision. Time is fed in as a monotonic reading relative to `epoch`.
@@ -72,6 +79,10 @@ struct TVSlideshowView: View {
                     onNext: {
                         reveal()
                         Task { await viewModel.showNext() }
+                    },
+                    onSettings: {
+                        reveal()
+                        onSettings()
                     }
                 )
                 .transition(.opacity)
@@ -104,25 +115,53 @@ struct TVSlideshowView: View {
         .task {
             powerManager.activate()
             await viewModel.start()
+            await startCoordinator()
         }
         .onDisappear {
             powerManager.deactivate()
             autoHideTask?.cancel()
             autoHideTask = nil
+            Task { await stopCoordinator() }
         }
         .onChange(of: scenePhase) { _, newPhase in
             // Foreground-only effects (constitution V): tvOS reclaims control in the
             // background, so pause the auto-advance and release keep-awake, then resume and
-            // re-acquire on return. Mirrors the iOS SlideshowView scenePhase handling.
+            // re-acquire on return. Mirrors the iOS SlideshowView scenePhase handling. The HA
+            // coordinator follows the same build-fresh / full-teardown lifecycle (US4).
             switch newPhase {
             case .active:
                 powerManager.willEnterForeground()
                 viewModel.resume()
+                Task { await startCoordinator() }
             default:
                 viewModel.pause()
                 powerManager.didEnterBackground()
+                Task { await stopCoordinator() }
             }
         }
+    }
+
+    // MARK: - HA coordinator lifecycle (US4)
+
+    /// Build a fresh coordinator per run and start it; release it immediately if the connect
+    /// failed so a later foreground retries. Mirrors iOS `SlideshowView.startCoordinator`.
+    private func startCoordinator() async {
+        guard coordinator == nil, !isStartingCoordinator else { return }
+        isStartingCoordinator = true
+        defer { isStartingCoordinator = false }
+        guard let coordinator = await makeCoordinator(viewModel) else { return }
+        self.coordinator = coordinator
+        await coordinator.start()
+        if coordinator.connection == .disconnected {
+            self.coordinator = nil
+            await coordinator.stop()
+        }
+    }
+
+    private func stopCoordinator() async {
+        guard let coordinator else { return }
+        self.coordinator = nil
+        await coordinator.stop()
     }
 
     // MARK: - Derived settings
