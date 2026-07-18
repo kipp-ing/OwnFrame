@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "BrokerSetupKit",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v17), .tvOS(.v17), .macOS(.v14)],
     products: [.library(name: "BrokerSetupKit", targets: ["BrokerSetupKit"])],
     dependencies: [
         .package(path: "../HAControlKit"),

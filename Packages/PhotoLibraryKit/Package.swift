@@ -6,7 +6,11 @@ let package = Package(
     platforms: [
         // iPadOS target for the app; macOS enables `swift test` on the host without a simulator
         // (all logic sits behind PhotoLibraryGateway — only PHKitGateway touches PhotoKit).
+        // tvOS is a compile-only target (topic 1000, SC-1000-04): the whole package must build
+        // for a tvOS destination even though the PhotoKit adapter is never linked into the tvOS
+        // app and the limited-library picker is compiled out there.
         .iOS(.v17),
+        .tvOS(.v17),
         .macOS(.v14),
     ],
     products: [

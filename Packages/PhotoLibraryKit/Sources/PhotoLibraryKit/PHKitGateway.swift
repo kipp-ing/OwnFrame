@@ -6,9 +6,12 @@
 
 import Foundation
 import Photos
+#if os(iOS)
 // PhotosUI carries the limited-library management sheet (US3-2); it stays confined to this
-// adapter exactly like Photos itself.
+// adapter exactly like Photos itself, and the picker it provides exists on iOS only — so on
+// tvOS (compile-only, topic 1000 SC-1000-04) the import and its picker path are compiled out.
 import PhotosUI
+#endif
 import PhotoSourceKit
 import UIKit
 
@@ -227,6 +230,7 @@ public final class PHKitGateway: NSObject, PhotoLibraryGateway, @unchecked Senda
 
     @MainActor
     public func presentManageSelection() {
+#if os(iOS)
         // The system picker needs a presenting view controller; find the topmost one so it
         // is not swallowed underneath the settings/add-source sheets.
         guard let scene = UIApplication.shared.connectedScenes
@@ -236,6 +240,12 @@ public final class PHKitGateway: NSObject, PhotoLibraryGateway, @unchecked Senda
         var top = root
         while let presented = top.presentedViewController { top = presented }
         PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top)
+#else
+        // The limited-library "manage selection" sheet is an iOS-only affordance
+        // (`presentLimitedLibraryPicker` does not exist on tvOS). The tvOS build is compile-only
+        // and this adapter is never linked into the tvOS app, so this is a deliberate no-op —
+        // matching the protocol contract ("a no-op wherever the platform surface is unavailable").
+#endif
     }
 
     // MARK: - Change observation (FR-900-09)

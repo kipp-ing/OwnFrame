@@ -5,7 +5,7 @@ let package = Package(
     name: "OnboardingKit",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v17),
+        .iOS(.v17), .tvOS(.v17),
         .macOS(.v14),
     ],
     products: [

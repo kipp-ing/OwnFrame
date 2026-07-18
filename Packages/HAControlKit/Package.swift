@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "HAControlKit",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v17), .tvOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "HAControlKit", targets: ["HAControlKit"]),
         .library(name: "HAControlMQTT", targets: ["HAControlMQTT"]),

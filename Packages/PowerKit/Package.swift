@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "PowerKit",
     platforms: [
-        .iOS(.v17),
+        .iOS(.v17), .tvOS(.v17),
         .macOS(.v14),
     ],
     products: [
