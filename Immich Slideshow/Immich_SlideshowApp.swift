@@ -251,6 +251,17 @@ struct Immich_SlideshowApp: App {
             root: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("SourceSnapshots", isDirectory: true)
         )
+        // iPad companion (topic 1000, FR-1000-06/12): mirror the current non-secret config to
+        // iCloud KVS and the API key to CloudKit encrypted fields so the Apple TV app can
+        // prefill onboarding and hydrate secrets. Best-effort, fired once per launch; a no-op
+        // without iCloud (device-gated), so it never blocks or affects local behavior.
+        let companionSync = CompanionSync(
+            config: config,
+            sourceStore: sourceStore,
+            budgetStore: cacheBudgetStore,
+            keychain: keychain
+        )
+        Task { await companionSync.publish() }
         let viewModel = OnboardingViewModel(
             api: { serverConfig in ImmichClient(config: serverConfig) },
             config: config,

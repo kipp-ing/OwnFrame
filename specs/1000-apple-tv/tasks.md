@@ -9,9 +9,23 @@ implements against a briefing (host-unit-testable, `swift test` green) → testi
 Commit after each green task/group. Full scope incl. iPad companion; real-hardware items are device
 gates (quickstart.md), not blockers.
 
+## Status (2026-07-18)
+
+**Done + verified on the Apple TV 4K simulator:** T001–T014, T016–T020, T022 (US1 frame plays
++ auto-cycle + real demo-link end-to-end; US2 onboarding choice/shared-link/server + real-source
+routing), T012 (FR-1000-07 bypass removed), T013 (US3 purge-tolerance). ConfigSyncKit 21 tests,
+SlideshowKit 161, PowerKit 19, plus the rest — all host suites green; iOS + tvOS sim builds green.
+
+**Remaining (largely device-gated):** T015 (US4 HA parity — needs a tvOS `PlaybackControlling`
+adapter + broker onboarding; MQTT device-gated), T021 (iPad companion publish — KVS non-secret
+wireable; CloudKit secret publish + iCloud entitlements device-gated), tvOS clock overlay +
+FR-1000-10 pixel-shift, and the real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt proof).
+Reusable building blocks for these are already built + tested (`FrameIdentity`, `ConfigPublisher`,
+`ConfigConsumer`, `SoftwareDimScreenController`).
+
 ## Phase 1: Setup
 
-- [ ] T001 [inline] Baseline green on `1000-apple-tv`: iOS app builds + full XCUITest/host suites
+- [x] T001 [inline] Baseline green on `1000-apple-tv`: iOS app builds + full XCUITest/host suites
       pass (iOS 26.x iPad sim); `swift test` green for all packages on host. Confirm tvOS 26.5 sim
       `C3A8C51D…` boots. No code changes. **Gate before any port work.**
 
