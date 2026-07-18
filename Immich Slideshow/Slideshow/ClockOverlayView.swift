@@ -79,6 +79,12 @@ struct ClockOverlayView: View {
     }
 }
 
+/// 24-hour "HH:mm" time (via a 24-hour locale), matching the Quiet Glass mock and keeping
+/// the digits compact enough to stay on one line on the smallest screens (e.g. iPhone SE,
+/// where a 12-hour "10:58 AM" at the Room point size wrapped).
+private let clockTimeFormat = Date.FormatStyle(date: .omitted, time: .shortened)
+    .locale(Locale(identifier: "en_GB"))
+
 // MARK: - Styles
 
 /// Bare rounded numerals on a soft halo — no box. The halo + layered shadow keep the
@@ -90,13 +96,17 @@ private struct DigitsClock: View {
 
     var body: some View {
         VStack(spacing: pointSize * 0.05) {
-            Text(date, format: .dateTime.hour().minute())
+            Text(date, format: clockTimeFormat)
                 .font(.system(size: pointSize, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
             if showDate {
                 Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
                     .font(.system(size: pointSize * 0.24, weight: .medium, design: .rounded))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .opacity(0.85)
             }
         }
@@ -125,13 +135,17 @@ private struct PillClock: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: pointSize * 0.16) {
-            Text(date, format: .dateTime.hour().minute())
+            Text(date, format: clockTimeFormat)
                 .font(.system(size: pointSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
             if showDate {
                 Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
                     .font(.system(size: pointSize * 0.34, weight: .medium, design: .rounded))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .opacity(0.82)
             }
         }
