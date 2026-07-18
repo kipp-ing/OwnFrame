@@ -65,7 +65,7 @@ struct TVSlideshowView: View {
                     .resizable()
                     .aspectRatio(contentMode: fillsScreen ? .fill : .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .tvKenBurns(isActive: kenBurnsActive, durationSeconds: durationSeconds)
+                    .kenBurnsMotion(isActive: kenBurnsActive, durationSeconds: durationSeconds, pan: 24)
                     .clipped()
                     .id(viewModel.currentAssetID)
                     .transition(imageTransition)
