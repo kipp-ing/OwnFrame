@@ -38,6 +38,12 @@ public final class SlideshowViewModel {
     /// successful fetch, played back when a launch-time fetch fails. Same
     /// nil-means-310 contract as `diskCache`.
     private let snapshots: (any SourceSnapshotStoring)?
+    /// Decode-ahead seam (1000 Ken Burns smoothness): shown and prefetched
+    /// photos get their bitmaps decoded off the display path, so a swap never
+    /// pays a lazy first-render decode mid-animation. Same nil-means-unchanged
+    /// contract as `diskCache`/`snapshots`. Public so the display view can look
+    /// up the concrete store's ready bitmaps by asset ID.
+    public let preparer: (any DisplayImagePreparing)?
     private let config: SlideshowConfig
     /// Live display/playback preferences (order, duration, quality). Read at the
     /// point of use so changes apply to the running show without a restart (008).
@@ -92,7 +98,8 @@ public final class SlideshowViewModel {
         cache: ImageCache = ImageCache(limit: SlideshowConfig.default.cacheLimit),
         config: SlideshowConfig = .default,
         settingsStore: any ThemeSettingsStore,
-        rng: any RandomNumberGenerator = SystemRandomNumberGenerator()
+        rng: any RandomNumberGenerator = SystemRandomNumberGenerator(),
+        preparer: (any DisplayImagePreparing)? = nil
     ) {
         self.source = source
         self.albumID = collectionID
@@ -105,6 +112,7 @@ public final class SlideshowViewModel {
         self.config = config
         self.settingsStore = settingsStore
         self.rng = AnyRandomNumberGenerator(rng)
+        self.preparer = preparer
     }
 
     // No deinit teardown: Swift 6 forbids a nonisolated deinit touching the isolated
@@ -800,6 +808,14 @@ public final class SlideshowViewModel {
     private func showLoadedImage(_ loaded: LoadedImage) {
         currentAssetID = loaded.assetID
         currentImageData = loaded.data
+        // Decode-ahead for the photo now on screen (covers photo 1 and any
+        // advance that beat the prefetch): fire-and-forget — the display path
+        // falls back to its lazy decode until the prepared bitmap lands.
+        if let preparer {
+            let assetID = loaded.assetID
+            let data = loaded.data
+            Task { await preparer.prepare(assetID: assetID, data: data) }
+        }
     }
 
     private func resetCurrent() {
@@ -830,11 +846,15 @@ public final class SlideshowViewModel {
         let source = source
         let cache = cache
         let diskCache = diskCache
+        let preparer = preparer
 
         Task { [quality] in
             for assetID in assetIDs {
                 let key = cacheKey(for: assetID, quality: quality)
-                guard cache.data(for: key) == nil else {
+                // Every branch also decodes ahead (1000): a swap must render an
+                // already-decoded bitmap no matter which tier the bytes came from.
+                if let hit = cache.data(for: key) {
+                    await preparer?.prepare(assetID: assetID, data: hit)
                     continue
                 }
 
@@ -844,6 +864,7 @@ public final class SlideshowViewModel {
                 // display path.
                 if let diskCache, let stored = await diskCache.data(forKey: key) {
                     cache.store(stored, for: key)
+                    await preparer?.prepare(assetID: assetID, data: stored)
                     continue
                 }
 
@@ -851,6 +872,7 @@ public final class SlideshowViewModel {
                     let data = try await source.imageData(for: assetID, fidelity: Self.fidelity(for: quality))
                     cache.store(data, for: key)
                     await diskCache?.store(data, forKey: key)
+                    await preparer?.prepare(assetID: assetID, data: data)
                 } catch {
                     continue
                 }

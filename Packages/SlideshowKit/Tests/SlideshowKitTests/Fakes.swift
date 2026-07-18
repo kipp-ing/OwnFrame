@@ -243,3 +243,22 @@ extension NSLock {
         return try body()
     }
 }
+
+/// Records the view model's decode-ahead calls (`DisplayImagePreparing`) so the
+/// preparer-seam tests can assert which asset bytes were readied for display.
+@MainActor
+final class SpyImagePreparer: DisplayImagePreparing {
+    private(set) var prepared: [(assetID: String, data: Data)] = []
+
+    func prepare(assetID: String, data: Data) async {
+        prepared.append((assetID: assetID, data: data))
+    }
+
+    var preparedIDs: [String] {
+        prepared.map(\.assetID)
+    }
+
+    func data(for assetID: String) -> Data? {
+        prepared.last(where: { $0.assetID == assetID })?.data
+    }
+}

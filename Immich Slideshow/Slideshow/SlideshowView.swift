@@ -402,9 +402,17 @@ struct SlideshowView: View {
         await coordinator.stop()
     }
 
+    /// The decode-ahead bitmap when it already landed (1000 Ken Burns: no lazy
+    /// first-render decode mid-swap); reading the store in body re-renders once
+    /// a prepared instance arrives. `UIImage(data:)` stays the fallback below.
+    private var preparedImage: UIImage? {
+        guard let id = viewModel.currentAssetID else { return nil }
+        return (viewModel.preparer as? DecodedImageStore<UIImage>)?.image(for: id)
+    }
+
     @ViewBuilder
     private var currentImage: some View {
-        if let data = viewModel.currentImageData, let image = UIImage(data: data) {
+        if let data = viewModel.currentImageData, let image = preparedImage ?? UIImage(data: data) {
             SlidePhotoView(
                 image: image,
                 fillsScreen: fillsScreen,

@@ -246,7 +246,8 @@ final class TVAppModel {
             source: ImmichClient(config: resolved.serverConfig),
             collectionID: resolved.albumID,
             ticker: RealTicker(),
-            settingsStore: themeStore
+            settingsStore: themeStore,
+            preparer: DecodedImageStore.displayStore()
         )
     }
 

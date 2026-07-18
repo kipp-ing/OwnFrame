@@ -607,3 +607,84 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(model.phase == .failed)
     #expect(clock.sleeperCount == 1)
 }
+
+// MARK: - Decode-ahead preparer seam (Ken Burns smoothness: no lazy decode at the swap)
+
+@MainActor
+@Test func startPreparesTheCurrentAndPrefetchedImagesForDisplay() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    let preparer = SpyImagePreparer()
+    let config = SlideshowConfig(prefetchDepth: 2, cacheLimit: 4)
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image),
+        SourceAsset(id: "image-3", kind: .image),
+        SourceAsset(id: "image-4", kind: .image)
+    ], for: "album")
+    for value in 1...4 {
+        source.setImageData(Data([UInt8(value)]), for: "image-\(value)", fidelity: .preview)
+    }
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, config: config, settingsStore: sequentialThemeStore(), preparer: preparer)
+    await model.start()
+
+    // The current photo and the whole prefetch window are decoded ahead, each
+    // with the exact bytes the display path would hand SwiftUI.
+    await waitUntil(preparer.preparedIDs.contains("image-1")
+        && preparer.preparedIDs.contains("image-2")
+        && preparer.preparedIDs.contains("image-3"))
+    #expect(preparer.data(for: "image-1") == Data([1]))
+    #expect(preparer.data(for: "image-2") == Data([2]))
+    #expect(preparer.data(for: "image-3") == Data([3]))
+    #expect(!preparer.preparedIDs.contains("image-4"))
+}
+
+@MainActor
+@Test func prefetchPreparesRAMCacheHitsToo() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    let preparer = SpyImagePreparer()
+    let cache = ImageCache(limit: 4)
+    let config = SlideshowConfig(prefetchDepth: 1, cacheLimit: 4)
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
+    ], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+    // Pre-warm the RAM cache: the prefetch loop's cache-hit branch used to
+    // `continue` without the data in hand — it must still decode ahead.
+    cache.store(Data([2]), for: "image-2#preview")
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, cache: cache, config: config, settingsStore: sequentialThemeStore(), preparer: preparer)
+    await model.start()
+
+    await waitUntil(preparer.preparedIDs.contains("image-2"))
+    #expect(preparer.data(for: "image-2") == Data([2]))
+    // The bytes came from the RAM cache, not another fetch.
+    #expect(source.imageDataCallCount(for: "image-2", fidelity: .preview) == 0)
+}
+
+@MainActor
+@Test func nilPreparerKeepsTodaysBehavior() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([
+        SourceAsset(id: "image-1", kind: .image),
+        SourceAsset(id: "image-2", kind: .image)
+    ], for: "album")
+    source.setImageData(Data([1]), for: "image-1", fidelity: .preview)
+    source.setImageData(Data([2]), for: "image-2", fidelity: .preview)
+
+    // The nil-means-unchanged DI contract (like diskCache/snapshots): omitting
+    // the preparer is exactly the pre-seam engine.
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+    #expect(model.currentAssetID == "image-1")
+    #expect(model.currentImageData == Data([1]))
+
+    await model.advance()
+    #expect(model.currentAssetID == "image-2")
+    #expect(model.currentImageData == Data([2]))
+}

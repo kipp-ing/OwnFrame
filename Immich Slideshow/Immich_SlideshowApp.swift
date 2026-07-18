@@ -316,7 +316,8 @@ struct Immich_SlideshowApp: App {
                     diskCache: diskCache,
                     snapshots: snapshotStore,
                     config: config,
-                    settingsStore: settingsStore
+                    settingsStore: settingsStore,
+                    preparer: DecodedImageStore.displayStore()
                 )
                 // FR-900-09 (T025): PhotoKit library changes drive an immediate quiet
                 // refresh. Weak: the engine owns provider → gateway → handler, so a strong
@@ -335,7 +336,8 @@ struct Immich_SlideshowApp: App {
                 ticker: RealTicker(),
                 diskCache: diskCache,
                 snapshots: snapshotStore,
-                settingsStore: settingsStore
+                settingsStore: settingsStore,
+                preparer: DecodedImageStore.displayStore()
             )
         }
 
@@ -857,7 +859,8 @@ enum UITestSupport {
                 diskCache: diskCache,
                 snapshots: snapshots,
                 config: config,
-                settingsStore: settingsStore
+                settingsStore: settingsStore,
+                preparer: DecodedImageStore.displayStore()
             )
             // Same change-handler wiring as production (FR-900-09, T025).
             provider.setChangeHandler { [weak viewModel] in
@@ -881,7 +884,8 @@ enum UITestSupport {
             ticker: RealTicker(),
             diskCache: diskCache,
             snapshots: snapshots,
-            settingsStore: settingsStore
+            settingsStore: settingsStore,
+            preparer: DecodedImageStore.displayStore()
         )
     }
 
