@@ -313,6 +313,43 @@ the T008 entry-point hoist did not regress the broader app) — T028.
 | SC-800-04 | No secrets/bytes in state output | `fullyPopulatedSurface…` leak probe + Mirror whitelist | covered | host-unit |
 | SC-800-05 | All logic tests on host | `swift test` in `Packages/AppIntentsKit` (40) | covered | host-unit |
 
+## 220 - Onboarding Welcome *(added 2026-07-17, implemented on branch — camera device gate pending)*
+
+*(Sub-spec of 200.)* Welcome-screen overhaul: iCloud album at the top, a camera QR-scan
+accelerator on the shared-link path, and a light-decorated three friction-ordered options.
+Host-unit tests live in `Packages/OnboardingKit/Tests/OnboardingKitTests/`
+(`OnboardingWelcomePathTests`, `ScannedShareLinkTests`, `StartupGatePhotoLibraryTests`,
+`ScannedLinkRoutingTests`). UI-sim coverage is `Immich SlideshowUITests/`
+(`WelcomeICloudUITests`, and the extended `OnboardingDescriptionsUITests` /
+`OnboardingBackUITests`), with the shared-link/source/Share-Sheet regression classes staying
+green. The live camera QR decode + permission prompt is a manual **device gate** (SC-220-07).
+
+| FR | Requirement (short) | Covering test(s) | Status | Testability |
+|---|---|---|---|---|
+| FR-220-01 | Three friction-ordered welcome paths (iCloud, shared link, server) | `OnboardingWelcomePathTests` (`choosePath(.photoLibrary)` → `.photoLibrarySetup`); `OnboardingDescriptionsUITests.testChoiceScreenShowsThreeFrictionOrderedOptions` (three options, order, helper text) | covered | host-unit + ui-sim |
+| FR-220-02 | iCloud path reaches slideshow with no server/API key | `WelcomeICloudUITests.testICloudAlbumIsTopChoiceAndReachesSlideshow` (Photos-backed `slideshow.image`, no connection) | covered | ui-sim |
+| FR-220-03 | Reuse 900 photoLibrary behaviour unchanged (add only the welcome entry) | reuses `PhotoAlbumPickerView` + `addPhotoLibrarySource` (900 `PhotoAlbumPickerUITests`/`AuthorizationTests`); welcome entry via `WelcomeICloudUITests` | covered | ui-sim (reuse) |
+| FR-220-04 | Scanned code handled identically to a typed link | `ScannedLinkRoutingTests` (scanned valid link triggers the same `resolveSharedLink` call); Scan-QR affordance present (`snapshot_ui`, `onboarding.sharedLink.scan`) | covered | host-unit + ui-sim |
+| FR-220-05 | Camera purpose string; denied/unavailable keeps manual entry | `QRScannerView` `.permissionDenied`/`.noCamera` fallback keeping manual entry; `INFOPLIST_KEY_NSCameraUsageDescription` in build settings; live prompt = device gate | partial | ui-sim + device gate |
+| FR-220-06 | Invalid scanned code rejected client-side, no network, nothing persisted | `ScannedShareLinkTests` (`.notAURL`/`.notHTTPS`/`.notAShareLink`); `ScannedLinkRoutingTests` (resolver call count 0, `.error`, nothing persisted) | covered | host-unit |
+| FR-220-07 | Server path + downstream steps unchanged | `SourceOnboardingUITests`; `OnboardingBackUITests`; `OnboardingDescriptionsUITests` (connection/source/confirm descriptions) | covered | ui-sim |
+| FR-220-08 | Concise non-technical helper copy per option | `OnboardingDescriptionsUITests.testChoiceScreenShowsThreeFrictionOrderedOptions` (per-option helper text) | covered | ui-sim |
+| FR-220-09 | Welcome contract preserved (no Back; shared-link no key; helper text; Share Sheet) | `OnboardingBackUITests.testChoiceScreenHasNoBack`; `SharedLinkOnboardingUITests` (reaches slideshow, no API key); `ShareSheetIncomingUITests` | covered | ui-sim |
+| FR-220-10 | Sources land in one library (downstream/HA/App-Intent unchanged) | reuses `SourceLibrary`/`addPhotoLibrarySource`/`resolveSharedLink` (120/900 round-trip; `Immich SlideshowTests/HAControlRoundTripTests`) | covered | host-unit (reuse) |
+| FR-220-11 | No secrets; a scanned URL carries none (password still prompted) | `ScannedLinkRoutingTests` (nothing persisted on invalid; `.needsPassword` still prompts); `QRScannerView` logs no decoded URL — audit 2026-07-17 | covered | host-unit + static audit |
+| FR-220-12 | Scan feeds a host-testable seam (no camera in unit tests) | `ScannedShareLinkTests` + `ScannedLinkRoutingTests` drive a fake `CodeScanning` (no `AVFoundation`) | covered | host-unit |
+| FR-220-13 | New user-facing strings are English-only | repo localization hook enforces English; new strings audited | covered | static |
+
+| SC | Outcome (short) | Evidence | Status |
+|---|---|---|---|
+| SC-220-01 | New user starts from an iCloud album on the first screen; relaunch straight to slideshow | `WelcomeICloudUITests` + `StartupGatePhotoLibraryTests` (relaunch → `.done`); full first-run E2E also on the device gate | covered + device gate |
+| SC-220-02 | Start from a shared album by scanning its QR (password only if needed) | `ScannedLinkRoutingTests` (host parity incl. `.needsPassword`); live camera scan = device gate | scheduled (device) |
+| SC-220-03 | Exactly three friction-ordered options, each with one plain-language line | `OnboardingDescriptionsUITests.testChoiceScreenShowsThreeFrictionOrderedOptions` | covered |
+| SC-220-04 | Invalid/non-Immich scanned code never plays and never persists | `ScannedShareLinkTests` + `ScannedLinkRoutingTests` | covered |
+| SC-220-05 | Denied/unavailable camera never blocks setup — manual entry remains | `QRScannerView` fallback + `snapshot_ui` (Scan-QR + manual field co-present); denied prompt = device gate | partial + device gate |
+| SC-220-06 | Every pre-existing onboarding behaviour still passes | full XCUITest suite (T020): `SharedLinkOnboardingUITests`, `SourceOnboardingUITests`, `OnboardingBackUITests`, `ShareSheetIncomingUITests` | covered |
+| SC-220-07 | QR parse/validate/route host-tested; camera end-to-end on device | `ScannedShareLinkTests`/`ScannedLinkRoutingTests` (host); manual device gate in `specs/220-onboarding-welcome/quickstart.md` | covered (host) + scheduled (device) |
+
 ## Gaps to close (host-unit)
 
 - FR-200-02: startup cannot resume at album selection when URL and key exist but selected album is missing.

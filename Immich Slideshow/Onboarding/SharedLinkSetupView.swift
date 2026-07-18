@@ -19,6 +19,8 @@ struct SharedLinkSetupView: View {
     @State private var urlText: String
     @State private var passwordText = ""
     @State private var showPasswordPrompt = false
+    @State private var qrScanner: QRScanner?
+    @State private var showScanner = false
 
     /// `prefill` seeds the link field — used when a link is shared into the app while it
     /// is still unconfigured (210, US2 → `IncomingSharedLink.prefillOnboarding`).
@@ -44,10 +46,18 @@ struct SharedLinkSetupView: View {
                     .keyboardType(.URL)
                     .disabled(isResolving)
                     .accessibilityIdentifier("onboarding.sharedLink.url")
+
+                Button {
+                    startScan()
+                } label: {
+                    Label("Scan QR", systemImage: "qrcode.viewfinder")
+                }
+                .disabled(isResolving)
+                .accessibilityIdentifier("onboarding.sharedLink.scan")
             } header: {
                 Text("Shared link")
             } footer: {
-                Text("Paste the Immich share link someone sent you. You'll only be asked for a password if the link needs one.")
+                Text("Paste the Immich share link someone sent you, or scan its QR code. You'll only be asked for a password if the link needs one.")
             }
 
             if !showPasswordPrompt, case let .error(message) = sourceLibrary.addState {
@@ -79,6 +89,11 @@ struct SharedLinkSetupView: View {
         .sheet(isPresented: $showPasswordPrompt, onDismiss: { passwordText = "" }) {
             passwordPrompt
         }
+        .fullScreenCover(isPresented: $showScanner) {
+            if let qrScanner {
+                QRScannerView(scanner: qrScanner)
+            }
+        }
     }
 
     private var isResolving: Bool {
@@ -95,6 +110,31 @@ struct SharedLinkSetupView: View {
     private func start() {
         Task {
             await sourceLibrary.resolveSharedLink(urlString: urlText, label: "")
+            switch sourceLibrary.addState {
+            case .needsPassword:
+                showPasswordPrompt = true
+            case .resolved:
+                onboarding.finish()
+            default:
+                break
+            }
+        }
+    }
+
+    /// Presents the camera QR scanner and routes a decoded code through the same
+    /// resolve-first flow `start()` uses (220, FR-220-04) — `addScannedSharedLink` calls
+    /// `scanner.scan()` itself, so this Task drives the whole scan, not just its result.
+    /// A cancelled scan (dismiss, or no usable camera/permission) is a silent no-op that
+    /// leaves manual entry untouched; an invalid code shows the same inline error surface
+    /// `start()` uses, via `addState`.
+    private func startScan() {
+        sourceLibrary.resetSharedLinkAdd()
+        let scanner = QRScanner()
+        qrScanner = scanner
+        showScanner = true
+        Task {
+            await sourceLibrary.addScannedSharedLink(using: scanner, label: "")
+            showScanner = false
             switch sourceLibrary.addState {
             case .needsPassword:
                 showPasswordPrompt = true

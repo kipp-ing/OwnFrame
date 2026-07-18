@@ -104,6 +104,22 @@ public final class SourceLibraryViewModel {
         await attemptResolve(password: password)
     }
 
+    /// Scan a QR code and route it through the exact same resolve-first flow a typed link
+    /// uses (220, FR-220-04) — a scanned link is not a second code path. A cancelled scan
+    /// (`scanner.scan()` returns `nil`) is a silent no-op; a decoded string that isn't a
+    /// usable Immich share link is rejected calmly, with no network call and nothing
+    /// persisted (FR-220-06).
+    public func addScannedSharedLink(using scanner: some CodeScanning, label: String = "") async {
+        guard let decoded = await scanner.scan() else { return }
+        switch ScannedShareLink.validate(decoded) {
+        case .success:
+            await resolveSharedLink(urlString: decoded, label: label)
+        case .failure(let reason):
+            pendingLink = nil
+            addState = .error(Self.scanRejectionMessage(for: reason))
+        }
+    }
+
     private func attemptResolve(password: String?) async {
         guard let pending = pendingLink else { return }
         addState = .resolving
@@ -217,5 +233,17 @@ public final class SourceLibraryViewModel {
 
     private static var unexpectedResponseMessage: String {
         String(localized: "Unexpected response from the server.", bundle: .module)
+    }
+
+    /// Calm, jargon-light rejection copy for a scanned code that isn't a usable Immich
+    /// shared link (220, FR-220-06). A single friendly message covers every reason.
+    private static func scanRejectionMessage(for reason: InvalidCodeReason) -> String {
+        switch reason {
+        case .notAURL, .notHTTPS, .notAShareLink:
+            return String(
+                localized: "That code isn't an Immich shared link — check the QR code, or type the link instead.",
+                bundle: .module
+            )
+        }
     }
 }
