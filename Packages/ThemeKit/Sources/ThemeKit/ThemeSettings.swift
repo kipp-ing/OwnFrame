@@ -66,27 +66,53 @@ public enum ImageQuality: String, Sendable, Equatable, CaseIterable {
     case original
 }
 
-public enum ClockCorner: String, Sendable, Equatable, CaseIterable {
+public enum ClockStyle: String, Sendable, Equatable, CaseIterable {
+    case digits   // default — bare rounded numerals on a soft halo
+    case pill     // compact glass capsule (today's design language)
+    case analog   // round glass face, hour + minute hands, no date line
+}
+
+/// Supersedes the old `ClockCorner`. The four corner cases keep their exact raw
+/// values, so values stored under `theme.clock.corner` (and HA retained states)
+/// decode unchanged (FR-510-05).
+public enum ClockPlace: String, Sendable, Equatable, CaseIterable {
     case topLeading
+    case topCenter
     case topTrailing
     case bottomLeading
-    case bottomTrailing
+    case bottomCenter
+    case bottomTrailing  // default
+    case random          // relocates per RandomPlacePicking (FR-510-03)
+
+    /// The fixed places Random draws from: `allCases` minus `.random`.
+    public static var fixedPlaces: [ClockPlace] { allCases.filter { $0 != .random } }
+}
+
+public enum ClockSize: String, Sendable, Equatable, CaseIterable {
+    case room   // default — readable from ~1.5 m (SC-500-08 floor)
+    case cozy   // arm's-reach placement
 }
 
 public struct ClockSettings: Sendable, Equatable {
     public var isOn: Bool
-    public var corner: ClockCorner
+    public var style: ClockStyle
+    public var place: ClockPlace
+    public var size: ClockSize
     public var showDate: Bool
 
     public static let off = ClockSettings()
 
     public init(
         isOn: Bool = false,
-        corner: ClockCorner = .bottomTrailing,
+        style: ClockStyle = .digits,
+        place: ClockPlace = .bottomTrailing,
+        size: ClockSize = .room,
         showDate: Bool = false
     ) {
         self.isOn = isOn
-        self.corner = corner
+        self.style = style
+        self.place = place
+        self.size = size
         self.showDate = showDate
     }
 }

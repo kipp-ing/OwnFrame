@@ -14,7 +14,7 @@ import ThemeKit
         kenBurns: true,
         fit: .fill,
         quality: .original,
-        clock: ClockSettings(isOn: true, corner: .topLeading, showDate: true)
+        clock: ClockSettings(isOn: true, place: .topLeading, showDate: true)
     )
 
     let relaunchedStore = UserDefaultsThemeStore(defaults: fixture.defaults)
@@ -25,7 +25,7 @@ import ThemeKit
     #expect(relaunchedStore.settings.fit == .fill)
     #expect(relaunchedStore.settings.quality == .original)
     #expect(relaunchedStore.settings.clock.isOn == true)
-    #expect(relaunchedStore.settings.clock.corner == .topLeading)
+    #expect(relaunchedStore.settings.clock.place == .topLeading)
     #expect(relaunchedStore.settings.clock.showDate == true)
 }
 
