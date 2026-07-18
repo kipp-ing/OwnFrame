@@ -37,24 +37,22 @@ struct CompanionSync {
     /// Per-source shared-link passwords, keyed by `Source.id` (OnboardingKit keychain store).
     let sharedLinkSecretStore: any SharedLinkSecretStore
 
+    /// One KVS store for the app's lifetime: each `UbiquitousKVSConfigSyncStore` registers a
+    /// NotificationCenter observer + external-changes stream, so per-publish construction
+    /// would leak one of each on every foreground.
+    private let configSyncStore = UbiquitousKVSConfigSyncStore()
+
     /// Gather the current config + secret and publish them to the sync channels. Best-effort;
     /// never throws (ConfigPublisher swallows transport failures, non-secret save still runs).
+    /// The secret store comes from the entitlement-gated `SecretSyncStoreFactory` — CloudKit
+    /// only when the binary is entitled AND an account is signed in (`CKContainer.default()`
+    /// aborts without the entitlement, even with an account present).
     func publish() async {
         let publisher = ConfigPublisher(
-            configStore: UbiquitousKVSConfigSyncStore(),
-            secretStore: Self.makeSecretStore()
+            configStore: configSyncStore,
+            secretStore: SecretSyncStoreFactory.make()
         )
         await publisher.publish(config: snapshotConfig(), secret: snapshotSecret())
-    }
-
-    /// CloudKit only when an iCloud account is present — avoids `CKContainer.default()` aborting
-    /// without the entitlement/account on the simulator. The CloudKit path is exercised on a
-    /// real device with the iCloud entitlement (device-gated, FR-1000-12).
-    private static func makeSecretStore() -> any SecretSyncStore {
-        if FileManager.default.ubiquityIdentityToken != nil {
-            return CloudKitSecretSyncStore()
-        }
-        return InMemorySecretSyncStore()
     }
 
     private func snapshotConfig() -> SyncedConfig {
