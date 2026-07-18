@@ -131,12 +131,15 @@ verified auto-cycling + a real demo shared-link playing actual photos), US2 onbo
 (choice/shared-link/server, real-source routing via `TVRootView`/`TVAppModel`), the new
 `ConfigSyncKit` package (KVS `ConfigSyncStore` + CloudKit-encrypted `SecretSyncStore` +
 `ConfigPublisher`/`ConfigConsumer`, 21 host tests), a `SoftwareDimScreenController`
-(FR-1000-07 bypass eliminated), `TVChromeModel` remote chrome, `FrameIdentity` (distinct HA
-device), and US3 purge-tolerance. **Remaining (device-gated / follow-up):** US4 HA parity
-wiring on tvOS (a tvOS `PlaybackControlling` adapter + broker onboarding — MQTT device-gated),
-the iPad companion CloudKit secret publish (+ iCloud entitlements — device-gated), the tvOS
-clock overlay + FR-1000-10 pixel-shift, and the real-hardware gates (SC-1000-02/05/06/08 +
-CloudKit-decrypt-on-tvOS proof). Prior context: `510` clock is merged to main; `900`/`800`/`220`
+(FR-1000-07 bypass eliminated), `TVChromeModel` remote chrome, US3 purge-tolerance, and **US4 HA
+parity** (`TVRemoteControlAdapter` + `HAControlCoordinator` with a distinct `FrameIdentity` +
+`TVBrokerSetupView` broker onboarding + software-dim brightness + lifecycle). The **iPad
+companion** publishes the full non-secret+secret payload to KVS/CloudKit on launch + foreground;
+the tvOS consumer restores it (`ThemeSettings` is now Codable). iOS XCUITest 120/0/2. **Remaining
+(device-gated / follow-up):** real MQTT (needs a broker), real CloudKit secret sync (needs iCloud
+entitlements + account), the tvOS clock overlay + FR-1000-10 pixel-shift (not started; clock is
+off by default), and the real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof
++ 24h soak). Prior context: `510` clock is merged to main; `900`/`800`/`220`
 merged + implemented (real-hardware ship gates left); v1.0 in App Store review; `310`/`320`
 implemented.
 <!-- SPECKIT END -->
