@@ -396,8 +396,124 @@ extension HAControlCoordinatorTests {
         await coordinator.handleIncoming(message("topLeading", entity: .clockCorner))
 
         #expect(settings.applyCount == 1)
-        #expect(settings.themeSettings.clockCorner == .topLeading)
+        #expect(settings.themeSettings.clockPlace == .topLeading)
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner), payload: "topLeading", retain: true))
+    }
+
+    @Test
+    func settingsClockCornerAcceptsNewlyWidenedPlaces() async throws {
+        // The two new center places and `random` must apply (widened enum, id kept).
+        for raw in ["topCenter", "bottomCenter", "random"] {
+            let transport = FakeMQTTTransport()
+            let control = FakeRemoteControl()
+            let settings = FakeSettingsControl()
+            let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockCorner])
+
+            await coordinator.handleIncoming(message(raw, entity: .clockCorner))
+
+            #expect(settings.applyCount == 1)
+            #expect(settings.themeSettings.clockPlace == ClockCornerSetting(rawValue: raw))
+            #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner), payload: raw, retain: true))
+        }
+    }
+
+    @Test
+    func settingsClockCornerUnknownOptionIsIgnoredGracefully() async throws {
+        // Retained-state rule: a broker retaining an option outside the enum (e.g. a
+        // rollback value) must be ignored — state unchanged, no crash — while the
+        // actual current state is re-echoed.
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockCorner])
+
+        await coordinator.handleIncoming(message("sundial", entity: .clockCorner))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.clockPlace == .bottomTrailing)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner), payload: "bottomTrailing", retain: true))
+    }
+
+    @Test
+    func settingsClockStyleValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockStyle])
+
+        await coordinator.handleIncoming(message("analog", entity: .clockStyle))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockStyle == .analog)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockStyle), payload: "analog", retain: true))
+    }
+
+    @Test
+    func settingsClockStyleUnknownOptionIsIgnoredGracefully() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockStyle])
+
+        await coordinator.handleIncoming(message("hologram", entity: .clockStyle))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.clockStyle == .digits)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockStyle), payload: "digits", retain: true))
+    }
+
+    @Test
+    func settingsClockSizeValidCommandAppliesAndPublishesNewState() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockSize])
+
+        await coordinator.handleIncoming(message("cozy", entity: .clockSize))
+
+        #expect(settings.applyCount == 1)
+        #expect(settings.themeSettings.clockSize == .cozy)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockSize), payload: "cozy", retain: true))
+    }
+
+    @Test
+    func settingsClockSizeUnknownOptionIsIgnoredGracefully() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        let settings = FakeSettingsControl()
+        let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: [.clockSize])
+
+        await coordinator.handleIncoming(message("stadium", entity: .clockSize))
+
+        #expect(settings.applyCount == 0)
+        #expect(settings.themeSettings.clockSize == .room)
+        #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockSize), payload: "room", retain: true))
+    }
+
+    @Test
+    func themeSettingsSnapshotRoundTripsClockStylePlaceSize() {
+        // Snapshot carries the widened clock fields with their raw wire values intact.
+        let snapshot = ThemeSettingsSnapshot(
+            order: .sequential,
+            durationSeconds: 30,
+            transition: .slide,
+            kenBurns: true,
+            fit: .fill,
+            quality: .original,
+            clockOn: true,
+            clockPlace: .topCenter,
+            clockStyle: .pill,
+            clockSize: .cozy,
+            clockDate: true
+        )
+
+        #expect(snapshot.clockPlace == .topCenter)
+        #expect(snapshot.clockPlace.rawValue == "topCenter")
+        #expect(snapshot.clockStyle == .pill)
+        #expect(snapshot.clockStyle.rawValue == "pill")
+        #expect(snapshot.clockSize == .cozy)
+        #expect(snapshot.clockSize.rawValue == "cozy")
+        #expect(snapshot == snapshot)
     }
 
     @Test
@@ -587,7 +703,7 @@ extension HAControlCoordinatorTests {
         let transport = FakeMQTTTransport()
         let control = FakeRemoteControl()
         let settings = FakeSettingsControl()
-        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate]
+        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate]
         let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: entities)
 
         // Send valid command for each entity
@@ -599,6 +715,8 @@ extension HAControlCoordinatorTests {
         await coordinator.handleIncoming(message("original", entity: .quality))
         await coordinator.handleIncoming(message("ON", entity: .clock))
         await coordinator.handleIncoming(message("topLeading", entity: .clockCorner))
+        await coordinator.handleIncoming(message("analog", entity: .clockStyle))
+        await coordinator.handleIncoming(message("cozy", entity: .clockSize))
         await coordinator.handleIncoming(message("ON", entity: .clockDate))
 
         // Every entity echoes exactly once per command, retained (SC-710-02 / FR-710-11).
@@ -618,7 +736,7 @@ extension HAControlCoordinatorTests {
         let transport = FakeMQTTTransport()
         let control = FakeRemoteControl()
         let settings = FakeSettingsControl()
-        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate]
+        let entities: Set<HAEntity> = [.order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate]
         let coordinator = makeCoordinator(transport: transport, control: control, settings: settings, entities: entities)
 
         await coordinator.start()

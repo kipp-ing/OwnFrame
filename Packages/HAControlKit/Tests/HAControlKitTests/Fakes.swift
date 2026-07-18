@@ -104,7 +104,9 @@ final class FakeSettingsControl: SettingsControlling {
         fit: .fit,
         quality: .preview,
         clockOn: false,
-        clockCorner: .bottomTrailing,
+        clockPlace: .bottomTrailing,
+        clockStyle: .digits,
+        clockSize: .room,
         clockDate: false
     )
     private(set) var applyCount = 0

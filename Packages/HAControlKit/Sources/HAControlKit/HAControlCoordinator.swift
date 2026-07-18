@@ -242,7 +242,7 @@ public final class HAControlCoordinator {
                 if control.albumOptions.contains(payload) {
                     control.selectAlbum(payload)
                 }
-            case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
+            case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate:
                 applySetting(entity, payload: payload)
             case .next:
                 await photoReporter?.showNext()
@@ -319,7 +319,11 @@ public final class HAControlCoordinator {
         case .clock:
             payload = switchPayload(settings?.themeSettings.clockOn)
         case .clockCorner:
-            payload = settings?.themeSettings.clockCorner.rawValue ?? ""
+            payload = settings?.themeSettings.clockPlace.rawValue ?? ""
+        case .clockStyle:
+            payload = settings?.themeSettings.clockStyle.rawValue ?? ""
+        case .clockSize:
+            payload = settings?.themeSettings.clockSize.rawValue ?? ""
         case .clockDate:
             payload = switchPayload(settings?.themeSettings.clockDate)
         case .phase:
@@ -376,7 +380,7 @@ public final class HAControlCoordinator {
 
     private func isSettingsEntity(_ entity: HAEntity) -> Bool {
         switch entity {
-        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockDate:
+        case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate:
             true
         case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
             false
@@ -400,7 +404,11 @@ public final class HAControlCoordinator {
         case .clock:
             snapshot.clockOn ? "ON" : "OFF"
         case .clockCorner:
-            snapshot.clockCorner.rawValue
+            snapshot.clockPlace.rawValue
+        case .clockStyle:
+            snapshot.clockStyle.rawValue
+        case .clockSize:
+            snapshot.clockSize.rawValue
         case .clockDate:
             snapshot.clockDate ? "ON" : "OFF"
         case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
@@ -437,8 +445,15 @@ public final class HAControlCoordinator {
             guard let value = switchBool(payload) else { return }
             snapshot.clockOn = value
         case .clockCorner:
+            // Unknown option (e.g. a retained rollback value) is ignored gracefully.
             guard let value = ClockCornerSetting(rawValue: payload) else { return }
-            snapshot.clockCorner = value
+            snapshot.clockPlace = value
+        case .clockStyle:
+            guard let value = ClockStyleSetting(rawValue: payload) else { return }
+            snapshot.clockStyle = value
+        case .clockSize:
+            guard let value = ClockSizeSetting(rawValue: payload) else { return }
+            snapshot.clockSize = value
         case .clockDate:
             guard let value = switchBool(payload) else { return }
             snapshot.clockDate = value

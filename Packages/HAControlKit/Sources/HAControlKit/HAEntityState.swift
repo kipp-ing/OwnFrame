@@ -12,6 +12,8 @@ public enum HAEntity: String, CaseIterable, Sendable {
     case quality
     case clock
     case clockCorner = "clock_corner"
+    case clockStyle = "clock_style"
+    case clockSize = "clock_size"
     case clockDate = "clock_date"
     case next
     case previous

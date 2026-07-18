@@ -28,7 +28,9 @@ public struct ThemeSettingsSnapshot: Sendable, Equatable {
     public var fit: FitSetting
     public var quality: QualitySetting
     public var clockOn: Bool
-    public var clockCorner: ClockCornerSetting
+    public var clockPlace: ClockCornerSetting
+    public var clockStyle: ClockStyleSetting
+    public var clockSize: ClockSizeSetting
     public var clockDate: Bool
 
     public init(
@@ -39,7 +41,9 @@ public struct ThemeSettingsSnapshot: Sendable, Equatable {
         fit: FitSetting,
         quality: QualitySetting,
         clockOn: Bool,
-        clockCorner: ClockCornerSetting,
+        clockPlace: ClockCornerSetting,
+        clockStyle: ClockStyleSetting,
+        clockSize: ClockSizeSetting,
         clockDate: Bool
     ) {
         self.order = order
@@ -49,7 +53,9 @@ public struct ThemeSettingsSnapshot: Sendable, Equatable {
         self.fit = fit
         self.quality = quality
         self.clockOn = clockOn
-        self.clockCorner = clockCorner
+        self.clockPlace = clockPlace
+        self.clockStyle = clockStyle
+        self.clockSize = clockSize
         self.clockDate = clockDate
     }
 }
@@ -77,8 +83,24 @@ public enum QualitySetting: String, Sendable, Equatable, CaseIterable {
 }
 
 public enum ClockCornerSetting: String, Sendable, Equatable, CaseIterable {
+    // Raw values of the four original corners stay identical (stored values + HA
+    // retained states decode unchanged, FR-510-05); two centers and Random are added.
     case topLeading
+    case topCenter
     case topTrailing
     case bottomLeading
+    case bottomCenter
     case bottomTrailing
+    case random
+}
+
+public enum ClockStyleSetting: String, Sendable, Equatable, CaseIterable {
+    case digits
+    case pill
+    case analog
+}
+
+public enum ClockSizeSetting: String, Sendable, Equatable, CaseIterable {
+    case room
+    case cozy
 }
