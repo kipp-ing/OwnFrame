@@ -16,7 +16,9 @@ FR-500-19 (sizes/readability), FR-500-03 (defaults), FR-500-13 (live settings ro
 SC-500-07/08** — and in [710-ha-full-control](../710-ha-full-control/spec.md) FR-710-01/02
 (clock entities). This sub-spec adds only the renderer-specific requirements needed to
 implement that contract in the slideshow view. Interactive design record:
-Quiet Glass artifact (2026-07-18), clock round.
+Quiet Glass artifact (2026-07-18), clock round —
+recovered and committed 2026-07-19 at
+[`docs/design/quiet-glass-2026-07-18.html`](../../docs/design/quiet-glass-2026-07-18.html).
 
 ## Session scoping
 
