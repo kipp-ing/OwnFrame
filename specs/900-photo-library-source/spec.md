@@ -10,7 +10,10 @@ the iOS 27 shared-album rebuild as a first-class risk, change-observation latenc
 the iCloud Shared Photo Library free-ride. iOS 17 floor re-confirmed safe (every required API
 is iOS 15 or older).
 
-**Status**: Deferred — planned for v1.x, after release and after `800-app-intents`. Specced now
+**Status**: Implemented + merged to main (2026-07-18) — tasks T001–T036 complete, host + sim
+suites green. Remaining: the real-device / iOS 27-beta gates (SC-900-01/02/04/07), scheduled on
+the shared device day in `docs/manual-verification.md`. *(Was "Deferred — planned for v1.x";
+status corrected 2026-07-19 during a docs reconciliation.)* Originally specced ahead of build
 because it drives the source-abstraction decision and the app's identity ("Photo Frame for
 Immich & iCloud").
 

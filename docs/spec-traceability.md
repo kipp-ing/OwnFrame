@@ -15,8 +15,14 @@ Generated for the active topic specs on 2026-06-23. This maps functional require
 > - **Deferred to Roadmap** (not built; now recorded in each spec's `Roadmap / Deferred`):
 >   FR-300-08 disk cache + Clear, FR-300-11 auto-retry backoff, FR-300-12 periodic refresh,
 >   FR-300-29 clock renderer, and the Settings shared-link placeholder part of FR-200-25.
+>   **All five have since shipped** (320, 310, 310, 510, and 120/210/220 respectively) — the rows
+>   below still read `missing` because this table was not revisited; do not read them as gaps.
 >
 > The live source of truth is each `specs/Nxx-*/spec.md`; this file is a point-in-time aid.
+>
+> **Known coverage holes in this file** (reconciliation pass, 2026-07-19): there are no sections
+> for `110`, `120`, `210`, `710`, or `1000`, all of which are shipped. Adding the `1000` section is
+> task 1000/T025; the other four have no owning task yet.
 
 Status values: `covered` means existing tests exercise the requirement directly enough for the current scope, `partial` means tests cover only part of the requirement or the code path is split across app UI and package logic, and `missing` means no existing test was found or the behavior is not implemented.
 
@@ -395,7 +401,7 @@ in `Packages/HAControlKit`, renderer in `Immich Slideshow/Slideshow/ClockOverlay
 
 ## Drift
 
-- FR-200-25 (200 spec FR text): superseded by 120 — the inert shared-link *placeholder* was replaced by a real add-source step (album or shared link) in onboarding and the Settings Sources manager. Spec 200 FR text still to be reconciled Roadmap→Active under task 120/T030.
+- ~~FR-200-25 (200 spec FR text): superseded by 120 — the inert shared-link *placeholder* was replaced by a real add-source step (album or shared link) in onboarding and the Settings Sources manager. Spec 200 FR text still to be reconciled Roadmap→Active under task 120/T030.~~ **CLOSED 2026-07-19** — `specs/200-connection-onboarding/spec.md`'s Roadmap item now records the placeholders as superseded by 110/120/210/220 (task 120/T030 ticked).
 - FR-300-08 / FR-300-27: the spec requires a disk image cache with size limit and Clear cache action surfaced in Settings. Current `ImageCache` is memory-only, and Settings does not expose disk-cache size or clear controls.
 - FR-300-11 / FR-300-12: the spec requires auto-retry with backoff and periodic source refresh. `SlideshowViewModel` exposes manual `retry()` and `start()`, but no backoff loop or periodic refresh path was found.
 - FR-300-29 / FR-500-12: **resolved** — the optional clock overlay is implemented in `510-clock-overlay` (`ClockOverlayView` + live settings rows + HA `clock_style`/`clock_size`/`clock_corner` entities), iOS/iPadOS.

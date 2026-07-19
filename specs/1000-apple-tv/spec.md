@@ -4,9 +4,15 @@
 
 **Created**: 2026-07-16
 
-**Status**: Deferred — roadmap alongside `900-photo-library-source` (post-release, after
-`800-app-intents`). Specced now because the platform constraints (storage, credentials,
-input) shape decisions the iPad app should make early — most of all the config-sync channel.
+**Status**: Implemented + merged to main (2026-07-18) — all four user stories (T001–T022) done
+and verified on the Apple TV 4K simulator; Ken Burns scoped-animation redesign landed on the
+same branch. Remaining: T023–T025 (footprint audit, verification gate, docs/traceability), the
+tvOS clock overlay + FR-1000-10 pixel-shift (not started), a tvOS UI-test harness (no FR yet),
+and the real-hardware gates (SC-1000-02/05/06/08 + 24 h soak) — all blocked on iCloud
+entitlements + tvOS device signing. *(Was "Deferred — roadmap alongside 900"; status corrected
+2026-07-19 during a docs reconciliation.)* Specced ahead of build because the platform
+constraints (storage, credentials, input) shape decisions the iPad app should make early —
+most of all the config-sync channel.
 
 **Input**: New platform target (new hundreds-block). The photo frame comes to the living-room
 TV: a tvOS app in the same app record (universal purchase, same bundle ID) that reuses every

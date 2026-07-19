@@ -22,11 +22,22 @@ app-target / entry-point / cross-cutting work is not delegated).
 
 ## Format: `[ID] [P?] [Story] Description`
 
+## Status (checkboxes reconciled 2026-07-19)
+
+T001–T020 complete — spec.md Status is `Implemented on branch (2026-07-17)`, the FR-220/SC-220
+rows are recorded in `docs/spec-traceability.md` (T018), the `220` row is in
+`docs/spec-overview.md` (T019), and the suite ran green (154 host + 94/0 XCUITest, T020). The
+boxes were simply never ticked as the work landed; this note records the reconciliation rather
+than any new work.
+
+**Open: T021 only** — the real-hardware checklist (SC-220-01/02/04/05 + the camera-usage copy),
+riding the same device day as the 900 quickstart and the 800 gates.
+
 ---
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on branch `220-onboarding-welcome` (based on the
+- [X] T001 Confirm the baseline on branch `220-onboarding-welcome` (based on the
       `900-photo-library-source` tip): `swift test` green in `Packages/OnboardingKit`,
       XcodeBuildMCP `build_sim` green, and the reused 900 surfaces present
       (`Immich Slideshow/Onboarding/PhotoAlbumPickerView.swift`,
@@ -45,7 +56,7 @@ the exhaustive step switches; the package is made green here, and the app target
 
 **Delegable** as one slice (package-only, host-tested — Opus/Sonnet subagent).
 
-- [ ] T002 [P] Red tests:
+- [X] T002 [P] Red tests:
       `Packages/OnboardingKit/Tests/OnboardingKitTests/OnboardingWelcomePathTests.swift` —
       `choosePath(.photoLibrary)` sets `step == .photoLibrarySetup` and clears
       `errorMessage`; `.sharedLink`/`.server` routing unchanged; `canGoBack == true`
@@ -53,32 +64,32 @@ the exhaustive step switches; the package is made green here, and the app target
       `.photoLibrary` active source sets `.done` and writes NO album config (the
       `if case .album` guard is skipped — data-model.md). Expected red: won't compile
       until `OnboardingPathChoice`/`OnboardingStep` gain their cases (T004)
-- [ ] T003 [P] Red tests:
+- [X] T003 [P] Red tests:
       `Packages/OnboardingKit/Tests/OnboardingKitTests/ScannedShareLinkTests.swift` —
       a valid Immich share string → `.success((baseURL, slug))` byte-identical to
       `SharedLinkURL.parse`; a non-URL → `.notAURL`; an `http://` URL → `.notHTTPS`; a
       URL with no `/s/` share shape → `.notAShareLink`; every failure records NO
       persistence and makes NO network call (pure). Expected red: won't compile until
       `ScannedShareLink` exists (T005)
-- [ ] T004 Implement the enum + routing in
+- [X] T004 Implement the enum + routing in
       `Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift` and
       `Packages/OnboardingKit/Sources/OnboardingKit/OnboardingStep.swift`:
       `OnboardingPathChoice` gains `.photoLibrary`; `OnboardingStep` gains
       `.photoLibrarySetup`; `choosePath`, `canGoBack`, and `back()` handle the new
       case (contracts § OnboardingKit) — green T002. NOTE: this breaks the app target's
       `OnboardingFlowView` switch until T009 (expected compile-red — the US1 entry)
-- [ ] T005 [P] Implement
+- [X] T005 [P] Implement
       `Packages/OnboardingKit/Sources/OnboardingKit/ScannedShareLink.swift`
       (`validate(_:) -> Result<ParsedSharedLink, InvalidCodeReason>` wrapping
       `SharedLinkURL.parse`) and
       `Packages/OnboardingKit/Sources/OnboardingKit/CodeScanning.swift` (the seam
       protocol — Foundation only, NO `AVFoundation`) per data-model.md — green T003
-- [ ] T006 [P] Red-then-green pin:
+- [X] T006 [P] Red-then-green pin:
       `Packages/OnboardingKit/Tests/OnboardingKitTests/StartupGatePhotoLibraryTests.swift` —
       a `.photoLibrary`-only active source with no connection → `StartupGate.initialStep()`
       returns `.done` (US1-5 relaunch parity). Green on write — 900 already routes this
       (`StartupGate.swift`); the test pins it against regression
-- [ ] T007 **Checkpoint (Foundational)**: `swift test` green in `Packages/OnboardingKit`
+- [X] T007 **Checkpoint (Foundational)**: `swift test` green in `Packages/OnboardingKit`
       (all deltas). `build_sim` is expected RED here — the app's `OnboardingFlowView`
       does not yet handle `.photoLibrarySetup`; T009 restores it. Zero behaviour change
       to existing onboarding logic (existing OnboardingKit suites stay green)
@@ -95,19 +106,19 @@ API key (FR-220-01/02/03).
 access seeded via `simctl privacy`, tap the iCloud option on the welcome screen, pick
 an album, reach the running slideshow; relaunch routes straight to the slideshow.
 
-- [ ] T008 [US1] Red tests (app-hosted UITest):
+- [X] T008 [US1] Red tests (app-hosted UITest):
       `Immich SlideshowUITests/WelcomeICloudUITests.swift` — from the welcome screen the
       top option is "Use an iCloud album"; tapping it reaches `PhotoAlbumPickerView`
       (Photos access seeded via `simctl privacy`, the 900 `PhotoAlbumPickerUITests`
       pattern); selecting an album reaches the slideshow with no connection/API key.
       Expected red = the app target doesn't compile until T009
-- [ ] T009 [US1] Implement (Fable-inline) the iCloud path in the app target:
+- [X] T009 [US1] Implement (Fable-inline) the iCloud path in the app target:
       `Immich Slideshow/Onboarding/OnboardingFlowView.swift` handles `.photoLibrarySetup`
       → renders the reused `PhotoAlbumPickerView` with a completion that calls
       `onboarding.finish()` (→ `.done`); `Immich Slideshow/Onboarding/OnboardingChoiceView.swift`
       gains the iCloud option as the FIRST row → `choosePath(.photoLibrary)`. This
       restores `build_sim` — green T008 (contracts § iCloud step)
-- [ ] T010 [US1] **Checkpoint (MVP)**: `swift test` green; `build_sim` green;
+- [X] T010 [US1] **Checkpoint (MVP)**: `swift test` green; `build_sim` green;
       `WelcomeICloudUITests` green via `test_sim`; simulator spot-check — the welcome
       screen shows the iCloud option at top and picking an album plays the slideshow
 
@@ -124,26 +135,26 @@ typed link, an invalid code is rejected with nothing persisted; simulator — th
 affordance is present and manual entry still reaches the slideshow. Camera scan itself =
 SC-220-07 manual device gate.
 
-- [ ] T011 [US2] Red tests:
+- [X] T011 [US2] Red tests:
       `Packages/OnboardingKit/Tests/OnboardingKitTests/ScannedLinkRoutingTests.swift` —
       driving the shared-link add flow through a fake `CodeScanning`: a scanned VALID
       link triggers the exact same `SourceLibraryViewModel.resolveSharedLink` call a
       typed link makes (parity); a scanned INVALID code surfaces the calm rejection,
       makes NO resolve/network call, and persists nothing (FR-220-04/06). Delegable
       (package host test)
-- [ ] T012 [US2] Implement (Fable-inline — camera + simulator) the scan UI:
+- [X] T012 [US2] Implement (Fable-inline — camera + simulator) the scan UI:
       `Immich Slideshow/Onboarding/QRScannerView.swift` (the ONLY `AVFoundation` file —
       `AVCaptureMetadataOutput` `.qr`, one-shot, conforms `CodeScanning`; camera-auth
       denied/restricted and no-camera → calm one-liner keeping manual entry), and a
       "Scan QR" affordance in `Immich Slideshow/Onboarding/SharedLinkSetupView.swift`
       wiring the decoded string → `ScannedShareLink.validate` → the existing resolve
       path — green T011 (research R1/R2/R8, contracts § Scan QR)
-- [ ] T013 [US2] Add `INFOPLIST_KEY_NSCameraUsageDescription` (English: the camera is
+- [X] T013 [US2] Add `INFOPLIST_KEY_NSCameraUsageDescription` (English: the camera is
       used only to read a shared-album QR code; no photo is captured or stored) to
       `Immich Slideshow.xcodeproj/project.pbxproj`, beside the existing
       `NSPhotoLibraryUsageDescription` (Fable-inline; pbxproj explicitly IN SCOPE for
       this task only)
-- [ ] T014 [US2] **Checkpoint**: `swift test` green; `build_sim` green; `test_sim`
+- [X] T014 [US2] **Checkpoint**: `swift test` green; `build_sim` green; `test_sim`
       shows the Scan-QR affordance present and manual link entry still reaching the
       slideshow with no API key; new intent/UI strings staged from
       `Immich Slideshow/Localizable.xcstrings` (Xcode auto-extraction) with the commit;
@@ -160,16 +171,16 @@ plain-language helper text and light decoration (FR-220-01/08).
 shared link, server + key), each with concise helper text, no Back; existing onboarding
 UITests stay green.
 
-- [ ] T015 [US3] Red tests (app-hosted UITest): extend
+- [X] T015 [US3] Red tests (app-hosted UITest): extend
       `Immich SlideshowUITests/OnboardingDescriptionsUITests.swift` (and
       `OnboardingBackUITests.swift`) — the welcome screen shows EXACTLY three options in
       friction order (iCloud, shared link, server + key), each exposing concise helper
       text, and has no Back affordance. Expected red until the copy/order land (T016)
-- [ ] T016 [US3] Implement (Fable-inline) the welcoming presentation in
+- [X] T016 [US3] Implement (Fable-inline) the welcoming presentation in
       `Immich Slideshow/Onboarding/OnboardingChoiceView.swift` — friction-ordered rows,
       concise non-technical helper text per option, and light decoration (calm/light,
       constitution VII) — green T015. English-only strings
-- [ ] T017 [US3] **Checkpoint**: `test_sim` green (the extended onboarding UITests plus
+- [X] T017 [US3] **Checkpoint**: `test_sim` green (the extended onboarding UITests plus
       `SharedLinkOnboardingUITests` / `SourceOnboardingUITests` / `ShareSheetIncomingUITests`
       staying green — FR-220-07/09, SC-220-06); simulator spot-check — the screen reads
       welcomingly to a first-time user
@@ -178,12 +189,12 @@ UITests stay green.
 
 ## Phase 6: Polish & Ship Gates
 
-- [ ] T018 [P] Record the FR-220-xx / SC-220-xx traceability rows in
+- [X] T018 [P] Record the FR-220-xx / SC-220-xx traceability rows in
       `docs/spec-traceability.md` (test names per requirement, manual gates marked)
-- [ ] T019 Flip `specs/220-onboarding-welcome/spec.md` Status to implemented-on-branch
+- [X] T019 Flip `specs/220-onboarding-welcome/spec.md` Status to implemented-on-branch
       and ADD the `220` row to `docs/spec-overview.md` (sub-spec of 200; note the 900
       dependency) — 220 is not yet in the overview table
-- [ ] T020 Full XCUITest suite via XcodeBuildMCP `test_sim` before merge (standing rule
+- [X] T020 Full XCUITest suite via XcodeBuildMCP `test_sim` before merge (standing rule
       — SwiftUI/app-target changes shipped; skip the untracked `Noob*` throwaway classes;
       broker-toggle flake: rerun `BrokerSetupUITests` isolated before suspecting the diff)
       + the complete quickstart Phase-2 gate
