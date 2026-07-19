@@ -16,6 +16,7 @@ import Testing
 import AppIntentsKit
 import AppIntentsTestSupport
 import HAControlKit
+import PurchaseKit
 @testable import Immich_Slideshow
 
 @MainActor
@@ -196,11 +197,18 @@ struct FrameIntentGlueTests {
         let surface: RecordingControlSurface
         private let previousConfigured: Bool
         private let previousSourceOptions: @MainActor () -> [SourceOption]
+        private let previousEntitlements: @MainActor () -> EntitlementSet
 
         init(configured: Bool = true, sources: [SourceOption]? = nil) throws {
             registry = try #require(FrameIntentContext.registry)
             previousConfigured = registry.isConfigured
             previousSourceOptions = registry.sourceOptions
+            // 1100: App Intents are the Automation tier, so every `perform()` now guards on
+            // `.automation`. These tests are about intent *glue*, not the gate, so seed the
+            // entitlement and let PurchaseGateIntentTests own the locked behaviour. Without
+            // this the suite would run against the ambient app value and fail as locked.
+            previousEntitlements = FrameIntentContext.entitlements
+            FrameIntentContext.entitlements = { [.automation] }
             surface = RecordingControlSurface()
             registry.isConfigured = configured
             if let sources {
@@ -217,6 +225,7 @@ struct FrameIntentGlueTests {
             registry.unregister()
             registry.isConfigured = previousConfigured
             registry.sourceOptions = previousSourceOptions
+            FrameIntentContext.entitlements = previousEntitlements
         }
     }
 }

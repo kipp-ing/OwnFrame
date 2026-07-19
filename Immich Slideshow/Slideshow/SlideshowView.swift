@@ -14,6 +14,7 @@ import ImmichClient
 import OnboardingKit
 import PhotoLibraryKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -51,6 +52,14 @@ struct SlideshowView: View {
     var budgetStore: (any CacheBudgetStore)?
 
     @Environment(\.scenePhase) private var scenePhase
+    // 1100: what the frame owns. Optional because SwiftUI previews and unit hosts render this
+    // view without the app's environment; absent resolves to unentitled, so the gate fails
+    // CLOSED — a wiring mistake can never hand out a paid feature. The `--uitest-entitlements`
+    // XCUITests are what protect the opposite direction (a paying frame losing its features).
+    @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
+    // The per-photo Pro latch (FR-1100-12). nil until the first boundary, so the very first
+    // render still reflects the live entitlement instead of flashing an ungated frame.
+    @State private var latchedAmbience: AmbienceGate?
     @State private var coordinator: HAControlCoordinator?
     @State private var isStartingCoordinator = false
 
@@ -107,7 +116,7 @@ struct SlideshowView: View {
             // Ambient clock layer (510): a sibling of the chrome branch, above the photo
             // background. Present while the clock is on and a photo is showing; it fades
             // out on its own whenever the chrome is up (FR-510-02).
-            if themeStore.settings.clock.isOn, viewModel.phase == .playing {
+            if effectiveClock, viewModel.phase == .playing {
                 ClockOverlayView(
                     settings: themeStore.settings.clock,
                     place: clockRenderPlace,
@@ -179,6 +188,10 @@ struct SlideshowView: View {
         .onChange(of: viewModel.currentAssetID) { _, _ in
             // Photo-advance boundary: the only moment a Random clock may relocate.
             relocateRandomClockIfNeeded()
+            // …and the only moment the Pro gate may change what renders. Doing it here
+            // rather than reactively is what keeps a revocation from freezing a pan
+            // mid-photo (FR-1100-12).
+            relatchAmbience()
         }
         .onChange(of: scenePhase) { _, newPhase in
             // Foreground-only effects (Konstitution V, FR-003/FR-004/FR-012): iOS hands
@@ -188,6 +201,9 @@ struct SlideshowView: View {
             case .active:
                 viewModel.resume()
                 powerManager.willEnterForeground()
+                // The second latch boundary (FR-1100-12): a purchase or refund that landed
+                // while backgrounded takes effect now, not mid-photo.
+                relatchAmbience()
                 // FR-900-09 (T025): shared-album remote posts carry no notification
                 // guarantee, so a Photos source refetches immediately on foreground —
                 // the periodic refresh stays the upper bound.
@@ -433,14 +449,53 @@ struct SlideshowView: View {
 
     // MARK: - Render-time settings (008)
 
+    // MARK: - The Pro ambience gate (1100)
+
+    /// Whether the frame currently owns `.pro`, read live.
+    private var isProEntitled: Bool {
+        entitlements?.current.contains(.pro) ?? false
+    }
+
+    /// The latch in force right now. Before the first boundary it mirrors the live
+    /// entitlement, so a launch is never a frame behind.
+    private var ambience: AmbienceGate {
+        latchedAmbience ?? AmbienceGate(entitled: isProEntitled)
+    }
+
+    /// Ken Burns as it should actually render: the user's stored setting, minus the gate.
+    ///
+    /// Every Ken Burns decision in this view goes through here rather than reading
+    /// `themeStore.settings.kenBurns` directly. Gating only the motion would leave an
+    /// unentitled frame with Ken Burns' *framing* (fill) and its transition degradation but
+    /// no movement — a visibly broken state rather than a clean free tier.
+    private var effectiveKenBurns: Bool {
+        ambience.effectiveKenBurns(setting: themeStore.settings.kenBurns)
+    }
+
+    /// The clock's participation, gated the same way. The stored setting is untouched, so the
+    /// settings row and the HA state topic keep reporting what the user chose (FR-1100-14).
+    private var effectiveClock: Bool {
+        ambience.effectiveClock(setting: themeStore.settings.clock.isOn)
+    }
+
+    /// Adopts the live entitlement at a boundary — a photo advance or a return to the
+    /// foreground. Never called mid-photo: that is the whole point of the latch.
+    private func relatchAmbience() {
+        var gate = ambience
+        gate.relatch(entitled: isProEntitled)
+        latchedAmbience = gate
+    }
+
+    // MARK: - Render-time settings (008)
+
     /// Fill framing when the user chose Fill, or while Ken Burns is on (so the pan/zoom
     /// never reveals a letterbox gap).
     private var fillsScreen: Bool {
-        themeStore.settings.fit == .fill || themeStore.settings.kenBurns
+        themeStore.settings.fit == .fill || effectiveKenBurns
     }
 
     private var kenBurnsActive: Bool {
-        themeStore.settings.kenBurns && viewModel.phase == .playing && !viewModel.isPaused
+        effectiveKenBurns && viewModel.phase == .playing && !viewModel.isPaused
     }
 
     private var photoDurationSeconds: Double {
@@ -479,7 +534,7 @@ struct SlideshowView: View {
         // While Ken Burns is on, dissolve degrades to the opacity-only crossfade
         // (effectiveStyle): its built-in scale would stack a second, eased zoom on the
         // drift — a fast "catch-up" that breaks the continuous motion.
-        switch themeStore.settings.transition.descriptor.effectiveStyle(kenBurns: themeStore.settings.kenBurns) {
+        switch themeStore.settings.transition.descriptor.effectiveStyle(kenBurns: effectiveKenBurns) {
         case .crossfade:
             return .asymmetric(
                 insertion: .opacity.animation(.easeInOut(duration: 0.35)),

@@ -20,6 +20,7 @@
 //
 
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -44,6 +45,11 @@ struct TVSlideshowView: View {
     var onSettings: () -> Void = {}
 
     @Environment(\.scenePhase) private var scenePhase
+    // 1100: optional so previews/hosts without the app environment still render; absent means
+    // unentitled, so the gate fails closed. Mirrors the iOS renderer.
+    @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
+    // The per-photo Pro latch (FR-1100-12); nil until the first boundary.
+    @State private var latchedAmbience: AmbienceGate?
     /// `.task` re-fires when the settings `fullScreenCover` is dismissed (the covered view
     /// re-appears); the engine must start once per generation or every settings round-trip
     /// would reset pause/order/photo.
@@ -150,6 +156,11 @@ struct TVSlideshowView: View {
             powerManager.deactivate()
             Task { await stopHA() }
         }
+        .onChange(of: viewModel.currentAssetID) { _, _ in
+            // Photo-advance boundary — the only moment the Pro gate may change what
+            // renders, so a revocation never freezes a pan mid-photo (FR-1100-12).
+            relatchAmbience()
+        }
         .onChange(of: scenePhase) { _, newPhase in
             // Foreground-only effects (constitution V): tvOS reclaims control in the
             // background, so pause the auto-advance and release keep-awake, then resume and
@@ -160,6 +171,9 @@ struct TVSlideshowView: View {
             case .active:
                 powerManager.willEnterForeground()
                 viewModel.resume()
+                // Latch boundary (FR-1100-12): adopt any entitlement change that landed
+                // while backgrounded, rather than mid-photo.
+                relatchAmbience()
                 Task { await startHA() }
             default:
                 viewModel.pause()
@@ -179,15 +193,42 @@ struct TVSlideshowView: View {
         return (viewModel.preparer as? DecodedImageStore<UIImage>)?.image(for: id)
     }
 
+    // MARK: - The Pro ambience gate (1100)
+
+    /// Whether the frame owns `.pro`, read live. Universal purchase means this is normally
+    /// the same answer the iPad gives.
+    private var isProEntitled: Bool {
+        entitlements?.current.contains(.pro) ?? false
+    }
+
+    /// The latch in force right now; mirrors the live entitlement until the first boundary.
+    private var ambience: AmbienceGate {
+        latchedAmbience ?? AmbienceGate(entitled: isProEntitled)
+    }
+
+    /// Ken Burns as it should actually render. Both call sites below go through this, so an
+    /// unentitled frame never gets Ken Burns' fill framing without its motion.
+    private var effectiveKenBurns: Bool {
+        ambience.effectiveKenBurns(setting: themeStore.settings.kenBurns)
+    }
+
+    /// Adopts the live entitlement at a photo advance or a return to the foreground.
+    /// (There is no clock to gate on tvOS yet — that is a known 1000 leftover.)
+    private func relatchAmbience() {
+        var gate = ambience
+        gate.relatch(entitled: isProEntitled)
+        latchedAmbience = gate
+    }
+
     /// Fill framing when the user chose Fill, or while Ken Burns is on (so the pan/zoom
     /// never reveals a letterbox gap). Mirrors the iOS renderer.
     private var fillsScreen: Bool {
-        themeStore.settings.fit == .fill || themeStore.settings.kenBurns
+        themeStore.settings.fit == .fill || effectiveKenBurns
     }
 
     /// Ken Burns runs only when enabled AND the show is actively playing and not paused.
     private var kenBurnsActive: Bool {
-        themeStore.settings.kenBurns && viewModel.phase == .playing && !viewModel.isPaused
+        effectiveKenBurns && viewModel.phase == .playing && !viewModel.isPaused
     }
 
     /// Live per-photo duration (seconds) from the theme store — drives the Ken Burns rate.

@@ -175,7 +175,9 @@ struct Immich_SlideshowApp: App {
             _viewModel = State(initialValue: uitestViewModel)
             // 1100: entitlements come from `--uitest-entitlements=`, the store client from
             // `--uitest-store=`. StoreKit is never reached under `--uitest`.
-            _entitlements = State(initialValue: PurchaseUITestSeams.makeStore())
+            let entitlementStore = PurchaseUITestSeams.makeStore()
+            _entitlements = State(initialValue: entitlementStore)
+            FrameIntentContext.entitlements = { entitlementStore.current }
             let switchActiveSource: @MainActor @Sendable (String) -> SourceRestartStrategy? = { id in
                 var library = sourceStore.load()
                 let previous = library.active
@@ -299,10 +301,14 @@ struct Immich_SlideshowApp: App {
         // resolves nothing today and `current` stays at whatever the cache holds. That is
         // intentional and safe while the gate is unreleased; the launch refresh and
         // `listenForUpdates()` get wired once T029/T030 give them real behaviour.
-        _entitlements = State(initialValue: EntitlementStore(
+        let entitlementStore = EntitlementStore(
             client: StoreKitClient(),
             cache: EntitlementSnapshotCache(defaults: .standard)
-        ))
+        )
+        _entitlements = State(initialValue: entitlementStore)
+        // The App Intent shells resolve entitlements through the same composition seam they
+        // already use for the registry (see FrameIntentContext for why not AppDependencyManager).
+        FrameIntentContext.entitlements = { entitlementStore.current }
 
         // Resolve the active source into a ServerConfig (auth) + album. The API key and
         // any shared-link password stay in the Keychain and are only handed to the
@@ -468,6 +474,16 @@ struct Immich_SlideshowApp: App {
             )
         }
 
+        // 1100: the `.automation` gate wraps the factory above rather than living inside it.
+        // Short-circuiting BEFORE the closure runs is the point — the closure's first act is
+        // `brokerProvider.load()`, the app's only hop from here into the Keychain item holding
+        // the MQTT password, so an unentitled frame never reaches it (FR-1100-14). Nothing is
+        // cleared or masked either: buying Automation later restores HA with zero re-entry.
+        let gatedMakeCoordinator = AutomationCoordinatorGate(
+            entitlements: { entitlementStore.current },
+            makeCoordinator: makeCoordinator
+        )
+
         // The connection editor reuses the same config + Keychain stores and builds a
         // standard, TLS-validated ImmichClient for its validation call (009).
         let makeConnectionSettingsViewModel: @MainActor @Sendable () -> ConnectionSettingsViewModel? = {
@@ -501,7 +517,7 @@ struct Immich_SlideshowApp: App {
             makePhotoLibraryGateway: { @MainActor @Sendable in PHKitGateway() },
             makePowerManager: makePowerManager,
             makeAdapter: makeAdapter,
-            makeCoordinator: makeCoordinator,
+            makeCoordinator: { @MainActor @Sendable adapter in await gatedMakeCoordinator(adapter) },
             controlRegistry: controlRegistry,
             makeConnectionSettingsViewModel: makeConnectionSettingsViewModel,
             saveSelectedAlbum: saveSelectedAlbum,
