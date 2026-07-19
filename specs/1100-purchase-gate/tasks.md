@@ -305,3 +305,21 @@ release-blocking property of FR-1100-17 in spirit: nothing ungated can ship by a
 US1 is merged. Then US2+US3 complete the P1 set (sellable + unattended-safe) — that trio is
 the minimum for the 1.1 submission. US4–US6 and polish follow before the release build; T042
 and the quickstart §5 checklist gate the actual App Store release, not the merge.
+
+## Status (updated 2026-07-19)
+
+Implementation in progress on branch `1100-purchase-gate`. Done and committed:
+T001–T029, T031, T034, T036, T039. PurchaseKit host suite 100/100; full iOS XCUITest 146/0/2
+after Phase 3; iOS + tvOS both build.
+
+- **T039 copy audit — PASS.** `grep -rin "lifetime"` over PurchaseKit UI, Localizable.xcstrings,
+  app-store-listing.md, README.md, and docs/: zero user-facing hits (only the doc-comment stating
+  the ban and the device-day item enforcing it). Subscription/recurring language: none beyond the
+  sanctioned "No subscription, no recurring charge." No price points in the repo (StubStoreClient's
+  `$1.00` is a labelled DEBUG fixture). License already FSL-1.1-MIT in README + listing.
+
+Remaining: T030 (StoreKit adapter + SKTestSession — inline, simulator-gated), T032 (Restore in
+settings), T033 (tvOS unlock surface), T035/T037 (US5 broker locked banner + purchase-resumes),
+T038 (tip jar), T040 (final gate), T041 (docs sync), T042 (ASC/device day). listenForUpdates and
+a launch refresh are implemented but not yet wired at app start — that rides with T030's real
+adapter.
