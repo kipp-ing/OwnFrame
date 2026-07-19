@@ -123,6 +123,73 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.configStore.clearCalls == 0)
     }
 
+    // MARK: - FR-1100-14 / US5 scenario 3: purchasing Automation re-enables HA
+    // with the previously stored config and zero re-entry.
+
+    /// The whole point of "the gate never clears or migrates anything" (FR-1100-14): a frame that
+    /// stored a broker config while unentitled, then buys Automation, starts its coordinator
+    /// against the *same* stored config with no re-entry. One config store, one gate; only the
+    /// entitlement set flips between the two calls — exactly as a live purchase would flip it,
+    /// since the gate reads entitlements at call time, never at construction.
+    @Test func purchasingAutomationStartsTheCoordinatorWithTheStoredConfigAndNoReentry() async throws {
+        // Reuse the fixture purely as a factory for a real adapter and a broker store seeded with
+        // `GateFixture.brokerConfig`; the fixture's own baked gate is never called here.
+        let fixture = try GateFixture(entitlements: EntitlementSet.none, suite: "gate.purchase-flip")
+        defer { fixture.cleanUp() }
+
+        let configStore = fixture.configStore
+        let adapter = fixture.adapter
+        let seeded = try #require(configStore.stored)   // the config the frame stored while free
+
+        // A completed purchase flips this set; the gate re-reads it on the next build.
+        let owned = EntitlementBox(EntitlementSet.none)
+        // Records the exact config the coordinator factory read — closes the "what did
+        // makeCoordinator see" gap the recording store can't observe on its own.
+        let seen = ConfigProbe()
+        let transport = GateStubTransport()
+        let calls = CallCounter()
+
+        // Mirrors the production factory (and `GateFixture`'s): read the broker config once, bail
+        // without one, otherwise build a coordinator. The gate must short-circuit ahead of it.
+        let gate = AutomationCoordinatorGate(
+            entitlements: { owned.value },
+            makeCoordinator: { _ in
+                calls.increment()
+                guard let config = configStore.load() else { return nil }
+                seen.value = config
+                return HAControlCoordinator(
+                    transport: transport,
+                    control: adapter,
+                    settings: adapter,
+                    configStore: configStore,
+                    deviceName: "Photo Frame",
+                    enabledEntities: HAEntity.defaultEnabled
+                )
+            }
+        )
+
+        // --- Unentitled: the gate short-circuits ahead of the factory; the config is untouched.
+        let before = configStore.stored
+        let unentitled = await gate(adapter)
+        #expect(unentitled == nil)
+        #expect(calls.count == 0)
+        #expect(configStore.loadCalls == 0)
+        #expect(configStore.clearCalls == 0)
+        #expect(configStore.stored == before)          // nothing read, nothing mutated
+
+        // --- Purchase completes: the same set gains `.automation`; nothing else changes.
+        owned.value.insert(.automation)
+
+        // --- Entitled: the coordinator is now built, against exactly the seeded config.
+        let entitled = await gate(adapter)
+        #expect(entitled != nil)
+        #expect(calls.count == 1)
+        #expect(configStore.loadCalls == 1)            // one read: the coordinator's own guard
+        #expect(configStore.clearCalls == 0)           // never cleared across the whole sequence
+        #expect(seen.value == seeded)                  // built against the stored config — zero re-entry
+        #expect(configStore.stored == seeded)          // store still byte-identical to the seed
+    }
+
     // MARK: - R5: state topics report stored settings, not effective rendering
 
     /// An Automation-only owner reads the Ken Burns select over HA: the topic reports
@@ -294,6 +361,19 @@ private final class RecordingBrokerConfigStore: BrokerConfigStore, @unchecked Se
 private final class CallCounter: @unchecked Sendable {
     private(set) var count = 0
     func increment() { count += 1 }
+}
+
+/// A mutable entitlement source so one gate can be re-read across a simulated purchase. Same
+/// `@unchecked Sendable` shape as `CallCounter`: every access here happens on the main actor.
+private final class EntitlementBox: @unchecked Sendable {
+    var value: EntitlementSet
+    init(_ value: EntitlementSet) { self.value = value }
+}
+
+/// Captures the `BrokerConfig` the coordinator factory actually read, so a test can prove the
+/// entitled build ran against the previously stored config rather than a re-entered one.
+private final class ConfigProbe: @unchecked Sendable {
+    var value: BrokerConfig?
 }
 
 private final class GateStubTransport: MQTTTransport, @unchecked Sendable {
