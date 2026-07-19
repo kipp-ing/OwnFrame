@@ -54,6 +54,10 @@ struct SlideshowSettingsView: View {
     // The tier whose unlock screen is being presented, or nil. Only ever set by a user tap on
     // a locked row — nothing here may auto-present (FR-1100-09 / SC-1100-02).
     @State private var unlockTier: Entitlement?
+    // Tip jar sheet (US6). Settings-only, never solicited anywhere else.
+    @State private var showTipJar = false
+    // Non-nil while a Restore is in flight, so the row shows progress and can't be double-tapped.
+    @State private var isRestoring = false
     @State private var brightness: Double
     @State private var showResetDialog = false
     // Storage section state (320): live usage (refreshed on appear and after
@@ -306,6 +310,41 @@ struct SlideshowSettingsView: View {
                     Text("MQTT broker for remote control via Home Assistant.")
                 }
 
+                // Unlocks (1100): Restore is always here so a re-installed or second frame can
+                // recover its purchases without hunting; the tip jar lives here and ONLY here,
+                // never solicited from playback or onboarding (US6). Buying tiers happens on the
+                // locked rows above — this section is recovery + gratitude, not a storefront.
+                Section {
+                    Button {
+                        guard !isRestoring else { return }
+                        isRestoring = true
+                        Task {
+                            try? await entitlements?.restore()
+                            isRestoring = false
+                        }
+                    } label: {
+                        HStack {
+                            Label("Restore Purchases", systemImage: "arrow.clockwise")
+                            Spacer()
+                            if isRestoring { ProgressView() }
+                        }
+                    }
+                    .disabled(isRestoring)
+                    .accessibilityIdentifier("unlock.restore")
+
+                    Button {
+                        showTipJar = true
+                    } label: {
+                        Label("Leave a Tip", systemImage: "heart")
+                    }
+                    .accessibilityIdentifier("settings.tipjar")
+                } header: {
+                    Text("Unlocks")
+                        .accessibilityIdentifier("settings.section.unlocks")
+                } footer: {
+                    Text("Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks.")
+                }
+
                 if let diskCache {
                     Section {
                         HStack {
@@ -405,6 +444,9 @@ struct SlideshowSettingsView: View {
         // from playback (SC-1100-02).
         .sheet(item: $unlockTier) { tier in
             UnlockScreenView(tier: tier) { unlockTier = nil }
+        }
+        .sheet(isPresented: $showTipJar) {
+            TipJarView { showTipJar = false }
         }
     }
 
