@@ -15,6 +15,7 @@ import ImmichClient
 import OnboardingKit
 import PhotoLibraryKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -47,6 +48,12 @@ struct SlideshowSettingsView: View {
     var budgetStore: (any CacheBudgetStore)?
 
     @Environment(\.dismiss) private var dismiss
+    // 1100: what the frame owns. Optional so previews render without the app environment;
+    // absent means unentitled, so the gate fails closed (same rule as SlideshowView).
+    @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
+    // The tier whose unlock screen is being presented, or nil. Only ever set by a user tap on
+    // a locked row — nothing here may auto-present (FR-1100-09 / SC-1100-02).
+    @State private var unlockTier: Entitlement?
     @State private var brightness: Double
     @State private var showResetDialog = false
     // Storage section state (320): live usage (refreshed on appear and after
@@ -152,6 +159,8 @@ struct SlideshowSettingsView: View {
                         Label("Ken Burns", systemImage: "camera.viewfinder")
                     }
                     .accessibilityIdentifier("settings.kenBurns")
+                    .lockedRow(if: !isProEntitled, requires: .pro,
+                               identifier: "settings.row.kenburns.locked") { unlockTier = .pro }
 
                     Picker(selection: $themeStore.settings.fit) {
                         Text("Fit").tag(ImageFit.fit)
@@ -173,8 +182,13 @@ struct SlideshowSettingsView: View {
                         Label("Clock", systemImage: "clock")
                     }
                     .accessibilityIdentifier("settings.clock")
+                    .lockedRow(if: !isProEntitled, requires: .pro,
+                               identifier: "settings.row.clock.locked") { unlockTier = .pro }
 
-                    if themeStore.settings.clock.isOn {
+                    // The clock's detail rows stay hidden while locked: the stored value is
+                    // preserved (FR-1100-14), but offering style/place pickers for something
+                    // that cannot render would be noise.
+                    if themeStore.settings.clock.isOn, isProEntitled {
                         Picker(selection: $themeStore.settings.clock.style) {
                             Text("Digits").tag(ClockStyle.digits)
                             Text("Pill").tag(ClockStyle.pill)
@@ -267,11 +281,24 @@ struct SlideshowSettingsView: View {
                 }
 
                 Section {
-                    DisclosureGroup(isExpanded: $mqttExpanded) {
-                        BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
-                    } label: {
-                        Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
-                            .accessibilityIdentifier("settings.mqtt")
+                    // Unlike the toggles above, this cannot just be wrapped: a locked
+                    // DisclosureGroup would still expand and expose the broker editor. So the
+                    // whole control is swapped for a locked row while Automation is absent.
+                    // Nothing stored is read, cleared, or migrated by this branch — the config
+                    // and its keychain items are simply not surfaced (FR-1100-14).
+                    if isAutomationEntitled {
+                        DisclosureGroup(isExpanded: $mqttExpanded) {
+                            BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
+                        } label: {
+                            Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
+                                .accessibilityIdentifier("settings.mqtt")
+                        }
+                    } else {
+                        LockedRow(requires: .automation,
+                                  identifier: "settings.row.broker.locked",
+                                  action: { unlockTier = .automation }) {
+                            Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
+                        }
                     }
                 } header: {
                     Text("Home Assistant")
@@ -374,6 +401,21 @@ struct SlideshowSettingsView: View {
         .onChange(of: brightness) { _, newValue in
             Task { await powerManager.setBrightness(newValue, animated: false) }
         }
+        // Presented ONLY from a locked-row tap. Never auto-presented, and never reachable
+        // from playback (SC-1100-02).
+        .sheet(item: $unlockTier) { tier in
+            UnlockScreenView(tier: tier) { unlockTier = nil }
+        }
+    }
+
+    // MARK: - Entitlement gates (1100)
+
+    private var isProEntitled: Bool {
+        entitlements?.current.contains(.pro) ?? false
+    }
+
+    private var isAutomationEntitled: Bool {
+        entitlements?.current.contains(.automation) ?? false
     }
 
     private static func durationLabel(_ duration: Duration) -> String {
