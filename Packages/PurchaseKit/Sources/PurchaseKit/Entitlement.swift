@@ -4,11 +4,14 @@
 /// `entitlements.contains(.pro)` at the point of effect. The everything-bundle is deliberately
 /// absent — it is a product that grants both tiers, not a tier of its own, which keeps the
 /// entitlement space closed under future SKUs.
-public enum Entitlement: String, CaseIterable, Sendable, Codable, Hashable {
+public enum Entitlement: String, CaseIterable, Sendable, Codable, Hashable, Identifiable {
     /// Ambience: Ken Burns motion and the clock overlay.
     case pro
     /// Automation: HA/MQTT remote control and App Intents.
     case automation
+
+    /// Lets a tier drive `.sheet(item:)` when a locked row asks for its unlock screen.
+    public var id: String { rawValue }
 }
 
 /// The set of tiers a user currently holds.
