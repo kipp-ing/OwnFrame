@@ -35,6 +35,9 @@
 		ACD4ED5A8D21C2170ADEAB7A /* BrokerSetupKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6E4D873BF0C1B3B59EC8FB86 /* BrokerSetupKit */; };
 		D7987E06FCA54CFFE5426AB0 /* PowerKit in Frameworks */ = {isa = PBXBuildFile; productRef = FED39158DFF4B0231F69352B /* PowerKit */; };
 		E2EF89E8EAF7D93D36F5CD3A /* ThemeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 19A1F3336CD41FC0CE089E66 /* ThemeKit */; };
+		E81987C6300D3B72003C3031 /* PurchaseKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5732EDFC3EA4FD1C68F7DFED /* PurchaseKit */; };
+		E81987C7300D3B72003C3031 /* PurchaseKit in Frameworks */ = {isa = PBXBuildFile; productRef = D2FCA9DBFD9A8A41FB5C7493 /* PurchaseKit */; };
+		E81987C8300D3B72003C3031 /* PurchaseKit in Frameworks */ = {isa = PBXBuildFile; productRef = F55DE31EBAA8E391AB57E2C4 /* PurchaseKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -130,6 +133,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E81987C6300D3B72003C3031 /* PurchaseKit in Frameworks */,
 				3DAA01000000000000000003 /* ImmichClient in Frameworks */,
 				3DAA0100000000000000000A /* OnboardingKit in Frameworks */,
 				3DAA0100000000000000000F /* SlideshowKit in Frameworks */,
@@ -149,6 +153,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E81987C7300D3B72003C3031 /* PurchaseKit in Frameworks */,
 				3DAA01000000000000000006 /* ImmichClient in Frameworks */,
 				3DAA01000000000000000007 /* ImmichClientTestSupport in Frameworks */,
 				3DAA0100000000000000002A /* AppIntentsTestSupport in Frameworks */,
@@ -174,6 +179,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E81987C8300D3B72003C3031 /* PurchaseKit in Frameworks */,
 				371BE1826CC0F784F1222780 /* Foundation.framework in Frameworks */,
 				931D92D1BBAEBE054345291D /* ImmichClient in Frameworks */,
 				AB28B7AD074419638E0D27C8 /* OnboardingKit in Frameworks */,
@@ -266,6 +272,7 @@
 				3DAA01000000000000000024 /* PhotoLibraryKit */,
 				3DAA01000000000000000027 /* AppIntentsKit */,
 				4149220E87322FC30D2467CB /* ConfigSyncKit */,
+				5732EDFC3EA4FD1C68F7DFED /* PurchaseKit */,
 			);
 			productName = "Immich Slideshow";
 			productReference = 3DDA115E2FE2D16C0059B8FD /* Immich Slideshow.app */;
@@ -293,6 +300,7 @@
 				3DAA01000000000000000005 /* ImmichClientTestSupport */,
 				3DAA01000000000000000029 /* AppIntentsTestSupport */,
 				3DAA0100000000000000000B /* OnboardingKit */,
+				D2FCA9DBFD9A8A41FB5C7493 /* PurchaseKit */,
 			);
 			productName = "Immich SlideshowTests";
 			productReference = 3DDA116B2FE2D16E0059B8FD /* Immich SlideshowTests.xctest */;
@@ -366,6 +374,7 @@
 				19A1F3336CD41FC0CE089E66 /* ThemeKit */,
 				6B2537CBF0CEFBBD235DAE5D /* PhotoSourceKit */,
 				7AA69E366DAE3A1B01E3DA52 /* ConfigSyncKit */,
+				F55DE31EBAA8E391AB57E2C4 /* PurchaseKit */,
 			);
 			productName = "Immich SlideshowTV";
 			productReference = 240BAFBF4EE5009EB9DB62ED /* Immich SlideshowTV.app */;
@@ -418,6 +427,7 @@
 				3DAA01000000000000000023 /* XCLocalSwiftPackageReference "Packages/PhotoLibraryKit" */,
 				3DAA01000000000000000026 /* XCLocalSwiftPackageReference "Packages/AppIntentsKit" */,
 				C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "Packages/ConfigSyncKit" */,
+				8B7305D6222B5E4D2FA503EA /* XCLocalSwiftPackageReference "Packages/PurchaseKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3DDA115F2FE2D16C0059B8FD /* Products */;
@@ -1072,6 +1082,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/AppIntentsKit;
 		};
+		8B7305D6222B5E4D2FA503EA /* XCLocalSwiftPackageReference "Packages/PurchaseKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/PurchaseKit;
+		};
 		C780CA5DE0C1E2132D0644F8 /* XCLocalSwiftPackageReference "Packages/ConfigSyncKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/ConfigSyncKit;
@@ -1151,6 +1165,11 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = ConfigSyncKit;
 		};
+		5732EDFC3EA4FD1C68F7DFED /* PurchaseKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B7305D6222B5E4D2FA503EA /* XCLocalSwiftPackageReference "Packages/PurchaseKit" */;
+			productName = PurchaseKit;
+		};
 		6B2537CBF0CEFBBD235DAE5D /* PhotoSourceKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PhotoSourceKit;
@@ -1175,9 +1194,19 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = HAControlKit;
 		};
+		D2FCA9DBFD9A8A41FB5C7493 /* PurchaseKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B7305D6222B5E4D2FA503EA /* XCLocalSwiftPackageReference "Packages/PurchaseKit" */;
+			productName = PurchaseKit;
+		};
 		F23B7F05150785A4952012B7 /* OnboardingKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = OnboardingKit;
+		};
+		F55DE31EBAA8E391AB57E2C4 /* PurchaseKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B7305D6222B5E4D2FA503EA /* XCLocalSwiftPackageReference "Packages/PurchaseKit" */;
+			productName = PurchaseKit;
 		};
 		FED39158DFF4B0231F69352B /* PowerKit */ = {
 			isa = XCSwiftPackageProductDependency;
