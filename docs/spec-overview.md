@@ -38,6 +38,7 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 320 | [disk-image-cache](../specs/320-disk-image-cache/spec.md)         | SlideshowKit     | *(sub-spec of 300)* Byte-capped disk cache + remembered source list — whole-album offline survival incl. relaunch; budget in Settings (500 MB default). | Active |
 | 400 | [power-manager](../specs/400-power-manager/spec.md)               | PowerKit         | Keep the display awake and dim brightness while the slideshow runs in the foreground.     | Active   |
 | 500 | [display-options](../specs/500-display-options/spec.md)           | ThemeKit         | User-configurable order/duration/transition/Ken Burns/fit/quality/clock, applied live.   | Active   |
+| 510 | [clock-overlay](../specs/510-clock-overlay/spec.md)               | ThemeKit + app target | *(sub-spec of 500)* Rendered clock overlay: Digits/Pill/Analog styles, six places + Random, Room/Cozy sizes, yields while chrome shows; off by default. tvOS rendering rides 1000 (FR-1000-10 pixel-shift — not started). | Implemented (iOS/iPadOS, 2026-07-18) |
 | 600 | [broker-setup](../specs/600-broker-setup/spec.md)                 | BrokerSetupKit   | Enter and persist MQTT broker credentials (Keychain) so 700 has something to connect to. | Active   |
 | 700 | [ha-control](../specs/700-ha-control/spec.md)                     | HAControlKit     | Remote control via MQTT/HA: availability + pause/play + brightness + album (730 deferred). | Active   |
 | 710 | [ha-full-control](../specs/710-ha-full-control/spec.md)           | HAControlKit     | *(sub-spec of 700)* Read/set every display setting, next/previous, current-photo image + metadata, and diagnostics over MQTT. | Active |
@@ -63,6 +64,8 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 
 310 Slideshow Resilience ──> 300 (auto-retry + periodic refresh; implemented 2026-07-09)
 320 Disk Image Cache ─────> 300 + 310 (offline photo survival; implemented 2026-07-09)
+510 Clock Overlay ────────> 500 (styles/places/sizes) + 300 (renders in the ambient layer)
+                             + 710 (HA-wired); tvOS rendering owned by 1000
 800 App Intents ──> 700's command surface (Shortcuts/Siri/automations, no MQTT; deferred v1.1)
 900 Photo Library Source ──> 120 source library (new kind) + a source-neutral data
                              protocol that 100 and PhotoKit both implement (deferred v1.x)
@@ -88,11 +91,11 @@ source kinds — read it alongside `120`.
 ## Reserved / deferred (roadmap)
 
 Recorded in each owning topic's `Roadmap / Deferred` section. `110`/`120`/`710` shipped and are
-Active above. `310` and `320` are **implemented** (the two pre-release gates); `800`/`900`/`1000`
-are specced and deferred — post-release order: `800` intents, then the two roadmap majors
-`900` (iCloud/Photos source, amended 2026-07-16 after the feasibility research) and `1000`
-(Apple TV). `900` and `1000` interlock: 1000 reuses 900's source protocol, and the Photos
-source *on tvOS* is prototype-gated in both roadmaps.
+Active above. `310`, `320` and `510` are **implemented**. `800`, `900`, `220` and `1000` are no
+longer deferred — all four are **implemented** (see their table rows); what remains for each is
+real-hardware verification, which shares a single device day (`docs/manual-verification.md`).
+`900` and `1000` interlock: 1000 reuses 900's source protocol, and the Photos source *on tvOS*
+is prototype-gated in both roadmaps.
 
 **Reserved sub-specs / future sources:**
 - `730` HA sleep/wake driven by an HA presence signal (pairs with the 400 sleep/wake roadmap item).
@@ -105,7 +108,10 @@ overhaul so every Active requirement maps to real, tested code):
   [320-disk-image-cache](../specs/320-disk-image-cache/spec.md), implemented 2026-07-09.
 - ~~Auto-retry with backoff~~ / ~~periodic source refresh~~ — promoted to sub-spec
   [310-slideshow-resilience](../specs/310-slideshow-resilience/spec.md), implemented 2026-07-09.
-- Rendered clock overlay — design agreed 2026-07-18 (500, FR-500-12/17/18/19: Digits/Pill/Analog, six places + Random, Room/Cozy sizes, hides while chrome shows); settings stored + HA-wired (500/710), renderer deferred (topic 300).
+- ~~Rendered clock overlay~~ — design agreed 2026-07-18 (500, FR-500-12/17/18/19: Digits/Pill/Analog,
+  six places + Random, Room/Cozy sizes, yields while chrome shows); promoted to sub-spec
+  [510-clock-overlay](../specs/510-clock-overlay/spec.md), implemented on iOS/iPadOS 2026-07-18.
+  **Still open:** tvOS rendering + the FR-1000-10 pixel-shift contract, both owned by `1000`.
 - Settings/onboarding source management — now built: `120` owns the source library and `210`
   delivers the choice-first onboarding, shared-link-only setup, iOS Share Sheet acceptance, and the
   shared searchable album picker (onboarding + Settings). Remaining 210 work is polish + a device

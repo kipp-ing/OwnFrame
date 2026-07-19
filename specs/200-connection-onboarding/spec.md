@@ -168,7 +168,20 @@ The user can still reset the app configuration. Reset removes the server URL, se
 
 ### Roadmap / Deferred (not yet built)
 
-- Reserved sub-spec `110-shared-album-link`: A visible, non-functional placeholder for future shared-link entry. The onboarding placeholder is in place today; the matching Settings placeholder is **deferred** (not yet built). The future feature accepts a shared/public Immich album link and optional password as an alternative source; this topic owns only the inert placement.
+- ~~Reserved sub-spec `110-shared-album-link`: a visible, non-functional placeholder for future
+  shared-link entry, with the matching Settings placeholder deferred.~~ **Superseded — no longer
+  deferred (reconciled 2026-07-19, task 120/T030).** The placeholders were replaced by real
+  surfaces: [`110`](../110-shared-album-link/spec.md) shipped shared/public link playback (with
+  optional password), and [`120`](../120-source-library/spec.md) shipped the Settings **Sources**
+  manager (`Immich Slideshow/Slideshow/SourceLibraryView.swift`) plus the onboarding add-source
+  step — both Active. [`210`](../210-shared-link-onboarding/spec.md) then made the choice-first
+  onboarding and shared-link-only setup the default path, and
+  [`220`](../220-onboarding-welcome/spec.md) added the welcome screen and camera QR scan.
+
+  **Known gap, unspecified:** the QR scan lives only on the onboarding shared-link entry
+  (`SharedLinkSetupView`). The shared `SharedLinkAddForm` used by Settings → Sources → + *and* by
+  onboarding step 2 has no scan affordance — deliberately out of scope for 220 (FR-220-07,
+  research R7), and never picked up by a later spec. Belongs in `120` when scheduled.
 
 ## Success Criteria *(mandatory)*
 

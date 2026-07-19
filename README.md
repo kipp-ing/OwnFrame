@@ -10,10 +10,14 @@ repository keeps its historical name, `Immich-Slideshow`; the app ships as
 
 > ⚠️ **Active development.** Onboarding, the full-screen slideshow, display & power control,
 > display options, and Home Assistant remote control are built. Home Assistant control is
-> verified live against a real Home Assistant instance over a TLS broker. Next up before
-> release: automatic retry + periodic source refresh
-> ([spec 310](specs/310-slideshow-resilience/spec.md)). Deferred: rendered clock overlay,
-> disk image cache.
+> verified live against a real Home Assistant instance over a TLS broker. Since then:
+> auto-retry + periodic refresh ([310](specs/310-slideshow-resilience/spec.md)), the disk image
+> cache ([320](specs/320-disk-image-cache/spec.md)), the rendered clock overlay
+> ([510](specs/510-clock-overlay/spec.md)), Shortcuts/Siri intents
+> ([800](specs/800-app-intents/spec.md)), Apple Photos / iCloud albums as a source
+> ([900](specs/900-photo-library-source/spec.md)), and an **Apple TV app**
+> ([1000](specs/1000-apple-tv/spec.md)) have all landed. Remaining before those ship: a pass of
+> real-hardware verification (see [docs/manual-verification.md](docs/manual-verification.md)).
 
 ## What it does (and will do)
 
@@ -24,25 +28,36 @@ repository keeps its historical name, `Immich-Slideshow`; the app ships as
   controls, an album browser, and a photo-info overlay. ✅ done
 - **Display & power** — keep the screen awake and dim brightness for ambient display. ✅ done
 - **Display options** — order, duration, transitions, Ken Burns, image fit, quality — applied
-  live from Settings. ✅ done (clock overlay: settings stored, renderer deferred)
+  live from Settings. ✅ done
+- **Clock overlay** — Digits, Pill or Analog, six placements plus Random, two sizes; yields while
+  the controls are showing, off by default. ✅ done on iPhone/iPad (tvOS rendering still to come)
 - **Home Assistant control** — play/pause, brightness, album, every display setting,
   next/previous, current-photo metadata (image opt-in), and diagnostics over MQTT (TLS). ✅ done
+- **Apple Photos / iCloud albums** — use an iCloud album as the source instead of (or alongside)
+  Immich. 🧪 built, pending hardware verification
+- **Shortcuts & Siri** — play/pause, brightness, source switching and frame state as App Intents,
+  usable in personal automations. 🧪 built, pending hardware verification
+- **Apple TV** — the same frame on tvOS, set up without typing by syncing the iPad's
+  configuration over iCloud. 🧪 built, pending hardware verification
 
 ## Requirements
 
 - An iPad running **iPadOS 17** or later (a retired iPad makes a good frame).
-- An **Immich server reachable over HTTPS with a valid TLS certificate.**
-  (Self-signed / local certificates are not supported yet.)
+- For Immich sources: an **Immich server reachable over HTTPS with a valid TLS certificate.**
+  (Self-signed / local certificates are not supported yet.) An iCloud-album source needs no
+  server at all.
 - An Immich **API key** (Immich → Account Settings → API Keys) **only if you connect to your
   server** to browse albums — stored in the iOS **Keychain**, never in plain settings or logs.
   A **shared-link-only** setup needs no API key.
 
 ## Getting started
 
-On first launch, choose how to connect:
+On first launch, choose one of three ways in — ordered from least to most setup:
 
-- **Use a shared link** — paste an Immich share link (or share one into the app from another app).
-  No account or API key needed; you're asked for a password only if the link has one.
+- **Use an iCloud album** — pick an album from your Photos library. No server, no account, no key.
+- **Use a shared link** — **scan the album's QR code** with the camera, paste an Immich share link,
+  or share one into the app from another app. No account or API key needed; you're asked for a
+  password only if the link has one.
 - **Connect to a server** — enter your server address (HTTPS) and API key, then pick an album from
   a searchable list.
 

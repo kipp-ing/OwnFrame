@@ -45,16 +45,16 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
 
 ## Phase 2: Foundational (blocks all stories)
 
-- [ ] T002 [inline] Add `.tvOS(.v17)` to Package.swift for PhotoSourceKit, ThemeKit, PowerKit,
+- [x] T002 [inline] Add `.tvOS(.v17)` to Package.swift for PhotoSourceKit, ThemeKit, PowerKit,
       ImmichClient, OnboardingKit, HAControlKit, BrokerSetupKit, SlideshowKit. `swift build` each
       still green on host.
-- [ ] T003 [delegate] PhotoLibraryKit: `#if os(iOS)`-guard the picker + `UIApplication` scene use
+- [x] T003 [delegate] PhotoLibraryKit: `#if os(iOS)`-guard the picker + `UIApplication` scene use
       (`PHKitGateway.swift:232`) so it compiles as a no-op on tvOS; add `.tvOS(.v17)`. Red test:
       tvOS-guard path returns `.unavailable` without touching UIKit. `swift build`/`swift test`
       green on host; ManifestKit builds for tvOS dest (checked in T022).
-- [ ] T004 [delegate] Create `Packages/ConfigSyncKit` (Package.swift iOS17/tvOS17/macOS14; target +
+- [x] T004 [delegate] Create `Packages/ConfigSyncKit` (Package.swift iOS17/tvOS17/macOS14; target +
       testTarget; empty stub type + one passing test). `swift test` green. Home for Phase 6.
-- [ ] T005 [inline] Add the **tvOS app target** `Immich SlideshowTV` to the xcodeproj via the
+- [x] T005 [inline] Add the **tvOS app target** `Immich SlideshowTV` to the xcodeproj via the
       `xcodeproj` gem: shared bundle-id family (`ing.kipp.Immich-Slideshow`), `TVOS_DEPLOYMENT_TARGET
       = 17.0`, `SUPPORTED_PLATFORMS = appletvos appletvsimulator`, `TARGETED_DEVICE_FAMILY = 3`; link
       the tvOS package set (ImmichClient, OnboardingKit, SlideshowKit, PowerKit, HAControlKit,
@@ -70,27 +70,27 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
 
 ## Phase 3: US1 — the frame plays on the TV (P1) 🎯 MVP
 
-- [ ] T006 [delegate] Red+green `SoftwareDimModel` (pure) in `Immich SlideshowTV/` (host-testable via
+- [x] T006 [delegate] Red+green `SoftwareDimModel` (pure) in `Immich SlideshowTV/` (host-testable via
       a tiny test target or ConfigSyncKit-adjacent): `brightness→overlayOpacity = 1−clamp(b)`;
       monotonic; clamps. Tests first.
-- [ ] T007 [inline] `SoftwareDimScreenController: ScreenControlling` (tvOS): `brightness` drives an
+- [x] T007 [inline] `SoftwareDimScreenController: ScreenControlling` (tvOS): `brightness` drives an
       `@Observable` dim value (uses T006); `isIdleTimerDisabled → UIApplication.isIdleTimerDisabled`.
       Injected into `PowerManager` at the tvOS app entry.
-- [ ] T008 [inline] Conditionalize shared slideshow UI for tvOS: guard `.statusBarHidden`/
+- [x] T008 [inline] Conditionalize shared slideshow UI for tvOS: guard `.statusBarHidden`/
       `.persistentSystemOverlays`; composite the black software-dim overlay (opacity from T007) above
       the photo, below chrome; `ClockIdiom`/sizing gets a `.tv` case; guard `UIImage` scaling +
       `openSettingsURLString` with `#if os(iOS)` (tvOS variant/no-op).
-- [ ] T009 [delegate] Red+green `TVChromeModel` (pure state machine per data-model.md): activity→
+- [x] T009 [delegate] Red+green `TVChromeModel` (pure state machine per data-model.md): activity→
       visible+auto-hide(4.5s); auto-hide→hidden; menu consumed only when visible; play/pause toggles
       independent; directional→next/prev without reveal. Host tests for every transition.
-- [ ] T010 [inline] Wire tvOS remote input in the shared `SlideshowView` behind `#if os(tvOS)`:
+- [x] T010 [inline] Wire tvOS remote input in the shared `SlideshowView` behind `#if os(tvOS)`:
       `.focusable`/`onMoveCommand`/`onExitCommand`/`onPlayPauseCommand` → `TVChromeModel` +
       `viewModel.showNext/Previous/togglePause`; Menu at naked slideshow falls through to Home.
-- [ ] T011 [inline] tvOS `@main ImmichSlideshowTVApp` composition root: build the engine (stub API
+- [x] T011 [inline] tvOS `@main ImmichSlideshowTVApp` composition root: build the engine (stub API
       seam for sim + real ImmichClient), `SoftwareDimScreenController`, `PowerManager`, distinct HA
       identity (T017), StartupGate routing (onboarding vs slideshow). **Verify on sim: cold-launch →
       slideshow plays, transitions/Ken Burns render, idle timer disabled (screenshot + short video).**
-- [ ] T012 [inline] Eliminate FR-1000-07 bypass: `SlideshowSettingsView.currentScreenBrightness()`
+- [x] T012 [inline] Eliminate FR-1000-07 bypass: `SlideshowSettingsView.currentScreenBrightness()`
       removed; initial brightness read through `ScreenControlling`/PowerManager on both platforms; iOS
       suite stays green.
 
@@ -98,38 +98,38 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
 
 ## Phase 4: US3 — survives tvOS storage reality (P2)
 
-- [ ] T013 [delegate] Red+green: purge-tolerance as the normal case — with the disk-cache root at a
+- [x] T013 [delegate] Red+green: purge-tolerance as the normal case — with the disk-cache root at a
       temp dir, delete it, relaunch engine deps, assert playback reaches the first photo with no user
       input and the cache refills (exercise existing 320 paths from a tvOS-context test); assert no
       persistent state assumes a Documents dir (SC-1000-03/FR-1000-04).
 
 ## Phase 5: US4 — Home Assistant parity in the living room (P2)
 
-- [ ] T014 [delegate] Red+green `FrameIdentity` provider: distinct tvOS `deviceID`+`deviceName`
+- [x] T014 [delegate] Red+green `FrameIdentity` provider: distinct tvOS `deviceID`+`deviceName`
       ("Photo Frame (Apple TV)") vs iOS; assert distinct MQTT base topic / discovery identifiers /
       unique_id via `HATopics`/`HADiscovery` (host tests, no kit change).
-- [ ] T015 [inline] Wire HA on the tvOS app entry: BrokerSetup + `HAControlCoordinator` with the tvOS
+- [x] T015 [inline] Wire HA on the tvOS app entry: BrokerSetup + `HAControlCoordinator` with the tvOS
       `FrameIdentity`; brightness command → `SoftwareDimScreenController` dim; confirm HAControlKit
       fake-transport round-trip suite builds/passes for tvOS.
 
 ## Phase 6: US2 — setup without typing a novel (P1, largest)
 
-- [ ] T016 [delegate] Red+green `SyncedConfig` (data-model.md) in ConfigSyncKit: Codable/Sendable,
+- [x] T016 [delegate] Red+green `SyncedConfig` (data-model.md) in ConfigSyncKit: Codable/Sendable,
       versioned, maps the six non-secret stores; round-trips; **contains no secret** (assert).
-- [ ] T017 [delegate] Red+green `ConfigSyncStore` + `InMemoryConfigSyncStore` +
+- [x] T017 [delegate] Red+green `ConfigSyncStore` + `InMemoryConfigSyncStore` +
       `UbiquitousKVSConfigSyncStore` (thin, compiles): fake round-trip; `externalChanges` emits;
       SC-1000-08 no-secret-in-KVS invariant asserted (contracts/config-sync.md).
-- [ ] T018 [delegate] Red+green `SyncedSecret` + `SecretSyncStore` + `InMemorySecretSyncStore` +
+- [x] T018 [delegate] Red+green `SyncedSecret` + `SecretSyncStore` + `InMemorySecretSyncStore` +
       `CloudKitSecretSyncStore` (thin `encryptedValues`, compiles, no custom crypto): fake publish/
       fetch; `iCloudUnavailable` → nil; no-secret-in-plaintext assert.
-- [ ] T019 [delegate] Red+green `ConfigPublisher` (iPad): gather stores → `SyncedConfig`/`SyncedSecret`
+- [x] T019 [delegate] Red+green `ConfigPublisher` (iPad): gather stores → `SyncedConfig`/`SyncedSecret`
       → save/publish; idempotent; secrets only via `SecretSyncStore`. Host tests with fakes.
-- [ ] T020 [delegate] Red+green `ConfigConsumer` (tvOS): `prefill()` from KVS; `hydrateSecrets` writes
+- [x] T020 [delegate] Red+green `ConfigConsumer` (tvOS): `prefill()` from KVS; `hydrateSecrets` writes
       fetched secrets into the (fake) keychain then reads local; returns `.hydrated`/`.manualRequired`;
       never throws to UI. All four US2 acceptance scenarios (contracts/config-sync.md) green.
-- [ ] T021 [inline] Wire the iPad companion publisher into the iOS app (write-through on config
+- [x] T021 [inline] Wire the iPad companion publisher into the iOS app (write-through on config
       change: onboarding save, source-library edits, theme/broker/cache changes). iOS suite green.
-- [ ] T022 [inline] tvOS onboarding: consume `prefill` (prefilled choices) + `hydrateSecrets` (zero-typing
+- [x] T022 [inline] tvOS onboarding: consume `prefill` (prefilled choices) + `hydrateSecrets` (zero-typing
       when synced) + manual fallback (system keyboard / "Type with iPhone"; shared-link one-URL fast
       path — topic 210 semantics). Reuse shared onboarding views (excl. QR/Photos). **Verify on sim:
       prefilled path and manual path both complete → slideshow.**

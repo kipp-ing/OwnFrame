@@ -12,6 +12,31 @@ preceded by a red Swift Testing (host) or XCUITest task; no code before a demons
 
 **Organization**: by user story (US1–US4 from spec.md). Setup + Foundational are shared prerequisites.
 
+## Status (checkboxes reconciled 2026-07-19)
+
+Ticked in this pass, against evidence rather than new work:
+
+- **T001–T013** — the 2026-06-24 progress note below records "Done & verified: T001–T016"; only
+  T014–T016 had been ticked.
+- **T023–T026 (US3, HA select backed by the library)** — satisfied by later work under `900`, not
+  under these IDs: `SlideshowRemoteControlAdapter` takes `sources: [Source]`, publishes source
+  labels as the select's options, and resolves a picked label back to a `Source`
+  (`Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift:31,46,142` — FR-900-11).
+- **T031** — the full XCUITest suite has run green many times since 120 merged.
+- **T030** — done *in* this pass: `specs/200-connection-onboarding/spec.md`'s Roadmap item
+  (110 placeholder + "Settings placeholder deferred") was superseded in place, and `510` was
+  added to `docs/spec-overview.md`. 700's Roadmap needed no change — its only entry is `730`,
+  which is genuinely still deferred.
+
+**Genuinely open:**
+
+- **T027–T029 (US4 persistence + secret hygiene)** — mixed-library relaunch persistence works in
+  production, but T028's specific assertion (dump the UserDefaults suite + the encoded library and
+  assert no password/API key appears) has **no test in the repo**. `docs/spec-traceability.md`
+  carries secret-absence only as a *manual* audit gate. This is the one real code/test gap 120 has
+  left.
+- **T032/T033** — secret grep + log check; changelog. Not evidenced either way.
+
 ## Progress (2026-06-24, cont.) — US2 onboarding redesign DONE
 
 - **US2 onboarding redesign done & verified** (T017, T019, T021, T022): the onboarding flow is now
@@ -82,7 +107,7 @@ preceded by a red Swift Testing (host) or XCUITest task; no code before a demons
 
 ## Phase 1: Setup
 
-- [ ] T001 Establish a green host baseline: run `swift test` for `ImmichClient`, `OnboardingKit`,
+- [X] T001 Establish a green host baseline: run `swift test` for `ImmichClient`, `OnboardingKit`,
   `HAControlKit` before any change; record the passing baseline.
 
 ---
@@ -91,31 +116,31 @@ preceded by a red Swift Testing (host) or XCUITest task; no code before a demons
 
 **Source model + persistence + secrets + auth/transport. Complete before US1–US4.**
 
-- [ ] T002 [P] Red tests for `Source`/`SourceKind` + `SourceLibrary` operations (add → first becomes
+- [X] T002 [P] Red tests for `Source`/`SourceKind` + `SourceLibrary` operations (add → first becomes
   active; `setActive`; `remove(active)` promotes next else nil; `move`; `rename`; unique-label
   enforcement; single-active invariant) in `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceLibraryTests.swift`
-- [ ] T003 Implement `Source.swift` + `SourceLibrary.swift` in
+- [X] T003 Implement `Source.swift` + `SourceLibrary.swift` in
   `Packages/OnboardingKit/Sources/OnboardingKit/` to green T002
-- [ ] T004 [P] Red tests for `UserDefaultsSourceLibraryStore`: round-trip save/load of a mixed
+- [X] T004 [P] Red tests for `UserDefaultsSourceLibraryStore`: round-trip save/load of a mixed
   library; migration from legacy `immich.selectedAlbumID` (absent library → one-entry album library,
   active) in `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceLibraryStoreTests.swift`
-- [ ] T005 Implement `SourceLibraryStore.swift` (protocol + `UserDefaultsSourceLibraryStore` + migration
+- [X] T005 Implement `SourceLibraryStore.swift` (protocol + `UserDefaultsSourceLibraryStore` + migration
   + in-memory fake) in `Packages/OnboardingKit/Sources/OnboardingKit/` to green T004
-- [ ] T006 [P] Red tests for `SharedLinkSecretStore` (per-source password save/read/delete; deleting a
+- [X] T006 [P] Red tests for `SharedLinkSecretStore` (per-source password save/read/delete; deleting a
   source deletes its password) in `Packages/OnboardingKit/Tests/OnboardingKitTests/SharedLinkSecretStoreTests.swift`
-- [ ] T007 Implement `SharedLinkSecretStore.swift` (protocol + Keychain impl + in-memory fake) in
+- [X] T007 Implement `SharedLinkSecretStore.swift` (protocol + Keychain impl + in-memory fake) in
   `Packages/OnboardingKit/Sources/OnboardingKit/` to green T006
-- [ ] T008 [P] Red tests for `ServerConfig.Auth`: `ImmichClient` sets the `x-api-key` header (no
+- [X] T008 [P] Red tests for `ServerConfig.Auth`: `ImmichClient` sets the `x-api-key` header (no
   `key=` query) for `.apiKey`, and appends `key=<token>` (no header) for `.shareKey`, on album/asset
   requests, in `Packages/ImmichClient/Tests/ImmichClientTests/AuthModeTests.swift`
-- [ ] T009 Implement `ServerConfig.Auth` (`.apiKey`/`.shareKey`, keep an `apiKey:` convenience init)
+- [X] T009 Implement `ServerConfig.Auth` (`.apiKey`/`.shareKey`, keep an `apiKey:` convenience init)
   + request-building branch in `Packages/ImmichClient/Sources/ImmichClient/ServerConfig.swift` and
   `ImmichClient.swift` to green T008
-- [ ] T010 [P] Red tests for shared-link resolve mapping (200 → `(key, albumID, expiresAt)`; 401+pw →
+- [X] T010 [P] Red tests for shared-link resolve mapping (200 → `(key, albumID, expiresAt)`; 401+pw →
   `wrongPassword`; 401 no-pw → `passwordRequired`; unknown/expired → `invalidShareLink`/
   `shareLinkExpired`; transport fail → `unreachable`; `me` response never logged) with a stub
   transport in `Packages/ImmichClient/Tests/ImmichClientTests/SharedLinkResolverTests.swift`
-- [ ] T011 Implement `SharedLinkResolver.swift` + new `ImmichError` cases in
+- [X] T011 Implement `SharedLinkResolver.swift` + new `ImmichError` cases in
   `Packages/ImmichClient/Sources/ImmichClient/` to green T010
 
 **Checkpoint**: model, store+migration, secret store, dual-auth client, and resolver are green on host.
@@ -128,10 +153,10 @@ preceded by a red Swift Testing (host) or XCUITest task; no code before a demons
 **Independent test**: seed a 2-source library (album + shared link via stubs); only the active
 source's photos show; switching active swaps to the other source's photos.
 
-- [ ] T012 [P] [US1] Red tests for `ActiveSourceResolver`: `.album` → `(ServerConfig.apiKey, albumID)`;
+- [X] T012 [P] [US1] Red tests for `ActiveSourceResolver`: `.album` → `(ServerConfig.apiKey, albumID)`;
   `.sharedLink` → resolve (stub) → `(ServerConfig.shareKey(key), resolvedAlbumID)`; resolve failure
   surfaces the typed error, in `Packages/OnboardingKit/Tests/OnboardingKitTests/ActiveSourceResolverTests.swift`
-- [ ] T013 [US1] Implement `ActiveSourceResolver` (Source + Keychain API key + `SharedLinkSecretStore`
+- [X] T013 [US1] Implement `ActiveSourceResolver` (Source + Keychain API key + `SharedLinkSecretStore`
   + `SharedLinkResolving` → `ServerConfig` + albumID) in `Packages/OnboardingKit/Sources/OnboardingKit/`
   to green T012
 - [X] T014 [US1] Wire `Immich_SlideshowApp` factories (`makeSlideshow`, `makeAPI`) to build the
@@ -182,18 +207,18 @@ removes; confirmation lists the library with the active one marked.
 **Independent test (mock transport)**: discovery `options` == source labels; known label switches +
 echoes; unknown label = no-op echo.
 
-- [ ] T023 [P] [US3] Red tests: `SlideshowRemoteControlAdapter` backed by a 2-source `SourceLibrary`
+- [X] T023 [P] [US3] Red tests: `SlideshowRemoteControlAdapter` backed by a 2-source `SourceLibrary`
   → `albumOptions` == labels; `selectAlbum(label)` switches active + `currentAlbum` echoes; unknown
   label no-op, in `Immich SlideshowUITests`/a host test, or `Packages/HAControlKit/Tests/HAControlKitTests/`
   (adapter lives in the app target — place the adapter test where it compiles, mirroring the existing
   adapter tests)
-- [ ] T024 [US3] Back `SlideshowRemoteControlAdapter` with the `SourceLibrary` + `ActiveSourceResolver`
+- [X] T024 [US3] Back `SlideshowRemoteControlAdapter` with the `SourceLibrary` + `ActiveSourceResolver`
   (options/current/select over source labels; select switches active source) in
   `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift`
-- [ ] T025 [US3] Wire `Immich_SlideshowApp.makeCoordinator` to pass the library to the adapter instead
+- [X] T025 [US3] Wire `Immich_SlideshowApp.makeCoordinator` to pass the library to the adapter instead
   of the server album list, in `Immich Slideshow/Immich_SlideshowApp.swift` (HA entity key `album`
   stays stable; options now = source labels — research D5)
-- [ ] T026 [US3] Verify HA select round-trip with the mock transport (extend the coordinator tests in
+- [X] T026 [US3] Verify HA select round-trip with the mock transport (extend the coordinator tests in
   `Packages/HAControlKit/Tests/HAControlKitTests/`)
 
 **Checkpoint**: HA switches the active source.
@@ -221,10 +246,10 @@ password/bearer key in UserDefaults/logs.
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T030 [P] Update `specs/200-connection-onboarding/spec.md` and `specs/700-ha-control/spec.md`:
+- [X] T030 [P] Update `specs/200-connection-onboarding/spec.md` and `specs/700-ha-control/spec.md`:
   move the now-built source management / source-select from Roadmap to Active (FR IDs), and reconcile
   `docs/spec-overview.md`
-- [ ] T031 Run the **full XCUITest** suite via XcodeBuildMCP (`test_sim`) — green before merge
+- [X] T031 Run the **full XCUITest** suite via XcodeBuildMCP (`test_sim`) — green before merge
 - [ ] T032 Secret grep over the test suite + a manual log check (no password/bearer key in logs);
   manual end-to-end with the real links (`geo2026`, `korsika2026`/`12345678`)
 - [ ] T033 [P] Update `CHANGELOG`/engineering notes if applicable; ensure new files build in the app
