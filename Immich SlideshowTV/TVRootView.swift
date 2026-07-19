@@ -19,6 +19,7 @@ import HAControlMQTT
 import ImmichClient
 import OnboardingKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -27,11 +28,33 @@ import UIKit
 @main
 struct ImmichSlideshowTVApp: App {
     @State private var model = TVAppModel()
+    // What the user owns (1100). Universal purchase means an unlock bought on the iPad is
+    // already owned here; the snapshot is seeded synchronously so an Apple TV frame that
+    // boots without network still renders entitled (FR-1100-10).
+    @State private var entitlements = ImmichSlideshowTVApp.makeEntitlementStore()
+
+    /// Mirrors the iOS entry point: the hermetic stub under `--uitest`, the real (still
+    /// T013-skeleton) StoreKit adapter otherwise. See the iOS note — the launch refresh and
+    /// `listenForUpdates()` stay unwired until T029/T030 give them real behaviour.
+    @MainActor
+    private static func makeEntitlementStore() -> EntitlementStore {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--uitest") {
+            return PurchaseUITestSeams.makeStore()
+        }
+        #endif
+        return EntitlementStore(
+            client: StoreKitClient(),
+            cache: EntitlementSnapshotCache(defaults: .standard)
+        )
+    }
 
     var body: some Scene {
         WindowGroup {
             TVRootView(model: model)
                 .task { await model.start() }
+                // 1100: the TV gates read this at their point of effect.
+                .environment(entitlements)
         }
     }
 }

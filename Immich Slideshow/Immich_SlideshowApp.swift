@@ -15,6 +15,7 @@ import OnboardingKit
 import PhotoLibraryKit
 import PhotoSourceKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -22,6 +23,11 @@ import ThemeKit
 @main
 struct Immich_SlideshowApp: App {
     @State private var viewModel: OnboardingViewModel
+    // What the user owns (1100). Seeded synchronously from the on-device snapshot so the
+    // first render pass already knows — an unattended frame keeps its paid features
+    // offline indefinitely (FR-1100-10). Handed to the view tree via `.environment`;
+    // the gates themselves live at each point of effect, not here.
+    @State private var entitlements: EntitlementStore
     // Built lazily at the `.done` route: reads the saved config + Keychain key and
     // constructs an authenticated slideshow. Returns nil only if state is somehow
     // incomplete (the StartupGate normally prevents reaching `.done` without it).
@@ -167,6 +173,9 @@ struct Immich_SlideshowApp: App {
                 uitestViewModel.step = .sharedLinkSetup
             }
             _viewModel = State(initialValue: uitestViewModel)
+            // 1100: entitlements come from `--uitest-entitlements=`, the store client from
+            // `--uitest-store=`. StoreKit is never reached under `--uitest`.
+            _entitlements = State(initialValue: PurchaseUITestSeams.makeStore())
             let switchActiveSource: @MainActor @Sendable (String) -> SourceRestartStrategy? = { id in
                 var library = sourceStore.load()
                 let previous = library.active
@@ -280,6 +289,20 @@ struct Immich_SlideshowApp: App {
         viewModel.step = StartupGate(config: config, keychain: keychain, sourceStore: sourceStore).initialStep()
 
         _viewModel = State(initialValue: viewModel)
+
+        // 1100: the real entitlement model. `current` is seeded synchronously from the
+        // cached snapshot here — no await, no network — so the gates can branch on it in
+        // the first render pass (FR-1100-10). Entitlements are not secrets, so the plain
+        // defaults suite is the sanctioned home for the snapshot (research.md R4).
+        //
+        // NOTE: `StoreKitClient` is still the T013 skeleton, so a production `refresh()`
+        // resolves nothing today and `current` stays at whatever the cache holds. That is
+        // intentional and safe while the gate is unreleased; the launch refresh and
+        // `listenForUpdates()` get wired once T029/T030 give them real behaviour.
+        _entitlements = State(initialValue: EntitlementStore(
+            client: StoreKitClient(),
+            cache: EntitlementSnapshotCache(defaults: .standard)
+        ))
 
         // Resolve the active source into a ServerConfig (auth) + album. The API key and
         // any shared-link password stay in the Keychain and are only handed to the
@@ -496,8 +519,11 @@ struct Immich_SlideshowApp: App {
         // these values directly instead of `self`.
         let onboarding = viewModel
         let factories = factories
+        let entitlements = entitlements
         return WindowGroup {
             RootView(onboarding: onboarding, factories: factories)
+                // 1100: every gate reads this from the environment at its point of effect.
+                .environment(entitlements)
         }
     }
 }
