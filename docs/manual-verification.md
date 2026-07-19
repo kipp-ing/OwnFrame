@@ -134,7 +134,10 @@ account, a second device, a family member account, and ASC access. **Nothing her
 
 **Listing:**
 
-- [ ] Replace the stale "Open source (MIT)" line — the license is FSL-1.1-MIT.
+- [x] License line is FSL-1.1-MIT (verified 2026-07-19: README §License and
+      app-store-listing.md already say "Fair Source, becomes MIT after two years"; no stale
+      "Open source (MIT)" claim remains). The ASC listing copy still needs the same wording at
+      submission.
 
 ---
 
