@@ -23,8 +23,15 @@ Both are single points of failure. Neither takes long.
 
 - [ ] **Monetization research** lives only in `tmp/monetization-research-2026-07-18.md` — 489
       lines, gitignored via `.gitignore:85`, untracked. `git clean -x` destroys it. It is the
-      only record of a fully-formed, release-blocking product decision. Commit it under `docs/`
-      or distil it into the `1100` spec below.
+      only record of a fully-formed, release-blocking product decision.
+
+      **Do not simply commit it.** This repository is public (Fair Source, contributor-facing,
+      headed for awesome.immich.app and r/selfhosted). The document contains pricing strategy,
+      competitor assessments, press/outreach contacts, and pre-launch coordination notes — none
+      of which should be published. Back it up *outside* the repo, and separately distil into
+      the `1100` spec only what belongs in the open: the tier boundaries, the gating behaviour,
+      and the no-subscription / never-claw-back constraints. Leave prices, competitor analysis
+      and launch tactics out of version control.
 - [X] ~~**The "Quiet Glass" design artifact** is cited as the design source of truth by four specs
       and does not exist in the repo.~~ **Done 2026-07-19** — recovered from the published artifact
       and committed at [`design/quiet-glass-2026-07-18.html`](design/quiet-glass-2026-07-18.html).
