@@ -27,11 +27,19 @@ import UIKit
 
 @main
 struct ImmichSlideshowTVApp: App {
-    @State private var model = TVAppModel()
+    @State private var model: TVAppModel
     // What the user owns (1100). Universal purchase means an unlock bought on the iPad is
     // already owned here; the snapshot is seeded synchronously so an Apple TV frame that
     // boots without network still renders entitled (FR-1100-10).
-    @State private var entitlements = ImmichSlideshowTVApp.makeEntitlementStore()
+    @State private var entitlements: EntitlementStore
+
+    init() {
+        // One store, two consumers: the view tree reads it from the environment, and the
+        // model reads it at its own point of effect (the HA coordinator gate).
+        let store = ImmichSlideshowTVApp.makeEntitlementStore()
+        _entitlements = State(initialValue: store)
+        _model = State(initialValue: TVAppModel(entitlements: { store.current }))
+    }
 
     /// Mirrors the iOS entry point: the hermetic stub under `--uitest`, the real (still
     /// T013-skeleton) StoreKit adapter otherwise. See the iOS note — the launch refresh and
@@ -191,7 +199,12 @@ final class TVAppModel {
     private var haCoordinator: HAControlCoordinator?
     private var isStartingHA = false
 
-    init() {
+    /// What the frame owns (1100). Read at each point of effect rather than captured as a
+    /// value, so a purchase made while the app runs opens its gate without a relaunch.
+    @ObservationIgnored private let entitlements: @MainActor () -> EntitlementSet
+
+    init(entitlements: @escaping @MainActor () -> EntitlementSet) {
+        self.entitlements = entitlements
         powerManager = PowerManager(screen: screen)
         brokerProvider = BrokerConfigProvider(
             settingsStore: KeychainBrokerSettingsStore(),
@@ -308,6 +321,13 @@ final class TVAppModel {
     /// hydration may not have delivered (`.manualRequired`) — offering them would let a
     /// remote pick tear the frame down into onboarding.
     private func makeCoordinator(for slideshow: SlideshowViewModel) async -> HAControlCoordinator? {
+        // 1100: the `.automation` gate, and it MUST come first — the very next line is the
+        // app's only hop from here into the Keychain item holding the MQTT password, and an
+        // unentitled frame never reaches it (FR-1100-14). A construction gate, never a mute:
+        // nothing is cleared or masked, so buying Automation restores HA with zero re-entry.
+        // (The iOS side expresses the same ordering as a wrapper — `AutomationCoordinatorGate`
+        // — which cannot be reused here: it is typed on the iOS-only adapter.)
+        guard entitlements().contains(.automation) else { return nil }
         guard let brokerConfig = brokerProvider.load() else { return nil }
         let library = sourceStore.load()
         let playable = library.sources.filter { source in
