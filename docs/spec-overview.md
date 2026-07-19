@@ -3,6 +3,9 @@
 The map to `specs/`. Each module spec is the **source of truth** for its area — this page is the
 map, not the territory.
 
+For what is still *unfinished* and in what order to close it, see
+[gap-closure-plan.md](gap-closure-plan.md) (Apple TV tracked separately in `specs/1000-apple-tv/`).
+
 ## Structure & numbering
 
 Specs are organized as **one durable spec per module**, mirroring the Swift packages. There is no
