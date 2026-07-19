@@ -1,6 +1,8 @@
 # Research — 510 Clock Overlay Renderer
 
-**Date**: 2026-07-18. Most design questions were settled interactively in the Quiet Glass
+**Date**: 2026-07-18. *(The referenced mocks are committed at
+[`docs/design/quiet-glass-2026-07-18.html`](../../docs/design/quiet-glass-2026-07-18.html).)*
+Most design questions were settled interactively in the Quiet Glass
 clock round (mocks artifact) and the 2026-07-18 code inventory; this file records the
 remaining implementation decisions. No open NEEDS CLARIFICATION.
 

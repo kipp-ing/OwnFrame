@@ -66,7 +66,8 @@ The user can enable an ambient clock overlay and configure its style (Digits, Pi
 its place (six fixed positions or Random), its size (Room or Cozy), and an optional date line.
 The overlay is off by default. The clock is part of the ambient layer, not the chrome: it is
 readable across the room, and it steps aside whenever the transient chrome is on screen.
-*(Design agreed 2026-07-18 — "Quiet Glass" clock round.)*
+*(Design agreed 2026-07-18 — "Quiet Glass" clock round; mocks at
+[`docs/design/quiet-glass-2026-07-18.html`](../../docs/design/quiet-glass-2026-07-18.html).)*
 
 **Why this priority**: A clock is useful for a photo frame, but it must remain opt-in so photos stay primary by default.
 

@@ -25,9 +25,14 @@ Both are single points of failure. Neither takes long.
       lines, gitignored via `.gitignore:85`, untracked. `git clean -x` destroys it. It is the
       only record of a fully-formed, release-blocking product decision. Commit it under `docs/`
       or distil it into the `1100` spec below.
-- [ ] **The "Quiet Glass" design artifact** is cited as the design source of truth by four specs
-      — `510/spec.md:18`, `510/research.md:3`, `500/spec.md:69`, `510/tasks.md:82` — and does not
-      exist in the repo. It lives in a chat artifact. Recover and commit it before speccing `330`.
+- [X] ~~**The "Quiet Glass" design artifact** is cited as the design source of truth by four specs
+      and does not exist in the repo.~~ **Done 2026-07-19** — recovered from the published artifact
+      and committed at [`design/quiet-glass-2026-07-18.html`](design/quiet-glass-2026-07-18.html).
+      The citing lines in `510/spec.md`, `510/research.md` and `500/spec.md` now link to it.
+      It covers considerably more than the clock round that became `510`: *Glass, soft glass, focus
+      glass*, *Scrims that whisper*, *Captions, not metadata*, *Readable on white, grey and black
+      alike*, *The same design at ten feet*, and a *How the mocks map to the code* section — i.e.
+      most of the `330` scope below is already designed.
 
 ---
 
