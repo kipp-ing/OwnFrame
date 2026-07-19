@@ -134,6 +134,15 @@ entitlement caching so unattended frames work offline indefinitely; never-claw-b
 (FR-1100-13); **sequencing is release-blocking: the gated build must be the first version the
 public ever sees — approved v1.0 build 8 stays unreleased (FR-1100-17)**. No price points
 anywhere in this public repo — pricing is decided in App Store Connect at submission.
+**Status (2026-07-19): implemented on-branch** — new `Packages/PurchaseKit` (entitlement model,
+`AmbienceGate` per-photo latch, `StoreClient` + host-testable resolver/cache/store,
+`LockedRow`/`UnlockScreenView`/`TipJarView`), gates at the point of effect in both apps, Unlocks
+settings section (Restore + tip jar), and US5 broker degradation (masked config behind a locked
+banner). PurchaseKit 110 host tests + full iOS suite 152/0/2 green. **Remaining: T030 the real
+StoreKit 2 adapter with SKTestSession** (until then production entitlements reflect only the cached
+snapshot — no real purchase resolves), T033 the tvOS unlock surface, T040/T041 final gate + doc
+sync, T042 ASC/device day (manual). `listenForUpdates()` + a launch refresh exist but are wired at
+app start only with T030.
 
 Prior feature `1000-apple-tv` (tvOS port + 13 review fixes + Ken Burns micro-judder redesign:
 shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead) is

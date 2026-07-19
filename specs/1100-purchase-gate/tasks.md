@@ -20,14 +20,14 @@ full XCUITest suite runs before merge.
 
 **Purpose**: The new package and test scaffolding exist and build on both platforms.
 
-- [ ] T001 Create `Packages/PurchaseKit` skeleton: `Package.swift` (platforms `.iOS(.v17)`,
+- [x] T001 Create `Packages/PurchaseKit` skeleton: `Package.swift` (platforms `.iOS(.v17)`,
       `.tvOS(.v17)`, zero dependencies), empty `Sources/PurchaseKit/` + `Tests/PurchaseKitTests/`
       with one placeholder test; `swift build`/`swift test` green on host.
-- [ ] T002 Add PurchaseKit as a local package dependency of both app targets (`Immich Slideshow`,
+- [x] T002 Add PurchaseKit as a local package dependency of both app targets (`Immich Slideshow`,
       `Immich SlideshowTV`) in `Immich Slideshow.xcodeproj/project.pbxproj` via the `xcodeproj`
       gem script pattern from 1000 (pbxproj explicitly in scope); verify both schemes build via
       XcodeBuildMCP.
-- [ ] T003 [P] Add StoreKit test configuration `Immich SlideshowTests/Configuration.storekit`
+- [x] T003 [P] Add StoreKit test configuration `Immich SlideshowTests/Configuration.storekit`
       defining the six products with the exact ids from data-model.md (3 non-consumables with
       Family Sharing, 3 consumable tips), wired into the iOS test scheme.
 
@@ -41,34 +41,34 @@ test scheme.
 **Purpose**: Entitlement model, resolver, cache, store protocol/model, and app injection —
 every user story depends on these.
 
-- [ ] T004 [P] RED: `Packages/PurchaseKit/Tests/PurchaseKitTests/ProductCatalogTests.swift` —
+- [x] T004 [P] RED: `Packages/PurchaseKit/Tests/PurchaseKitTests/ProductCatalogTests.swift` —
       `Entitlement`/`EntitlementSet` basics and `ProductCatalog.grants` mapping (pro→{pro},
       automation→{automation}, everything→{pro,automation}, tips→{}, unknown→{}).
-- [ ] T005 Implement `Packages/PurchaseKit/Sources/PurchaseKit/Entitlement.swift` and
+- [x] T005 Implement `Packages/PurchaseKit/Sources/PurchaseKit/Entitlement.swift` and
       `ProductCatalog.swift` (ids per data-model.md) until T004 is green.
-- [ ] T006 [P] RED: `.../PurchaseKitTests/EntitlementResolverTests.swift` — the five resolver
+- [x] T006 [P] RED: `.../PurchaseKitTests/EntitlementResolverTests.swift` — the five resolver
       rules from data-model.md (union of grants, revoked excluded, tips nothing, unknown
       nothing, empty→{}).
-- [ ] T007 Implement `.../Sources/PurchaseKit/EntitlementResolver.swift` (pure function over
+- [x] T007 Implement `.../Sources/PurchaseKit/EntitlementResolver.swift` (pure function over
       `OwnedTransaction`) until T006 is green.
-- [ ] T008 [P] RED: `.../PurchaseKitTests/EntitlementSnapshotCacheTests.swift` — round-trip via
+- [x] T008 [P] RED: `.../PurchaseKitTests/EntitlementSnapshotCacheTests.swift` — round-trip via
       injected `UserDefaults` suite, versioned key `purchase.entitlements.v1`, snapshot never
       expires, corrupt/absent data → nil (not crash).
-- [ ] T009 Implement `.../Sources/PurchaseKit/EntitlementSnapshotCache.swift` until T008 green.
-- [ ] T010 Define `.../Sources/PurchaseKit/StoreClient.swift` protocol per
+- [x] T009 Implement `.../Sources/PurchaseKit/EntitlementSnapshotCache.swift` until T008 green.
+- [x] T010 Define `.../Sources/PurchaseKit/StoreClient.swift` protocol per
       contracts/purchasekit-api.md (`products/purchase/restore/ownedTransactions/updates`,
       `OwnedTransaction`, `PurchaseOutcome`, `DisplayProduct`) plus a scripted
       `StoreClientFake` under `Tests/PurchaseKitTests/Fakes/` (queueable results, failure
       injection, updates continuation).
-- [ ] T011 RED: `.../PurchaseKitTests/EntitlementStoreTests.swift` — `current` seeded
+- [x] T011 RED: `.../PurchaseKitTests/EntitlementStoreTests.swift` — `current` seeded
       synchronously from cache at init (client never awaited); successful `refresh()` applies
       + persists; `restore()` = client restore then refresh.
-- [ ] T012 Implement `.../Sources/PurchaseKit/EntitlementStore.swift` (@Observable) until T011
+- [x] T012 Implement `.../Sources/PurchaseKit/EntitlementStore.swift` (@Observable) until T011
       is green.
-- [ ] T013 Create compile-only skeleton `.../Sources/PurchaseKit/StoreKitClient.swift`
+- [x] T013 Create compile-only skeleton `.../Sources/PurchaseKit/StoreKitClient.swift`
       (conforms to `StoreClient`, trivial bodies, NO behavioral logic — constitution I: the
       adapter's behavior is implemented in T030 only after its StoreKitTest cases are red).
-- [ ] T014 Wire injection + hermetic seams in both apps: create `EntitlementStore` at startup
+- [x] T014 Wire injection + hermetic seams in both apps: create `EntitlementStore` at startup
       in `Immich Slideshow/Immich_SlideshowApp.swift` and the TV entry (`Immich
       SlideshowTV/TVRootView.swift`), honoring `--uitest-entitlements=<none|pro|automation|all>`
       and `--uitest-store=<stub|unavailable|pending>` per contracts/uitest-seams.md (stub
@@ -88,40 +88,40 @@ are visible as dimmed+badged+tappable locked rows; playback never shows purchase
 whole free feature set work; locked rows present and hittable; sustained stub playback shows
 zero `unlock.`-prefixed elements.
 
-- [ ] T015 [US1] RED: gating-flag tests (host, app test target or PurchaseKitTests where the
+- [x] T015 [US1] RED: gating-flag tests (host, app test target or PurchaseKitTests where the
       helper lands): `effective(kenBurns:entitlements:)` and clock-participation truth tables —
       setting on + no `.pro` → off; setting preserved regardless. Include the relock-boundary
       rule (spec edge case / FR-1100-12): an entitlement loss during playback never alters the
       in-flight photo's motion — the effective flag is latched per photo and applies at the
       next photo advance (or next foreground), never mid-photo.
-- [ ] T016 [US1] Gate Ken Burns + clock at point of effect in
+- [x] T016 [US1] Gate Ken Burns + clock at point of effect in
       `Immich Slideshow/Slideshow/SlideshowView.swift` (effective flags feeding
       `KenBurnsMotionModifier` and the `ClockOverlayView` branch) until T015 is green,
       including the per-photo latch (T015's boundary rule);
       `ThemeSettings`/`ClockSettings` reads/writes unchanged.
-- [ ] T017 [P] [US1] Same Ken Burns gate in `Immich SlideshowTV/TVSlideshowView.swift`
+- [x] T017 [P] [US1] Same Ken Burns gate in `Immich SlideshowTV/TVSlideshowView.swift`
       (tvOS clock rendering doesn't exist yet — 1000 leftover; nothing to gate there).
-- [ ] T018 [US1] RED then implement: coordinator-gate tests — `.automation` absent →
+- [x] T018 [US1] RED then implement: coordinator-gate tests — `.automation` absent →
       `HAControlCoordinator` never constructed/started; present → started. Gate in
       `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` and
       `Immich SlideshowTV/TVRemoteControlAdapter.swift`. Broker config and keychain untouched
       (asserted by test). Also assert the R5 state-topic rule: MQTT state topics report the
       STORED settings values (data), not effective rendering — an Automation-only owner setting
       the Ken Burns/clock selects sees the stored value echoed while rendering stays Pro-gated.
-- [ ] T019 [US1] RED then implement: intent guards in
+- [x] T019 [US1] RED then implement: intent guards in
       `Immich Slideshow/Intents/FrameIntents.swift` — every remote-control intent's
       `perform()` throws the localized `unlock.required.automation` error without
       `.automation`; error message asserted in test; intents remain listed in Shortcuts.
-- [ ] T020 [US1] RED: XCUITest `Immich SlideshowUITests/PurchaseGateUITests.swift` — seam
+- [x] T020 [US1] RED: XCUITest `Immich SlideshowUITests/PurchaseGateUITests.swift` — seam
       assertions 1 + 2 from contracts/uitest-seams.md (locked rows
       `settings.row.kenburns.locked` / `.clock.locked` / `.broker.locked` exist, are hittable;
       a stub playback window of ≥ 3 photo advances surfaces no `unlock.`-prefixed element),
       plus one onboarding-path assertion under `--uitest-entitlements=none` (SC-1100-01: the
       stub shared-link onboarding flow completes with zero `unlock.`-prefixed elements).
-- [ ] T021 [US1] Implement `LockedRow` (dimmed + lock glyph + tier badge + tappable) in
+- [x] T021 [US1] Implement `LockedRow` (dimmed + lock glyph + tier badge + tappable) in
       `Packages/PurchaseKit/Sources/PurchaseKit/UI/LockedRow.swift` with the contract
       accessibility identifiers; SwiftUI preview renders on iOS + tvOS.
-- [ ] T022 [US1] Apply locked treatment + "Unlocks" section skeleton in
+- [x] T022 [US1] Apply locked treatment + "Unlocks" section skeleton in
       `Immich Slideshow/Slideshow/SlideshowSettingsView.swift` (Ken Burns row, clock rows,
       broker/remote-control entry; free rows untouched) until T020 is green.
 
@@ -138,19 +138,19 @@ today's default experience. US1 acceptance scenarios pass hermetically.
 unlock screen → buy → row unlocks with no relaunch; `unavailable`/`pending` stubs drive their
 states.
 
-- [ ] T023 [US2] RED: `.../PurchaseKitTests/PurchaseViewModelTests.swift` — offer computation
+- [x] T023 [US2] RED: `.../PurchaseKitTests/PurchaseViewModelTests.swift` — offer computation
       (none→3 products; one owned→missing single only, FR-1100-04; all→owned state), store
       throw → `.unavailable` (no prices), `.pending` terminal until update event, cancel/fail →
       back to `.ready` with no side effects.
-- [ ] T024 [US2] Implement `.../Sources/PurchaseKit/PurchaseViewModel.swift` until T023 green.
-- [ ] T025 [US2] RED: extend `PurchaseGateUITests.swift` with seam assertions 3 + 5 and the
+- [x] T024 [US2] Implement `.../Sources/PurchaseKit/PurchaseViewModel.swift` until T023 green.
+- [x] T025 [US2] RED: extend `PurchaseGateUITests.swift` with seam assertions 3 + 5 and the
       stub purchase end-to-end (buy on unlock screen → locked row gone without relaunch —
       SC-1100-03 mechanism).
-- [ ] T026 [US2] Implement `.../Sources/PurchaseKit/UI/UnlockScreenView.swift` — what-you-get
+- [x] T026 [US2] Implement `.../Sources/PurchaseKit/UI/UnlockScreenView.swift` — what-you-get
       list, live Ken Burns demo slot (reuses `KenBurnsMotionModifier` on current photo, bundled
       neutral sample as fallback per research R7), localized price, buy, Restore, `unavailable`
       + `pending` states; accessibility ids per contract.
-- [ ] T027 [US2] Present unlock screens from every locked row and the Unlocks section in
+- [x] T027 [US2] Present unlock screens from every locked row and the Unlocks section in
       `Immich Slideshow/Slideshow/SlideshowSettingsView.swift`; no auto-presentation anywhere;
       T025 green.
 
@@ -167,11 +167,11 @@ gracefully, adapter edge states proven against StoreKitTest.
 **Independent test**: entitled snapshot + a `StoreClient` that always fails → features active
 at first render across relaunches; StoreKitTest session drives refund/deferral flows.
 
-- [ ] T028 [US3] RED: extend `EntitlementStoreTests.swift` — refresh failure/offline never
+- [x] T028 [US3] RED: extend `EntitlementStoreTests.swift` — refresh failure/offline never
       shrinks `current` (last-known-good); `updates` event triggers re-resolve + persist
       (Ask-to-Buy approval arrives late); successful resolve to a smaller set (revocation)
       shrinks + persists (FR-1100-12); snapshot age is irrelevant (no expiry path exists).
-- [ ] T029 [US3] Implement `listenForUpdates()` + never-downgrade refinement in
+- [x] T029 [US3] Implement `listenForUpdates()` + never-downgrade refinement in
       `EntitlementStore.swift` until T028 is green.
 - [ ] T030 [US3] RED then implement: StoreKitTest adapter tests (XCTest — strictly-necessary
       exception) in `Immich SlideshowTests/StoreKitClientTests.swift` against T003's
@@ -180,7 +180,7 @@ at first render across relaunches; StoreKitTest session drives refund/deferral f
       transaction dropped. Each case red first, then implement the corresponding behavior in
       `StoreKitClient.swift` (T013 skeleton) until green; run via XcodeBuildMCP `test_sim`
       (whole class — single-`@Test` false-green memory applies).
-- [ ] T031 [US3] Launch-path integration test (host, fakes): entitled snapshot in defaults +
+- [x] T031 [US3] Launch-path integration test (host, fakes): entitled snapshot in defaults +
       never-responding client → gating flags active in the first render pass with no await
       (FR-1100-10); document the invariant in `EntitlementStore.swift` header.
 
@@ -195,7 +195,7 @@ at first render across relaunches; StoreKitTest session drives refund/deferral f
 **Independent test**: stub-store restore repopulates entitlements on a wiped install; TV
 target shows the same locked/unlock surfaces; real family/universal checks are device-day.
 
-- [ ] T032 [US4] RED then implement: Restore action in settings (`SlideshowSettingsView.swift`
+- [x] T032 [US4] RED then implement: Restore action in settings (`SlideshowSettingsView.swift`
       Unlocks section) calling `EntitlementStore.restore()`; host test: restore triggers
       client sync + refresh + persist; XCUITest: `unlock.restore` present on unlock screens
       and in settings.
@@ -206,7 +206,7 @@ target shows the same locked/unlock surfaces; real family/universal checks are d
       host tests for the TV gating/view-model wiring + XcodeBuildMCP `snapshot_ui`/screenshot
       review on the Apple TV simulator under the `--uitest-entitlements` seams + the T034
       device-day items.
-- [ ] T034 [US4] Extend `docs/manual-verification.md` FINAL DEVICE DAY with the 1100 items
+- [x] T034 [US4] Extend `docs/manual-verification.md` FINAL DEVICE DAY with the 1100 items
       from quickstart.md §5 (ASC product setup + id-drift smoke test, sandbox purchase/cancel/
       Ask-to-Buy, restore on second device, Family Sharing member, Apple TV universal purchase,
       24 h offline entitlement soak piggyback, the ≥ 4 h free-tier wall-clock playback run with
@@ -226,15 +226,15 @@ purchase resumes with zero re-entry.
 visible (masked as usual) behind a locked banner, no connect attempt; stub-purchase
 Automation → coordinator starts with stored config.
 
-- [ ] T035 [US5] RED then implement: locked-banner state in
+- [x] T035 [US5] RED then implement: locked-banner state in
       `Immich Slideshow/Slideshow/BrokerSetupView.swift` and
       `Immich SlideshowTV/TVBrokerSetupView.swift` — stored config shown (secrets masked as
       today), `settings.row.broker.locked` banner, no clearing/migration of any stored value
       (host tests assert keychain/defaults untouched by the gate path).
-- [ ] T036 [P] [US5] Negative test in `Packages/ConfigSyncKit/Tests/ConfigSyncKitTests/`:
+- [x] T036 [P] [US5] Negative test in `Packages/ConfigSyncKit/Tests/ConfigSyncKitTests/`:
       encoded sync payloads contain no entitlement/purchase keys (spec edge case "entitlement
       state vs. config sync"); assert against the payload's coding keys.
-- [ ] T037 [US5] Purchase-resumes test: host integration (fakes) — seeded broker config +
+- [x] T037 [US5] Purchase-resumes test: host integration (fakes) — seeded broker config +
       stub purchase of Automation → coordinator starts with the previously stored settings,
       zero re-entry (FR-1100-14); plus XCUITest seam assertion 6 (seeded config, `none`:
       fields populated + locked banner + nothing cleared).
@@ -250,7 +250,7 @@ Automation → coordinator starts with stored config.
 **Independent test**: tip via stub store → thank-you state; no entitlement change; no tip UI
 outside settings.
 
-- [ ] T038 [US6] RED then implement: `.../Sources/PurchaseKit/UI/TipJarView.swift` + a
+- [x] T038 [US6] RED then implement: `.../Sources/PurchaseKit/UI/TipJarView.swift` + a
       `settings.tipjar` row in `SlideshowSettingsView.swift`; host test: consumable purchase
       leaves `EntitlementSet` unchanged; XCUITest: tip flow reaches `tipjar.thanks`, tip row
       absent everywhere outside settings, no unprompted tip UI during playback window.
@@ -259,7 +259,7 @@ outside settings.
 
 ## Phase 9: Polish & Cross-Cutting
 
-- [ ] T039 [P] Copy audit (SC-1100-07): sweep `Immich Slideshow/Localizable.xcstrings`, all
+- [x] T039 [P] Copy audit (SC-1100-07): sweep `Immich Slideshow/Localizable.xcstrings`, all
       PurchaseKit UI strings, `docs/app-store-listing.md`, `README.md`, and user-facing pages
       under `docs/` for "lifetime"/subscription terminology on the unlocks (FR-1100-05 covers
       any user-facing document); sanctioned phrasing "one-time purchase"; note the audit
@@ -308,9 +308,18 @@ and the quickstart §5 checklist gate the actual App Store release, not the merg
 
 ## Status (updated 2026-07-19)
 
-Implementation in progress on branch `1100-purchase-gate`. Done and committed:
-T001–T029, T031, T034, T036, T039. PurchaseKit host suite 100/100; full iOS XCUITest 146/0/2
-after Phase 3; iOS + tvOS both build.
+Implementation in progress on branch `1100-purchase-gate`. Done and committed: **all of
+T001–T029, T031, T032, T034–T039** (every user story's logic + UI, including US5 broker
+degradation on iOS). PurchaseKit host suite **110/110**; full iOS suite **152/0/2** (2 skips are
+the App Store screenshot + live-demo smoke, both intentional); iOS + tvOS both build.
+
+Remaining: **T030** (real `StoreKitClient` adapter + SKTestSession tests — inline, simulator-gated,
+the one untested surface; until it lands, production entitlements reflect only the cached snapshot
+and no real purchase resolves), **T033** (tvOS unlock surface + TV broker locked banner), **T040**
+(final full gate — the iOS half is green; tvOS snapshot review + StoreKitTest class outstanding),
+**T041** (this doc + CLAUDE.md + overview kept in sync), **T042** (ASC/device day — manual).
+`listenForUpdates()` + a launch `refresh()` are implemented but not yet wired at app start; they
+ride with T030's real adapter.
 
 - **T039 copy audit — PASS.** `grep -rin "lifetime"` over PurchaseKit UI, Localizable.xcstrings,
   app-store-listing.md, README.md, and docs/: zero user-facing hits (only the doc-comment stating
