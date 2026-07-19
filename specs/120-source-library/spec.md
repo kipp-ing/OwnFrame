@@ -152,6 +152,15 @@ shared-link password never appears in UserDefaults/logs.
   it adds no startup interruption, no new always-on overlay, and no background behavior.
 - **FR-120-11**: Exactly one source is active at a time; pooling/merging multiple sources into one
   stream is OUT OF SCOPE here (remains the topic 100 roadmap item).
+- **FR-120-12** *(added 2026-07-19)*: Wherever a shared link can be added to the library, the user
+  MUST be able to supply it by scanning its QR code as an alternative to typing or pasting — that
+  is, on the shared add-source form used by Settings → Sources and by the onboarding add-source
+  step, not only on the first-run shared-link path (which already has it via FR-220-04). A scanned
+  code MUST be handled identically to a typed one: same validation, same resolve-first /
+  password-only-when-needed flow, same dedupe and persistence, and the optional name the user typed
+  alongside MUST be carried through to the saved source. Camera access follows FR-220-05: if it is
+  denied or unavailable, manual entry MUST remain fully usable, and scanning is never the only way
+  to add a link.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -176,6 +185,11 @@ shared-link password never appears in UserDefaults/logs.
   absent from plaintext UI, UserDefaults, logs, source, and committed files.
 - **SC-120-04**: The Home Assistant select lists the saved sources, and selecting one switches the
   active source within a single running slideshow.
+- **SC-120-05** *(added 2026-07-19)*: A user who already has a library can add a second shared album
+  by scanning its QR code from Settings → Sources — without typing the link — and a name typed in
+  the form before scanning is the name the source is saved under. The host tier verifies the
+  routing and the name pass-through with no camera; the live camera scan rides the existing
+  SC-220-07 device gate.
 
 ## Open Questions
 

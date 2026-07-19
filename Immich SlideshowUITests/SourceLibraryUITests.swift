@@ -129,6 +129,30 @@ final class SourceLibraryUITests: XCTestCase {
                       "the selected album should be added as a source after Done")
     }
 
+    /// 120 / FR-120-12 — adding a shared link later offers the same QR scan the first-run
+    /// path has, and never at the cost of manual entry: the URL field and Add button stay
+    /// put, so a denied or missing camera can't strand the user (FR-220-05 parity).
+    @MainActor
+    func testAddSharedLinkFormOffersQRScanAlongsideManualEntry() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launch()
+
+        openSources(in: app)
+        app.buttons["sources.add"].tap()
+
+        let picker = app.segmentedControls["sources.add.type"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3), "add-source type picker should exist")
+        picker.buttons["Shared link"].tap()
+
+        XCTAssertTrue(app.buttons["sources.add.scan"].waitForExistence(timeout: 3),
+                      "Settings → Sources → Shared link should offer Scan QR")
+        XCTAssertTrue(app.textFields["sources.add.url"].exists,
+                      "manual link entry must remain available alongside scanning")
+        XCTAssertTrue(app.textFields["sources.add.label"].exists,
+                      "the optional name field must remain available alongside scanning")
+    }
+
     // MARK: - Helpers
 
     @MainActor

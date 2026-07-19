@@ -57,6 +57,11 @@ Status): the sim proves the mechanics, your eyes prove the elegance.
 
 - [ ] **SC-220-07**: scan a shared-link QR with the real camera → onboarding completes
       (`specs/220-onboarding-welcome/tasks.md`).
+- [ ] **SC-120-05** *(added 2026-07-19)*: with a library already set up, add a second shared album
+      by scanning its QR from **Settings → Sources → + → Shared link** — no typing — and confirm it
+      is saved under the name typed in the form beforehand. Same camera hardware as SC-220-07, so
+      do both in one pass; also check the camera-denied path still leaves manual entry usable
+      (`specs/120-source-library/tasks.md` Phase 8).
 - [ ] **800 T029**: Siri phrase checklist on device (`specs/800-app-intents/tasks.md`).
 - [ ] **900 quickstart** device/beta gates: real Photos library end-to-end + the iOS 27 beta
       shared-album rebuild check (`specs/900-photo-library-source/quickstart.md`).

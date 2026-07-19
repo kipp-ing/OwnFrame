@@ -98,16 +98,12 @@ Small, well-understood, cheap to close.
 - [ ] **`120/T027`** — mixed-library relaunch persistence (incl. a password-protected shared
       link). **`120/T032`** — secret grep over the suite + manual log check. **`120/T033`** —
       changelog.
-- [ ] **QR when adding a source later.** The scanner is complete and unguarded; it is simply only
-      wired to one view. `SharedLinkSetupView` has the Scan-QR button; the shared
-      `SharedLinkAddForm` — used by Settings → Sources → + *and* by onboarding step 2 — does not.
-      Deliberately out of scope for 220 (FR-220-07; `220/research.md` R7) and never picked up
-      since, so it needs **a new FR in `120`** before implementation.
-      Lift the scanner state, button, `.fullScreenCover`, and `startScan()` from
-      `SharedLinkSetupView.swift:22-23,50-56,92-96,130-147` into `SharedLinkAddForm.swift`,
-      calling the already-public `SourceLibraryViewModel.addScannedSharedLink(using:label:)`.
-      One design decision: `SharedLinkAddForm` offers an optional name field while `startScan()`
-      hardcodes `label: ""` — thread the typed label through instead of discarding it.
+- [X] ~~**QR when adding a source later.**~~ **Done 2026-07-19.** Specced as **FR-120-12** /
+      **SC-120-05**, implemented in `SharedLinkAddForm.swift`, and covered by
+      `SourceLibraryUITests.testAddSharedLinkFormOffersQRScanAlongsideManualEntry` plus two host
+      pins in `ScannedLinkRoutingTests`. Settings → Sources and onboarding step 2 both gained it
+      from the one change, and the typed name now rides along instead of being discarded. The
+      live camera scan rides the existing SC-220-07 device gate.
 
 ---
 

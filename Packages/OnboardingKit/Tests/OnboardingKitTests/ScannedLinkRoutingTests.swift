@@ -32,6 +32,37 @@ import Testing
     #expect(store.load().sources.count == 1)
 }
 
+// T034 (120, US2): FR-120-12 — the shared add-source form (Settings → Sources, onboarding step 2)
+// offers the same scan, and it carries the optional name typed alongside the link. The onboarding
+// first-run path passes "" and keeps falling back to the host-derived label.
+
+@MainActor
+@Test func addScannedSharedLinkKeepsTheTypedLabel() async {
+    let store = InMemorySourceLibraryStore()
+    let resolver = ScanStubResolver()
+    let vm = SourceLibraryViewModel(store: store, secretStore: InMemorySharedLinkSecretStore(), resolver: resolver)
+    let scanner = ScriptedScanner(result: "https://host.example/s/abc123")
+
+    await vm.addScannedSharedLink(using: scanner, label: "Iceland 2021")
+
+    #expect(vm.sources.count == 1)
+    #expect(vm.sources[0].label == "Iceland 2021")
+    #expect(store.load().sources[0].label == "Iceland 2021")
+}
+
+@MainActor
+@Test func addScannedSharedLinkWithoutALabelStillDerivesOne() async {
+    let store = InMemorySourceLibraryStore()
+    let resolver = ScanStubResolver()
+    let vm = SourceLibraryViewModel(store: store, secretStore: InMemorySharedLinkSecretStore(), resolver: resolver)
+    let scanner = ScriptedScanner(result: "https://host.example/s/abc123")
+
+    await vm.addScannedSharedLink(using: scanner, label: "")
+
+    #expect(vm.sources.count == 1)
+    #expect(!vm.sources[0].label.isEmpty)
+}
+
 @MainActor
 @Test func addScannedSharedLinkRejectsNonURLWithoutNetwork() async {
     await assertCalmRejection(decoded: "just some text")
