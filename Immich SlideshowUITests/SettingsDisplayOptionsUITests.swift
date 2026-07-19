@@ -96,8 +96,11 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
     @MainActor
     func testTransitionAndKenBurnsPersistAcrossRelaunch() throws {
         let app = XCUIApplication()
+        // 1100: Ken Burns is Pro-gated, so this behaviour test seeds the entitlement — it is
+        // about persistence, not the gate (PurchaseGateUITests owns the locked case).
         app.launchArguments = [
-            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings", "--uitest-reset-theme"
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings",
+            "--uitest-reset-theme", "--uitest-entitlements=pro"
         ]
         app.launch()
 
@@ -125,7 +128,8 @@ final class SettingsDisplayOptionsUITests: XCTestCase {
         app.terminate()
         let relaunch = XCUIApplication()
         relaunch.launchArguments = [
-            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings"
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings",
+            "--uitest-entitlements=pro"
         ]
         relaunch.launch()
 
