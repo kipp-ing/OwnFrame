@@ -356,6 +356,17 @@ green. The live camera QR decode + permission prompt is a manual **device gate**
 | SC-220-06 | Every pre-existing onboarding behaviour still passes | full XCUITest suite (T020): `SharedLinkOnboardingUITests`, `SourceOnboardingUITests`, `OnboardingBackUITests`, `ShareSheetIncomingUITests` | covered |
 | SC-220-07 | QR parse/validate/route host-tested; camera end-to-end on device | `ScannedShareLinkTests`/`ScannedLinkRoutingTests` (host); manual device gate in `specs/220-onboarding-welcome/quickstart.md` | covered (host) + scheduled (device) |
 
+## 120 - Source Library *(section added 2026-07-19 — FR-120-12 only)*
+
+This section is **partial**: it was created to record the 2026-07-19 amendment. FR-120-01…11 are
+implemented and merged (see `specs/120-source-library/tasks.md`) but have no rows here yet — one
+of the traceability holes noted in the header.
+
+| FR/SC | Requirement (short) | Covering test(s) | Status |
+|---|---|---|---|
+| FR-120-12 | QR scan available wherever a shared link is added (Settings → Sources + onboarding step 2), typed name carried through | `SourceLibraryUITests.testAddSharedLinkFormOffersQRScanAlongsideManualEntry`; `ScannedLinkRoutingTests.addScannedSharedLinkKeepsTheTypedLabel` / `…WithoutALabelStillDerivesOne` | covered (host + ui-sim) |
+| SC-120-05 | Add a second shared album by scanning from Settings, saved under the typed name | same as FR-120-12; live camera scan rides the SC-220-07 device gate | covered (host + ui-sim) + device gate |
+
 ## 510 - Clock Overlay *(added 2026-07-18, implemented — iOS/iPadOS)*
 
 *(Sub-spec of 500; renderer for the Quiet Glass clock.)* Ambient-layer clock over the

@@ -257,6 +257,31 @@ password/bearer key in UserDefaults/logs.
 
 ---
 
+## Phase 8: QR on the shared add-source form (FR-120-12, added 2026-07-19)
+
+**Goal**: the scan affordance exists wherever a shared link can be added, not only on the
+first-run path — Settings → Sources and the onboarding add-source step both use
+`SharedLinkAddForm`, so one change serves both. No new scanning code: `QRScanner`,
+`CodeScanning`, `ScannedShareLink` and `SourceLibraryViewModel.addScannedSharedLink` already
+shipped with 220.
+
+- [X] T034 Host pins in
+      `Packages/OnboardingKit/Tests/OnboardingKitTests/ScannedLinkRoutingTests.swift`: a scanned
+      link keeps the name typed alongside it, and an empty name still derives one. **Green on
+      write** — the view model already threaded `label` through `resolveSharedLink`; only the UI
+      discarded it. Recorded as regression pins, not as a red-then-green cycle (same pattern as
+      220/T006).
+- [X] T035 Red XCUITest in `Immich SlideshowUITests/SourceLibraryUITests.swift`:
+      `testAddSharedLinkFormOffersQRScanAlongsideManualEntry` — Settings → Sources → + → Shared
+      link exposes `sources.add.scan`, and the URL + name fields stay present so a denied or
+      missing camera can never strand the user (FR-220-05 parity). Verified RED first (button
+      absent), then green.
+- [X] T036 Implement in `Immich Slideshow/Onboarding/SharedLinkAddForm.swift`: `Scan QR` button
+      (`\(idPrefix).scan`), `.fullScreenCover` anchored on the URL field's always-present leaf
+      (Form/List drops `Section` modifiers — same reason the password sheet hangs there), and
+      `startScan()` passing `labelText` to `addScannedSharedLink(using:label:)` rather than the
+      first-run path's `""`. tvOS is unaffected: its target compiles only `Immich SlideshowTV/`.
+
 ## Dependencies & order
 
 - **Setup (P1)** → **Foundational (P2)** → stories.

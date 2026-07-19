@@ -28,6 +28,8 @@ struct SharedLinkAddForm: View {
     @State private var labelText = ""
     @State private var passwordText = ""
     @State private var showPasswordPrompt = false
+    @State private var qrScanner: QRScanner?
+    @State private var showScanner = false
 
     var body: some View {
         Section {
@@ -38,14 +40,28 @@ struct SharedLinkAddForm: View {
                 .disabled(isResolving)
                 .accessibilityIdentifier("\(idPrefix).url")
                 // Anchor presentation/lifecycle on this always-present leaf — modifiers on a
-                // `Section` are dropped by Form/List, so the password sheet must hang here.
+                // `Section` are dropped by Form/List, so the password sheet and the scanner
+                // cover must both hang here.
                 .onAppear { sourceLibrary.resetSharedLinkAdd() }
                 .sheet(isPresented: $showPasswordPrompt, onDismiss: { passwordText = "" }) {
                     passwordPrompt
                 }
+                .fullScreenCover(isPresented: $showScanner) {
+                    if let qrScanner {
+                        QRScannerView(scanner: qrScanner)
+                    }
+                }
             TextField("Name (optional)", text: $labelText)
                 .disabled(isResolving)
                 .accessibilityIdentifier("\(idPrefix).label")
+
+            Button {
+                startScan()
+            } label: {
+                Label("Scan QR", systemImage: "qrcode.viewfinder")
+            }
+            .disabled(isResolving)
+            .accessibilityIdentifier("\(idPrefix).scan")
         } header: {
             Text("Shared link")
         } footer: {
@@ -82,6 +98,32 @@ struct SharedLinkAddForm: View {
     private func submit() {
         Task {
             await sourceLibrary.resolveSharedLink(urlString: urlText, label: labelText)
+            switch sourceLibrary.addState {
+            case .needsPassword:
+                showPasswordPrompt = true
+            case .resolved:
+                finishAdd()
+            default:
+                break
+            }
+        }
+    }
+
+    /// Presents the camera QR scanner and routes the decoded code through the very same
+    /// resolve-first flow `submit()` uses (120, FR-120-12) — `addScannedSharedLink` calls
+    /// `scanner.scan()` itself, so this Task drives the whole scan, not just its result.
+    /// Unlike the first-run path, this form has a name field, so the typed name rides
+    /// along instead of being discarded. A cancelled scan (dismiss, or no usable
+    /// camera/permission) is a silent no-op that leaves manual entry untouched; an invalid
+    /// code surfaces the same inline error `submit()` uses, via `addState`.
+    private func startScan() {
+        sourceLibrary.resetSharedLinkAdd()
+        let scanner = QRScanner()
+        qrScanner = scanner
+        showScanner = true
+        Task {
+            await sourceLibrary.addScannedSharedLink(using: scanner, label: labelText)
+            showScanner = false
             switch sourceLibrary.addState {
             case .needsPassword:
                 showPasswordPrompt = true

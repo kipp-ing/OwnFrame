@@ -178,10 +178,9 @@ The user can still reset the app configuration. Reset removes the server URL, se
   onboarding and shared-link-only setup the default path, and
   [`220`](../220-onboarding-welcome/spec.md) added the welcome screen and camera QR scan.
 
-  **Known gap, unspecified:** the QR scan lives only on the onboarding shared-link entry
-  (`SharedLinkSetupView`). The shared `SharedLinkAddForm` used by Settings → Sources → + *and* by
-  onboarding step 2 has no scan affordance — deliberately out of scope for 220 (FR-220-07,
-  research R7), and never picked up by a later spec. Belongs in `120` when scheduled.
+  ~~**Known gap, unspecified:** the QR scan lives only on the onboarding shared-link entry.~~
+  **Closed 2026-07-19** — `SharedLinkAddForm` (Settings → Sources → + *and* onboarding step 2)
+  now offers the same scan under **FR-120-12**, carrying the optional name the user typed.
 
 ## Success Criteria *(mandatory)*
 
