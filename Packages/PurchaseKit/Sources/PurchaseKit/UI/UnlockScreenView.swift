@@ -1,0 +1,539 @@
+import SwiftUI
+
+// Shipping UI — deliberately NOT `#if DEBUG` (unlike StubStoreClient.swift / UITestSeams.swift
+// in this package). This is the screen a paying user actually reads.
+
+/// The single screen that answers "what do I get" and "how do I get it" for one tier
+/// (FR-1100-09, contracts/purchasekit-api.md §Locked-row / unlock-screen UI contract).
+///
+/// Sections, in the contract's order: what-you-get list (with the Ken Burns demo slot on the Pro
+/// screen) → price + purchase button, or the unavailable notice → Restore Purchases.
+///
+/// Three things this view will not do:
+/// - **Present itself.** It is a sheet body with no presentation state of its own; a locked row,
+///   the Unlocks settings section or onboarding decides when it appears (SC-1100-02).
+/// - **Buy anything on its own.** Every store call originates in a button the user pressed. The
+///   one automatic call is ``PurchaseViewModel/load()``, which only reads prices.
+/// - **Invent a price.** Every price string comes from ``DisplayProduct/displayPrice`` as the
+///   store localized it. When the store is unreachable there is no price row at all, not a dash
+///   and not a cached value (FR-1100-16).
+///
+/// ```swift
+/// .sheet(item: $unlockTier) { tier in
+///     UnlockScreenView(tier: tier) { unlockTier = nil }
+/// }
+/// ```
+public struct UnlockScreenView: View {
+
+    private let tier: Entitlement
+    private let onClose: () -> Void
+
+    /// Optional on purpose: the app reads the store the same way, and a screen that hard-unwraps
+    /// it would turn a wiring mistake into a crash on a paying user's device. Absent store →
+    /// the unavailable notice, which is exactly what "no store to ask" means.
+    @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
+
+    /// Built in `task`, not `init`: the model needs the store from the environment, which is not
+    /// available at initialization time. Nil until then, which is why the first pass renders
+    /// progress.
+    @State private var model: PurchaseViewModel?
+
+    public init(tier: Entitlement, onClose: @escaping () -> Void) {
+        self.tier = tier
+        self.onClose = onClose
+    }
+
+    public var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+                header
+                whatYouGet
+                offerSection
+                restoreSection
+                fineprint
+            }
+            .padding(Layout.padding)
+            .frame(maxWidth: Layout.contentWidth, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        // `.contain` rather than `.combine`: the screen is one findable container, and its
+        // children (prices, buttons, notices) stay individually addressable underneath it.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("unlock.screen.\(tier.rawValue)")
+        .task {
+            // Strictly once per presentation. A re-entrant load would reset a completed or
+            // pending purchase back to `loading` behind the user's back.
+            guard model == nil, let entitlements else { return }
+            let created = PurchaseViewModel(
+                tier: tier,
+                client: entitlements.storeClient,
+                store: entitlements
+            )
+            model = created
+            await created.load()
+        }
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Unlock \(tier.displayName)")
+                    .font(.largeTitle.weight(.semibold))
+                Text(tier.unlockTagline)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            closeButton
+        }
+    }
+
+    @ViewBuilder
+    private var closeButton: some View {
+        #if os(iOS)
+        Button(action: onClose) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Close")
+        .accessibilityIdentifier("unlock.close")
+        #else
+        // tvOS has no swipe-to-dismiss gesture and no close affordance of its own, so the
+        // control has to be a real, focusable button.
+        Button("Close", action: onClose)
+            .accessibilityIdentifier("unlock.close")
+        #endif
+    }
+
+    // MARK: - What you get
+
+    private var whatYouGet: some View {
+        VStack(alignment: .leading, spacing: Layout.rowSpacing) {
+            Text("What you get")
+                .font(.headline)
+
+            ForEach(tier.benefits, id: \.title) { benefit in
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(benefit.title).font(.body.weight(.medium))
+                        Text(benefit.detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } icon: {
+                    Image(systemName: benefit.symbol)
+                        .foregroundStyle(.tint)
+                }
+                .accessibilityElement(children: .combine)
+            }
+
+            if tier == .pro {
+                kenBurnsDemo
+            }
+        }
+    }
+
+    /// The Pro screen's motion sample slot.
+    ///
+    /// A neutral, bundled placeholder for now: FR-1100-09 asks for a *live* demo where the
+    /// feature is visual, and a looping sample lands with the demo work. It deliberately does not
+    /// reach into a running slideshow — the unlock screen must render identically whether it was
+    /// opened from playback settings or from onboarding, and must never depend on a photo source
+    /// being configured at all.
+    private var kenBurnsDemo: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [.indigo.opacity(0.55), .teal.opacity(0.35)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VStack(spacing: 8) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: Layout.demoGlyphSize, weight: .light))
+                Text("A slow drift and scale across every photo")
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+            }
+            .foregroundStyle(.white.opacity(0.9))
+            .padding()
+        }
+        .frame(height: Layout.demoHeight)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement()
+        .accessibilityLabel("Ken Burns motion sample")
+        .accessibilityIdentifier("unlock.demo.kenburns")
+    }
+
+    // MARK: - Offer
+
+    @ViewBuilder
+    private var offerSection: some View {
+        if let model {
+            switch model.phase {
+            case .loading:
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+            case .ready(let products):
+                offerList(products, busy: nil, using: model)
+
+            case .purchasing(let id):
+                // The offer stays on screen underneath the system purchase sheet; only the row
+                // being bought swaps its button for progress.
+                offerList(model.offeredProducts, busy: id, using: model)
+
+            case .pending(let id):
+                notice(
+                    identifier: "unlock.pending",
+                    symbol: "hourglass",
+                    title: "Waiting for approval",
+                    // Terminal for this session: no retry button, because the approval arrives on
+                    // its own and a second tap would risk a second charge (FR-1100-15).
+                    message: """
+                        \(displayName(of: id, using: model)) was sent for approval. \
+                        The unlock switches on by itself once it is approved — there is nothing \
+                        else to do here.
+                        """
+                )
+
+            case .completed(let owned):
+                completedNotice(owned)
+
+            case .unavailable:
+                unavailableNotice(retry: model)
+
+            case .failed(let message):
+                VStack(alignment: .leading, spacing: Layout.rowSpacing) {
+                    notice(
+                        identifier: "unlock.failed",
+                        symbol: "exclamationmark.triangle",
+                        title: "Purchase not completed",
+                        message: message
+                    )
+                    // Back on the offer, with no prompt and nothing re-attempted for the user.
+                    offerList(model.offeredProducts, busy: nil, using: model)
+                }
+            }
+        } else if entitlements == nil {
+            // No store in the environment at all — nothing to price and nothing to buy.
+            unavailableNotice(retry: nil)
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    @ViewBuilder
+    private func offerList(
+        _ products: [DisplayProduct],
+        busy: ProductID?,
+        using model: PurchaseViewModel
+    ) -> some View {
+        if !products.isEmpty {
+            VStack(alignment: .leading, spacing: Layout.rowSpacing) {
+                ForEach(products) { product in
+                    offerRow(product, busy: busy, using: model)
+                }
+            }
+        }
+    }
+
+    private func offerRow(
+        _ product: DisplayProduct,
+        busy: ProductID?,
+        using model: PurchaseViewModel
+    ) -> some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(product.displayName)
+                    .font(.headline)
+                if let blurb = product.id.offerBlurb {
+                    Text(blurb)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Spacer(minLength: 12)
+
+            // The store's own localized price string, verbatim. PurchaseKit formats nothing and
+            // substitutes nothing.
+            Text(product.displayPrice)
+                .font(.headline)
+                .monospacedDigit()
+                .accessibilityIdentifier("unlock.price.\(product.id.uiSlug)")
+
+            Button {
+                Task { await model.buy(product.id) }
+            } label: {
+                if busy == product.id {
+                    ProgressView()
+                } else {
+                    Text("Unlock")
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            // Any purchase in flight locks every row: one tap, one charge.
+            .disabled(busy != nil)
+            .accessibilityLabel("Unlock \(product.displayName), \(product.displayPrice)")
+            .accessibilityIdentifier("unlock.buy.\(product.id.uiSlug)")
+        }
+        .padding(Layout.rowPadding)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.quaternary.opacity(0.5))
+        )
+    }
+
+    // MARK: - Notices
+
+    /// FR-1100-16: informative, price-free, and never a crash. There is deliberately no field
+    /// here a cached or placeholder price could be rendered into.
+    private func unavailableNotice(retry model: PurchaseViewModel?) -> some View {
+        VStack(alignment: .leading, spacing: Layout.rowSpacing) {
+            notice(
+                identifier: "unlock.unavailable",
+                symbol: "wifi.exclamationmark",
+                title: "The App Store is unreachable",
+                message: """
+                    Prices and purchases need a connection to the App Store. Everything you \
+                    already own keeps working, online or not.
+                    """
+            )
+
+            if let model {
+                Button("Try Again") {
+                    Task { await model.load() }
+                }
+                .accessibilityIdentifier("unlock.retry")
+            }
+        }
+    }
+
+    private func completedNotice(_ owned: EntitlementSet) -> some View {
+        VStack(alignment: .leading, spacing: Layout.rowSpacing) {
+            notice(
+                identifier: "unlock.completed",
+                symbol: "checkmark.seal",
+                title: owned.isEmpty ? "Thank you" : "Unlocked",
+                message: owned.isEmpty
+                    ? "Your purchase went through. It may take a moment to appear."
+                    : "\(ownedList(owned)) — yours, on every device signed in to your Apple Account."
+            )
+
+            Button("Done", action: onClose)
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("unlock.done")
+        }
+    }
+
+    private func notice(
+        identifier: String,
+        symbol: String,
+        title: String,
+        message: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline)
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(Layout.rowPadding)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.quaternary.opacity(0.5))
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
+    }
+
+    // MARK: - Restore (FR-1100-11)
+
+    /// Present on every unlock screen, in every phase — including `unavailable`, where a user who
+    /// already paid needs it most.
+    private var restoreSection: some View {
+        Button("Restore Purchases") {
+            guard let model else { return }
+            Task { await model.restore() }
+        }
+        .disabled(model == nil)
+        .accessibilityHint("Recovers unlocks you already bought with this Apple Account.")
+        .accessibilityIdentifier("unlock.restore")
+    }
+
+    // MARK: - Fine print
+
+    /// FR-1100-05: the sanctioned wording is "one-time purchase". The word "lifetime" is banned
+    /// outright, and nothing here may imply a recurring charge or an expiring unlock.
+    private var fineprint: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Each unlock is a one-time purchase. No subscription, no recurring charge.")
+            Text("Shared with your family and included on iPad, iPhone, and Apple TV.")
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Copy helpers
+
+    private func displayName(of id: ProductID, using model: PurchaseViewModel) -> String {
+        model.offeredProducts.first { $0.id == id }?.displayName ?? "Your purchase"
+    }
+
+    private func ownedList(_ owned: EntitlementSet) -> String {
+        Entitlement.allCases
+            .filter(owned.contains)
+            .map(\.displayName)
+            .formatted(.list(type: .and))
+    }
+
+    // MARK: - Layout
+
+    private enum Layout {
+        #if os(tvOS)
+        static let padding: CGFloat = 60
+        static let sectionSpacing: CGFloat = 40
+        static let rowSpacing: CGFloat = 20
+        static let rowPadding: CGFloat = 24
+        static let contentWidth: CGFloat = 1000
+        static let demoHeight: CGFloat = 260
+        static let demoGlyphSize: CGFloat = 54
+        #else
+        static let padding: CGFloat = 24
+        static let sectionSpacing: CGFloat = 28
+        static let rowSpacing: CGFloat = 12
+        static let rowPadding: CGFloat = 16
+        static let contentWidth: CGFloat = 560
+        static let demoHeight: CGFloat = 160
+        static let demoGlyphSize: CGFloat = 34
+        #endif
+    }
+}
+
+// MARK: - Presentation copy
+//
+// Marketing wording for tiers and products lives beside the screen that says it, not in the
+// model: an `Entitlement` is a capability, and a `ProductID` is an App Store Connect identifier.
+// English only — the repo ships English-only by design (CLAUDE.md).
+
+private struct UnlockBenefit {
+    let title: String
+    let detail: String
+    let symbol: String
+}
+
+private extension Entitlement {
+
+    var unlockTagline: String {
+        switch self {
+        case .pro:
+            "Give the frame its ambience."
+        case .automation:
+            "Let the rest of your home drive the frame."
+        }
+    }
+
+    var benefits: [UnlockBenefit] {
+        switch self {
+        case .pro:
+            [
+                UnlockBenefit(
+                    title: "Ken Burns motion",
+                    detail: "Photos drift and scale slowly instead of sitting still.",
+                    symbol: "camera.viewfinder"
+                ),
+                UnlockBenefit(
+                    title: "Clock overlay",
+                    detail: "A quiet clock on the frame, in your 12- or 24-hour format.",
+                    symbol: "clock"
+                ),
+            ]
+        case .automation:
+            [
+                UnlockBenefit(
+                    title: "Home Assistant control",
+                    detail: "Brightness, album, and pause or play over MQTT, with discovery "
+                        + "and availability built in.",
+                    symbol: "house"
+                ),
+                UnlockBenefit(
+                    title: "Shortcuts and Siri",
+                    detail: "App Intents so your automations and your voice can drive the frame.",
+                    symbol: "sparkles"
+                ),
+            ]
+        }
+    }
+}
+
+private extension ProductID {
+
+    /// The short slug used in accessibility identifiers (contracts/uitest-seams.md) — never the
+    /// raw ASC identifier, which is a bundle-prefixed string no test should have to spell.
+    var uiSlug: String {
+        switch self {
+        case .pro: "pro"
+        case .automation: "automation"
+        case .everything: "everything"
+        case .tipSmall: "tip.small"
+        case .tipMedium: "tip.medium"
+        case .tipLarge: "tip.large"
+        }
+    }
+
+    /// One line of context under a product's name. The name and price come from the store; this
+    /// says what the purchase covers.
+    var offerBlurb: String? {
+        switch self {
+        case .pro: "Ken Burns motion and the clock overlay."
+        case .automation: "Home Assistant control and Shortcuts."
+        case .everything: "Both unlocks together, in one purchase."
+        case .tipSmall, .tipMedium, .tipLarge: nil
+        }
+    }
+}
+
+#if DEBUG
+#Preview("Pro unlock") {
+    let defaults = UserDefaults(suiteName: "preview.unlock.pro") ?? .standard
+    let store = EntitlementStore(
+        client: StubStoreClient(),
+        cache: EntitlementSnapshotCache(defaults: defaults)
+    )
+    return UnlockScreenView(tier: .pro) {}
+        .environment(store)
+}
+
+#Preview("Automation unlock, store unreachable") {
+    let defaults = UserDefaults(suiteName: "preview.unlock.automation") ?? .standard
+    let store = EntitlementStore(
+        client: StubStoreClient(behavior: .unavailable),
+        cache: EntitlementSnapshotCache(defaults: defaults)
+    )
+    return UnlockScreenView(tier: .automation) {}
+        .environment(store)
+}
+#endif
