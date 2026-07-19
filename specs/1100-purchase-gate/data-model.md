@@ -105,7 +105,13 @@ Rules (each is a test):
   unlock → [the missing one]; owns all → screen shows "owned" state, no products.
 - `unavailable` shows no prices and no placeholder values (FR-1100-16).
 - `pending` is terminal for the session; entitlement arrives later via the updates stream.
-- Cancel/failure returns to `ready` with no follow-up prompt (FR-1100-15).
+- **Cancel** returns to `ready` — the user chose to stop, so there is nothing to explain
+  (FR-1100-15).
+- **Failure** surfaces `failed(message)` so the user learns *why* the purchase did not complete.
+  Amended 2026-07-19: this rule previously read "Cancel/failure returns to `ready`", which
+  contradicted the `failed(message)` case in the enum above and would have left it dead. The
+  distinction is deliberate — cancel is a choice, failure is an error — and both remain passive:
+  FR-1100-15 forbids a follow-up *prompt*, not an explanation the user can read and dismiss.
 
 ## Gated feature mapping (app targets, not persisted)
 
