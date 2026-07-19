@@ -76,23 +76,73 @@ final class PurchaseGateUITests: XCTestCase {
     /// (the launch ambience composition), the broker is Automation.
     @MainActor
     func testTappingALockedRowOpensItsTierUnlockScreen() throws {
-        let routes: [(row: String, screen: String)] = [
-            ("settings.row.kenburns.locked", "unlock.screen.pro"),
-            ("settings.row.clock.locked", "unlock.screen.pro"),
-            ("settings.row.broker.locked", "unlock.screen.automation"),
-        ]
+        // The two Pro rows open the Pro unlock screen directly.
+        let proRows = ["settings.row.kenburns.locked", "settings.row.clock.locked"]
 
         // A fresh launch per row: no navigation state carried between routes, so a failure
         // names exactly one row.
-        for route in routes {
+        for rowID in proRows {
             let app = launchIntoSettings(entitlements: "none")
-            let row = element(app, route.row)
-            XCTAssertTrue(scrollToElement(row, in: app), "\(route.row) must be present to be tapped")
+            let row = element(app, rowID)
+            XCTAssertTrue(scrollToElement(row, in: app), "\(rowID) must be present to be tapped")
             row.tap()
-            XCTAssertTrue(element(app, route.screen).waitForExistence(timeout: 5),
-                          "tapping \(route.row) must open \(route.screen) (FR-1100-09)")
+            XCTAssertTrue(element(app, "unlock.screen.pro").waitForExistence(timeout: 5),
+                          "tapping \(rowID) must open unlock.screen.pro (FR-1100-09)")
             app.terminate()
         }
+
+        // The broker row is different by design (US5): it opens the locked broker view first —
+        // where an existing frame's owner sees their saved config — and the unlock offer THERE
+        // reaches the Automation screen. So the path is row → locked broker view → unlock screen.
+        let app = launchIntoSettings(entitlements: "none")
+        let brokerRow = element(app, "settings.row.broker.locked")
+        XCTAssertTrue(scrollToElement(brokerRow, in: app), "broker locked row must be present")
+        brokerRow.tap()
+        // The locked broker view re-uses the same banner identifier; its unlock button leads on.
+        let unlockEntry = element(app, "unlock.buy.automation.entry")
+        XCTAssertTrue(unlockEntry.waitForExistence(timeout: 5),
+                      "broker locked row must open the locked broker view with an unlock offer")
+        unlockEntry.tap()
+        XCTAssertTrue(element(app, "unlock.screen.automation").waitForExistence(timeout: 5),
+                      "the locked broker view's unlock offer must open unlock.screen.automation")
+    }
+
+    // MARK: - Assertion 6 — pre-gate broker config degrades gracefully (US5 / SC-1100-06)
+
+    /// A frame configured before the gate keeps its broker settings. Opening the (locked) broker
+    /// surface unentitled shows the stored values, masks the password as usual, carries a locked
+    /// banner, and clears nothing (FR-1100-14). The no-connection half is a device-day check.
+    @MainActor
+    func testSeededBrokerConfigIsVisibleAndLockedWhenUnentitled() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings",
+            "--uitest-broker", "--uitest-broker-existing", "--uitest-entitlements=none",
+        ]
+        app.launch()
+
+        let brokerRow = element(app, "settings.row.broker.locked")
+        XCTAssertTrue(scrollToElement(brokerRow, in: app),
+                      "the MQTT row is locked when Automation is not owned")
+        brokerRow.tap()
+
+        // Stored config is visible — "not an empty or reset screen" (US5 scenario 2). Scroll it
+        // into view first: a lazy Form row reports exists==true while off-screen but only
+        // realises its accessibility value once rendered (the entitled broker tests do the same).
+        // The combined row exposes "Host: mqtt.example.com" as its label (its `.value` is an
+        // empty string, so read the label, not value ?? label — an empty string isn't nil).
+        let host = element(app, "broker.host")
+        XCTAssertTrue(scrollToElement(host, in: app), "the saved broker host must be shown")
+        XCTAssertTrue(host.label.contains("mqtt.example.com"),
+                      "the stored host value must be visible, not blanked")
+        // The password is shown masked, never in the clear.
+        let password = element(app, "broker.password")
+        XCTAssertTrue(scrollToElement(password, in: app))
+        XCTAssertFalse(password.label.lowercased().contains("secret"),
+                       "the stored password must never be shown in the clear")
+        // The locked banner and unlock offer are both present.
+        XCTAssertTrue(element(app, "unlock.buy.automation.entry").exists,
+                      "an unlock offer must be present on the locked broker surface")
     }
 
     // MARK: - Assertion 2 — no purchase UI during free playback (SC-1100-02 proxy)

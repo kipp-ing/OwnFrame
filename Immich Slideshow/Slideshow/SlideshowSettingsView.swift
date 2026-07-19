@@ -56,6 +56,8 @@ struct SlideshowSettingsView: View {
     @State private var unlockTier: Entitlement?
     // Tip jar sheet (US6). Settings-only, never solicited anywhere else.
     @State private var showTipJar = false
+    // Locked broker view (US5): masked stored config + unlock offer for an unentitled frame.
+    @State private var showLockedBroker = false
     // Non-nil while a Restore is in flight, so the row shows progress and can't be double-tapped.
     @State private var isRestoring = false
     @State private var brightness: Double
@@ -298,9 +300,12 @@ struct SlideshowSettingsView: View {
                                 .accessibilityIdentifier("settings.mqtt")
                         }
                     } else {
+                        // US5: tapping opens the locked broker view (masked stored config +
+                        // banner + unlock offer), NOT the unlock screen directly — an existing
+                        // frame's owner must be able to see their config survived (FR-1100-14).
                         LockedRow(requires: .automation,
                                   identifier: "settings.row.broker.locked",
-                                  action: { unlockTier = .automation }) {
+                                  action: { showLockedBroker = true }) {
                             Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
                         }
                     }
@@ -447,6 +452,13 @@ struct SlideshowSettingsView: View {
         }
         .sheet(isPresented: $showTipJar) {
             TipJarView { showTipJar = false }
+        }
+        .sheet(isPresented: $showLockedBroker) {
+            LockedBrokerView(
+                viewModel: brokerViewModel,
+                onUnlock: { showLockedBroker = false; unlockTier = .automation },
+                onClose: { showLockedBroker = false }
+            )
         }
     }
 

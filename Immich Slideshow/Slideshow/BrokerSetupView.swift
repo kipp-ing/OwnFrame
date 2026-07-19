@@ -118,6 +118,92 @@ struct BrokerSettingsSection: View {
     }
 }
 
+/// The broker configuration as an unentitled frame sees it (1100, US5 / FR-1100-14).
+///
+/// Pre-gate frames — Jan's own, and any internal build that had HA configured before the gate —
+/// keep their broker settings after the update. This surface exists so the owner can *see* that
+/// their configuration survived: the stored host/port/username are shown, the password state is
+/// shown masked exactly as the live editor masks it, and a locked banner explains the tier and
+/// offers the unlock. It is strictly read-only — no field is editable, nothing connects, and
+/// nothing is cleared or migrated. Purchasing Automation swaps this for the live editor with every
+/// value already in place (zero re-entry, FR-1100-14).
+///
+/// It reads only the broker view model the settings screen already owns; it never reaches into
+/// PurchaseKit, and PurchaseKit never reaches into it — the entitlement is passed in as a plain
+/// callback so this app-target view owns the (app-target) broker data and the (PurchaseKit) unlock
+/// screen stays free of any broker/keychain coupling.
+struct LockedBrokerView: View {
+    let viewModel: BrokerSetupViewModel
+    /// Presents the Automation unlock screen. Owned by the caller so this view stays PurchaseKit-free.
+    let onUnlock: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    // The same lock/tier treatment as the settings rows, as a banner. Tapping it
+                    // is the unlock entry point (US1 seam) — hittable, never disabled.
+                    Button(action: onUnlock) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "lock.fill")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Remote control needs the Automation unlock")
+                                    .font(.headline)
+                                Text("Your Home Assistant setup is saved and resumes the moment you unlock — nothing to re-enter.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("settings.row.broker.locked")
+                }
+
+                // The stored configuration, visible and masked exactly as the live editor shows
+                // it — "not an empty or reset screen" (US5 scenario 2). Read-only: no bindings,
+                // no Save/Remove, no connect. The identifier sits on the VALUE Text (as the
+                // Storage rows do) so an XCUITest reads the stored value as the element's label.
+                Section("Saved configuration") {
+                    savedRow("Host", viewModel.host.isEmpty ? "—" : viewModel.host, id: "broker.host")
+                    savedRow("Port", viewModel.port, id: "broker.port")
+                    savedRow("Username", viewModel.username.isEmpty ? "—" : viewModel.username, id: "broker.username")
+                    savedRow("Password", viewModel.passwordIsSet ? "••••••••" : "Not set", id: "broker.password")
+                }
+
+                Section {
+                    Button("Unlock Automation", action: onUnlock)
+                        .accessibilityIdentifier("unlock.buy.automation.entry")
+                }
+            }
+            .navigationTitle("Home Assistant")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", action: onClose)
+                }
+            }
+            .task { viewModel.load() }   // reflect the stored values; load() never writes.
+        }
+    }
+
+    /// A read-only "label … value" row. The row is a single combined accessibility element whose
+    /// label carries BOTH the field name and the stored value, so an XCUITest lookup by
+    /// identifier reads the value off `.label` unambiguously (Form rows otherwise merge their
+    /// children and the value can go missing from a child Text's own element).
+    @ViewBuilder
+    private func savedRow(_ label: String, _ value: String, id: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value)")
+        .accessibilityIdentifier(id)
+    }
+}
+
 /// Selects the broker settings store: an in-memory store under `--uitest` so the
 /// hermetic flow never touches the real Keychain, the Keychain store in production.
 enum BrokerSettingsStoreFactory {
