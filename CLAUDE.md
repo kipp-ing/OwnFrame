@@ -145,8 +145,13 @@ are RED-then-green by construction, but `SKTestSession` serves 0 products under 
 `xcodebuild test` path (reproduced across every init style + iOS 18.6/26.x — the runner, not the
 runtime), so a `setUp` skip-guard makes them skip honestly; they must be run once from the Xcode
 IDE runner or on device (folds into T042), and the adapter is otherwise held by review + the pure
-host tests. **Remaining:** T033 the tvOS unlock surface, T040/T041 final gate + doc sync, T042
-ASC/device day + that one IDE/device StoreKitTest run (manual).
+host tests. **T033 done (2026-07-20):** the tvOS unlock surface — new `TVSettingsView` (gear
+destination) with the Ambience/Pro locked row, an Automation-gated Home-Assistant row
+(`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
+tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
+the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-only opaque
+backing. **Remaining:** T040/T041 final gate + doc sync, T042 ASC/device day + the one IDE/device
+StoreKitTest run + real family/universal-purchase checks (manual).
 
 Prior feature `1000-apple-tv` (tvOS port + 13 review fixes + Ken Burns micro-judder redesign:
 shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead) is
