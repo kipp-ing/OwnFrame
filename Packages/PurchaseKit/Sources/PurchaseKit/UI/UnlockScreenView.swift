@@ -56,6 +56,12 @@ public struct UnlockScreenView: View {
             .frame(maxWidth: Layout.contentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        #if os(tvOS)
+        // tvOS `fullScreenCover` (unlike an iOS sheet) gives custom content no opaque backing, so
+        // the screen underneath bleeds through. This view is presented full screen on tvOS and has
+        // to stand on its own, so supply the backing here.
+        .background { Color.black.ignoresSafeArea() }
+        #endif
         // `.contain` rather than `.combine`: the screen is one findable container, and its
         // children (prices, buttons, notices) stay individually addressable underneath it.
         .accessibilityElement(children: .contain)
