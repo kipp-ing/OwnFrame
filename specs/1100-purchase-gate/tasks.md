@@ -206,13 +206,19 @@ target shows the same locked/unlock surfaces; real family/universal checks are d
       Unlocks section) calling `EntitlementStore.restore()`; host test: restore triggers
       client sync + refresh + persist; XCUITest: `unlock.restore` present on unlock screens
       and in settings.
-- [ ] T033 [P] [US4] tvOS unlock surface: locked rows + Unlocks entry + purchase/restore in
-      `Immich SlideshowTV/TVRootView.swift` + TV settings surface (reuse PurchaseKit UI;
-      focus-engine-friendly). Verification WITHOUT tvOS XCUITest (decision 2026-07-19: no TV
-      UI-test target in this feature; the tvOS test harness remains the known 1000 leftover):
-      host tests for the TV gating/view-model wiring + XcodeBuildMCP `snapshot_ui`/screenshot
-      review on the Apple TV simulator under the `--uitest-entitlements` seams + the T034
-      device-day items.
+- [x] T033 [P] [US4] tvOS unlock surface: new `TVSettingsView` (the gear destination) with the
+      Ambience/Pro locked row, the Home-Assistant row (broker editor when entitled, else
+      `TVLockedBrokerView` — a tvOS-native equivalent of the iOS `LockedBrokerView`, since
+      NavigationStack/navigationBarTitleDisplayMode don't exist on tvOS), and an Unlocks section
+      (Restore + tip). Reuses PurchaseKit `UnlockScreenView`/`TipJarView`/`LockedRow` via
+      `fullScreenCover`; fail-closed; nothing auto-presents (SC-1100-02). Fixed the shared
+      unlock/tip screens to carry an opaque backing on tvOS (a cover, unlike an iOS sheet, supplies
+      none). Verified on the Apple TV simulator under DEBUG `--uitest-tv-settings` /
+      `--uitest-tv-present=` seams: `=none` shows both locked rows, `=all` shows none, and the
+      locked-broker / unlock / tip screens all render focus-navigable. (Decision 2026-07-19: no TV
+      UI-test target in this feature — verification is screenshot review; TV gating/view-model host
+      tests still have no home target, which stays a 1000 leftover.) Real family/universal checks
+      → T034 device day.
 - [x] T034 [US4] Extend `docs/manual-verification.md` FINAL DEVICE DAY with the 1100 items
       from quickstart.md §5 (ASC product setup + id-drift smoke test, sandbox purchase/cancel/
       Ask-to-Buy, restore on second device, Family Sharing member, Apple TV universal purchase,
@@ -316,11 +322,12 @@ and the quickstart §5 checklist gate the actual App Store release, not the merg
 ## Status (updated 2026-07-20)
 
 Implementation in progress on branch `1100-purchase-gate`. Done and committed: **all of
-T001–T032, T034–T039** (every user story's logic + UI, including US5 broker degradation on iOS,
-and now the real StoreKit adapter). PurchaseKit host suite **110/110**; full iOS suite **153/0/9**
-on iOS 18.6 — the 9 skips are the App Store screenshot + live-demo smoke (both intentional) plus
-the 7 StoreKitClientTests, which skip-guard out under headless `xcodebuild` (see T030); iOS + tvOS
-both build.
+T001–T039** (every user story's logic + UI, including US5 broker degradation on iOS, the real
+StoreKit adapter, and now the tvOS unlock surface). PurchaseKit host suite **110/110**; full iOS
+suite **153/0/9** on iOS 18.6 — the 9 skips are the App Store screenshot + live-demo smoke (both
+intentional) plus the 7 StoreKitClientTests, which skip-guard out under headless `xcodebuild` (see
+T030); iOS + tvOS both build; the tvOS unlock surface is Apple-TV-simulator screenshot-verified
+under the `--uitest-entitlements` seams (T033).
 
 **T030 done** with a runtime caveat: the real `StoreKitClient` adapter + its 7 SKTestSession cases
 are in, and launch `refresh()` + `listenForUpdates()` are wired on both apps' production entry
@@ -329,10 +336,14 @@ the cases skip honestly (never a false pass/red) and must be run once from the X
 on device — that verification folds into **T042**. The adapter is otherwise held by review + the
 pure PurchaseKit host tests above the seam.
 
-Remaining: **T033** (tvOS unlock surface + TV broker locked banner), **T040** (final full gate —
-iOS half green; tvOS snapshot review + the one IDE/device StoreKitTest run outstanding), **T041**
-(this doc + CLAUDE.md + overview kept in sync), **T042** (ASC/device day — manual, now also the
-home for the StoreKitTest IDE/device run).
+**T033 done 2026-07-20**: the tvOS unlock surface (`TVSettingsView` + `TVLockedBrokerView`) is in,
+verified by Apple TV simulator screenshots under the `--uitest-entitlements` seams; the shared
+unlock/tip screens gained a tvOS-only opaque backing.
+
+Remaining: **T040** (final full gate — iOS half green; tvOS is screenshot-verified; the one
+IDE/device StoreKitTest run outstanding), **T041** (this doc + CLAUDE.md + overview kept in sync),
+**T042** (ASC/device day — manual, now also the home for the StoreKitTest IDE/device run + the
+real family/universal-purchase checks).
 
 - **T039 copy audit — PASS.** `grep -rin "lifetime"` over PurchaseKit UI, Localizable.xcstrings,
   app-store-listing.md, README.md, and docs/: zero user-facing hits (only the doc-comment stating
