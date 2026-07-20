@@ -41,9 +41,12 @@ struct ImmichSlideshowTVApp: App {
         _model = State(initialValue: TVAppModel(entitlements: { store.current }))
     }
 
-    /// Mirrors the iOS entry point: the hermetic stub under `--uitest`, the real (still
-    /// T013-skeleton) StoreKit adapter otherwise. See the iOS note — the launch refresh and
-    /// `listenForUpdates()` stay unwired until T029/T030 give them real behaviour.
+    /// Mirrors the iOS entry point: the hermetic stub under `--uitest`, the real StoreKit
+    /// adapter otherwise. On the production path the store is kept live (T030) — universal
+    /// purchase means an unlock bought on the iPad is already owned here, and the update stream
+    /// carries Family-Sharing grants and revocations; the launch refresh reconciles the seeded
+    /// snapshot against StoreKit. The synchronous cache seed in `EntitlementStore.init` still
+    /// drives the first render (FR-1100-10).
     @MainActor
     private static func makeEntitlementStore() -> EntitlementStore {
         #if DEBUG
@@ -51,10 +54,13 @@ struct ImmichSlideshowTVApp: App {
             return PurchaseUITestSeams.makeStore()
         }
         #endif
-        return EntitlementStore(
+        let store = EntitlementStore(
             client: StoreKitClient(),
             cache: EntitlementSnapshotCache(defaults: .standard)
         )
+        store.listenForUpdates()
+        Task { await store.refresh() }
+        return store
     }
 
     var body: some Scene {
