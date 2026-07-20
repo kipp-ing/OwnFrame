@@ -57,7 +57,6 @@ struct SlideshowSettingsView: View {
     // Tip jar sheet (US6). Settings-only, never solicited anywhere else.
     @State private var showTipJar = false
     // Locked broker view (US5): masked stored config + unlock offer for an unentitled frame.
-    @State private var showLockedBroker = false
     // Non-nil while a Restore is in flight, so the row shows progress and can't be double-tapped.
     @State private var isRestoring = false
     @State private var brightness: Double
@@ -286,33 +285,49 @@ struct SlideshowSettingsView: View {
                     }
                 }
 
-                Section {
-                    // Unlike the toggles above, this cannot just be wrapped: a locked
-                    // DisclosureGroup would still expand and expose the broker editor. So the
-                    // whole control is swapped for a locked row while Automation is absent.
-                    // Nothing stored is read, cleared, or migrated by this branch — the config
-                    // and its keychain items are simply not surfaced (FR-1100-14).
-                    if isAutomationEntitled {
+                // 1100 (amended 2026-07-20): telemetry is free (FR-1100-03a). The broker
+                // connection editor is available to everyone, so a free frame can report its status
+                // to Home Assistant; only *control* needs Automation.
+                //
+                // The two entitlement paths render the editor differently ON PURPOSE. An always-
+                // present inline `DisclosureGroup` starves a sibling Section's async `.task` (the
+                // Storage "Used" label never settled — caught by SettingsStorageUITests), so the
+                // free path shows the editor inline (no DisclosureGroup) under a control-locked
+                // banner, while the entitled path keeps the collapsible group it always had.
+                if isAutomationEntitled {
+                    Section {
                         DisclosureGroup(isExpanded: $mqttExpanded) {
                             BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
                         } label: {
                             Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
                                 .accessibilityIdentifier("settings.mqtt")
                         }
-                    } else {
-                        // US5: tapping opens the locked broker view (masked stored config +
-                        // banner + unlock offer), NOT the unlock screen directly — an existing
-                        // frame's owner must be able to see their config survived (FR-1100-14).
+                    } header: {
+                        Text("Home Assistant")
+                    } footer: {
+                        Text("MQTT broker for remote control via Home Assistant.")
+                    }
+                } else {
+                    Section {
                         LockedRow(requires: .automation,
                                   identifier: "settings.row.broker.locked",
-                                  action: { showLockedBroker = true }) {
-                            Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
+                                  action: { unlockTier = .automation }) {
+                            Label("Remote control", systemImage: "slider.horizontal.3")
                         }
+                    } header: {
+                        Text("Home Assistant")
+                    } footer: {
+                        Text("Remote control from Home Assistant and Shortcuts needs the Automation unlock.")
                     }
-                } header: {
-                    Text("Home Assistant")
-                } footer: {
-                    Text("MQTT broker for remote control via Home Assistant.")
+
+                    Section {
+                        BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
+                    } header: {
+                        Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
+                            .accessibilityIdentifier("settings.mqtt")
+                    } footer: {
+                        Text("Connect a broker so Home Assistant can see this frame.")
+                    }
                 }
 
                 // Unlocks (1100): Restore is always here so a re-installed or second frame can
@@ -347,7 +362,11 @@ struct SlideshowSettingsView: View {
                     Text("Unlocks")
                         .accessibilityIdentifier("settings.section.unlocks")
                 } footer: {
-                    Text("Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks.")
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks.")
+                        Text("Where your money goes: the unlocks cover the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever.")
+                            .accessibilityIdentifier("settings.unlocks.moneyPledge")
+                    }
                 }
 
                 if let diskCache {
@@ -452,13 +471,6 @@ struct SlideshowSettingsView: View {
         }
         .sheet(isPresented: $showTipJar) {
             TipJarView { showTipJar = false }
-        }
-        .sheet(isPresented: $showLockedBroker) {
-            LockedBrokerView(
-                viewModel: brokerViewModel,
-                onUnlock: { showLockedBroker = false; unlockTier = .automation },
-                onClose: { showLockedBroker = false }
-            )
         }
     }
 
