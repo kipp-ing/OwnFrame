@@ -53,6 +53,11 @@ public struct TipJarView: View {
             .frame(maxWidth: Layout.contentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        #if os(tvOS)
+        // See UnlockScreenView: tvOS fullScreenCover supplies no opaque backing of its own, so the
+        // full-screen tip jar has to bring its own.
+        .background { Color.black.ignoresSafeArea() }
+        #endif
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tipjar.screen")
         .task {
