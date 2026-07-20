@@ -25,7 +25,7 @@ final class BrokerSetupUITests: XCTestCase {
     func testExistingBrokerPrefillsFieldsMasksPasswordAndRemoves() throws {
         let app = XCUIApplication()
         app.launchArguments = [
-            "--uitest", "--uitest-slideshow", "--uitest-chrome",
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-entitlements=automation",
             "--uitest-broker", "--uitest-broker-existing",
         ]
         app.launch()
@@ -69,7 +69,7 @@ final class BrokerSetupUITests: XCTestCase {
     func testTypedBrokerInputSurvivesCollapseAndReExpand() throws {
         let app = XCUIApplication()
         // No `--uitest-broker-existing`: the MQTT section starts empty and pre-expanded.
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-broker"]
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-broker", "--uitest-entitlements=automation"]
         app.launch()
 
         let host = app.textFields["broker.host"]
@@ -95,7 +95,7 @@ final class BrokerSetupUITests: XCTestCase {
     func testImagePublishTogglePersistsAcrossRelaunch() throws {
         let app = XCUIApplication()
         app.launchArguments = [
-            "--uitest", "--uitest-slideshow", "--uitest-chrome",
+            "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-entitlements=automation",
             "--uitest-broker", "--uitest-reset-publish-options",
         ]
         app.launch()
@@ -118,7 +118,7 @@ final class BrokerSetupUITests: XCTestCase {
 
         // Relaunch WITHOUT the reset arg — the persisted preference should survive.
         app.terminate()
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-broker"]
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-broker", "--uitest-entitlements=automation"]
         app.launch()
 
         let toggleAfter = app.switches["broker.imageEnabled"]

@@ -1,0 +1,106 @@
+{
+  "identifier" : "A1100BEE-0000-4000-8000-000011000000",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "1.00",
+      "familyShareable" : true,
+      "internalID" : "1100000001",
+      "localizations" : [
+        {
+          "description" : "TEST FIXTURE — ambience unlock: Ken Burns motion and the clock overlay.",
+          "displayName" : "Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "ing.kipp.Immich-Slideshow.unlock.pro",
+      "referenceName" : "TEST FIXTURE Pro unlock",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "1.00",
+      "familyShareable" : true,
+      "internalID" : "1100000002",
+      "localizations" : [
+        {
+          "description" : "TEST FIXTURE — automation unlock: Home Assistant / MQTT and App Intents.",
+          "displayName" : "Automation",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "ing.kipp.Immich-Slideshow.unlock.automation",
+      "referenceName" : "TEST FIXTURE Automation unlock",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "1.00",
+      "familyShareable" : true,
+      "internalID" : "1100000003",
+      "localizations" : [
+        {
+          "description" : "TEST FIXTURE — everything bundle: grants both unlocks.",
+          "displayName" : "Everything",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "ing.kipp.Immich-Slideshow.unlock.everything",
+      "referenceName" : "TEST FIXTURE Everything bundle",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "1.00",
+      "familyShareable" : false,
+      "internalID" : "1100000004",
+      "localizations" : [
+        {
+          "description" : "TEST FIXTURE — small tip. Grants nothing.",
+          "displayName" : "Small Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "ing.kipp.Immich-Slideshow.tip.small",
+      "referenceName" : "TEST FIXTURE tip small",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "2.00",
+      "familyShareable" : false,
+      "internalID" : "1100000005",
+      "localizations" : [
+        {
+          "description" : "TEST FIXTURE — medium tip. Grants nothing.",
+          "displayName" : "Medium Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "ing.kipp.Immich-Slideshow.tip.medium",
+      "referenceName" : "TEST FIXTURE tip medium",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "3.00",
+      "familyShareable" : false,
+      "internalID" : "1100000006",
+      "localizations" : [
+        {
+          "description" : "TEST FIXTURE — large tip. Grants nothing.",
+          "displayName" : "Large Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "ing.kipp.Immich-Slideshow.tip.large",
+      "referenceName" : "TEST FIXTURE tip large",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

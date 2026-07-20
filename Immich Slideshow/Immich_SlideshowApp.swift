@@ -15,6 +15,7 @@ import OnboardingKit
 import PhotoLibraryKit
 import PhotoSourceKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -22,6 +23,11 @@ import ThemeKit
 @main
 struct Immich_SlideshowApp: App {
     @State private var viewModel: OnboardingViewModel
+    // What the user owns (1100). Seeded synchronously from the on-device snapshot so the
+    // first render pass already knows — an unattended frame keeps its paid features
+    // offline indefinitely (FR-1100-10). Handed to the view tree via `.environment`;
+    // the gates themselves live at each point of effect, not here.
+    @State private var entitlements: EntitlementStore
     // Built lazily at the `.done` route: reads the saved config + Keychain key and
     // constructs an authenticated slideshow. Returns nil only if state is somehow
     // incomplete (the StartupGate normally prevents reaching `.done` without it).
@@ -167,6 +173,11 @@ struct Immich_SlideshowApp: App {
                 uitestViewModel.step = .sharedLinkSetup
             }
             _viewModel = State(initialValue: uitestViewModel)
+            // 1100: entitlements come from `--uitest-entitlements=`, the store client from
+            // `--uitest-store=`. StoreKit is never reached under `--uitest`.
+            let entitlementStore = PurchaseUITestSeams.makeStore()
+            _entitlements = State(initialValue: entitlementStore)
+            FrameIntentContext.entitlements = { entitlementStore.current }
             let switchActiveSource: @MainActor @Sendable (String) -> SourceRestartStrategy? = { id in
                 var library = sourceStore.load()
                 let previous = library.active
@@ -280,6 +291,29 @@ struct Immich_SlideshowApp: App {
         viewModel.step = StartupGate(config: config, keychain: keychain, sourceStore: sourceStore).initialStep()
 
         _viewModel = State(initialValue: viewModel)
+
+        // 1100: the real entitlement model. `current` is seeded synchronously from the
+        // cached snapshot here — no await, no network — so the gates can branch on it in
+        // the first render pass (FR-1100-10). Entitlements are not secrets, so the plain
+        // defaults suite is the sanctioned home for the snapshot (research.md R4).
+        let entitlementStore = EntitlementStore(
+            client: StoreKitClient(),
+            cache: EntitlementSnapshotCache(defaults: .standard)
+        )
+        _entitlements = State(initialValue: entitlementStore)
+        // The App Intent shells resolve entitlements through the same composition seam they
+        // already use for the registry (see FrameIntentContext for why not AppDependencyManager).
+        FrameIntentContext.entitlements = { entitlementStore.current }
+        // 1100 (T030): `StoreKitClient` is real now, so keep entitlements live. Consuming the
+        // update stream re-resolves on out-of-band changes — an Ask-to-Buy approval, or a
+        // purchase/refund made on another device (universal purchase / Family Sharing) — and one
+        // launch refresh reconciles the cached snapshot against StoreKit's current entitlements.
+        // Both run strictly after the synchronous seed above, so the first render still branches
+        // on `current` with no await (FR-1100-10); a failed/offline refresh leaves `current`
+        // untouched (last-known-good, FR-1100-13). Wired only on this production path — the
+        // `--uitest` branch above returns early with its own hermetic stub store.
+        entitlementStore.listenForUpdates()
+        Task { await entitlementStore.refresh() }
 
         // Resolve the active source into a ServerConfig (auth) + album. The API key and
         // any shared-link password stay in the Keychain and are only handed to the
@@ -445,6 +479,16 @@ struct Immich_SlideshowApp: App {
             )
         }
 
+        // 1100: the `.automation` gate wraps the factory above rather than living inside it.
+        // Short-circuiting BEFORE the closure runs is the point — the closure's first act is
+        // `brokerProvider.load()`, the app's only hop from here into the Keychain item holding
+        // the MQTT password, so an unentitled frame never reaches it (FR-1100-14). Nothing is
+        // cleared or masked either: buying Automation later restores HA with zero re-entry.
+        let gatedMakeCoordinator = AutomationCoordinatorGate(
+            entitlements: { entitlementStore.current },
+            makeCoordinator: makeCoordinator
+        )
+
         // The connection editor reuses the same config + Keychain stores and builds a
         // standard, TLS-validated ImmichClient for its validation call (009).
         let makeConnectionSettingsViewModel: @MainActor @Sendable () -> ConnectionSettingsViewModel? = {
@@ -478,7 +522,7 @@ struct Immich_SlideshowApp: App {
             makePhotoLibraryGateway: { @MainActor @Sendable in PHKitGateway() },
             makePowerManager: makePowerManager,
             makeAdapter: makeAdapter,
-            makeCoordinator: makeCoordinator,
+            makeCoordinator: { @MainActor @Sendable adapter in await gatedMakeCoordinator(adapter) },
             controlRegistry: controlRegistry,
             makeConnectionSettingsViewModel: makeConnectionSettingsViewModel,
             saveSelectedAlbum: saveSelectedAlbum,
@@ -496,8 +540,11 @@ struct Immich_SlideshowApp: App {
         // these values directly instead of `self`.
         let onboarding = viewModel
         let factories = factories
+        let entitlements = entitlements
         return WindowGroup {
             RootView(onboarding: onboarding, factories: factories)
+                // 1100: every gate reads this from the environment at its point of effect.
+                .environment(entitlements)
         }
     }
 }

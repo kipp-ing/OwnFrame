@@ -6,7 +6,12 @@
 //  FrameCommandService, resolved through FrameIntentContext (the documented
 //  composition seam; see that file for why not AppDependencyManager). All logic,
 //  validation, and parity live in AppIntentsKit where they are host-tested;
-//  nothing here may grow beyond resolve → forward → map the error.
+//  nothing here may grow beyond gate → resolve → forward → map the error.
+//
+//  1100: every perform() opens with `requireAutomation()`. The intents stay LISTED in
+//  Shortcuts while locked — hiding them would strand shortcuts an owner already built and
+//  make the capability undiscoverable; a locked intent is a discoverable intent that fails
+//  with a readable unlock message.
 //
 
 import AppIntents
@@ -20,6 +25,9 @@ enum FrameIntentError: Error, Equatable, CustomLocalizedStringResourceConvertibl
     case frameNotOpen
     case brightnessOutOfRange
     case sourceMissing
+    /// 1100: the frame does not own the Automation unlock. Not a mapping of any
+    /// `FrameCommandError` — it is raised before the command layer is reached at all.
+    case automationLocked
 
     init(_ error: FrameCommandError) {
         switch error {
@@ -40,6 +48,11 @@ enum FrameIntentError: Error, Equatable, CustomLocalizedStringResourceConvertibl
             return "Brightness must be between 0 and 100 percent."
         case .sourceMissing:
             return "This source no longer exists in the frame's library."
+        case .automationLocked:
+            return LocalizedStringResource(
+                "unlock.required.automation",
+                defaultValue: "Remote control requires the Automation unlock."
+            )
         }
     }
 }
@@ -51,6 +64,7 @@ struct PauseSlideshowIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do { try await FrameCommandService(registry: registry).pause() }
         catch { throw FrameIntentError(error) }
@@ -65,6 +79,7 @@ struct ResumeSlideshowIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do { try await FrameCommandService(registry: registry).resume() }
         catch { throw FrameIntentError(error) }
@@ -79,6 +94,7 @@ struct NextPhotoIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do { try await FrameCommandService(registry: registry).nextPhoto() }
         catch { throw FrameIntentError(error) }
@@ -93,6 +109,7 @@ struct PreviousPhotoIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do { try await FrameCommandService(registry: registry).previousPhoto() }
         catch { throw FrameIntentError(error) }
@@ -114,6 +131,7 @@ struct SelectSourceIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do { try await FrameCommandService(registry: registry).selectSource(id: source.id, label: source.label) }
         catch { throw FrameIntentError(error) }
@@ -130,6 +148,7 @@ struct GetFrameStateIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<FrameStateEntity> {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do {
             let snapshot = try await FrameCommandService(registry: registry).frameState()
@@ -154,6 +173,7 @@ struct SetBrightnessIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        try FrameIntentContext.requireAutomation()
         let registry = try FrameIntentContext.requireRegistry()
         do { try await FrameCommandService(registry: registry).setBrightness(percent: brightness) }
         catch { throw FrameIntentError(error) }

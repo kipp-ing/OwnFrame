@@ -19,6 +19,7 @@ import HAControlMQTT
 import ImmichClient
 import OnboardingKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -26,21 +27,79 @@ import UIKit
 
 @main
 struct ImmichSlideshowTVApp: App {
-    @State private var model = TVAppModel()
+    @State private var model: TVAppModel
+    // What the user owns (1100). Universal purchase means an unlock bought on the iPad is
+    // already owned here; the snapshot is seeded synchronously so an Apple TV frame that
+    // boots without network still renders entitled (FR-1100-10).
+    @State private var entitlements: EntitlementStore
+
+    init() {
+        // One store, two consumers: the view tree reads it from the environment, and the
+        // model reads it at its own point of effect (the HA coordinator gate).
+        let store = ImmichSlideshowTVApp.makeEntitlementStore()
+        _entitlements = State(initialValue: store)
+        _model = State(initialValue: TVAppModel(entitlements: { store.current }))
+    }
+
+    /// Mirrors the iOS entry point: the hermetic stub under `--uitest`, the real StoreKit
+    /// adapter otherwise. On the production path the store is kept live (T030) — universal
+    /// purchase means an unlock bought on the iPad is already owned here, and the update stream
+    /// carries Family-Sharing grants and revocations; the launch refresh reconciles the seeded
+    /// snapshot against StoreKit. The synchronous cache seed in `EntitlementStore.init` still
+    /// drives the first render (FR-1100-10).
+    @MainActor
+    private static func makeEntitlementStore() -> EntitlementStore {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--uitest") {
+            return PurchaseUITestSeams.makeStore()
+        }
+        #endif
+        let store = EntitlementStore(
+            client: StoreKitClient(),
+            cache: EntitlementSnapshotCache(defaults: .standard)
+        )
+        store.listenForUpdates()
+        Task { await store.refresh() }
+        return store
+    }
 
     var body: some Scene {
         WindowGroup {
             TVRootView(model: model)
                 .task { await model.start() }
+                // 1100: the TV gates read this at their point of effect.
+                .environment(entitlements)
         }
     }
 }
 
 struct TVRootView: View {
     @Bindable var model: TVAppModel
-    @State private var showBrokerSetup = false
+    @State private var showSettings = false
 
     var body: some View {
+        routedContent
+            // 1100 (T033): the tvOS settings surface — Unlocks (restore + tip), the Ambience/Pro
+            // locked row, and Home Assistant gated to the editor when the Automation unlock is
+            // owned or the masked locked-broker view when it is not. Presented at the root so the
+            // gear reaches it from the slideshow and the DEBUG seam reaches it from any route.
+            .fullScreenCover(isPresented: $showSettings) {
+                TVSettingsView(onDone: { showSettings = false })
+            }
+            #if DEBUG
+            // Hermetic screenshot/verification seam: open the settings surface straight away, so
+            // XcodeBuildMCP (which has no tvOS navigation tools) can capture it under the
+            // `--uitest-entitlements=` seams without driving the Siri Remote. DEBUG-only.
+            .onAppear {
+                if ProcessInfo.processInfo.arguments.contains("--uitest-tv-settings") {
+                    showSettings = true
+                }
+            }
+            #endif
+    }
+
+    @ViewBuilder
+    private var routedContent: some View {
         switch model.route {
         case .loading:
             ZStack { Color.black.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -54,12 +113,9 @@ struct TVRootView: View {
                     startHA: { await model.startHA() },
                     stopHA: { await model.stopHA() },
                     isCurrentGeneration: { model.slideshow === slideshow },
-                    onSettings: { showBrokerSetup = true }
+                    onSettings: { showSettings = true }
                 )
                 .id(ObjectIdentifier(slideshow))
-                .fullScreenCover(isPresented: $showBrokerSetup) {
-                    TVBrokerSetupView(onDone: { showBrokerSetup = false })
-                }
             } else {
                 onboarding
             }
@@ -168,7 +224,12 @@ final class TVAppModel {
     private var haCoordinator: HAControlCoordinator?
     private var isStartingHA = false
 
-    init() {
+    /// What the frame owns (1100). Read at each point of effect rather than captured as a
+    /// value, so a purchase made while the app runs opens its gate without a relaunch.
+    @ObservationIgnored private let entitlements: @MainActor () -> EntitlementSet
+
+    init(entitlements: @escaping @MainActor () -> EntitlementSet) {
+        self.entitlements = entitlements
         powerManager = PowerManager(screen: screen)
         brokerProvider = BrokerConfigProvider(
             settingsStore: KeychainBrokerSettingsStore(),
@@ -285,6 +346,13 @@ final class TVAppModel {
     /// hydration may not have delivered (`.manualRequired`) — offering them would let a
     /// remote pick tear the frame down into onboarding.
     private func makeCoordinator(for slideshow: SlideshowViewModel) async -> HAControlCoordinator? {
+        // 1100: the `.automation` gate, and it MUST come first — the very next line is the
+        // app's only hop from here into the Keychain item holding the MQTT password, and an
+        // unentitled frame never reaches it (FR-1100-14). A construction gate, never a mute:
+        // nothing is cleared or masked, so buying Automation restores HA with zero re-entry.
+        // (The iOS side expresses the same ordering as a wrapper — `AutomationCoordinatorGate`
+        // — which cannot be reused here: it is typed on the iOS-only adapter.)
+        guard entitlements().contains(.automation) else { return nil }
         guard let brokerConfig = brokerProvider.load() else { return nil }
         let library = sourceStore.load()
         let playable = library.sources.filter { source in

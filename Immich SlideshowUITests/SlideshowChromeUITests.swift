@@ -145,7 +145,10 @@ final class SlideshowChromeUITests: XCTestCase {
     /// the screen edge).
     @MainActor
     func testChromeInsetsStableAcrossOrientationAndKenBurns() throws {
-        let app = launchIntoSlideshow(extraArgs: ["--uitest-chrome"])
+        // 1100: this test actually taps Ken Burns on (to force fill framing), so it must own
+        // the Pro entitlement — otherwise the tap hits the locked row and opens the unlock
+        // sheet instead of toggling, and the layout check would pass without testing anything.
+        let app = launchIntoSlideshow(extraArgs: ["--uitest-chrome", "--uitest-entitlements=pro"])
         defer { XCUIDevice.shared.orientation = .portrait }
 
         let settingsButton = app.buttons["slideshow.chrome.settings"]
