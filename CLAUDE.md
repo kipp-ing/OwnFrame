@@ -150,8 +150,11 @@ destination) with the Ambience/Pro locked row, an Automation-gated Home-Assistan
 (`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
 tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
 the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-only opaque
-backing. **Remaining:** T040/T041 final gate + doc sync, T042 ASC/device day + the one IDE/device
-StoreKitTest run + real family/universal-purchase checks (manual).
+backing. **Code-complete (T001–T041 done):** final gate 2026-07-20 — PurchaseKit 110 host + full
+iOS XCUITest 153/0/9 (iOS 26.5, same on 18.6) green, iOS + tvOS build. **Remaining: T042 only** —
+the manual ASC/device day (create IAPs, sandbox purchase/restore/Family-Sharing/universal checks,
+the one Xcode-IDE/device StoreKitTest run, release sequencing v1.0-b8-stays-unreleased →
+v1.1-gated-first, FR-1100-17); blocked on Jan's ASC access.
 
 Prior feature `1000-apple-tv` (tvOS port + 13 review fixes + Ken Burns micro-judder redesign:
 shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead) is
