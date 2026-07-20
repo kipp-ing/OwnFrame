@@ -133,10 +133,13 @@ account, a second device, a family member account, and ASC access. **Nothing her
 
 - [ ] On a frame with a broker configured **before** this update: install the gated build and
       confirm the stored config survives byte-for-byte and nothing is cleared or migrated.
-- [ ] Confirm at the broker that an unentitled frame makes **no connection at all** (not merely a
-      muted one) — `mosquitto_sub -v` should never see it appear.
-- [ ] Buy Automation → HA resumes using the previously stored settings with **zero re-entry**
-      (FR-1100-14).
+- [ ] **Free telemetry (amended 2026-07-20, FR-1100-03a):** confirm at the broker (`mosquitto_sub
+      -v`) that an unentitled frame **connects and publishes read-only sensors only** — availability
+      + `current_photo`/`phase`/`photo_count`/`version` — so the device appears in HA, but there are
+      **zero controllable entities** (no light/select/switch/number/button), **zero command-topic
+      subscriptions**, and it acts on **zero** HA commands (SC-1100-06).
+- [ ] Buy Automation → the controllable entities appear and HA control resumes using the previously
+      stored settings with **zero re-entry** (FR-1100-14).
 
 **Listing:**
 

@@ -294,6 +294,70 @@ outside settings.
 
 ---
 
+## Phase 10: Free HA telemetry — control-only gate (US5 amendment, 2026-07-20)
+
+Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-03a). Folded into
+1100 before first public release (widens the free tier — never a claw-back). Inline/TDD (Codex off).
+
+- [ ] T043 [US5] RED then implement: partition the entity model — mark each `HAEntity` as
+      read-only sensor vs controllable (command-bearing) in `Packages/HAControlKit/.../
+      HAEntityState.swift`. Test asserts sensors = {currentPhoto, currentPhotoImage, phase,
+      photoCount, version}; controls = {playback, brightness, album, the settings entities, next,
+      previous}.
+- [ ] T044 [US5] RED: coordinator-mode tests in HAControlKit — in `.telemetryOnly`, `announce()`
+      publishes sensor discovery + availability only and subscribes to **zero** command topics
+      (`handleIncoming` never wired); in `.full`, behaviour is unchanged. 
+- [ ] T045 [US5] Implement the mode in `HAControlCoordinator`: add `mode` (`.telemetryOnly` /
+      `.full`); split `announce()`'s per-entity publish vs subscribe; gate control-entity
+      discovery + `subscribe` + `startConsumers`/`handleIncoming` behind `.full`. GREEN T043/T044.
+- [ ] T046 [US5] App wiring (iOS `Immich_SlideshowApp.swift`): replace the all-or-nothing
+      `AutomationCoordinatorGate` with mode selection — `.telemetryOnly` when a broker is
+      configured but Automation is unentitled, `.full` when entitled; keychain broker read is now
+      free-tier telemetry (FR-1100-14 restated).
+- [ ] T047 [US5] App wiring (tvOS `TVRootView.swift`): mirror T046 (inlined gate).
+- [ ] T048 [US5] Settings UI (iOS `SlideshowSettingsView.swift` + `BrokerSetupView.swift`): broker
+      connection section goes live/free; narrow the locked surface to a *control-locked* banner;
+      repurpose `LockedBrokerView` from "mask everything" → "connection live, control locked".
+- [ ] T049 [US5] Settings UI (tvOS `TVSettingsView.swift` + `TVLockedBrokerView`): mirror T048.
+- [ ] T050 [US5] Restate US5 tests: update the host integration test(s) + any XCUITest asserting the
+      old "no connection / fully-masked" behaviour to the telemetry-free contract (SC-1100-06).
+- [ ] T051 Verification gate: PurchaseKit + HAControlKit host green; iOS + tvOS build; iOS XCUITest
+      green; add an unentitled-telemetry item to the 710 checklist in `docs/manual-verification.md`.
+
+## Phase 11: Transparency statement ("Where your money goes", 2026-07-20)
+
+- [x] T052 [P] `docs/where-the-money-goes.md` — English reference pledge (statement only, no
+      transparency log). Done 2026-07-20.
+- [ ] T053 Add the short in-app pledge string to the Unlocks settings footer (iOS
+      `SlideshowSettingsView.swift` + tvOS `TVSettingsView.swift`) → new key in
+      `Immich Slideshow/Localizable.xcstrings`.
+- [ ] T054 [translate-later] Translate the pledge string into the separate localized file.
+- [ ] T055 [P] Optional: one pledge line in `docs/app-store-listing.md`.
+
+**Status (2026-07-20):** T043–T053 done and verified. Spec 1100/710 amended; HAControlKit
+`.telemetryOnly`/`.full` mode + `HAEntity` sensor/control partition (94 host tests green, incl. 5
+new mode tests + all prior coordinator tests); iOS (`Immich_SlideshowApp` + `AutomationCoordinatorGate`)
+and tvOS (`TVRootView`) wiring select the mode by entitlement; iOS + tvOS settings UI restructured —
+the broker editor is live/free with an Automation "Remote control" control-locked banner above it
+(old `LockedBrokerView`/`TVLockedBrokerView` masked screens removed); `PurchaseGateCoordinatorTests`
+restated to the telemetry-free contract (13 green) and `PurchaseGateUITests`/`BrokerSetupUITests`
+updated (green); pledge footer added on both platforms; `docs/manual-verification.md` 710 checklist
+updated for free telemetry. **T051 gate:** iOS + tvOS build clean (0 warnings); targeted iOS suite
+22/0/0 + HAControlKit host 94/0; iOS settings screenshot-verified (control-locked banner over the
+prefilled live editor).
+
+**Regression found + fixed during the full-suite gate:** the first iOS HA-section design used an
+always-present `DisclosureGroup` for the unentitled broker editor, which starved the Storage
+section's async `.task` (usage stuck at "0 bytes" — `SettingsStorageUITests/testClearResets…`).
+Root-caused by stash/bisect (see the `disclosuregroup-starves-sibling-task` memo); fixed by showing
+the editor **inline** (plain Section, no DisclosureGroup) in the unentitled path while keeping the
+committed collapsible group for entitled. PurchaseGate + BrokerSetup + Storage re-verified 12/0/0 on
+the unmodified tests; iOS + tvOS build clean.
+
+**Remaining: T054** (translate the pledge string — deferred) and **T055** (optional listing line).
+
+---
+
 ## Dependencies & Execution Order
 
 - **Phase 1 → Phase 2 → Phase 3**: strictly sequential (package → model/injection → gates).

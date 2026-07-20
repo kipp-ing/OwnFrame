@@ -7,7 +7,12 @@
 **Status**: Draft — amended 2026-07-19: **Ken Burns motion + clock overlay form the Pro launch
 composition** (decided with Jan; possible because no version was ever publicly released, so the
 never-claw-back rule does not yet bind anything). Locked-row presentation refined the same day:
-dimmed is fine, but locked rows must carry a lock/tier badge and stay tappable.
+dimmed is fine, but locked rows must carry a lock/tier badge and stay tappable. Amended
+2026-07-20: **Home Assistant telemetry is free, only *control* is gated** — an unentitled frame
+with a broker configured connects and publishes read-only sensor entities so HA can see it,
+while controllable entities + command handling + App Intents stay behind the Automation unlock
+(FR-1100-03 / FR-1100-03a; US5 and SC-1100-06 restated accordingly). This widens the free tier
+and never claws anything back.
 
 **Input**: User description: "Monetization / purchase gate (one-time In-App Purchases). Free
 tier keeps the full adoption funnel: all photo sources and clean core playback with all
@@ -150,9 +155,10 @@ Apple TV under the shared app identity.
 
 A device that configured Automation features before the gate existed (internal/TestFlight
 builds with a working broker connection) updates to the gated build without owning
-Automation. Remote control stops working, but nothing is lost: broker settings and
-credentials stay stored, the settings UI shows the locked state clearly, and purchasing
-re-enables everything with zero reconfiguration.
+Automation. Remote *control* stops working, but the frame does not go dark: it keeps
+reporting its status to Home Assistant (free telemetry, FR-1100-03a), broker settings and
+credentials stay stored, the settings UI shows the control features as clearly locked, and
+purchasing re-enables control with zero reconfiguration.
 
 **Why this priority**: Only internal devices are in this state (nothing ungated was ever
 publicly released), but silent data loss or a confusing half-broken state on Jan's own
@@ -160,20 +166,24 @@ long-running frames would mask real bugs and violate the no-data-loss bar the ap
 elsewhere.
 
 **Independent Test**: On a device with a configured, verified broker connection, install the
-gated build unentitled; verify no broker connection is attempted, settings persist, the UI
-explains the locked state; purchase Automation and verify the connection resumes with the
-stored configuration.
+gated build unentitled; verify the frame connects and publishes read-only sensor entities but
+publishes no controllable entity and acts on no HA command; settings persist; the UI explains
+the locked control state; purchase Automation and verify the controllable entities appear and
+control resumes with the stored configuration.
 
 **Acceptance Scenarios**:
 
 1. **Given** stored broker configuration and no Automation entitlement, **When** the gated
-   build launches, **Then** the app does not connect to the broker, and all stored broker
-   settings and credentials remain intact.
+   build launches, **Then** the app connects to the broker and publishes read-only telemetry
+   only (availability + sensor entities, no controllable entity, no command-topic
+   subscription), and all stored broker settings and credentials remain intact.
 2. **Given** the same state, **When** the user opens the broker/remote-control settings,
-   **Then** the existing configuration is visible (secrets masked as usual) with a clear
-   locked banner and one-time unlock offer — not an empty or reset screen.
-3. **Given** the same state, **When** the user purchases Automation, **Then** remote control
-   resumes with the previously stored configuration, with no re-entry of any value.
+   **Then** the broker connection settings are live (secrets masked as usual) and the *control*
+   features carry a clear locked banner and one-time unlock offer — not an empty, reset, or
+   fully-masked screen.
+3. **Given** the same state, **When** the user purchases Automation, **Then** the controllable
+   entities are published and remote control resumes with the previously stored configuration,
+   with no re-entry of any value.
 4. **Given** configured Shortcuts/App Intents and no Automation entitlement, **When** an
    intent runs, **Then** it fails with a clear "requires the Automation unlock" message
    rather than failing silently or crashing the shortcut.
@@ -246,10 +256,24 @@ never prompts for tips on its own.
   purchase at no extra charge: weather overlay, sleep/wake scheduling, premium transitions,
   burn-in protection, video playback, multi-source pooling. Tier membership of each future
   feature is decided in that feature's own spec, bound by FR-1100-13.
-- **FR-1100-03**: The **Automation** unlock MUST gate remote control (broker connection, HA
-  discovery, all remote entities — topics 600/700/710) and Shortcuts/App Intents (topic 800).
-  When unentitled, the app MUST NOT connect to the broker, and intents MUST fail with an
-  explicit "requires the Automation unlock" error.
+- **FR-1100-03**: The **Automation** unlock MUST gate *remote control* — the controllable
+  Home Assistant entities (brightness/light, album select, playback switch, the settings
+  controls, and the next/previous buttons — everything carrying a `command_topic`), the act of
+  subscribing to and handling any HA command, and Shortcuts/App Intents (topic 800). When
+  unentitled, the app MUST NOT publish any controllable entity, MUST NOT subscribe to or act on
+  any HA command, and intents MUST fail with an explicit "requires the Automation unlock" error.
+  Remote *control* is the gated capability; the broker connection itself is not (see
+  FR-1100-03a).
+- **FR-1100-03a** *(free telemetry)*: Publishing read-only status to Home Assistant is part of
+  the **free** tier. With a broker configured, an unentitled frame MUST connect to the broker
+  and publish, via HA MQTT discovery, availability (LWT) and the read-only sensor entities only
+  — the current-photo sensor (asset id + metadata), the current-photo image sensor when its
+  opt-in toggle is on (FR-710-07), the playback phase, the photo count, and the app version — so
+  Home Assistant can *see* the frame. In this state the frame MUST publish no controllable
+  entity and subscribe to no command topic. The broker connection, its stored credentials (in
+  the keychain), and TLS are free-tier capabilities; only *control* is gated. Making telemetry
+  free never conflicts with FR-1100-13 — it widens the free tier, it does not claw anything
+  back.
 - **FR-1100-04**: An optional **everything-bundle** product MAY unlock both tiers in one
   purchase. It is offered only while the user owns neither single unlock; a user owning one
   tier is offered only the missing tier at its normal price.
@@ -296,10 +320,15 @@ never prompts for tips on its own.
   previously-free-in-public capability behind any gate is prohibited, regardless of tier
   restructuring.
 - **FR-1100-14** *(graceful degrade, no data loss)*: When a device holds configuration for a
-  gated feature but no entitlement (pre-gate internal builds, revocation, Family Sharing
-  departure), the configuration — including secrets in the keychain — MUST be preserved
-  untouched and visible in its settings surface behind a locked banner. Purchasing the tier
-  MUST re-enable the feature with the stored configuration and zero re-entry.
+  gated capability but no entitlement (pre-gate internal builds, revocation, Family Sharing
+  departure), that configuration — including secrets in the keychain — MUST be preserved
+  untouched (never reset or deleted). For **Automation** the gated capability is *control*: an
+  unentitled device with a stored broker keeps its broker connection settings live, keeps
+  reading its stored broker credential to publish free telemetry (FR-1100-03a), and shows a
+  locked banner + one-time unlock offer on the *control* surface only — not an empty, reset, or
+  fully-masked screen. Purchasing the tier MUST re-enable control with the stored configuration
+  and zero re-entry. (App Intents hold no per-user config; they simply fail locked per
+  FR-1100-03.)
 - **FR-1100-15**: Purchase edge states MUST be handled without data loss or double charging:
   pending/deferred approval flows activate the entitlement when approval arrives;
   interrupted transactions complete or roll back safely on next launch; failed or cancelled
@@ -346,9 +375,11 @@ never prompts for tips on its own.
 - **SC-1100-05**: After deleting and reinstalling the app, "Restore Purchases" recovers every
   owned unlock, and a previously configured broker connection resumes with zero re-entered
   values.
-- **SC-1100-06**: On a device with pre-gate broker configuration and no entitlement: no
-  broker connection is attempted (verifiable at the broker), and every stored broker setting
-  survives the update byte-for-byte.
+- **SC-1100-06**: On a device with pre-gate broker configuration and no entitlement: the frame
+  connects and publishes read-only sensor entities only — verifiable at the broker as
+  availability + sensors present, **zero** controllable entities, **zero** command topics
+  subscribed, and **zero** commands acted on — and every stored broker setting survives the
+  update byte-for-byte.
 - **SC-1100-07**: A copy audit of all user-facing strings and the store listing finds zero
   occurrences of "lifetime" or subscription terminology for the unlocks; paid items are
   described as one-time purchases.

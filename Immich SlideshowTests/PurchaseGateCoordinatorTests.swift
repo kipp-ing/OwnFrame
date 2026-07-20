@@ -2,25 +2,24 @@
 //  PurchaseGateCoordinatorTests.swift
 //  Immich SlideshowTests
 //
-//  1100 (T018) RED: the `.automation` gate on the HA/MQTT coordinator
-//  (data-model.md §Gated feature mapping — "coordinator start in
-//  SlideshowRemoteControlAdapter / TVRemoteControlAdapter").
+//  1100 (T018, amended 2026-07-20 by T050): the `.automation` gate on the HA/MQTT
+//  coordinator (data-model.md §Gated feature mapping).
 //
-//  Two rules are pinned here.
+//  The amendment: **telemetry is free, only control is gated** (FR-1100-03 / FR-1100-03a).
+//  The gate no longer blocks the coordinator — it selects its `Mode`:
 //
-//  1. The gate is a *construction* gate, not a runtime mute. Without `.automation`
-//     the coordinator is never built and never started — no transport, no connect,
-//     and crucially no read of the broker config, which in production resolves
-//     through `BrokerConfigProvider` into the Keychain. Counting `load()` on the
-//     config store is therefore the exact, hermetic proxy for "the Keychain was
-//     never touched" (FR-1100-14): production's only path from the gate to a
-//     Keychain item runs through `BrokerConfigStore.load()`.
+//  1. Without `.automation` but with a broker configured, the coordinator builds in
+//     `.telemetryOnly`: it connects and publishes read-only sensors so Home Assistant can
+//     *see* the frame, but never subscribes to a command topic or acts on a command. Reading
+//     the broker config (the Keychain hop, `BrokerConfigStore.load()`) is now a free-tier
+//     operation — telemetry needs it — but the stored config is NEVER cleared or migrated, so
+//     buying Automation later upgrades to `.full` with zero re-entry (FR-1100-14).
 //
-//  2. R5, the state-topic rule. MQTT state topics carry the STORED settings values,
-//     never the effective rendering. An Automation-only owner (no `.pro`) who drives
-//     the Ken Burns or clock selects over HA must see the stored value echoed back
-//     verbatim — the Pro gate bites at the point of rendering, never on the data or
-//     on the wire. `SlideshowRemoteControlAdapter` must stay entitlement-free.
+//  2. R5, the state-topic rule (unchanged). MQTT state topics carry the STORED settings
+//     values, never the effective rendering. An Automation-only owner (no `.pro`) who drives
+//     the Ken Burns or clock selects over HA must see the stored value echoed back verbatim —
+//     the Pro gate bites at the point of rendering, never on the data or on the wire.
+//     `SlideshowRemoteControlAdapter` stays entitlement-free.
 //
 
 import Foundation
@@ -37,19 +36,20 @@ import ThemeKit
 @MainActor
 struct PurchaseGateCoordinatorTests {
 
-    // MARK: - Construction gate
+    // MARK: - Mode selection (control-only gate)
 
-    @Test func withoutAutomationTheCoordinatorFactoryIsNeverInvoked() async throws {
+    @Test func withoutAutomationTheCoordinatorBuildsInTelemetryMode() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none)
         defer { fixture.cleanUp() }
 
         let coordinator = await fixture.gate(fixture.adapter)
 
-        #expect(coordinator == nil)
-        #expect(fixture.factoryCalls == 0)
+        #expect(coordinator != nil, "a configured broker still connects for free telemetry")
+        #expect(fixture.factoryCalls == 1)
+        #expect(fixture.lastMode == .telemetryOnly)
     }
 
-    @Test func withAutomationTheCoordinatorIsConstructed() async throws {
+    @Test func withAutomationTheCoordinatorBuildsInFullMode() async throws {
         let fixture = try GateFixture(entitlements: [.automation])
         defer { fixture.cleanUp() }
 
@@ -57,48 +57,59 @@ struct PurchaseGateCoordinatorTests {
 
         #expect(coordinator != nil)
         #expect(fixture.factoryCalls == 1)
+        #expect(fixture.lastMode == .full)
     }
 
-    /// Ambience and automation are independent purchases: owning Pro buys motion and
-    /// the clock, never remote control.
-    @Test func proAloneDoesNotUnlockRemoteControl() async throws {
+    /// Ambience and automation are independent purchases: owning Pro buys motion and the
+    /// clock, never remote control — so a Pro-only frame gets telemetry, not full control.
+    @Test func proAloneGetsTelemetryNotControl() async throws {
         let fixture = try GateFixture(entitlements: [.pro])
         defer { fixture.cleanUp() }
 
         let coordinator = await fixture.gate(fixture.adapter)
 
-        #expect(coordinator == nil)
-        #expect(fixture.factoryCalls == 0)
+        #expect(coordinator != nil)
+        #expect(fixture.lastMode == .telemetryOnly)
     }
 
-    /// The everything-bundle grants both tiers, so it must open this gate too.
-    @Test func everythingBundleUnlocksRemoteControl() async throws {
+    /// The everything-bundle grants both tiers, so it must open the control tier.
+    @Test func everythingBundleUnlocksFullControl() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.all)
         defer { fixture.cleanUp() }
 
         let coordinator = await fixture.gate(fixture.adapter)
 
         #expect(coordinator != nil)
-        #expect(fixture.factoryCalls == 1)
+        #expect(fixture.lastMode == .full)
     }
 
-    // MARK: - FR-1100-14: stored configuration is never touched by the gate
+    /// No broker configured → no coordinator at all, regardless of tier (nothing to connect).
+    @Test func noBrokerConfiguredBuildsNoCoordinatorEvenFree() async throws {
+        let fixture = try GateFixture(entitlements: EntitlementSet.none, broker: nil)
+        defer { fixture.cleanUp() }
 
-    /// The gated path must short-circuit *before* the broker config is read, so an
-    /// unentitled device never reaches the Keychain item holding the MQTT password.
-    @Test func gatedPathNeverReadsTheBrokerConfigOrKeychain() async throws {
+        let coordinator = await fixture.gate(fixture.adapter)
+
+        #expect(coordinator == nil)
+    }
+
+    // MARK: - FR-1100-14: stored configuration is read for telemetry but never touched
+
+    /// Free telemetry DOES read the broker config (it needs it to connect), but never clears
+    /// or migrates it — the whole basis for a zero-re-entry upgrade when Automation is bought.
+    @Test func telemetryPathReadsBrokerConfigButNeverClears() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none)
         defer { fixture.cleanUp() }
 
         _ = await fixture.gate(fixture.adapter)
 
-        #expect(fixture.configStore.loadCalls == 0)
+        #expect(fixture.configStore.loadCalls == 1)
+        #expect(fixture.configStore.clearCalls == 0)
     }
 
-    /// …and the stored configuration survives the gated path completely unchanged:
-    /// no clear, no migration, no masking. Purchasing later must re-enable HA with
-    /// zero re-entry (FR-1100-14).
-    @Test func gatedPathLeavesTheStoredBrokerConfigByteIdentical() async throws {
+    /// The stored configuration survives the telemetry path completely unchanged: no clear,
+    /// no migration, no masking (FR-1100-14).
+    @Test func telemetryPathLeavesTheStoredBrokerConfigByteIdentical() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none)
         defer { fixture.cleanUp() }
 
@@ -111,9 +122,8 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.configStore.clearCalls == 0)
     }
 
-    /// The entitled path is unchanged from pre-gate behaviour: exactly the one config
-    /// read the coordinator factory always did.
-    @Test func entitledPathReadsTheBrokerConfigExactlyOnce() async throws {
+    /// The full path reads the broker config exactly once — the coordinator factory's own read.
+    @Test func fullPathReadsTheBrokerConfigExactlyOnce() async throws {
         let fixture = try GateFixture(entitlements: [.automation])
         defer { fixture.cleanUp() }
 
@@ -123,17 +133,15 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.configStore.clearCalls == 0)
     }
 
-    // MARK: - FR-1100-14 / US5 scenario 3: purchasing Automation re-enables HA
+    // MARK: - FR-1100-14 / US5 scenario 3: purchasing Automation upgrades telemetry → full
     // with the previously stored config and zero re-entry.
 
-    /// The whole point of "the gate never clears or migrates anything" (FR-1100-14): a frame that
-    /// stored a broker config while unentitled, then buys Automation, starts its coordinator
-    /// against the *same* stored config with no re-entry. One config store, one gate; only the
+    /// A frame that stored a broker config while free — already publishing telemetry — then
+    /// buys Automation, and its coordinator upgrades from `.telemetryOnly` to `.full` against
+    /// the *same* stored config with no re-entry. One config store, one gate; only the
     /// entitlement set flips between the two calls — exactly as a live purchase would flip it,
-    /// since the gate reads entitlements at call time, never at construction.
-    @Test func purchasingAutomationStartsTheCoordinatorWithTheStoredConfigAndNoReentry() async throws {
-        // Reuse the fixture purely as a factory for a real adapter and a broker store seeded with
-        // `GateFixture.brokerConfig`; the fixture's own baked gate is never called here.
+    /// since the gate reads entitlements at call time.
+    @Test func purchasingAutomationUpgradesTelemetryToFullWithTheStoredConfig() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none, suite: "gate.purchase-flip")
         defer { fixture.cleanUp() }
 
@@ -143,18 +151,16 @@ struct PurchaseGateCoordinatorTests {
 
         // A completed purchase flips this set; the gate re-reads it on the next build.
         let owned = EntitlementBox(EntitlementSet.none)
-        // Records the exact config the coordinator factory read — closes the "what did
-        // makeCoordinator see" gap the recording store can't observe on its own.
         let seen = ConfigProbe()
+        let seenMode = ModeBox()
         let transport = GateStubTransport()
         let calls = CallCounter()
 
-        // Mirrors the production factory (and `GateFixture`'s): read the broker config once, bail
-        // without one, otherwise build a coordinator. The gate must short-circuit ahead of it.
         let gate = AutomationCoordinatorGate(
             entitlements: { owned.value },
-            makeCoordinator: { _ in
+            makeCoordinator: { _, mode in
                 calls.increment()
+                seenMode.value = mode
                 guard let config = configStore.load() else { return nil }
                 seen.value = config
                 return HAControlCoordinator(
@@ -163,28 +169,30 @@ struct PurchaseGateCoordinatorTests {
                     settings: adapter,
                     configStore: configStore,
                     deviceName: "Photo Frame",
-                    enabledEntities: HAEntity.defaultEnabled
+                    enabledEntities: HAEntity.defaultEnabled,
+                    mode: mode
                 )
             }
         )
 
-        // --- Unentitled: the gate short-circuits ahead of the factory; the config is untouched.
+        // --- Free: the coordinator builds in telemetry mode against the stored config.
         let before = configStore.stored
-        let unentitled = await gate(adapter)
-        #expect(unentitled == nil)
-        #expect(calls.count == 0)
-        #expect(configStore.loadCalls == 0)
+        let free = await gate(adapter)
+        #expect(free != nil)
+        #expect(calls.count == 1)
+        #expect(seenMode.value == .telemetryOnly)
+        #expect(seen.value == seeded)                  // telemetry runs against the stored config
         #expect(configStore.clearCalls == 0)
-        #expect(configStore.stored == before)          // nothing read, nothing mutated
+        #expect(configStore.stored == before)          // nothing mutated
 
         // --- Purchase completes: the same set gains `.automation`; nothing else changes.
         owned.value.insert(.automation)
 
-        // --- Entitled: the coordinator is now built, against exactly the seeded config.
+        // --- Entitled: the coordinator now builds in full mode, same seeded config.
         let entitled = await gate(adapter)
         #expect(entitled != nil)
-        #expect(calls.count == 1)
-        #expect(configStore.loadCalls == 1)            // one read: the coordinator's own guard
+        #expect(calls.count == 2)
+        #expect(seenMode.value == .full)
         #expect(configStore.clearCalls == 0)           // never cleared across the whole sequence
         #expect(seen.value == seeded)                  // built against the stored config — zero re-entry
         #expect(configStore.stored == seeded)          // store still byte-identical to the seed
@@ -192,9 +200,9 @@ struct PurchaseGateCoordinatorTests {
 
     // MARK: - R5: state topics report stored settings, not effective rendering
 
-    /// An Automation-only owner reads the Ken Burns select over HA: the topic reports
-    /// the STORED `true`, while `AmbienceGate` (no `.pro`) renders it off. Data and
-    /// rendering are deliberately allowed to disagree.
+    /// An Automation-only owner reads the Ken Burns select over HA: the topic reports the
+    /// STORED `true`, while `AmbienceGate` (no `.pro`) renders it off. Data and rendering are
+    /// deliberately allowed to disagree.
     @Test func kenBurnsStateTopicReportsStoredValueWhileRenderingStaysProGated() throws {
         let fixture = try GateFixture(entitlements: [.automation])
         defer { fixture.cleanUp() }
@@ -225,9 +233,9 @@ struct PurchaseGateCoordinatorTests {
         #expect(ambience.effectiveClock(setting: snapshot.clockOn) == false)
     }
 
-    /// A remote apply from an Automation-only owner is stored verbatim and echoed
-    /// back verbatim. The gate must never rewrite an incoming command to `false`,
-    /// which would silently destroy the owner's stored preference.
+    /// A remote apply from an Automation-only owner is stored verbatim and echoed back
+    /// verbatim. The gate must never rewrite an incoming command to `false`, which would
+    /// silently destroy the owner's stored preference.
     @Test func remoteApplyStoresProGatedValuesVerbatimForAnAutomationOnlyOwner() throws {
         let fixture = try GateFixture(entitlements: [.automation])
         defer { fixture.cleanUp() }
@@ -243,10 +251,10 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.adapter.themeSettings.clockOn == true)
     }
 
-    /// The adapter is entitlement-free by construction — it takes no entitlement
-    /// input and its snapshot is a pure mirror of the store. This pins the invariant
-    /// from data-model.md §Invariants: PurchaseKit never reads, writes, masks, or
-    /// migrates `ThemeSettings` / `ClockSettings`.
+    /// The adapter is entitlement-free by construction — it takes no entitlement input and its
+    /// snapshot is a pure mirror of the store. This pins the invariant from data-model.md
+    /// §Invariants: PurchaseKit never reads, writes, masks, or migrates
+    /// `ThemeSettings` / `ClockSettings`.
     @Test func adapterSnapshotIsAPureMirrorOfTheStoreRegardlessOfEntitlements() throws {
         let cases: [EntitlementSet] = [EntitlementSet.none, [.pro], [.automation], EntitlementSet.all]
         for (index, entitlements) in cases.enumerated() {
@@ -284,10 +292,12 @@ private final class GateFixture {
     private let suiteName: String
     private let transport = GateStubTransport()
     private let calls = CallCounter()
+    private let modeBox = ModeBox()
 
     var factoryCalls: Int { calls.count }
+    var lastMode: HAControlCoordinator.Mode? { modeBox.value }
 
-    init(entitlements: EntitlementSet, suite: String = "gate.default") throws {
+    init(entitlements: EntitlementSet, suite: String = "gate.default", broker: BrokerConfig? = GateFixture.brokerConfig) throws {
         suiteName = "de.kippings.ImmichSlideshow.tests.\(suite)"
         defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
@@ -304,19 +314,21 @@ private final class GateFixture {
             powerManager: PowerManager(screen: GateStubScreen()),
             themeStore: store
         )
-        configStore = RecordingBrokerConfigStore(stored: Self.brokerConfig)
+        configStore = RecordingBrokerConfigStore(stored: broker)
 
         // Mirrors the production factory in `Immich_SlideshowApp.swift`: read the broker
-        // config first (the Keychain hop), bail without one, otherwise build a coordinator.
-        // The gate must short-circuit *ahead* of this whole closure.
+        // config (the Keychain hop), bail without one, otherwise build a coordinator in the
+        // gate-selected mode. Reading is now free-tier; the factory never clears or migrates.
         let configStore = self.configStore
         let transport = self.transport
         let calls = self.calls
+        let modeBox = self.modeBox
         let adapter = self.adapter
         gate = AutomationCoordinatorGate(
             entitlements: { entitlements },
-            makeCoordinator: { _ in
+            makeCoordinator: { _, mode in
                 calls.increment()
+                modeBox.value = mode
                 guard configStore.load() != nil else { return nil }
                 return HAControlCoordinator(
                     transport: transport,
@@ -324,7 +336,8 @@ private final class GateFixture {
                     settings: adapter,
                     configStore: configStore,
                     deviceName: "Photo Frame",
-                    enabledEntities: HAEntity.defaultEnabled
+                    enabledEntities: HAEntity.defaultEnabled,
+                    mode: mode
                 )
             }
         )
@@ -335,9 +348,9 @@ private final class GateFixture {
     }
 }
 
-/// Counts `load()` so a test can prove the gated path never reaches the Keychain —
-/// in production `BrokerConfigProvider.load()` is the sole hop from here into
-/// `KeychainBrokerSettingsStore`. Also proves nothing is ever cleared (FR-1100-14).
+/// Counts `load()` and `clear()` so a test can prove the telemetry path reads the broker
+/// config exactly once and never clears it — in production `BrokerConfigProvider.load()` is
+/// the sole hop from here into `KeychainBrokerSettingsStore` (FR-1100-14).
 private final class RecordingBrokerConfigStore: BrokerConfigStore, @unchecked Sendable {
     private(set) var stored: BrokerConfig?
     private(set) var loadCalls = 0
@@ -371,9 +384,14 @@ private final class EntitlementBox: @unchecked Sendable {
 }
 
 /// Captures the `BrokerConfig` the coordinator factory actually read, so a test can prove the
-/// entitled build ran against the previously stored config rather than a re-entered one.
+/// upgraded build ran against the previously stored config rather than a re-entered one.
 private final class ConfigProbe: @unchecked Sendable {
     var value: BrokerConfig?
+}
+
+/// Captures the `Mode` the gate selected for the factory.
+private final class ModeBox: @unchecked Sendable {
+    var value: HAControlCoordinator.Mode?
 }
 
 private final class GateStubTransport: MQTTTransport, @unchecked Sendable {

@@ -91,29 +91,25 @@ final class PurchaseGateUITests: XCTestCase {
             app.terminate()
         }
 
-        // The broker row is different by design (US5): it opens the locked broker view first —
-        // where an existing frame's owner sees their saved config — and the unlock offer THERE
-        // reaches the Automation screen. So the path is row → locked broker view → unlock screen.
+        // The broker row is the Automation "Remote control" locked banner (US5, amended
+        // 2026-07-20): telemetry is free so the broker editor stays live below it, and the
+        // banner opens the Automation unlock screen directly.
         let app = launchIntoSettings(entitlements: "none")
         let brokerRow = element(app, "settings.row.broker.locked")
-        XCTAssertTrue(scrollToElement(brokerRow, in: app), "broker locked row must be present")
+        XCTAssertTrue(scrollToElement(brokerRow, in: app), "broker control-locked row must be present")
         brokerRow.tap()
-        // The locked broker view re-uses the same banner identifier; its unlock button leads on.
-        let unlockEntry = element(app, "unlock.buy.automation.entry")
-        XCTAssertTrue(unlockEntry.waitForExistence(timeout: 5),
-                      "broker locked row must open the locked broker view with an unlock offer")
-        unlockEntry.tap()
         XCTAssertTrue(element(app, "unlock.screen.automation").waitForExistence(timeout: 5),
-                      "the locked broker view's unlock offer must open unlock.screen.automation")
+                      "the broker control-locked row must open unlock.screen.automation")
     }
 
     // MARK: - Assertion 6 — pre-gate broker config degrades gracefully (US5 / SC-1100-06)
 
-    /// A frame configured before the gate keeps its broker settings. Opening the (locked) broker
-    /// surface unentitled shows the stored values, masks the password as usual, carries a locked
-    /// banner, and clears nothing (FR-1100-14). The no-connection half is a device-day check.
+    /// A frame configured before the gate keeps its broker settings, and telemetry is free — so
+    /// the broker editor stays LIVE (not a masked read-only screen) with the stored values in
+    /// place, while the *control* capability shows a locked banner + unlock offer (US5, amended
+    /// 2026-07-20 / FR-1100-03a / FR-1100-14). The no-command half is a device-day check.
     @MainActor
-    func testSeededBrokerConfigIsVisibleAndLockedWhenUnentitled() throws {
+    func testSeededBrokerConfigIsVisibleAndControlLockedWhenUnentitled() throws {
         let app = XCUIApplication()
         app.launchArguments = [
             "--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-settings",
@@ -121,28 +117,22 @@ final class PurchaseGateUITests: XCTestCase {
         ]
         app.launch()
 
+        // Control is locked (needs Automation): the "Remote control" banner is present…
         let brokerRow = element(app, "settings.row.broker.locked")
         XCTAssertTrue(scrollToElement(brokerRow, in: app),
-                      "the MQTT row is locked when Automation is not owned")
-        brokerRow.tap()
+                      "the Automation control-locked banner must be present when unentitled")
 
-        // Stored config is visible — "not an empty or reset screen" (US5 scenario 2). Scroll it
-        // into view first: a lazy Form row reports exists==true while off-screen but only
-        // realises its accessibility value once rendered (the entitled broker tests do the same).
-        // The combined row exposes "Host: mqtt.example.com" as its label (its `.value` is an
-        // empty string, so read the label, not value ?? label — an empty string isn't nil).
-        let host = element(app, "broker.host")
-        XCTAssertTrue(scrollToElement(host, in: app), "the saved broker host must be shown")
-        XCTAssertTrue(host.label.contains("mqtt.example.com"),
-                      "the stored host value must be visible, not blanked")
-        // The password is shown masked, never in the clear.
+        // …while the broker connection editor is LIVE and pre-filled with the stored config
+        // ("not an empty or reset screen", US5 scenario 2). `--uitest-broker` pre-expands it.
+        let host = app.textFields["broker.host"]
+        XCTAssertTrue(scrollToElement(host, in: app), "the saved broker host must be shown in the live editor")
+        XCTAssertEqual(host.value as? String, "mqtt.example.com",
+                       "the stored host value must be visible in the live editor, not blanked")
+        // The password field is masked — never in the clear.
         let password = element(app, "broker.password")
         XCTAssertTrue(scrollToElement(password, in: app))
-        XCTAssertFalse(password.label.lowercased().contains("secret"),
-                       "the stored password must never be shown in the clear")
-        // The locked banner and unlock offer are both present.
-        XCTAssertTrue(element(app, "unlock.buy.automation.entry").exists,
-                      "an unlock offer must be present on the locked broker surface")
+        XCTAssertNotEqual(password.value as? String, "secret-pass",
+                          "the stored password must never be shown in the clear")
     }
 
     // MARK: - Assertion 2 — no purchase UI during free playback (SC-1100-02 proxy)
