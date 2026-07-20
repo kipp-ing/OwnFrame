@@ -75,9 +75,31 @@ struct ImmichSlideshowTVApp: App {
 
 struct TVRootView: View {
     @Bindable var model: TVAppModel
-    @State private var showBrokerSetup = false
+    @State private var showSettings = false
 
     var body: some View {
+        routedContent
+            // 1100 (T033): the tvOS settings surface — Unlocks (restore + tip), the Ambience/Pro
+            // locked row, and Home Assistant gated to the editor when the Automation unlock is
+            // owned or the masked locked-broker view when it is not. Presented at the root so the
+            // gear reaches it from the slideshow and the DEBUG seam reaches it from any route.
+            .fullScreenCover(isPresented: $showSettings) {
+                TVSettingsView(onDone: { showSettings = false })
+            }
+            #if DEBUG
+            // Hermetic screenshot/verification seam: open the settings surface straight away, so
+            // XcodeBuildMCP (which has no tvOS navigation tools) can capture it under the
+            // `--uitest-entitlements=` seams without driving the Siri Remote. DEBUG-only.
+            .onAppear {
+                if ProcessInfo.processInfo.arguments.contains("--uitest-tv-settings") {
+                    showSettings = true
+                }
+            }
+            #endif
+    }
+
+    @ViewBuilder
+    private var routedContent: some View {
         switch model.route {
         case .loading:
             ZStack { Color.black.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -91,12 +113,9 @@ struct TVRootView: View {
                     startHA: { await model.startHA() },
                     stopHA: { await model.stopHA() },
                     isCurrentGeneration: { model.slideshow === slideshow },
-                    onSettings: { showBrokerSetup = true }
+                    onSettings: { showSettings = true }
                 )
                 .id(ObjectIdentifier(slideshow))
-                .fullScreenCover(isPresented: $showBrokerSetup) {
-                    TVBrokerSetupView(onDone: { showBrokerSetup = false })
-                }
             } else {
                 onboarding
             }
