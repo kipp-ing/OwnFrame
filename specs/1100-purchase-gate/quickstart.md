@@ -62,6 +62,9 @@ Code-complete is not ship-ready until these are ticked (tracked in
 - [ ] ASC: create IAPs exactly matching `ProductID` raw values; Family Sharing ON for the three
       unlocks; localized names/descriptions using "one-time purchase" phrasing (never
       "lifetime"); attach to the 1.1 submission (IAPs reviewed with the build).
+- [ ] Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device — the SKTestSession
+      adapter suite skips under headless `xcodebuild`, so this is where the StoreKit adapter (T030)
+      is actually proven at runtime.
 - [ ] Sandbox on device: products load (id-drift smoke test), real purchase of each unlock,
       tips, cancel mid-flow, Ask-to-Buy with a child test account.
 - [ ] Restore on a second device with the same sandbox account (SC-1100-05).

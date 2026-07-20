@@ -277,12 +277,17 @@ outside settings.
       under `docs/` for "lifetime"/subscription terminology on the unlocks (FR-1100-05 covers
       any user-facing document); sanctioned phrasing "one-time purchase"; note the audit
       command + result in specs/1100-purchase-gate/tasks.md Status.
-- [ ] T040 Full verification gate: iOS + tvOS builds, all host suites, StoreKitTest class,
-      and the FULL XCUITest suite (repo rule) via XcodeBuildMCP; record counts in the Status
-      section below.
-- [ ] T041 [P] Docs sync: flip status lines in `docs/spec-overview.md` (1100 row) and the
-      CLAUDE.md SPECKIT block; check off spec/tasks checkboxes; keep quickstart.md §5 aligned
-      with `docs/manual-verification.md`.
+- [x] T040 Full verification gate (2026-07-20): iOS build ✓ + tvOS build ✓; PurchaseKit host
+      suite **110/110** (`swift test`); full XCUITest suite on the default iPad sim (iOS 26.5)
+      **153 passed / 0 failed / 9 skipped** — the 9 skips are the ASC-screenshot capture +
+      live-demo smoke (both intentional) and the 7 SKTestSession cases (skip-guarded under headless
+      `xcodebuild`; their real run folds into T042). Same result on iOS 18.6. tvOS unlock surface
+      screenshot-verified on the Apple TV simulator under `--uitest-entitlements`. One benign
+      pre-existing warning (AppIntentsKit module-scan noting a HAControlKit dependency); no errors.
+- [x] T041 [P] Docs sync (2026-07-20): status lines flipped in `docs/spec-overview.md` (1100 row)
+      and the CLAUDE.md active-feature block; spec/tasks checkboxes checked; quickstart.md §5 kept
+      in step with `docs/manual-verification.md` §D (both now name the Xcode-IDE/device
+      StoreKitTest run as a device-day item).
 - [ ] T042 Sequencing guard (manual, with Jan): confirm in ASC that v1.0 b8 remains
       unreleased and version 1.1 is the gated first-release vehicle (FR-1100-17); prices
       entered in ASC only. Blocked on Jan's ASC access — not automatable.
@@ -321,13 +326,14 @@ and the quickstart §5 checklist gate the actual App Store release, not the merg
 
 ## Status (updated 2026-07-20)
 
-Implementation in progress on branch `1100-purchase-gate`. Done and committed: **all of
-T001–T039** (every user story's logic + UI, including US5 broker degradation on iOS, the real
-StoreKit adapter, and now the tvOS unlock surface). PurchaseKit host suite **110/110**; full iOS
-suite **153/0/9** on iOS 18.6 — the 9 skips are the App Store screenshot + live-demo smoke (both
-intentional) plus the 7 StoreKitClientTests, which skip-guard out under headless `xcodebuild` (see
-T030); iOS + tvOS both build; the tvOS unlock surface is Apple-TV-simulator screenshot-verified
-under the `--uitest-entitlements` seams (T033).
+Implementation on branch `1100-purchase-gate` is **code-complete: T001–T041 done + committed**;
+only **T042** (the manual ASC/device day) remains, and it is blocked on Jan's ASC access. Every
+user story's logic + UI is in — US1–US6 gates, US5 broker degradation on iOS, the real StoreKit
+adapter, and the tvOS unlock surface. Final gate (T040, 2026-07-20): PurchaseKit host **110/110**;
+full iOS XCUITest suite **153/0/9** on the default iPad sim (iOS 26.5), same on 18.6 — the 9 skips
+are the App Store screenshot + live-demo smoke (both intentional) plus the 7 StoreKitClientTests,
+which skip-guard out under headless `xcodebuild` (see T030); iOS + tvOS both build; the tvOS unlock
+surface is Apple-TV-simulator screenshot-verified under the `--uitest-entitlements` seams (T033).
 
 **T030 done** with a runtime caveat: the real `StoreKitClient` adapter + its 7 SKTestSession cases
 are in, and launch `refresh()` + `listenForUpdates()` are wired on both apps' production entry
@@ -336,14 +342,14 @@ the cases skip honestly (never a false pass/red) and must be run once from the X
 on device — that verification folds into **T042**. The adapter is otherwise held by review + the
 pure PurchaseKit host tests above the seam.
 
-**T033 done 2026-07-20**: the tvOS unlock surface (`TVSettingsView` + `TVLockedBrokerView`) is in,
-verified by Apple TV simulator screenshots under the `--uitest-entitlements` seams; the shared
-unlock/tip screens gained a tvOS-only opaque backing.
+**T040 + T041 done 2026-07-20**: full verification gate recorded above; docs synced
+(`docs/spec-overview.md`, CLAUDE.md, quickstart §5 ↔ manual-verification §D).
 
-Remaining: **T040** (final full gate — iOS half green; tvOS is screenshot-verified; the one
-IDE/device StoreKitTest run outstanding), **T041** (this doc + CLAUDE.md + overview kept in sync),
-**T042** (ASC/device day — manual, now also the home for the StoreKitTest IDE/device run + the
-real family/universal-purchase checks).
+Remaining: **T042** only — the manual ASC/device day (blocked on Jan's ASC access): create the
+IAPs, run the sandbox purchase/restore/Family-Sharing/universal-purchase checks, the one
+Xcode-IDE/device StoreKitTest run (the SKTestSession cases skip under headless `xcodebuild`), and
+the release sequencing guard (v1.0 b8 stays unreleased; v1.1 gated build is the first public
+release, FR-1100-17). See `docs/manual-verification.md` §D + quickstart §5.
 
 - **T039 copy audit — PASS.** `grep -rin "lifetime"` over PurchaseKit UI, Localizable.xcstrings,
   app-store-listing.md, README.md, and docs/: zero user-facing hits (only the doc-comment stating
@@ -351,6 +357,6 @@ real family/universal-purchase checks).
   sanctioned "No subscription, no recurring charge." No price points in the repo (StubStoreClient's
   `$1.00` is a labelled DEBUG fixture). License already FSL-1.1-MIT in README + listing.
 
-Remaining: T033 (tvOS unlock surface), T040 (final gate), T041 (docs sync), T042 (ASC/device day
-— now also hosts the one-off Xcode-IDE/device StoreKitTest run). T030 (StoreKit adapter +
-SKTestSession + launch wiring) landed 2026-07-20; T032/T035/T037/T038 already done.
+Remaining: **T042 only** (the manual ASC/device day — also hosts the one-off Xcode-IDE/device
+StoreKitTest run). T001–T041 all landed by 2026-07-20; T030 (StoreKit adapter + SKTestSession +
+launch wiring), T033 (tvOS unlock surface), and T040/T041 (gate + docs) closed this session.

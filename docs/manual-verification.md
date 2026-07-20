@@ -94,6 +94,12 @@ account, a second device, a family member account, and ASC access. **Nothing her
 
 **Sandbox on device:**
 
+- [ ] **Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device.** The SKTestSession
+      adapter suite skip-guards to a no-op under headless `xcodebuild`/MCP (the StoreKit test daemon
+      isn't activated there — reproduced on iOS 18.6 + 26.x), so this is the *only* place its 7
+      cases actually execute: purchase→owned, restore, refund→relock, Ask-to-Buy defer→approve,
+      interrupted purchase owned next launch, tips never owned. Green here is the runtime proof of
+      the StoreKit adapter (T030).
 - [ ] Products load at all (the id-drift smoke test — if this fails, re-check the ids above).
 - [ ] Buy each unlock for real; the feature activates without a relaunch (SC-1100-03).
 - [ ] Buy a tip → thank-you state, and **no entitlement change whatsoever** (FR-1100-08).
