@@ -296,11 +296,6 @@ struct Immich_SlideshowApp: App {
         // cached snapshot here — no await, no network — so the gates can branch on it in
         // the first render pass (FR-1100-10). Entitlements are not secrets, so the plain
         // defaults suite is the sanctioned home for the snapshot (research.md R4).
-        //
-        // NOTE: `StoreKitClient` is still the T013 skeleton, so a production `refresh()`
-        // resolves nothing today and `current` stays at whatever the cache holds. That is
-        // intentional and safe while the gate is unreleased; the launch refresh and
-        // `listenForUpdates()` get wired once T029/T030 give them real behaviour.
         let entitlementStore = EntitlementStore(
             client: StoreKitClient(),
             cache: EntitlementSnapshotCache(defaults: .standard)
@@ -309,6 +304,16 @@ struct Immich_SlideshowApp: App {
         // The App Intent shells resolve entitlements through the same composition seam they
         // already use for the registry (see FrameIntentContext for why not AppDependencyManager).
         FrameIntentContext.entitlements = { entitlementStore.current }
+        // 1100 (T030): `StoreKitClient` is real now, so keep entitlements live. Consuming the
+        // update stream re-resolves on out-of-band changes — an Ask-to-Buy approval, or a
+        // purchase/refund made on another device (universal purchase / Family Sharing) — and one
+        // launch refresh reconciles the cached snapshot against StoreKit's current entitlements.
+        // Both run strictly after the synchronous seed above, so the first render still branches
+        // on `current` with no await (FR-1100-10); a failed/offline refresh leaves `current`
+        // untouched (last-known-good, FR-1100-13). Wired only on this production path — the
+        // `--uitest` branch above returns early with its own hermetic stub store.
+        entitlementStore.listenForUpdates()
+        Task { await entitlementStore.refresh() }
 
         // Resolve the active source into a ServerConfig (auth) + album. The API key and
         // any shared-link password stay in the Keychain and are only handed to the
