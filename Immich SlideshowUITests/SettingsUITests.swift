@@ -19,11 +19,15 @@ final class SettingsUITests: XCTestCase {
         MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
+    // 1100: this suite exercises the clock (Pro) and MQTT (Automation) settings rows as
+    // settings behaviour, not as the gate — so every launch seeds `all`. The locked-row and
+    // unlock behaviour is owned entirely by PurchaseGateUITests; seeding here keeps this suite
+    // about what it was always about.
     @MainActor
     func testSettingsShowsBrightnessAndLiveDisplayOptionsAndDismisses() throws {
         let app = XCUIApplication()
         // Pin the chrome so opening settings isn't racing the idle auto-hide.
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-entitlements=all"]
         app.launch()
 
         let image = app.descendants(matching: .any)
@@ -58,7 +62,7 @@ final class SettingsUITests: XCTestCase {
     @MainActor
     func testConnectionPushesEditorAndMqttStaysCollapsed() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-entitlements=all"]
         app.launch()
 
         let image = app.descendants(matching: .any)
@@ -93,7 +97,7 @@ final class SettingsUITests: XCTestCase {
     @MainActor
     func testBottomSettingsSectionReachableInBothOrientations() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-entitlements=all"]
         app.launch()
         defer { XCUIDevice.shared.orientation = .portrait }
 
@@ -120,7 +124,7 @@ final class SettingsUITests: XCTestCase {
     @MainActor
     func testResetFromSettingsReturnsToOnboarding() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-entitlements=all"]
         app.launch()
 
         let image = app.descendants(matching: .any)

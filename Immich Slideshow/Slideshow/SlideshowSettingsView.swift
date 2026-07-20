@@ -15,6 +15,7 @@ import ImmichClient
 import OnboardingKit
 import PhotoLibraryKit
 import PowerKit
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
@@ -47,6 +48,18 @@ struct SlideshowSettingsView: View {
     var budgetStore: (any CacheBudgetStore)?
 
     @Environment(\.dismiss) private var dismiss
+    // 1100: what the frame owns. Optional so previews render without the app environment;
+    // absent means unentitled, so the gate fails closed (same rule as SlideshowView).
+    @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
+    // The tier whose unlock screen is being presented, or nil. Only ever set by a user tap on
+    // a locked row — nothing here may auto-present (FR-1100-09 / SC-1100-02).
+    @State private var unlockTier: Entitlement?
+    // Tip jar sheet (US6). Settings-only, never solicited anywhere else.
+    @State private var showTipJar = false
+    // Locked broker view (US5): masked stored config + unlock offer for an unentitled frame.
+    @State private var showLockedBroker = false
+    // Non-nil while a Restore is in flight, so the row shows progress and can't be double-tapped.
+    @State private var isRestoring = false
     @State private var brightness: Double
     @State private var showResetDialog = false
     // Storage section state (320): live usage (refreshed on appear and after
@@ -152,6 +165,8 @@ struct SlideshowSettingsView: View {
                         Label("Ken Burns", systemImage: "camera.viewfinder")
                     }
                     .accessibilityIdentifier("settings.kenBurns")
+                    .lockedRow(if: !isProEntitled, requires: .pro,
+                               identifier: "settings.row.kenburns.locked") { unlockTier = .pro }
 
                     Picker(selection: $themeStore.settings.fit) {
                         Text("Fit").tag(ImageFit.fit)
@@ -173,8 +188,13 @@ struct SlideshowSettingsView: View {
                         Label("Clock", systemImage: "clock")
                     }
                     .accessibilityIdentifier("settings.clock")
+                    .lockedRow(if: !isProEntitled, requires: .pro,
+                               identifier: "settings.row.clock.locked") { unlockTier = .pro }
 
-                    if themeStore.settings.clock.isOn {
+                    // The clock's detail rows stay hidden while locked: the stored value is
+                    // preserved (FR-1100-14), but offering style/place pickers for something
+                    // that cannot render would be noise.
+                    if themeStore.settings.clock.isOn, isProEntitled {
                         Picker(selection: $themeStore.settings.clock.style) {
                             Text("Digits").tag(ClockStyle.digits)
                             Text("Pill").tag(ClockStyle.pill)
@@ -267,16 +287,67 @@ struct SlideshowSettingsView: View {
                 }
 
                 Section {
-                    DisclosureGroup(isExpanded: $mqttExpanded) {
-                        BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
-                    } label: {
-                        Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
-                            .accessibilityIdentifier("settings.mqtt")
+                    // Unlike the toggles above, this cannot just be wrapped: a locked
+                    // DisclosureGroup would still expand and expose the broker editor. So the
+                    // whole control is swapped for a locked row while Automation is absent.
+                    // Nothing stored is read, cleared, or migrated by this branch — the config
+                    // and its keychain items are simply not surfaced (FR-1100-14).
+                    if isAutomationEntitled {
+                        DisclosureGroup(isExpanded: $mqttExpanded) {
+                            BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
+                        } label: {
+                            Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
+                                .accessibilityIdentifier("settings.mqtt")
+                        }
+                    } else {
+                        // US5: tapping opens the locked broker view (masked stored config +
+                        // banner + unlock offer), NOT the unlock screen directly — an existing
+                        // frame's owner must be able to see their config survived (FR-1100-14).
+                        LockedRow(requires: .automation,
+                                  identifier: "settings.row.broker.locked",
+                                  action: { showLockedBroker = true }) {
+                            Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
+                        }
                     }
                 } header: {
                     Text("Home Assistant")
                 } footer: {
                     Text("MQTT broker for remote control via Home Assistant.")
+                }
+
+                // Unlocks (1100): Restore is always here so a re-installed or second frame can
+                // recover its purchases without hunting; the tip jar lives here and ONLY here,
+                // never solicited from playback or onboarding (US6). Buying tiers happens on the
+                // locked rows above — this section is recovery + gratitude, not a storefront.
+                Section {
+                    Button {
+                        guard !isRestoring else { return }
+                        isRestoring = true
+                        Task {
+                            try? await entitlements?.restore()
+                            isRestoring = false
+                        }
+                    } label: {
+                        HStack {
+                            Label("Restore Purchases", systemImage: "arrow.clockwise")
+                            Spacer()
+                            if isRestoring { ProgressView() }
+                        }
+                    }
+                    .disabled(isRestoring)
+                    .accessibilityIdentifier("unlock.restore")
+
+                    Button {
+                        showTipJar = true
+                    } label: {
+                        Label("Leave a Tip", systemImage: "heart")
+                    }
+                    .accessibilityIdentifier("settings.tipjar")
+                } header: {
+                    Text("Unlocks")
+                        .accessibilityIdentifier("settings.section.unlocks")
+                } footer: {
+                    Text("Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks.")
                 }
 
                 if let diskCache {
@@ -374,6 +445,31 @@ struct SlideshowSettingsView: View {
         .onChange(of: brightness) { _, newValue in
             Task { await powerManager.setBrightness(newValue, animated: false) }
         }
+        // Presented ONLY from a locked-row tap. Never auto-presented, and never reachable
+        // from playback (SC-1100-02).
+        .sheet(item: $unlockTier) { tier in
+            UnlockScreenView(tier: tier) { unlockTier = nil }
+        }
+        .sheet(isPresented: $showTipJar) {
+            TipJarView { showTipJar = false }
+        }
+        .sheet(isPresented: $showLockedBroker) {
+            LockedBrokerView(
+                viewModel: brokerViewModel,
+                onUnlock: { showLockedBroker = false; unlockTier = .automation },
+                onClose: { showLockedBroker = false }
+            )
+        }
+    }
+
+    // MARK: - Entitlement gates (1100)
+
+    private var isProEntitled: Bool {
+        entitlements?.current.contains(.pro) ?? false
+    }
+
+    private var isAutomationEntitled: Bool {
+        entitlements?.current.contains(.automation) ?? false
     }
 
     private static func durationLabel(_ duration: Duration) -> String {

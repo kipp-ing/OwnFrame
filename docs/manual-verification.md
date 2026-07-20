@@ -66,6 +66,85 @@ Status): the sim proves the mechanics, your eyes prove the elegance.
 - [ ] **900 quickstart** device/beta gates: real Photos library end-to-end + the iOS 27 beta
       shared-album rebuild check (`specs/900-photo-library-source/quickstart.md`).
 
+### D. 1100 purchase gate — App Store Connect + sandbox (added 2026-07-19)
+
+Mirrors `specs/1100-purchase-gate/quickstart.md` §5; keep the two in step. Needs a sandbox tester
+account, a second device, a family member account, and ASC access. **Nothing here is automatable**
+— StoreKit sandbox, Family Sharing, and release sequencing all require a real Apple ID.
+
+**Do this one FIRST — it is release-blocking and cheap to check:**
+
+- [ ] **FR-1100-17 / SC-1100-09 sequencing**: in ASC confirm approved **v1.0 build 8 is still
+      unreleased** and will never be released, and that version **1.1 (gated) is the first version
+      the public ever sees**. The whole feature exists because the reviewed-but-unreleased build
+      gives HA away free; shipping b8 by accident forfeits that, permanently, for every existing
+      install. Verify before anything else on device day.
+
+**Store setup (do before any sandbox purchase — a mismatch here breaks everything downstream):**
+
+- [ ] Create the IAPs with ids matching `ProductID` raw values **character-for-character**
+      (`Packages/PurchaseKit/Sources/PurchaseKit/ProductCatalog.swift` is the source of truth).
+      Id drift has no compile-time signal and fails only at runtime as "products unavailable".
+- [ ] Family Sharing **ON** for the three non-consumable unlocks, OFF for the tips.
+- [ ] Localized names/descriptions use "one-time purchase"; the word **"lifetime" appears
+      nowhere**, and nothing implies a subscription (FR-1100-05).
+- [ ] Prices set here and only here — never committed to this repo. The `.storekit` file's
+      values are placeholder fixtures, not pricing decisions.
+- [ ] IAPs attached to the 1.1 submission (they are reviewed together with the build).
+
+**Sandbox on device:**
+
+- [ ] **Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device.** The SKTestSession
+      adapter suite skip-guards to a no-op under headless `xcodebuild`/MCP (the StoreKit test daemon
+      isn't activated there — reproduced on iOS 18.6 + 26.x), so this is the *only* place its 7
+      cases actually execute: purchase→owned, restore, refund→relock, Ask-to-Buy defer→approve,
+      interrupted purchase owned next launch, tips never owned. Green here is the runtime proof of
+      the StoreKit adapter (T030).
+- [ ] Products load at all (the id-drift smoke test — if this fails, re-check the ids above).
+- [ ] Buy each unlock for real; the feature activates without a relaunch (SC-1100-03).
+- [ ] Buy a tip → thank-you state, and **no entitlement change whatsoever** (FR-1100-08).
+- [ ] Cancel mid-flow → back to the offer, no charge, no nagging follow-up prompt.
+- [ ] Ask-to-Buy with a child test account → pending state; approve later → the entitlement
+      arrives over the updates stream without the app being reopened (FR-1100-15).
+- [ ] Refund/revoke via ASC or a StoreKitTest session → relocks on the next refresh, and the
+      user's stored settings are still intact afterwards (FR-1100-12 + FR-1100-14).
+- [ ] **Relock is boundary-aligned, not instant**: with Ken Burns running, trigger the relock and
+      watch a photo already on screen — its pan must finish naturally; the gate applies at the
+      next photo advance. A pan freezing mid-photo is the bug this checks for (FR-1100-12).
+
+**Household (SC-1100-05 / SC-1100-08 / US4):**
+
+- [ ] Restore on a second device with the same sandbox account repopulates the unlocks.
+- [ ] A second Family Sharing member gets the unlocks free, without paying again.
+- [ ] Apple TV: universal purchase already active from the iPad purchase, plus native
+      purchase/restore **on the TV itself**.
+
+**Unattended-frame behaviour — the reason this feature is cache-first:**
+
+- [ ] **24 h offline entitlement soak** (SC-1100-04): buy, then take the frame fully offline and
+      leave it a day. Owned features must still be active at every relaunch. Piggyback the
+      existing 1000-series soak.
+- [ ] **≥ 4 h free-tier wall-clock playback with zero purchase UI** (SC-1100-02). The XCUITest
+      window is ~12 s and is only a hermetic proxy — this is the actual criterion.
+- [ ] Airplane mode from a cold boot, already entitled → features active at first render, no
+      loading state, no network wait (FR-1100-10).
+
+**Pre-gate upgrade path (SC-1100-06) — Jan's own long-running frames:**
+
+- [ ] On a frame with a broker configured **before** this update: install the gated build and
+      confirm the stored config survives byte-for-byte and nothing is cleared or migrated.
+- [ ] Confirm at the broker that an unentitled frame makes **no connection at all** (not merely a
+      muted one) — `mosquitto_sub -v` should never see it appear.
+- [ ] Buy Automation → HA resumes using the previously stored settings with **zero re-entry**
+      (FR-1100-14).
+
+**Listing:**
+
+- [x] License line is FSL-1.1-MIT (verified 2026-07-19: README §License and
+      app-store-listing.md already say "Fair Source, becomes MIT after two years"; no stale
+      "Open source (MIT)" claim remains). The ASC listing copy still needs the same wording at
+      submission.
+
 ---
 
 ## Feature 005 — HAControl (real broker + Home Assistant)

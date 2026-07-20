@@ -11,15 +11,31 @@
 //
 
 import AppIntentsKit
+import PurchaseKit
 
 @MainActor
 enum FrameIntentContext {
     static var registry: FrameControlRegistry?
+
+    /// What the frame owns (1100). Same seam shape as `registry`: the composition root
+    /// points this at the live `EntitlementStore` at app init. The default owns nothing, so
+    /// an intent that somehow runs before wiring fails closed with a readable unlock message
+    /// rather than handing out a paid capability.
+    static var entitlements: @MainActor () -> EntitlementSet = { EntitlementSet.none }
 
     /// The shells' single resolution point. `nil` is unreachable once the app
     /// initialized; mapped to the setup error rather than trapping.
     static func requireRegistry() throws(FrameIntentError) -> FrameControlRegistry {
         guard let registry else { throw .notConfigured }
         return registry
+    }
+
+    /// The `.automation` guard every intent runs FIRST (1100, data-model.md §Gated feature
+    /// mapping). Ahead of `requireRegistry()` on purpose: an unentitled *and* unconfigured
+    /// frame must report the unlock, not send the owner off to fix a setup that was never
+    /// the problem. Running it first also keeps a locked intent inert — it never moves the
+    /// frame and then complains.
+    static func requireAutomation() throws(FrameIntentError) {
+        guard entitlements().contains(.automation) else { throw .automationLocked }
     }
 }

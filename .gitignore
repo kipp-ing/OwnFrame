@@ -41,6 +41,7 @@ Packages/*
 !Packages/PhotoLibraryKit/
 !Packages/AppIntentsKit/
 !Packages/ConfigSyncKit/
+!Packages/PurchaseKit/
 Package.pins
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj

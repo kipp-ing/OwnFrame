@@ -122,31 +122,45 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `1000-apple-tv` (branch `1000-apple-tv`, cut from `main` at the merged 510
-tip) — plan/tasks/design at `specs/1000-apple-tv/`. **Apple TV (tvOS) port in progress
-(2026-07-18).** Landed + verified on the Apple TV 4K simulator: the platform port (all
-packages gain `.tvOS(.v17)`, PhotoLibraryKit `#if os(iOS)`-guarded), a new `Immich SlideshowTV`
-app target (shared bundle id, tvOS 17, added via the `xcodeproj` gem), US1 (frame plays —
-verified auto-cycling + a real demo shared-link playing actual photos), US2 onboarding
-(choice/shared-link/server, real-source routing via `TVRootView`/`TVAppModel`), the new
-`ConfigSyncKit` package (KVS `ConfigSyncStore` + CloudKit-encrypted `SecretSyncStore` +
-`ConfigPublisher`/`ConfigConsumer`, 21 host tests), a `SoftwareDimScreenController`
-(FR-1000-07 bypass eliminated), `TVChromeModel` remote chrome, US3 purge-tolerance, and **US4 HA
-parity** (`TVRemoteControlAdapter` + `HAControlCoordinator` with a distinct `FrameIdentity` +
-`TVBrokerSetupView` broker onboarding + software-dim brightness + lifecycle). The **iPad
-companion** publishes the full non-secret+secret payload to KVS/CloudKit on launch + foreground;
-the tvOS consumer restores it (`ThemeSettings` is now Codable). **Ken Burns was redesigned
-(2026-07-18, micro-judder fix):** one shared `KenBurnsMotionModifier` (SlideshowKit, scoped
-`.animation(_:body:)` — ONE linear animation per photo instead of per-frame TimelineView
-sampling; pan 16 iOS / 24 tvOS) driven by the pure `KenBurnsAnimator` step machine, plus a
-`DisplayImagePreparing`/`DecodedImageStore` decode-ahead seam so swaps never pay a lazy
-first-render decode. Motion contract unchanged (settle-at-swap theorem is host-tested);
-animated steps must land one render commit after their snap (see the modifier header).
-iOS XCUITest 120/0/2. **Remaining
-(device-gated / follow-up):** real MQTT (needs a broker), real CloudKit secret sync (needs iCloud
-entitlements + account), the tvOS clock overlay + FR-1000-10 pixel-shift (not started; clock is
-off by default), and the real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof
-+ 24h soak). Prior context: `510` clock is merged to main; `900`/`800`/`220`
-merged + implemented (real-hardware ship gates left); v1.0 in App Store review; `310`/`320`
-implemented.
+Active feature: `1100-purchase-gate` (branch `1100-purchase-gate`, cut from `main` 2026-07-19) —
+spec at `specs/1100-purchase-gate/spec.md`, current plan at `specs/1100-purchase-gate/plan.md`
+(+ research/data-model/contracts/quickstart, 2026-07-19). Purchase gate /
+one-time unlocks: the free core stays whole (all sources + full core playback, basic
+transitions); paid tiers **Pro** (ambience — launch composition **Ken Burns motion + clock
+overlay**, amended 2026-07-19; never-publicly-shipped features only) and **Automation** (HA/MQTT
++ App Intents) plus an optional everything-bundle; one-time purchases only, no subscriptions ever,
+never the word "lifetime"; Family Sharing + universal purchase (incl. tvOS); on-device
+entitlement caching so unattended frames work offline indefinitely; never-claw-back
+(FR-1100-13); **sequencing is release-blocking: the gated build must be the first version the
+public ever sees — approved v1.0 build 8 stays unreleased (FR-1100-17)**. No price points
+anywhere in this public repo — pricing is decided in App Store Connect at submission.
+**Status (2026-07-20): implemented on-branch** — new `Packages/PurchaseKit` (entitlement model,
+`AmbienceGate` per-photo latch, `StoreClient` + host-testable resolver/cache/store, and now the
+**real `StoreKitClient` StoreKit 2 adapter**, `LockedRow`/`UnlockScreenView`/`TipJarView`), gates
+at the point of effect in both apps, Unlocks settings section (Restore + tip jar), US5 broker
+degradation (masked config behind a locked banner), and launch `refresh()` + `listenForUpdates()`
+now wired on both apps' production entry points. PurchaseKit 110 host tests + full iOS suite
+**153/0/9** green on iOS 18.6. **T030 done with a caveat:** its 7 `SKTestSession` cases exist and
+are RED-then-green by construction, but `SKTestSession` serves 0 products under the headless
+`xcodebuild test` path (reproduced across every init style + iOS 18.6/26.x — the runner, not the
+runtime), so a `setUp` skip-guard makes them skip honestly; they must be run once from the Xcode
+IDE runner or on device (folds into T042), and the adapter is otherwise held by review + the pure
+host tests. **T033 done (2026-07-20):** the tvOS unlock surface — new `TVSettingsView` (gear
+destination) with the Ambience/Pro locked row, an Automation-gated Home-Assistant row
+(`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
+tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
+the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-only opaque
+backing. **Code-complete (T001–T041 done):** final gate 2026-07-20 — PurchaseKit 110 host + full
+iOS XCUITest 153/0/9 (iOS 26.5, same on 18.6) green, iOS + tvOS build. **Remaining: T042 only** —
+the manual ASC/device day (create IAPs, sandbox purchase/restore/Family-Sharing/universal checks,
+the one Xcode-IDE/device StoreKitTest run, release sequencing v1.0-b8-stays-unreleased →
+v1.1-gated-first, FR-1100-17); blocked on Jan's ASC access.
+
+Prior feature `1000-apple-tv` (tvOS port + 13 review fixes + Ken Burns micro-judder redesign:
+shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead) is
+**merged to main + pushed (2026-07-18)**. Remaining there: real-hardware device gates
+(SC-1000-02/05/06/08, CloudKit-decrypt-on-tvOS proof, 24h soak), real MQTT/CloudKit, and the
+tvOS clock + FR-1000-10 pixel-shift — tick-list in `docs/manual-verification.md` ("FINAL DEVICE
+DAY"). Earlier context: `510` clock merged; `900`/`800`/`220` merged + implemented (their device
+ship-gates share that same device day); v1.0 in App Store review; `310`/`320` implemented.
 <!-- SPECKIT END -->
