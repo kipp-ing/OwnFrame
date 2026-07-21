@@ -138,6 +138,14 @@ account, a second device, a family member account, and ASC access. **Nothing her
       + `current_photo`/`phase`/`photo_count`/`version` — so the device appears in HA, but there are
       **zero controllable entities** (no light/select/switch/number/button), **zero command-topic
       subscriptions**, and it acts on **zero** HA commands (SC-1100-06).
+- [ ] **Retained-discovery retraction (T056)** — the check that only a frame *upgrading from the
+      pre-gate build* can fail, so run it on a frame whose broker already carries the old retained
+      configs (Jan's own): after the gated build connects unentitled, the controllable entities must
+      **disappear from HA**, not merely go stale. Watch for empty retained payloads on
+      `homeassistant/+/<deviceID>/+/config` and confirm in HA that `light.`/`select.`/`switch.`/
+      `number.`/`button.` frame entities are gone while the sensors remain. Before the fix these
+      lingered as live-looking controls that silently did nothing, because all entities share the one
+      availability topic telemetry mode still sets to `online`.
 - [ ] Buy Automation → the controllable entities appear and HA control resumes using the previously
       stored settings with **zero re-entry** (FR-1100-14).
 

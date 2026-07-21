@@ -270,7 +270,14 @@ never prompts for tips on its own.
   — the current-photo sensor (asset id + metadata), the current-photo image sensor when its
   opt-in toggle is on (FR-710-07), the playback phase, the photo count, and the app version — so
   Home Assistant can *see* the frame. In this state the frame MUST publish no controllable
-  entity and subscribe to no command topic. The broker connection, its stored credentials (in
+  entity and subscribe to no command topic. Because discovery configs are published
+  **retained**, "publish no controllable entity" is not satisfied by silence on a frame
+  upgrading from a pre-gate build: the broker replays the old configs indefinitely, and all
+  entities share the one availability topic telemetry mode still sets to `online`, so Home
+  Assistant would show live-looking controls the frame no longer listens to. An unentitled
+  frame MUST therefore actively **retract** every controllable entity's discovery config with
+  an empty retained payload, so HA ends up with zero controllable entities rather than dead
+  ones. The broker connection, its stored credentials (in
   the keychain), and TLS are free-tier capabilities; only *control* is gated. Making telemetry
   free never conflicts with FR-1100-13 — it widens the free tier, it does not claw anything
   back.

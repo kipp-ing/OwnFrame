@@ -119,6 +119,28 @@ public final class HAControlCoordinator {
         ))
 
         let modeLabel = mode == .full ? "full" : "telemetry"
+
+        // A frame upgrading from the pre-gate build left a *retained* discovery config on
+        // the broker for every controllable entity. Merely skipping the publish below does
+        // not remove those: the broker replays them to Home Assistant forever, and because
+        // every entity shares the one availability topic just set to "online", HA would
+        // render them as live, interactive controls that silently do nothing — the app no
+        // longer subscribes to their command topics. An empty retained payload is the
+        // documented way to retract a discovery config, so sweep them before announcing
+        // (FR-1100-03a / SC-1100-06 "zero controllable entities"). The sweep covers
+        // `allCases`, not just the enabled set, because a stale config can survive from any
+        // earlier run whose entity selection differed.
+        if mode == .telemetryOnly {
+            for entity in HAEntity.allCases where entity.isControllable {
+                try? await transport.publish(MQTTMessage(
+                    topic: HATopics.discoveryConfigTopic(deviceID: deviceID, entity: entity),
+                    payload: Data(),
+                    retain: true
+                ))
+            }
+            log.info("announce: retracted controllable discovery [telemetry]")
+        }
+
         for entity in orderedEnabledEntities {
             // Free telemetry publishes read-only sensors only; controllable entities and
             // their command topics require the Automation unlock (FR-1100-03 / FR-1100-03a).
