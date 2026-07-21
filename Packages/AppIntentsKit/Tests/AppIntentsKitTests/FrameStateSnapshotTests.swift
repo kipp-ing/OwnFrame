@@ -14,6 +14,7 @@ struct FrameStateSnapshotTests {
 
     // MARK: - Leak probe
 
+    // @covers FR-800-07
     @Test
     func fullyPopulatedSurface_snapshotCarriesOnlyTheSixWhitelistedFields() async throws {
         // Every PhotoReport field is planted, including ones that must NOT
@@ -58,6 +59,7 @@ struct FrameStateSnapshotTests {
 
     // MARK: - Structural whitelist (SC-800-04)
 
+    // @covers FR-800-07
     @Test
     func snapshot_hasExactlyTheSixWhitelistedStoredProperties() {
         // A seventh stored property can never sneak in unnoticed: this asserts

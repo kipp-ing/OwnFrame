@@ -1,6 +1,7 @@
 import Testing
 import ThemeKit
 
+// @covers FR-500-03
 @Test func themeSettingsDefaultsMatchDisplayOptionsSpec() {
     let settings = ThemeSettings()
 

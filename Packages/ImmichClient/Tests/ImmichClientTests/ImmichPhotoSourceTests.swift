@@ -39,6 +39,7 @@ import PhotoSourceKit
 
 // MARK: - Happy-path mapping
 
+// @covers FR-100-03
 @Test func collectionsMapsAlbumsToSourceCollections() async throws {
     let json = """
     [
@@ -58,6 +59,7 @@ import PhotoSourceKit
     ])
 }
 
+// @covers FR-100-04
 @Test func assetsMapsImmichAssetsWithMediaKindPassthrough() async throws {
     // Immich `type` string flows through `MediaKind(rawValue:) ?? .other`: IMAGE/VIDEO map
     // directly, an unknown string (AUDIO) degrades to `.other`.
@@ -73,6 +75,7 @@ import PhotoSourceKit
     ])
 }
 
+// @covers FR-100-14
 @Test func imageDataThumbnailHitsThumbnailEndpoint() async throws {
     let bytes = Data([0x89, 0x50, 0x4E, 0x47])
     let (source, transport) = try makeSource(data: bytes, statusCode: 200)
@@ -97,6 +100,7 @@ import PhotoSourceKit
     #expect(sizeQuery(of: request) == "preview")
 }
 
+// @covers FR-100-13
 @Test func imageDataOriginalHitsOriginalEndpoint() async throws {
     let bytes = Data([0x89, 0x50, 0x4E, 0x47])
     let (source, transport) = try makeSource(data: bytes, statusCode: 200)
