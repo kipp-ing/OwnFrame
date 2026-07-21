@@ -86,6 +86,7 @@ struct TVPurgeToleranceTests {
     // ZERO error surface, and the disk cache re-fills as it plays. This is 320's
     // purge tolerance (FR-320-09) exercised as the *normal* tvOS case (US3), not the
     // offline edge case.
+    // @covers FR-320-10
     @Test func coldStartAfterFullPurgeReachesFirstPhotoAndRefills() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

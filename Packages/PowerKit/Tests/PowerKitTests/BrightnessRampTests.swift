@@ -4,6 +4,7 @@ import Testing
 @MainActor
 @Suite
 struct BrightnessRampTests {
+    // @covers FR-400-05, SC-400-03
     @Test
     func immediateBrightnessWritesTargetInForeground() async {
         let screen = FakeScreenController()
@@ -15,6 +16,7 @@ struct BrightnessRampTests {
         #expect(screen.brightnessWrites.last == 0.4)
     }
 
+    // @covers FR-400-06, SC-400-03
     @Test
     func immediateBrightnessClampsTarget() async {
         let screen = FakeScreenController()
@@ -28,6 +30,7 @@ struct BrightnessRampTests {
         #expect(screen.brightnessWrites.last == 0.0)
     }
 
+    // @covers FR-400-07, SC-400-04
     @Test
     func animatedBrightnessRampsThroughIntermediateValuesAndEndsAtTarget() async {
         let config = PowerConfig(softDimDuration: .milliseconds(600), softDimSteps: 8)
@@ -42,6 +45,7 @@ struct BrightnessRampTests {
         #expect(screen.brightnessWrites.count == config.softDimSteps)
     }
 
+    // @covers FR-400-12
     @Test
     func secondAnimatedBrightnessPreemptsInFlightRampAndConvergesToLatestTarget() async {
         let config = PowerConfig(softDimDuration: .milliseconds(600), softDimSteps: 8)
@@ -87,6 +91,7 @@ struct BrightnessRampTests {
         #expect(screen.brightnessWrites.filter { $0 == 0.0 }.isEmpty)
     }
 
+    // @covers FR-400-09, SC-400-06
     @Test
     func brightnessSetInBackgroundIsNoOp() async {
         let screen = FakeScreenController()
