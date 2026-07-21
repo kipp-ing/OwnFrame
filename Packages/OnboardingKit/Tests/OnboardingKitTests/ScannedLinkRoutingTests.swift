@@ -9,6 +9,7 @@ import Testing
 // cancelled scan (no code) must be a silent no-op.
 
 @MainActor
+// @covers FR-220-04, FR-120-12, FR-220-12
 @Test func addScannedSharedLinkResolvesTheSameAsATypedLink() async {
     let store = InMemorySourceLibraryStore()
     let resolver = ScanStubResolver()
@@ -37,6 +38,7 @@ import Testing
 // first-run path passes "" and keeps falling back to the host-derived label.
 
 @MainActor
+// @covers FR-120-12
 @Test func addScannedSharedLinkKeepsTheTypedLabel() async {
     let store = InMemorySourceLibraryStore()
     let resolver = ScanStubResolver()
@@ -64,16 +66,19 @@ import Testing
 }
 
 @MainActor
+// @covers FR-220-06
 @Test func addScannedSharedLinkRejectsNonURLWithoutNetwork() async {
     await assertCalmRejection(decoded: "just some text")
 }
 
 @MainActor
+// @covers FR-220-06
 @Test func addScannedSharedLinkRejectsNonHTTPSWithoutNetwork() async {
     await assertCalmRejection(decoded: "http://host.example/s/abc")
 }
 
 @MainActor
+// @covers FR-220-06
 @Test func addScannedSharedLinkRejectsNonShareLinkWithoutNetwork() async {
     await assertCalmRejection(decoded: "https://host.example")
 }

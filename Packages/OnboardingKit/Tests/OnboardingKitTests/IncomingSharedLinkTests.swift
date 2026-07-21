@@ -14,6 +14,7 @@ import Testing
     #expect(IncomingSharedLink.route(url, library: SourceLibrary(), isConfigured: false) == .prefillOnboarding(url))
 }
 
+// @covers FR-210-16
 @Test func incomingSharedLinkSwitchesToExistingSharedLinkSource() {
     let baseURL = URL(string: "https://demo.example.com")!
     let existing = Source(id: "shared-1", label: "Shared", kind: .sharedLink(baseURL: baseURL, slug: "abc"))

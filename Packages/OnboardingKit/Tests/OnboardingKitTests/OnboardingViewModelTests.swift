@@ -3,6 +3,7 @@ import Testing
 @testable import OnboardingKit
 import ImmichClient
 
+// @covers FR-210-01
 @MainActor @Test func choosePathRoutesSharedLinkToSetup() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .choice
@@ -13,6 +14,7 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
+// @covers FR-210-01
 @MainActor @Test func choosePathRoutesServerToConnection() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .choice
@@ -24,6 +26,7 @@ import ImmichClient
 
 // Finding 3 (FR-210-26): every step after the choice screen can step back in-place, without
 // an app restart and without discarding entered configuration.
+// @covers FR-210-26
 @MainActor @Test func backFromSharedLinkSetupReturnsToChoice() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .sharedLinkSetup
@@ -33,6 +36,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
+// @covers FR-210-26
 @MainActor @Test func backFromConnectionReturnsToChoice() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .connection
@@ -42,6 +46,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
+// @covers FR-210-26
 @MainActor @Test func backFromSourceReturnsToConnection() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .source
@@ -51,6 +56,7 @@ import ImmichClient
     #expect(vm.step == .connection)
 }
 
+// @covers FR-210-26
 @MainActor @Test func backFromConfirmReturnsToSource() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .confirm
@@ -60,6 +66,7 @@ import ImmichClient
     #expect(vm.step == .source)
 }
 
+// @covers FR-210-26, FR-220-09
 @MainActor @Test func backFromChoiceIsNoOp() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.step = .choice
@@ -69,6 +76,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
+// @covers FR-210-26
 @MainActor @Test func canGoBackIsFalseOnlyAtChoiceAndDone() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
 
@@ -86,6 +94,7 @@ import ImmichClient
     #expect(vm.canGoBack == true)
 }
 
+// @covers FR-210-26
 @MainActor @Test func backPreservesEnteredConnectionInputs() {
     let vm = makeVM(api: AlbumsAPI(result: .success([])))
     vm.serverURLInput = "https://immich.example.test"
@@ -99,6 +108,7 @@ import ImmichClient
     #expect(vm.apiKeyInput == "secret-key")
 }
 
+// @covers FR-210-02, FR-220-09
 @MainActor @Test func finishFromSharedLinkOnlyPathCompletesWithoutAPIKeyOrConfig() {
     // The low-friction path: the resolve engine has already made a shared link the active
     // source. Finishing routes to the slideshow with no API key and no AppConfiguration.
@@ -117,6 +127,7 @@ import ImmichClient
     #expect(config.load() == nil)
 }
 
+// @covers FR-200-05
 @MainActor @Test func rejectsNonHTTPSURL() async {
     let api = AlbumsAPI(result: .failure(ImmichError.unreachable))
     let vm = makeVM(api: api)
@@ -130,6 +141,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 0)
 }
 
+// @covers FR-200-06
 @MainActor @Test func advancesToSourceWhenReachableAndAuthorized() async throws {
     let keychain = InMemoryKeychainStore()
     let config = InMemoryConfigStore()
@@ -183,6 +195,7 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
+// @covers FR-200-09
 @MainActor @Test func finishWithActiveAlbumSourcePersistsConfigurationAndCompletes() async throws {
     let config = InMemoryConfigStore()
     var library = SourceLibrary()
@@ -273,6 +286,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
+// @covers FR-200-07
 @MainActor @Test func staysWhenServerUnreachable() async {
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.unreachable))
@@ -288,6 +302,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
+// @covers FR-200-07
 @MainActor @Test func staysWhenUnauthorized() async {
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.unauthorized))
@@ -306,6 +321,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
+// @covers FR-200-07
 @MainActor @Test func staysWhenInvalidResponsePreservesConnectionInputsAndClassifiesError() async {
     let keychain = InMemoryKeychainStore()
     let api = AlbumsAPI(result: .failure(ImmichError.invalidResponse))
@@ -340,6 +356,7 @@ import ImmichClient
     #expect(await api.albumsCallCount == 1)
 }
 
+// @covers FR-200-24
 @MainActor @Test func resetReturnsToConnectionAndClearsLibrary() {
     let config = InMemoryConfigStore(configuration: AppConfiguration(
         baseURL: URL(string: "https://photos.example.test")!,

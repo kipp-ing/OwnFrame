@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardingKit
 
+// @covers FR-200-09
 @Test func userDefaultsConfigStoreLoadsSavedConfiguration() throws {
     let defaults = makeDefaults()
     let store = UserDefaultsConfigStore(defaults: defaults)

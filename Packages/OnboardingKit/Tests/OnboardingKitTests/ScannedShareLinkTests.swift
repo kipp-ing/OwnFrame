@@ -7,6 +7,7 @@ import Testing
 // a classified rejection reason. No network call and no persistence on any path — the
 // camera and the store are both out of scope for this type.
 
+// @covers FR-220-04, FR-220-12
 @Test func scannedShareLinkValidatesAValidImmichShareString() throws {
     let raw = "https://bilder.kippings.de/s/geo2026"
     let expected = try #require(SharedLinkURL.parse(raw))
@@ -16,18 +17,21 @@ import Testing
     #expect(result == .success(ParsedSharedLink(baseURL: expected.baseURL, slug: expected.slug)))
 }
 
+// @covers FR-220-06
 @Test func scannedShareLinkRejectsANonURLString() {
     let result = ScannedShareLink.validate("not a share link at all")
 
     #expect(result == .failure(.notAURL))
 }
 
+// @covers FR-220-06
 @Test func scannedShareLinkRejectsANonHTTPSURL() {
     let result = ScannedShareLink.validate("http://bilder.kippings.de/s/geo2026")
 
     #expect(result == .failure(.notHTTPS))
 }
 
+// @covers FR-220-06
 @Test func scannedShareLinkRejectsAURLWithNoShareShape() {
     let result = ScannedShareLink.validate("https://bilder.kippings.de")
 
