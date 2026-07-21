@@ -128,6 +128,78 @@ sequence, in order. Nothing here is optional.
 5. **Full XCUITest suite green before the merge** — house rule; screenshots miss
    UI-test regressions.
 
+## Layer 4 — real hardware
+
+Some contracts cannot be proved in a simulator at all (real MQTT/TLS, real CloudKit,
+panel smoothness, soak). Those run on the physical frame — see
+[device-testing.md](device-testing.md) for the device rig, the CLI recipes, and an
+honest list of what genuinely needs hardware versus what is merely missing a test
+target.
+
+## Known traps — false greens, flakes, and landmines
+
+Each of these has burned at least one debugging cycle. Check here before concluding a
+red test means a real regression, or that a green one means success.
+
+### False greens (a pass that proves nothing)
+
+- **Never `-only-testing` a single Swift Testing `@Test`.** The identifier doesn't match
+  Swift Testing's selection, so **0 tests run and it reports SUCCEEDED**. Injecting
+  `#expect(Bool(false))` still "passes". Target whole classes/targets only. Distrust any
+  `passed: 0` + SUCCEEDED result.
+- **`XCUIApplication().statusBars` is always empty for this app** — the simulator status
+  bar belongs to the system, not the app's accessibility hierarchy. An assertion like
+  `statusBars.count == 0` passes whether or not the bar is visible, so it cannot guard
+  `.statusBarHidden(…)`. Verify status bar / system overlays **by screenshot**.
+- **Screenshots confirm layout, not behaviour.** Assertions only fail when actually run —
+  a red `SettingsUITests` sat undetected across two user stories because per-task
+  validation was screenshots only. Run the full suite before merging any SwiftUI change.
+- **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
+  access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
+  transition moves monotonically between the two photos' YAVG levels, a dip below both is
+  backdrop bleed (YAVG 16 = black frame). Measure at **full resolution** — a downscaled
+  tracker wrongly judged animating builds as "flat".
+
+### Known flakes (rerun in isolation before blaming the diff)
+
+- **`BrokerSetupUITests` flakes under full-suite load only** — two different tests so far
+  (2026-07-11, 2026-07-19), both green 3/3 in isolation. Failure shapes are harness-like
+  (a partial element tree, a UserDefaults/cfprefsd race around relaunch). Suspect the diff
+  only if it touches `BrokerSetupView`/broker config, or the failure shape matches the change.
+- **`SharedLinkPasswordUITests` / `SourceOnboardingUITests` segmented-control taps** —
+  a synthesized tap on a `.segmented` `Picker` intermittently doesn't register (~50%),
+  leaving the wrong segment selected. Known XCUITest/Simulator quirk, not an app bug.
+- **A long session degrades the simulator.** After many consecutive `test_sim` runs, one
+  run went 7 min → 29 min with spurious hittability failures across unrelated tests.
+  `xcrun simctl erase <id>` (shut down first) restores normal timing — do that before
+  trusting a bad full-suite run late in a session.
+
+### SwiftUI landmines
+
+- **An always-present `DisclosureGroup` in a `Form` starves a sibling Section's `.task`** —
+  even collapsed, even with empty content. Cost ~1 h to bisect: the Storage "Used" label
+  stayed "0 bytes" because its async `.task` never settled. Not fixed by gating content on
+  the expanded flag or splitting Sections; the `DisclosureGroup` itself is the trigger.
+  This is why the *unentitled* HA settings path renders the broker editor **inline**.
+- **`withAnimation` in flight during an `.id` swap cancels the transition.** Use scoped
+  `.animation(_:body:)`.
+- **A state mutation inside `onAppear` merges into the pending render commit** — the
+  from-value is never committed and the animation collapses to a still frame. Defer one
+  commit via `DispatchQueue.main.async`.
+- **Removed `.id`-swap views drop behind opaque ZStack siblings** without explicit `.zIndex`.
+
+### Environment
+
+- **Any runtime ≥ iOS 17 is a valid destination** since the floor was lowered (verified
+  17.5 / 18.6 / 26.x). Pin **`simulatorId` only** — when session defaults carry both
+  `simulatorName` and `simulatorId`, name resolution wins and may pick an ineligible runtime.
+- **New `.swift` files need no `project.pbxproj` edit** — the project uses
+  `PBXFileSystemSynchronizedRootGroup`, so files dropped into a synced folder are
+  auto-included. SourceKit "No such module" diagnostics in the editor are noise; the build
+  is the source of truth.
+- **`xcodebuild` never extracts strings into `Localizable.xcstrings`** — only the Xcode IDE
+  does. Hand-edit surgically; don't JSON round-trip (Xcode sorts by ICU collation).
+
 ## Live-server contract check (manual, opt-in)
 
 The hermetic UI test proves the *flow*; it does **not** prove the real Immich API
