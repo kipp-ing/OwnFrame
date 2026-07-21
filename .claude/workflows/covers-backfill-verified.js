@@ -10,6 +10,7 @@ export const meta = {
   phases: [
     { title: 'Tag', detail: 'one agent per entry adds @covers annotations' },
     { title: 'Verify', detail: 'independent agent refutes each tag, requirement-first' },
+    { title: 'Audit', detail: 'third agent attacks the verifier’s own missedCoverage claims' },
   ],
 }
 
@@ -89,8 +90,71 @@ const VERDICT_SCHEMA = {
   },
 }
 
+const AUDIT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['module', 'rulings'],
+  properties: {
+    module: { type: 'string' },
+    rulings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'test', 'ruling', 'evidence'],
+        properties: {
+          id: { type: 'string' },
+          test: { type: 'string' },
+          ruling: { type: 'string', enum: ['UPHELD', 'REJECTED'] },
+          evidence: { type: 'string' },
+        },
+      },
+    },
+    notes: { type: 'string' },
+  },
+}
+
 function moduleList(m) {
   return [m.id].concat(m.alsoModules || []).join(', ')
+}
+
+function auditPrompt(m, claims) {
+  return `Repo: /Users/jan/dev/repos/Immich-Slideshow
+
+You are auditing UNVERIFIED claims about module(s) **${moduleList(m)}**, tests under
+\`Packages/${m.pkg}/Tests/\`.
+
+A previous agent, while checking existing annotations, ALSO volunteered that these requirements
+already have a proving test but carry no \`@covers\` tag. Nobody has attacked those claims. They
+are the one unguarded edge in this process: adopting them unchecked would reintroduce exactly
+the "trust an agent's confident assertion" problem the verification stage exists to remove.
+
+Claims to audit:
+
+${claims.map((c, i) => `${i + 1}. ${c.id} — claimed proven by: ${c.test}`).join('\n')}
+
+## Your job
+
+For each claim, decide independently whether that test really proves that requirement.
+
+- **UPHELD** — only if you can quote the SPECIFIC assertion (the \`#expect(...)\` /
+  \`XCTAssert...\` line, or precise observable state check) that constrains the requirement.
+  Put the literal line in \`evidence\`.
+- **REJECTED** — everything else, and this is the default. Reject when the test is adjacent but
+  does not assert the requirement's substance, proves a mechanism where the requirement states
+  an outcome (or the reverse), covers only part of a multi-clause requirement, is vacuous or
+  tautological, or belongs to another layer. State what it actually asserts in \`evidence\`.
+
+Apply the mutation test wherever it fits: if the implementation were replaced with a trivial
+stub, would this test go red? If not, REJECT — that is a fact, not a judgement call.
+
+Read the requirement text in the relevant \`specs/<module>/spec.md\` first, then the test. Do not
+assume the earlier agent read either carefully.
+
+## Constraints
+
+- **READ ONLY.** Report only; do not add, edit, or remove anything.
+- Only rule on the claims listed above. Do not survey for new ones.`
 }
 
 function tagPrompt(m) {
@@ -208,29 +272,51 @@ const results = await pipeline(
   (tagResult, m) =>
     agent(verifyPrompt(m), { label: `verify:${m.id}`, phase: 'Verify', schema: VERDICT_SCHEMA })
       .then((v) => ({ module: m.id, pkg: m.pkg, tag: tagResult, verify: v })),
+  // Third pass: the verifier's own missedCoverage claims are unrefuted assertions. Attack them
+  // too, rather than inheriting them on trust. Skipped entirely when there are none.
+  (r, m) => {
+    const claims = (r && r.verify && r.verify.missedCoverage) || []
+    if (!claims.length) return { ...r, audit: null }
+    return agent(auditPrompt(m, claims), {
+      label: `audit:${m.id}`,
+      phase: 'Audit',
+      schema: AUDIT_SCHEMA,
+    }).then((a) => ({ ...r, audit: a }))
+  },
 )
 
 const summary = results.filter(Boolean).map((r) => {
   const verdicts = (r.verify && r.verify.verdicts) || []
   const refuted = verdicts.filter((v) => v.verdict === 'REFUTED')
+  const rulings = (r.audit && r.audit.rulings) || []
   return {
     module: r.module,
     pkg: r.pkg,
     claimed: ((r.tag && r.tag.tagged) || []).length,
     confirmed: verdicts.length - refuted.length,
     refuted: refuted.length,
+    // Consumed by `.claude/scripts/strip-refuted.py` — keep this shape.
     refutedDetail: refuted,
-    missedCoverage: (r.verify && r.verify.missedCoverage) || [],
+    // Only the audited-and-upheld additions are safe to adopt; the rest stay claims.
+    upheldAdditions: rulings.filter((x) => x.ruling === 'UPHELD'),
+    rejectedAdditions: rulings.filter((x) => x.ruling === 'REJECTED'),
     gaps: (r.tag && r.tag.gaps) || [],
     misleadingMentions: (r.tag && r.tag.misleadingMentions) || [],
     testsGreen: r.tag && r.tag.testsGreen,
   }
 })
 
-log(`tagged+verified ${summary.length} entries`)
+log(`tagged+verified+audited ${summary.length} entries`)
 for (const s of summary) {
-  const rate = s.confirmed + s.refuted ? Math.round((100 * s.refuted) / (s.confirmed + s.refuted)) : 0
-  log(`${s.module}: claimed ${s.claimed}, confirmed ${s.confirmed}, refuted ${s.refuted} (${rate}%)`)
+  const total = s.confirmed + s.refuted
+  const rate = total ? Math.round((100 * s.refuted) / total) : 0
+  const flag = total >= 8 && rate === 0 ? '  <-- 0% on a big batch: check the verifier' : ''
+  log(
+    `${s.module}: claimed ${s.claimed}, confirmed ${s.confirmed}, refuted ${s.refuted} (${rate}%)` +
+      `, additions upheld ${s.upheldAdditions.length}/${s.upheldAdditions.length + s.rejectedAdditions.length}${flag}`,
+  )
 }
+
+log('next: .claude/scripts/strip-refuted.py <this result json>, then re-run the affected suites')
 
 return summary
