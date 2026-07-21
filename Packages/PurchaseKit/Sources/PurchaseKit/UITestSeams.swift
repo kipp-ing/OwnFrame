@@ -18,8 +18,14 @@ public enum PurchaseUITestSeams {
     /// An absent flag yields the free tier — deliberately identical to `none`, so the
     /// default hermetic launch exercises the ungated frame. Unrecognised words are ignored
     /// rather than fatal, so a typo in a test degrades to "free" instead of crashing.
-    public static var entitlements: EntitlementSet {
-        guard let arg = ProcessInfo.processInfo.arguments
+    public static var entitlements: EntitlementSet { entitlements() }
+
+    /// Argument-injectable form of ``entitlements``, so the parse is testable without a
+    /// relaunch. Production callers use the no-argument property above.
+    public static func entitlements(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> EntitlementSet {
+        guard let arg = arguments
             .first(where: { $0.hasPrefix("--uitest-entitlements=") })
         else { return EntitlementSet.none }
 
@@ -32,6 +38,28 @@ public enum PurchaseUITestSeams {
             default: break // includes "none"
             }
         }
+    }
+
+    /// Whether this launch explicitly asked for an entitlement set.
+    ///
+    /// Distinct from ``entitlements`` returning `.none`, and deliberately so: an absent flag and
+    /// `--uitest-entitlements=none` yield the same `EntitlementSet`, but only the second is an
+    /// *override*. A caller choosing between "seed entitlements" and "ask the real store"
+    /// therefore cannot decide on the value alone — it has to ask whether the flag was present.
+    ///
+    /// The production launch path consults this so a device test rig can seed entitlements
+    /// **without** entering the hermetic `--uitest` world. That matters because the hermetic
+    /// branch wires no MQTT broker at all (`makeCoordinator` returns nil there), so it can never
+    /// exercise the HA gating contract (FR-1100-03a) against a real broker on real hardware —
+    /// which is the one thing a physical frame is uniquely able to prove.
+    ///
+    /// A bare `--uitest-entitlements` with no `=` is a typo rather than a request, and is not
+    /// treated as an override: failing that case toward production keeps a mistyped flag from
+    /// silently swapping a real frame's StoreKit store for a stub that grants nothing.
+    public static func hasEntitlementOverride(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        arguments.contains { $0.hasPrefix("--uitest-entitlements=") }
     }
 
     /// The store condition modelled by `--uitest-store=<stub|unavailable|pending>`.

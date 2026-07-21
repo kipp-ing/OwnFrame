@@ -296,10 +296,25 @@ struct Immich_SlideshowApp: App {
         // cached snapshot here — no await, no network — so the gates can branch on it in
         // the first render pass (FR-1100-10). Entitlements are not secrets, so the plain
         // defaults suite is the sanctioned home for the snapshot (research.md R4).
+        #if DEBUG
+        // Device test rig: `--uitest-entitlements=` is honoured on this production path too, so a
+        // gated build can be driven against the REAL broker and network on real hardware. The
+        // hermetic `--uitest` branch above cannot serve that purpose — it wires
+        // `makeCoordinator: { _ in nil }`, i.e. no MQTT at all — so without this the HA gating
+        // contract (FR-1100-03a) had no device-testable path. Absent the flag,
+        // `hasEntitlementOverride` is false and this is exactly the production store below.
+        let entitlementStore = PurchaseUITestSeams.hasEntitlementOverride()
+            ? PurchaseUITestSeams.makeStore()
+            : EntitlementStore(
+                client: StoreKitClient(),
+                cache: EntitlementSnapshotCache(defaults: .standard)
+            )
+        #else
         let entitlementStore = EntitlementStore(
             client: StoreKitClient(),
             cache: EntitlementSnapshotCache(defaults: .standard)
         )
+        #endif
         _entitlements = State(initialValue: entitlementStore)
         // The App Intent shells resolve entitlements through the same composition seam they
         // already use for the registry (see FrameIntentContext for why not AppDependencyManager).
