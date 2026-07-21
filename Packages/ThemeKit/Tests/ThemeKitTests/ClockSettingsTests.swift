@@ -29,7 +29,7 @@ import ThemeKit
 // MARK: - (a) Legacy corner raws decode unchanged (FR-510-05)
 
 @MainActor
-// @covers FR-500-18
+// @covers FR-500-18, FR-510-05
 @Test(arguments: [
     ("topLeading", ClockPlace.topLeading),
     ("topTrailing", ClockPlace.topTrailing),
@@ -140,7 +140,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     #expect(ClockPlace.fixedPlaces.contains(first))
 }
 
-// @covers FR-500-18
+// @covers FR-500-18, FR-510-03
 @Test func randomPickerHoldsBeforeCadenceElapses() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 42))
     let first = picker.place(now: .seconds(0), current: nil, occupied: [])
@@ -161,6 +161,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     #expect(ClockPlace.fixedPlaces.contains(moved))
 }
 
+// @covers FR-510-03
 @Test func randomPickerNeverReturnsCurrentAcrossManyRelocations() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 7))
     var current = picker.place(now: .seconds(0), current: nil, occupied: [])
@@ -193,6 +194,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     }
 }
 
+// @covers FR-510-03
 @Test func randomPickerMeasuresCadenceFromLastRelocationUnderMonotonicNow() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 5))
     let first = picker.place(now: .seconds(0), current: nil, occupied: [])
@@ -209,6 +211,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     #expect(moved2 != moved)
 }
 
+// @covers FR-510-03
 @Test func randomPickerHonorsInjectedCadence() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 3), cadence: .seconds(60))
     let first = picker.place(now: .seconds(0), current: nil, occupied: [])
@@ -217,6 +220,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     #expect(picker.place(now: .seconds(60), current: first, occupied: []) != first)
 }
 
+// @covers FR-510-03
 @Test func randomPickerIsDeterministicUnderSeededRNG() {
     func sequence(seed: UInt64) -> [ClockPlace] {
         var picker = RandomPlacePicker(rng: SeededGenerator(seed: seed))
