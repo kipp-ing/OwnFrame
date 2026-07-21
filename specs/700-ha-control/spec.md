@@ -4,9 +4,15 @@
 
 **Created**: 2026-06-23
 
-**Status**: Active
+**Status**: Active — **amended 2026-07-21** (frame identity, US3 / FR-700-16…22 / SC-700-11…14).
+The identity half is **release-blocking for the first public release**; see US3.
 
 **Input**: Consolidated from `specs/005-hacontrol/spec.md`: secure MQTT connection, Home Assistant discovery, availability, and pause/play control for the running slideshow.
+
+**Amendment 2026-07-21 — frame identity.** Live verification on a physical frame
+(iPad Pro 10.5 / iOS 17.7.10) showed the shipped implementation **violates FR-700-06**
+("stable, duplicate-free device and entity IDs"). US3 and FR-700-16…22 below make that
+requirement precise enough to be testable, and separate *identity* from *name*.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -42,8 +48,54 @@ Alongside pause/play, the app exposes a dimmable light entity for brightness and
 3. **Given** the select entity exists, **When** Home Assistant selects a valid album name, **Then** the slideshow switches to that album and echoes the new selection.
 4. **Given** the select entity exists, **When** Home Assistant selects an album name that is not an available option, **Then** the active album is left unchanged and the app echoes the actual current album.
 
+### User Story 3 - The frame keeps its Home Assistant identity, and the user names it (Priority: P1)
+
+A frame registers in Home Assistant under an identity that belongs to *the frame*, not to a
+platform-supplied value that can be regenerated or withheld. Deleting and reinstalling the app,
+or reconfiguring the broker, brings the frame back as **itself** — the same device, the same
+entities, the same dashboards and automations. Separately, the user gives the frame a
+human-readable name, so several frames are tellable apart in Home Assistant, and renaming one
+never disturbs anything bound to it.
+
+**Why this priority**: P1 and release-blocking. This is a defect against the existing FR-700-06,
+not a new capability — and the window to fix it for free is closing. Per FR-1100-17 the gated
+build is the **first** version the public ever sees, so today no released frame carries an
+identity that a fix could orphan. Once that build ships, any later change to the identity scheme
+inflicts exactly the failure being fixed — every user's entities orphaned once — on the whole
+installed base.
+
+**What was actually observed** (physical frame, 2026-07-21): the identity was
+`UIDevice.current.identifierForVendor`. Reinstalling the app regenerated it, so the frame
+re-registered as a new Home Assistant device; its previous 19 entities were left permanently
+`unavailable` and had to be cleaned up by hand against the broker — something no user can do.
+A probe on the same device also confirmed `UIDevice.current.name` returns `"iPad"`, not the
+user-assigned device name, because the app does not hold (and cannot casually obtain) the
+`com.apple.developer.device-information.user-assigned-device-name` entitlement. Device name is
+therefore **not** a usable identity source: it is the same string on every iPad.
+
+**Independent Test**: With an injected identity store, verify the identity is generated once and
+returned unchanged across repeated reads and simulated relaunches; verify a store that reports
+"nothing persisted" yields a fresh unique value rather than a shared constant; verify a frame
+whose stored identity is absent but whose legacy platform identifier is present adopts the
+legacy value rather than minting a new one. On hardware, verify across a real delete/reinstall
+that Home Assistant shows the same device and entity IDs.
+
+**Acceptance Scenarios**:
+
+1. **Given** a frame registered in Home Assistant, **When** the app is deleted and reinstalled and the broker reconfigured, **Then** the frame re-registers under its previous identity, with no orphaned entities and no duplicate device.
+2. **Given** a frame that has never registered, **When** it registers for the first time, **Then** it receives an identity unique to that frame, and no two frames ever share one.
+3. **Given** the platform identifier is unavailable (app runs before first unlock after a reboot — the normal case for a frame recovering from a power cut), **When** the frame registers, **Then** it uses its own persisted identity and never a value shared with other installations.
+4. **Given** a frame already registered by a build predating this amendment, **When** the user updates to a build implementing it, **Then** the frame keeps the identity it already had and its Home Assistant entities are untouched.
+5. **Given** a registered frame, **When** the user changes its name, **Then** Home Assistant shows the new display name while every entity ID, dashboard binding, and automation continues to work unchanged.
+6. **Given** an iPad frame and an Apple TV frame on one broker, **When** both register, **Then** they appear as two distinct devices with non-colliding topics and entity IDs (FR-1000-08).
+
 ### Edge Cases
 
+- **App deleted and reinstalled**: The frame returns under its previous identity; Home Assistant sees the same device rather than a second one.
+- **Platform identifier withheld or regenerated**: Identity does not depend on it. No shared-constant fallback exists, so two frames in this state can never collide.
+- **Frame renamed**: Display name changes; identity, entity IDs, and everything bound to them do not.
+- **Two frames of the same model with the same name**: Still distinct identities — name is never part of the key.
+- **Broker reconfigured or moved to a different broker**: Identity is a property of the frame, not of the broker configuration, so it survives.
 - **Broker unreachable or connection fails**: The slideshow continues to run locally; remote control is simply unavailable, with no crash and no blocked image display.
 - **Missing or invalid credentials**: If no valid broker configuration exists, no connection is attempted and the app continues locally.
 - **Connection drop during operation**: LWT marks the device offline; after reconnect, the app republishes online availability and the current state.
@@ -73,10 +125,23 @@ Alongside pause/play, the app exposes a dimmable light entity for brightness and
 - **FR-700-14**: The app MUST expose a select entity for the active album via discovery, with the available album names as options; a valid selection MUST switch the active album and be echoed, while an unknown album MUST leave state unchanged and echo the actual current album.
 - **FR-700-15**: The set of entities enabled in the current app is pause/play, brightness, and album select; sleep/wake remains deferred (see Roadmap).
 
+*(FR-700-16…22, added 2026-07-21, make FR-700-06's "stable, duplicate-free" precise. They
+describe required behaviour, not a storage mechanism — the mechanism is a plan decision, subject
+to the constitution's rule that nothing secret enters UserDefaults.)*
+
+- **FR-700-16**: Frame identity MUST survive app deletion and reinstall. A reinstalled frame MUST re-register under its previous identity so existing Home Assistant entity IDs, dashboards, and automations keep working.
+- **FR-700-17**: Frame identity MUST NOT be derived from any value the platform may regenerate or withhold (notably `identifierForVendor`), nor from any user-visible, user-editable, or non-unique value (notably the device name).
+- **FR-700-18**: Frame identity MUST be unique per frame and per platform. There MUST be no shared-constant fallback: when no identity is stored, the app MUST generate a fresh unique value. The iPad and Apple TV frames MUST remain distinct (FR-1000-08).
+- **FR-700-19**: Frame identity MUST NOT be synchronised between devices by any channel, so two frames can never come to share one identity.
+- **FR-700-20**: Frame identity MUST be opaque and MUST NOT be shown to the user as the frame's name.
+- **FR-700-21**: On the first run of a build implementing FR-700-16, a frame that is already registered MUST adopt its current identity rather than minting a new one, so no existing Home Assistant entity is orphaned by the upgrade itself.
+- **FR-700-22**: The user MUST be able to set a human-readable frame name that determines the Home Assistant display name. Changing it MUST NOT change frame identity, and MUST NOT orphan, duplicate, or rename any entity ID.
+
 ### Key Entities *(include if feature involves data)*
 
-- **Broker Configuration**: Host, port, username, password, and stable device ID supplied by broker setup; credentials originate from the Keychain.
-- **Device Identity**: Stable unique identity for the iPad in Home Assistant, used by all discovery payloads, entities, and availability topics.
+- **Broker Configuration**: Host, port, username, and password supplied by broker setup; credentials originate from the Keychain. It carries the frame identity for convenience but is **not its owner** — identity outlives any broker configuration (FR-700-16).
+- **Frame Identity**: The opaque, per-frame, per-platform value that anchors every discovery payload, entity `unique_id`, topic namespace, and availability topic. Generated once, never derived from a platform identifier or a name, never displayed, never synchronised (FR-700-16…21). *(Previously "Device Identity"; renamed to make the split from Frame Name explicit.)*
+- **Frame Name**: The human-readable label the user gives a frame, determining only its Home Assistant display name. Free-form, non-unique, changeable at any time, and never part of any key (FR-700-22).
 - **Home Assistant Entity**: A remotely controllable capability with discovery configuration, command topic, state topic, and availability binding. In this active spec, the entities are pause/play (switch), brightness (dimmable light), and album select.
 - **Remote Control State**: The app state echoed to Home Assistant, including running or paused and online or offline.
 - **MQTT Transport**: The injectable protocol boundary for publishing, subscribing, connecting, reconnecting, and LWT behavior.
@@ -105,6 +170,10 @@ photo navigation, current-photo image/metadata, and diagnostics.)*
 - **SC-700-08**: All discovery, topic, availability, state, and command behavior can be tested through the injected MQTT transport without a real broker.
 - **SC-700-09**: A brightness command from Home Assistant is clamped, applied through PowerManager, and the resulting brightness is echoed back.
 - **SC-700-10**: Selecting a valid album from Home Assistant switches the active album and echoes it; an unknown album leaves the active album unchanged.
+- **SC-700-11**: After deleting the app, reinstalling it, and reconfiguring the broker on real hardware, Home Assistant shows the **same** device and the same entity IDs as before — zero orphaned entities, no duplicate device, no `_2`-suffixed entity IDs.
+- **SC-700-12**: No two frames ever share a topic namespace or an entity `unique_id`, including when the platform identifier is unavailable to both.
+- **SC-700-13**: Renaming a frame changes only its Home Assistant display name: every entity ID, dashboard binding, and automation referencing it keeps working.
+- **SC-700-14**: Updating a frame from a build predating FR-700-16 leaves its existing Home Assistant entities in place and unchanged.
 
 ## Assumptions
 
@@ -113,3 +182,6 @@ photo navigation, current-photo image/metadata, and diagnostics.)*
 - Home Assistant has MQTT integration and MQTT discovery enabled.
 - The concrete MQTT client may come from an SPM library, but Home Assistant logic remains in the app's own testable module behind `MQTTTransport`.
 - Remote control is designed for the foreground-running slideshow; platform boundaries for brightness and idle behavior are enforced by their owning modules.
+- Frame identity is not a secret; it is protected for *durability*, not confidentiality. FR-700-16 therefore constrains only that it outlive reinstall, and does not by itself require Keychain storage — but the constitution's no-secrets-in-UserDefaults rule still governs whatever the plan picks.
+- Home Assistant treats `unique_id` as the anchor and the device/entity name as cosmetic: renaming through discovery updates the friendly name without reassigning `entity_id`. FR-700-22 depends on this behaviour.
+- SC-700-11 and SC-700-14 are only meaningful on real hardware (an install/reinstall cycle against a live broker) and are covered by the device rig — see `docs/device-testing.md`.
