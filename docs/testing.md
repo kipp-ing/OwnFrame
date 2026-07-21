@@ -136,6 +136,57 @@ panel smoothness, soak). Those run on the physical frame — see
 honest list of what genuinely needs hardware versus what is merely missing a test
 target.
 
+## Requirement traceability — `.claude/scripts/coverage.py`
+
+Prose status rots. `CLAUDE.md` recorded "153/0/9 green" and on 2026-07-21 that was simply
+false; a skip-guard had also been hiding a real bug for a day. Anything asserting what is
+proven must therefore be **derived from the tree on every run**, never written down by hand.
+
+```bash
+.claude/scripts/coverage.py              # report
+.claude/scripts/coverage.py --uncovered  # ids only
+.claude/scripts/coverage.py --json       # for CI
+.claude/scripts/coverage.py --check      # exit 1 if any requirement is untraceable
+```
+
+It maps the requirement ids defined in `specs/*/spec.md` (the authoritative site — a bullet
+`- **FR-1100-12**: …`; plan/tasks merely cite them) to the tests that claim them, bucketed by
+layer: `host` → `app` → `ui` → `manual`.
+
+**Read the output correctly.** It measures whether a requirement can be *traced* to a test,
+not whether it is *tested*. At the time of writing 71% is untraceable, which is emphatically
+not 71% untested: `ImmichClient` has 73 tests and cites no ids at all. The number says how
+much of the suite is auditable, not how much risk we carry.
+
+Two grades, because the tree is mid-migration:
+
+- **`@covers FR-1100-12`** — an explicit annotation in a comment above the test. Machine-checkable.
+- **mention** — today's informal `// … (FR-1100-12)` style. Counted so the baseline is honest
+  on day one, but a mention proves someone thought about the requirement, not that the test
+  asserts it. Treat as a backfill queue.
+
+Two report sections earn their keep beyond the headline number:
+
+- **Manual only** — requirements whose sole cited proof is a human remembering to check.
+  This is the tier to empty. `StoreKitClientTests` sat here until 2026-07-21, when the
+  "needs the Xcode IDE or a device" blocker turned out to be a bug in the test; it now runs
+  headlessly at the `app` tier. Assume the rest are similarly reducible until proven otherwise.
+- **Orphan citations** — an id cited by a test but defined in no `spec.md`. That means a
+  requirement was renamed or retired while a test kept citing the old id, so the test now
+  silently claims to prove something that no longer exists. Currently zero; keep it there.
+
+Note the id grammar has three shorthand forms that a naive regex gets wrong — `FR-1000-01…12`
+(a range covering 12 requirements), `FR-1000-05/06`, and `FR-1100-03a`. The feature segment is
+**3 or 4 digits**: a `[0-9]{3}` pattern silently drops every 1000/1100-series id and reports
+already-cited files as untested.
+
+**Raising the number without lying about it** is a method in its own right — one agent tags, a
+second independently tries to refute every tag. See [traceability.md](traceability.md) for the
+workflow, the calibration data (what a healthy refutation rate looks like), and the limits of
+what a tag actually proves. Most important of those limits: traceability is a **map, not an
+alarm** — `coverage.py` is static and will happily report the same percentage after a
+regression. Only a running test catches those.
+
 ## Known traps — false greens, flakes, and landmines
 
 Each of these has burned at least one debugging cycle. Check here before concluding a
@@ -154,6 +205,35 @@ red test means a real regression, or that a green one means success.
 - **Screenshots confirm layout, not behaviour.** Assertions only fail when actually run —
   a red `SettingsUITests` sat undetected across two user stories because per-task
   validation was screenshots only. Run the full suite before merging any SwiftUI change.
+- **A skip is not a pass, and a skip-guard can outlive its reason.** The seven
+  `StoreKitClientTests` cases skip-guarded themselves for a day on the belief that headless
+  `xcodebuild` couldn't serve StoreKit products. The belief was wrong (see below) and the
+  guard hid it. If a guard says "this environment can't do X", re-test the claim before
+  trusting it — otherwise it launders a bug into a documented limitation.
+
+### `SKTestSession` serves 0 products (fixed 2026-07-21)
+
+Two independent setup bugs, both of which *look* like an environment/runner limitation. They
+cost a wrong diagnosis ("the StoreKit test daemon isn't active under headless `xcodebuild` —
+it's the runner, not the runtime"), a skip-guard, and issue #16. Neither was true: the cases
+run for real under plain `xcodebuild test`, on the simulator **and** on both devices.
+
+- **`SKTestSession(configurationFileNamed:)` resolves against `Bundle.main`.** In an
+  app-hosted unit test `Bundle.main` is the **host app** bundle, which does not carry
+  `Configuration.storekit` — that file is a resource of the **test** bundle. The lookup fails
+  **silently**: the initializer does not throw, it returns a session backed by no
+  configuration. Symptom: "loads fine, serves 0 products". Worse, with no test configuration
+  active, StoreKit falls through to the **real** store, which on an account-less device
+  reports `ASDErrorDomain 509 "No active account"` — the false evidence behind issue #16.
+  Fix: resolve the URL through `Bundle(for: Self.self)` and use `SKTestSession(contentsOf:)`.
+- **`resetToDefaultState()` restores session settings, so it turns `disableDialogs` back
+  OFF.** Setting that flag *before* the reset leaves purchase dialogs on, and the Ask-to-Buy
+  cases then block forever waiting for a tap no headless run will make — presenting as a hang,
+  not a failure. Configure the session **after** resetting it.
+
+Run them anywhere: `-only-testing:"Immich SlideshowTests/StoreKitClientTests"`. Verified
+2026-07-21 on iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1) — 7/7 each. Always pass
+`-test-timeouts-enabled YES` so a future dialog regression fails instead of hanging the run.
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
   access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
   transition moves monotonically between the two photos' YAVG levels, a dip below both is

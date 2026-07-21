@@ -11,6 +11,7 @@ struct FrameCommandServiceTests {
 
     // MARK: - HA-parity call sequences
 
+    // @covers FR-800-02
     @Test
     func pause_matchesHAPauseSwitchPath() async throws {
         // Identical to the HA pause switch path: HAControlCoordinator command →
@@ -25,6 +26,7 @@ struct FrameCommandServiceTests {
         #expect(surface.calls == [.pause])
     }
 
+    // @covers FR-800-02
     @Test
     func resume_recordsResume() async throws {
         let registry = FrameControlRegistry()
@@ -37,6 +39,7 @@ struct FrameCommandServiceTests {
         #expect(surface.calls == [.resume])
     }
 
+    // @covers FR-800-02
     @Test
     func nextPhoto_stepsWithoutResumingWhenPaused() async throws {
         // HA next-button parity (topic 710 US3): with a scripted paused
@@ -52,6 +55,7 @@ struct FrameCommandServiceTests {
         #expect(surface.calls == [.showNext])
     }
 
+    // @covers FR-800-02
     @Test
     func previousPhoto_recordsShowPrevious() async throws {
         let registry = FrameControlRegistry()

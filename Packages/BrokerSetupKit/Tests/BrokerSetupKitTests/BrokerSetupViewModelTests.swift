@@ -1,6 +1,7 @@
 import Testing
 @testable import BrokerSetupKit
 
+// @covers FR-600-12
 @Test func loadPrefillsWithoutSecret() throws {
     let store = InMemoryBrokerSettingsStore()
     try store.save(BrokerSettings(host: "mqtt.example.com", port: 8883, username: "ha-user", password: "secret"))
@@ -15,6 +16,7 @@ import Testing
     #expect(viewModel.passwordIsSet == true)
 }
 
+// @covers FR-600-01
 @Test func saveNewBrokerPersists() {
     let store = InMemoryBrokerSettingsStore()
     let viewModel = BrokerSetupViewModel(store: store)
@@ -28,6 +30,7 @@ import Testing
     #expect(store.load() == BrokerSettings(host: "mqtt.example.com", port: 8883, username: "ha-user", password: "secret"))
 }
 
+// @covers FR-600-10
 @Test func saveEmptyPasswordKeepsExisting() throws {
     let store = InMemoryBrokerSettingsStore()
     try store.save(BrokerSettings(host: "mqtt.example.com", port: 8883, username: "ha-user", password: "secret"))
@@ -40,6 +43,7 @@ import Testing
     #expect(store.load() == BrokerSettings(host: "mqtt-new.example.com", port: 8883, username: "ha-user", password: "secret"))
 }
 
+// @covers FR-600-10
 @Test func saveNewPasswordOverwritesExistingPassword() throws {
     let store = InMemoryBrokerSettingsStore()
     try store.save(BrokerSettings(host: "mqtt.example.com", port: 8883, username: "ha-user", password: "secret"))
@@ -52,6 +56,7 @@ import Testing
     #expect(store.load() == BrokerSettings(host: "mqtt.example.com", port: 8883, username: "ha-user", password: "new-secret"))
 }
 
+// @covers FR-600-03
 @Test func saveInvalidPortReportsError() {
     let store = InMemoryBrokerSettingsStore()
     let viewModel = BrokerSetupViewModel(store: store)
@@ -66,6 +71,7 @@ import Testing
     #expect(store.load() == nil)
 }
 
+// @covers FR-600-03
 @Test func saveEmptyHostReportsError() {
     let store = InMemoryBrokerSettingsStore()
     let viewModel = BrokerSetupViewModel(store: store)

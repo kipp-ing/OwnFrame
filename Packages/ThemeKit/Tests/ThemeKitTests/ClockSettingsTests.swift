@@ -4,6 +4,7 @@ import ThemeKit
 
 // MARK: - (d) Widened Quiet Glass defaults
 
+// @covers FR-500-03
 @Test func clockSettingsDefaultsAreWidenedQuietGlassBaseline() {
     let clock = ClockSettings()
 
@@ -15,6 +16,7 @@ import ThemeKit
     #expect(ClockSettings.off == clock)
 }
 
+// @covers FR-500-18
 @Test func fixedPlacesExcludeRandomInDeclarationOrder() {
     #expect(ClockPlace.fixedPlaces == [
         .topLeading, .topCenter, .topTrailing,
@@ -27,6 +29,7 @@ import ThemeKit
 // MARK: - (a) Legacy corner raws decode unchanged (FR-510-05)
 
 @MainActor
+// @covers FR-500-18
 @Test(arguments: [
     ("topLeading", ClockPlace.topLeading),
     ("topTrailing", ClockPlace.topTrailing),
@@ -45,6 +48,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
 // MARK: - (b) Unknown place raw degrades to the default without crashing
 
 @MainActor
+// @covers FR-500-16
 @Test func unknownPlaceRawFallsBackToDefaultPlace() {
     let fixture = ClockDefaultsFixture()
     fixture.defaults.set("northByNorthwest", forKey: "theme.clock.corner")
@@ -55,6 +59,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
 }
 
 @MainActor
+// @covers FR-500-16
 @Test func unknownStyleAndSizeRawsFallBackToFieldDefaults() {
     let fixture = ClockDefaultsFixture()
     fixture.defaults.set("hologram", forKey: "theme.clock.style")
@@ -69,6 +74,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
 // MARK: - (c) New style/size persist and round-trip through a fresh store
 
 @MainActor
+// @covers FR-500-05
 @Test func styleAndSizePersistAndRoundTripAcrossRelaunch() {
     let fixture = ClockDefaultsFixture()
     let store = UserDefaultsThemeStore(defaults: fixture.defaults)
@@ -103,6 +109,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
 
 // MARK: - (f) Size-constants table + legibility floor (SC-500-08)
 
+// @covers FR-500-19
 @Test func clockMetricsMatchDataModelTable() {
     #expect(ClockMetrics.digitPointSize(idiom: .pad, size: .room) == 76)
     #expect(ClockMetrics.digitPointSize(idiom: .pad, size: .cozy) == 52)
@@ -123,6 +130,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
 
 // MARK: - (e) RandomPlacePicking (FR-510-03)
 
+// @covers FR-500-18
 @Test func randomPickerInitialPlacementPicksAFixedPlaceImmediately() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 42))
 
@@ -132,6 +140,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     #expect(ClockPlace.fixedPlaces.contains(first))
 }
 
+// @covers FR-500-18
 @Test func randomPickerHoldsBeforeCadenceElapses() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 42))
     let first = picker.place(now: .seconds(0), current: nil, occupied: [])
@@ -141,6 +150,7 @@ func legacyCornerRawDecodesToMatchingPlace(raw: String, expected: ClockPlace) {
     #expect(held == first)
 }
 
+// @covers FR-500-18
 @Test func randomPickerRelocatesOnceCadenceElapses() {
     var picker = RandomPlacePicker(rng: SeededGenerator(seed: 42))
     let first = picker.place(now: .seconds(0), current: nil, occupied: [])

@@ -3,6 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
+// @covers FR-100-02
 @Test func apiKeyAuthSetsHeaderAndDoesNotAppendKeyQuery() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     // v3 (130): an API-key album lists assets via POST /api/search/metadata.

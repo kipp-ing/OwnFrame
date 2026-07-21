@@ -25,27 +25,29 @@ Two device settings, neither settable from the CLI, both of which have already c
 
 ## Priority 1 — the account-gated work (the reason for this session)
 
-### 1a. StoreKitTest, the seven skipped cases (issue #16)
+### 1a. ~~StoreKitTest, the seven skipped cases (issue #16)~~ — DONE 2026-07-21
 
-These have never run anywhere. They skip under headless `xcodebuild` (`SKTestSession` serves 0
-products — the runner, not the runtime) and on a bare device they fail with
-`ASDErrorDomain 509 "No active account"`. With an account signed in, the device path should work.
+**Resolved; needs no device time.** The cases never needed an account, a device, or the Xcode
+IDE — they were defeated by two setup bugs in the test itself (see `docs/testing.md`
+§ "`SKTestSession` serves 0 products"). Both the "0 products under headless `xcodebuild`" and
+the `ASDErrorDomain 509 "No active account"` observations were symptoms of the same root cause:
+the config file was never found, so StoreKit fell through to the real store.
+
+Fixed and verified 7/7 on the iOS 18.6 simulator, Framepad (17.7.10) and FramePhone (26.0.1).
+The skip-guard is now a hard assertion, so a regression fails loudly. Issue #16 closed.
+
+They run anywhere, including CI:
 
 ```bash
 xcodebuild -project "Immich Slideshow.xcodeproj" -scheme "Immich Slideshow" \
   -destination "id=$FRAMEPAD_DEVICE_ID" -configuration Debug \
   -derivedDataPath ~/Library/Developer/Xcode/DerivedData/FramepadRig \
-  -allowProvisioningUpdates \
+  -allowProvisioningUpdates -test-timeouts-enabled YES \
   -only-testing:"Immich SlideshowTests/StoreKitClientTests" \
   test-without-building
 ```
 
-Expect 7 passes. **If they still skip, read the skip-guard's message before believing the
-suite** — the guard exists precisely so this fails honestly rather than green. If they now fail
-rather than skip, that is a real finding: they have never executed, so they are red-then-green
-by construction only.
-
-Closes the last non-ASC part of T042.
+The remaining T042 work is ASC-gated only (1b below).
 
 ### 1b. Sandbox purchase flows (T042)
 

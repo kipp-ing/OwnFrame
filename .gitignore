@@ -84,3 +84,7 @@ Design/Frames/AppleReference/
 
 # Session scratch files (reviews, spec copies) — never part of the repo
 tmp/
+
+# Python bytecode (.claude/scripts/coverage.py imported by ad-hoc verification snippets)
+__pycache__/
+*.pyc

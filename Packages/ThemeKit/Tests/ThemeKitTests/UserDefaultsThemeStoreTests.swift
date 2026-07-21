@@ -3,6 +3,7 @@ import Testing
 import ThemeKit
 
 @MainActor
+// @covers FR-500-05
 @Test func userDefaultsThemeStoreRoundTripsEveryFieldAcrossRelaunch() {
     let fixture = UserDefaultsThemeStoreFixture()
 
@@ -30,6 +31,7 @@ import ThemeKit
 }
 
 @MainActor
+// @covers FR-500-03, FR-500-16
 @Test func userDefaultsThemeStoreFallsBackPerFieldForCorruptValues() {
     let fixture = UserDefaultsThemeStoreFixture()
     fixture.defaults.set("garbage", forKey: "theme.order")
@@ -56,6 +58,7 @@ import ThemeKit
 }
 
 @MainActor
+// @covers FR-500-05, FR-500-07
 @Test func userDefaultsThemeStoreClampsDurationImmediatelyAndAcrossRelaunch() {
     let fixture = UserDefaultsThemeStoreFixture()
     let store = UserDefaultsThemeStore(defaults: fixture.defaults)

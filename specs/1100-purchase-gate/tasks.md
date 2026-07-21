@@ -180,13 +180,19 @@ at first render across relaunches; StoreKitTest session drives refund/deferral f
       transaction dropped. Each case red first (observed: notImplemented → productUnavailable),
       then `StoreKitClient.swift` implemented to satisfy them: JWS-verify only, finish after
       delivery, ownership from `Transaction.currentEntitlements`, tips never owned, `updates`
-      off `Transaction.updates`. **Runtime caveat:** `SKTestSession` serves 0 products under the
-      headless `xcodebuild test` path (XcodeBuildMCP) — reproduced across every init style and
-      on iOS 18.6 + 26.x, so it is the runner, not the runtime. A `setUp` skip-guard turns that
-      into an honest **skip** (never a false pass/red); the cases run for real from the Xcode IDE
-      runner or on device (folds into T042). Adapter otherwise held by review + the pure host
-      tests above the seam. Launch `refresh()` + `listenForUpdates()` now wired on both apps'
-      production entry points. Full iOS suite green on iOS 18.6 (153/0/9); tvOS builds.
+      off `Transaction.updates`. Launch `refresh()` + `listenForUpdates()` wired on both apps'
+      production entry points; tvOS builds.
+      **Fully green as of 2026-07-21 — the earlier "runtime caveat" was wrong and is withdrawn.**
+      It claimed `SKTestSession` serves 0 products under headless `xcodebuild` ("the runner, not
+      the runtime"), so the cases needed the Xcode IDE runner or a device (folding into T042).
+      In fact two setup bugs in the test defeated it: `configurationFileNamed:` resolves against
+      `Bundle.main` (the *host app* bundle, which has no `Configuration.storekit`) and fails
+      **silently** rather than throwing; and `resetToDefaultState()` clears `disableDialogs`, so
+      setting it beforehand left Ask-to-Buy blocking on a dialog forever. Both fixed; the
+      skip-guard is now a hard assertion. All 7 cases execute and pass under plain headless
+      `xcodebuild` — verified on iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1).
+      Nothing here folds into T042 any more. See `docs/testing.md` § "`SKTestSession` serves 0
+      products"; issue #16 closed.
 - [x] T031 [US3] Launch-path integration test (host, fakes): entitled snapshot in defaults +
       never-responding client → gating flags active in the first render pass with no await
       (FR-1100-10); document the invariant in `EntitlementStore.swift` header.
@@ -281,7 +287,11 @@ outside settings.
       suite **110/110** (`swift test`); full XCUITest suite on the default iPad sim (iOS 26.5)
       **153 passed / 0 failed / 9 skipped** — the 9 skips are the ASC-screenshot capture +
       live-demo smoke (both intentional) and the 7 SKTestSession cases (skip-guarded under headless
-      `xcodebuild`; their real run folds into T042). Same result on iOS 18.6. tvOS unlock surface
+      `xcodebuild`; their real run folds into T042). *Superseded 2026-07-21: those 7 no longer skip
+      — they pass everywhere (see T030), so the skip count drops to 2.* Same result on iOS 18.6.
+      *Also note: a full-suite re-run on 2026-07-21 surfaced two UI failures pre-existing on `main`
+      and unrelated to 1100 — `BrokerSetupUITests` (issues #21) and `ShareSheetIncomingUITests`
+      (#22); this gate's "0 failed" no longer reproduces.* tvOS unlock surface
       screenshot-verified on the Apple TV simulator under `--uitest-entitlements`. One benign
       pre-existing warning (AppIntentsKit module-scan noting a HAControlKit dependency); no errors.
 - [x] T041 [P] Docs sync (2026-07-20): status lines flipped in `docs/spec-overview.md` (1100 row)
@@ -425,21 +435,31 @@ are the App Store screenshot + live-demo smoke (both intentional) plus the 7 Sto
 which skip-guard out under headless `xcodebuild` (see T030); iOS + tvOS both build; the tvOS unlock
 surface is Apple-TV-simulator screenshot-verified under the `--uitest-entitlements` seams (T033).
 
-**T030 done** with a runtime caveat: the real `StoreKitClient` adapter + its 7 SKTestSession cases
-are in, and launch `refresh()` + `listenForUpdates()` are wired on both apps' production entry
-points. `SKTestSession` serves 0 products under the headless `xcodebuild test` path used here, so
-the cases skip honestly (never a false pass/red) and must be run once from the Xcode IDE runner or
-on device — that verification folds into **T042**. The adapter is otherwise held by review + the
-pure PurchaseKit host tests above the seam.
+> **Updated 2026-07-21.** The 7 StoreKitClientTests no longer skip — they pass everywhere, so the
+> skip count is now 2. Separately, a full-suite re-run surfaced **two failures pre-existing on
+> `main`** and unrelated to 1100: `BrokerSetupUITests` (#21, reproduces on a clean sim on stock
+> `main`) and `ShareSheetIncomingUITests` (#22, order-dependent — passes alone). The "0 failed"
+> above no longer reproduces; treat those two as open before any release claim.
+
+**T030 done, and the "runtime caveat" is withdrawn (2026-07-21).** The real `StoreKitClient`
+adapter + its 7 SKTestSession cases are in, with launch `refresh()` + `listenForUpdates()` wired
+on both apps' production entry points. The caveat claimed `SKTestSession` serves 0 products under
+headless `xcodebuild`, so the cases had to run once from the Xcode IDE or on device (folding into
+T042). That was a misdiagnosis: two setup bugs in the test defeated it — `configurationFileNamed:`
+resolves against `Bundle.main` (the *host app* bundle, which lacks `Configuration.storekit`) and
+fails **silently**; and `resetToDefaultState()` clears `disableDialogs`, so setting it beforehand
+left Ask-to-Buy blocking on a dialog. Both fixed, skip-guard replaced by a hard assertion, and all
+7 verified passing on the iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1). **No part of
+T030 folds into T042 any more.** Details in `docs/testing.md`; issue #16 closed.
 
 **T040 + T041 done 2026-07-20**: full verification gate recorded above; docs synced
 (`docs/spec-overview.md`, CLAUDE.md, quickstart §5 ↔ manual-verification §D).
 
 Remaining: **T042** only — the manual ASC/device day (blocked on Jan's ASC access): create the
-IAPs, run the sandbox purchase/restore/Family-Sharing/universal-purchase checks, the one
-Xcode-IDE/device StoreKitTest run (the SKTestSession cases skip under headless `xcodebuild`), and
-the release sequencing guard (v1.0 b8 stays unreleased; v1.1 gated build is the first public
-release, FR-1100-17). See `docs/manual-verification.md` §D + quickstart §5.
+IAPs, run the sandbox purchase/restore/Family-Sharing/universal-purchase checks, and the release
+sequencing guard (v1.0 b8 stays unreleased; v1.1 gated build is the first public release,
+FR-1100-17). See `docs/manual-verification.md` §D + quickstart §5. *(The Xcode-IDE/device
+StoreKitTest run was removed from this list on 2026-07-21 — it runs headlessly now; see T030.)*
 
 - **T039 copy audit — PASS.** `grep -rin "lifetime"` over PurchaseKit UI, Localizable.xcstrings,
   app-store-listing.md, README.md, and docs/: zero user-facing hits (only the doc-comment stating
@@ -447,6 +467,7 @@ release, FR-1100-17). See `docs/manual-verification.md` §D + quickstart §5.
   sanctioned "No subscription, no recurring charge." No price points in the repo (StubStoreClient's
   `$1.00` is a labelled DEBUG fixture). License already FSL-1.1-MIT in README + listing.
 
-Remaining: **T042 only** (the manual ASC/device day — also hosts the one-off Xcode-IDE/device
-StoreKitTest run). T001–T041 all landed by 2026-07-20; T030 (StoreKit adapter + SKTestSession +
-launch wiring), T033 (tvOS unlock surface), and T040/T041 (gate + docs) closed this session.
+Remaining: **T042 only** (the manual ASC/device day — now purely ASC-gated; the StoreKitTest run
+came off it on 2026-07-21). T001–T041 all landed by 2026-07-20; T030 (StoreKit adapter +
+SKTestSession + launch wiring), T033 (tvOS unlock surface), and T040/T041 (gate + docs) closed
+that session. Open and unrelated to 1100: #21 and #22 (pre-existing UI-test failures on `main`).
