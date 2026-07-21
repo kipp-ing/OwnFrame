@@ -4,9 +4,9 @@
 //
 //  1100 (T033) — the tvOS unlock surface. The Apple TV frame's settings screen, reached from the
 //  slideshow chrome's gear. It mirrors the iOS Unlocks section + locked-row treatment
-//  (`SlideshowSettingsView` / `LockedBrokerView`) with tvOS focus-engine-native controls, and it
-//  is the native purchase + restore surface that universal purchase requires on tvOS
-//  (US4 scenario 3, FR-1100-07).
+//  (`SlideshowSettingsView`) with tvOS focus-engine-native controls, and it is the native
+//  purchase + restore surface that universal purchase requires on tvOS (US4 scenario 3,
+//  FR-1100-07).
 //
 //  Everything here is entitlement-gated at its point of effect, fail-closed: an absent
 //  `EntitlementStore` reads as unentitled. PurchaseKit's `UnlockScreenView` / `TipJarView` /
@@ -27,12 +27,10 @@ struct TVSettingsView: View {
 
     var onDone: () -> Void = {}
 
-    // Only one cover is ever up at a time. Handing off from the locked-broker cover to the unlock
-    // screen is a close-then-present: `onUnlock` clears `showLockedBroker` and sets `unlockTier`.
+    // Only one cover is ever up at a time.
     @State private var unlockTier: Entitlement?
     @State private var showTipJar = false
     @State private var showBrokerSetup = false
-    @State private var showLockedBroker = false
     @State private var isRestoring = false
 
     private var isProEntitled: Bool { entitlements?.current.contains(.pro) ?? false }
@@ -66,16 +64,10 @@ struct TVSettingsView: View {
         .fullScreenCover(isPresented: $showBrokerSetup) {
             TVBrokerSetupView(onDone: { showBrokerSetup = false })
         }
-        .fullScreenCover(isPresented: $showLockedBroker) {
-            TVLockedBrokerView(
-                onUnlock: { showLockedBroker = false; unlockTier = .automation },
-                onClose: { showLockedBroker = false }
-            )
-        }
         #if DEBUG
         // Screenshot/verification seam (DEBUG only): auto-open a sub-screen so XcodeBuildMCP can
         // capture it without tvOS navigation tools. `--uitest-tv-present=<unlock-pro|
-        // unlock-automation|tip|locked-broker>`.
+        // unlock-automation|tip|broker-setup>`.
         .onAppear {
             guard let arg = ProcessInfo.processInfo.arguments
                 .first(where: { $0.hasPrefix("--uitest-tv-present=") })?
@@ -85,7 +77,7 @@ struct TVSettingsView: View {
             case "unlock-pro": unlockTier = .pro
             case "unlock-automation": unlockTier = .automation
             case "tip": showTipJar = true
-            case "locked-broker": showLockedBroker = true
+            case "broker-setup": showBrokerSetup = true
             default: break
             }
         }
@@ -125,33 +117,40 @@ struct TVSettingsView: View {
 
     @ViewBuilder
     private var homeAssistantRow: some View {
-        if isAutomationEntitled {
-            Button { showBrokerSetup = true } label: {
-                Label {
-                    Text("Home Assistant (MQTT)").font(.title3.weight(.medium))
-                } icon: {
-                    Image(systemName: "house")
-                }
-            }
-            .accessibilityIdentifier("tv.settings.row.broker")
-        } else {
-            // The row stays a LockedRow (US1 discovery); tapping it opens the masked, never-reset
-            // broker view — NOT the unlock screen directly — so the stored config stays visible
-            // (US5) and PurchaseKit still never reads broker data (FR-1100-14).
+        // 1100 (amended 2026-07-20): telemetry is free (FR-1100-03a). The broker setup is
+        // available to everyone so a free Apple TV frame can report its status to Home Assistant.
+        // Only *control* needs Automation — when unentitled a control-locked banner above the
+        // setup row opens the unlock screen directly; buying Automation adds control with zero
+        // re-entry (FR-1100-14).
+        if !isAutomationEntitled {
             LockedRow(requires: .automation, identifier: "settings.row.broker.locked") {
-                showLockedBroker = true
+                unlockTier = .automation
             } content: {
                 Label {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Home Assistant (MQTT)").font(.title3.weight(.medium))
-                        Text("Control the frame from Home Assistant over MQTT.")
+                        Text("Remote control").font(.title3.weight(.medium))
+                        Text("Let Home Assistant and Shortcuts drive the frame.")
                             .font(.callout).foregroundStyle(.secondary)
                     }
                 } icon: {
-                    Image(systemName: "house")
+                    Image(systemName: "slider.horizontal.3")
                 }
             }
         }
+        Button { showBrokerSetup = true } label: {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Home Assistant (MQTT)").font(.title3.weight(.medium))
+                    if !isAutomationEntitled {
+                        Text("Connect a broker so Home Assistant can see this frame.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                }
+            } icon: {
+                Image(systemName: "house")
+            }
+        }
+        .accessibilityIdentifier("tv.settings.row.broker")
     }
 
     // MARK: - Unlocks (Restore + Tip)
@@ -194,84 +193,20 @@ struct TVSettingsView: View {
                  + "they just say thanks.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            // Transparency statement (docs/where-the-money-goes.md) — calm, never a nag (FR-1100-09).
+            Text("Where your money goes: the unlocks cover the project's running costs — "
+                 + "developer account, AI tools, test hardware — and everything beyond that goes "
+                 + "back to open-source projects that serve the community. The free frame stays "
+                 + "whole, forever.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("settings.unlocks.moneyPledge")
         }
     }
 }
 
-/// The tvOS equivalent of the iOS `LockedBrokerView` (US5): an unentitled Apple TV frame that
-/// already has a saved broker config sees it — visible and masked, never reset — behind a locked
-/// banner, with the Automation unlock one click away. tvOS-native layout (no `NavigationStack` /
-/// navigation-bar APIs, which don't exist on tvOS).
-///
-/// It reads the broker view model only; it never reaches into PurchaseKit (the unlock is a plain
-/// callback), so the (app-target) broker/keychain data and the (PurchaseKit) unlock screen stay
-/// decoupled exactly as on iOS — PurchaseKit never reads broker config (FR-1100-14).
-struct TVLockedBrokerView: View {
-    @State private var vm = BrokerSetupViewModel(store: KeychainBrokerSettingsStore())
-    let onUnlock: () -> Void
-    let onClose: () -> Void
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 40) {
-                    Text("Home Assistant")
-                        .font(.largeTitle.weight(.semibold))
-
-                    // The same lock/tier treatment as the settings row, as a banner. Focusable and
-                    // clickable — the unlock entry point, never disabled.
-                    Button(action: onUnlock) {
-                        HStack(spacing: 16) {
-                            Image(systemName: "lock.fill")
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Remote control needs the Automation unlock")
-                                    .font(.title3.weight(.semibold))
-                                Text("Your Home Assistant setup is saved and resumes the moment "
-                                     + "you unlock — nothing to re-enter.")
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .accessibilityIdentifier("settings.row.broker.locked")
-
-                    // The stored configuration, visible and masked exactly as the live editor
-                    // shows it — "not an empty or reset screen" (US5 scenario 2). Read-only.
-                    VStack(spacing: 16) {
-                        Text("Saved configuration")
-                            .font(.title3.weight(.semibold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        savedRow("Host", vm.host.isEmpty ? "—" : vm.host, id: "broker.host")
-                        savedRow("Port", vm.port, id: "broker.port")
-                        savedRow("Username", vm.username.isEmpty ? "—" : vm.username, id: "broker.username")
-                        savedRow("Password", vm.passwordIsSet ? "••••••••" : "Not set", id: "broker.password")
-                    }
-
-                    Button("Unlock Automation", action: onUnlock)
-                        .accessibilityIdentifier("unlock.buy.automation.entry")
-
-                    Button("Done", action: onClose)
-                        .accessibilityIdentifier("tv.broker.locked.done")
-                }
-                .frame(maxWidth: 900)
-                .padding(60)
-            }
-        }
-        .onAppear { vm.load() }   // reflect the stored values; load() never writes.
-    }
-
-    /// A read-only "label … value" row whose combined label carries both the field name and the
-    /// stored value, so a device-day check (or a future TV test) reads the value off `.label`.
-    private func savedRow(_ label: String, _ value: String, id: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(value).foregroundStyle(.secondary)
-        }
-        .font(.title3)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(value)")
-        .accessibilityIdentifier(id)
-    }
-}
+// (US5 amended 2026-07-20) The old `TVLockedBrokerView` masked-config screen is gone: telemetry
+// is free, so an unentitled Apple TV frame publishes read-only sensors and its broker setup is
+// reachable live. Only *control* is gated, surfaced by the "Remote control" locked banner in
+// `homeAssistantRow`, which opens the Automation unlock screen directly.

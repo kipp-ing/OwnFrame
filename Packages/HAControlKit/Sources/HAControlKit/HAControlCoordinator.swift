@@ -5,6 +5,17 @@ import os
 @MainActor
 @Observable
 public final class HAControlCoordinator {
+    /// Free-telemetry / paid-control split (spec 1100 FR-1100-03 / FR-1100-03a).
+    public enum Mode: Sendable {
+        /// **Free tier.** Publish availability + read-only sensor entities so Home Assistant
+        /// can *see* the frame. Never publish a controllable entity, never subscribe to a
+        /// command topic, never act on a command.
+        case telemetryOnly
+        /// **Automation unlock.** Full read + control: controllable entities are published and
+        /// their command topics subscribed and handled.
+        case full
+    }
+
     public private(set) var connection: ConnectionState = .disconnected
 
     // Diagnostic logging only. Logs topics, payloads and connection state — never
@@ -18,6 +29,7 @@ public final class HAControlCoordinator {
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
+    private let mode: Mode
     private var deviceID: String?
     private var incomingTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
@@ -31,7 +43,8 @@ public final class HAControlCoordinator {
         photoReporter: (any PhotoReporting)? = nil,
         configStore: any BrokerConfigStore,
         deviceName: String,
-        enabledEntities: Set<HAEntity> = [.playback]
+        enabledEntities: Set<HAEntity> = [.playback],
+        mode: Mode = .full
     ) {
         self.transport = transport
         self.control = control
@@ -40,6 +53,7 @@ public final class HAControlCoordinator {
         self.configStore = configStore
         self.deviceName = deviceName
         self.enabledEntities = enabledEntities
+        self.mode = mode
     }
 
     public func start() async {
@@ -104,7 +118,34 @@ public final class HAControlCoordinator {
             retain: true
         ))
 
+        let modeLabel = mode == .full ? "full" : "telemetry"
+
+        // A frame upgrading from the pre-gate build left a *retained* discovery config on
+        // the broker for every controllable entity. Merely skipping the publish below does
+        // not remove those: the broker replays them to Home Assistant forever, and because
+        // every entity shares the one availability topic just set to "online", HA would
+        // render them as live, interactive controls that silently do nothing — the app no
+        // longer subscribes to their command topics. An empty retained payload is the
+        // documented way to retract a discovery config, so sweep them before announcing
+        // (FR-1100-03a / SC-1100-06 "zero controllable entities"). The sweep covers
+        // `allCases`, not just the enabled set, because a stale config can survive from any
+        // earlier run whose entity selection differed.
+        if mode == .telemetryOnly {
+            for entity in HAEntity.allCases where entity.isControllable {
+                try? await transport.publish(MQTTMessage(
+                    topic: HATopics.discoveryConfigTopic(deviceID: deviceID, entity: entity),
+                    payload: Data(),
+                    retain: true
+                ))
+            }
+            log.info("announce: retracted controllable discovery [telemetry]")
+        }
+
         for entity in orderedEnabledEntities {
+            // Free telemetry publishes read-only sensors only; controllable entities and
+            // their command topics require the Automation unlock (FR-1100-03 / FR-1100-03a).
+            if mode == .telemetryOnly && entity.isControllable { continue }
+
             try? await transport.publish(MQTTMessage(
                 topic: HATopics.discoveryConfigTopic(deviceID: deviceID, entity: entity),
                 payload: HADiscovery.config(
@@ -115,25 +156,31 @@ public final class HAControlCoordinator {
                 ),
                 retain: true
             ))
-            try? await transport.subscribe(HATopics.commandTopic(deviceID: deviceID, entity: entity))
+            if mode == .full {
+                try? await transport.subscribe(HATopics.commandTopic(deviceID: deviceID, entity: entity))
+            }
             await echo(entity)
-            log.info("announce: published discovery + subscribed \(entity.rawValue, privacy: .public)")
+            log.info("announce: published \(entity.rawValue, privacy: .public) [\(modeLabel, privacy: .public)]")
         }
 
-        // announce() just echoed every enabled entity — that is the baseline the
+        // announce() just echoed every published entity — that is the baseline the
         // scoped settings diff compares against.
         lastSettingsSnapshot = settings?.themeSettings
 
-        control.onLocalChange = { [weak self] in
-            Task { @MainActor in
-                await self?.echoAll()
+        // Control + settings echoes only matter when controllable entities are published.
+        if mode == .full {
+            control.onLocalChange = { [weak self] in
+                Task { @MainActor in
+                    await self?.echoAll()
+                }
+            }
+
+            settings?.onSettingsChange = { [weak self] in
+                self?.scheduleSettingsEcho()
             }
         }
 
-        settings?.onSettingsChange = { [weak self] in
-            self?.scheduleSettingsEcho()
-        }
-
+        // Photo telemetry (read-only sensors) is free — always wired (FR-1100-03a).
         photoReporter?.onPhotoChange = { [weak self] report in
             self?.schedulePhotoPublish(report)
         }
@@ -211,6 +258,9 @@ public final class HAControlCoordinator {
     }()
 
     internal func handleIncoming(_ message: MQTTMessage) async {
+        // Telemetry-only never subscribes, so no command normally reaches here; guard anyway
+        // so a stray retained command can never drive an unentitled frame (FR-1100-03).
+        guard mode == .full else { return }
         guard let deviceID = ensureDeviceID() else {
             return
         }
@@ -501,10 +551,13 @@ public final class HAControlCoordinator {
         incomingTask?.cancel()
         connectionTask?.cancel()
 
-        let incoming = transport.incoming
-        incomingTask = Task { [weak self] in
-            for await message in incoming {
-                await self?.handleIncoming(message)
+        // Only the control tier consumes commands; telemetry-only has no subscriptions.
+        if mode == .full {
+            let incoming = transport.incoming
+            incomingTask = Task { [weak self] in
+                for await message in incoming {
+                    await self?.handleIncoming(message)
+                }
             }
         }
 

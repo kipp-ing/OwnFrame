@@ -14,6 +14,15 @@ without loops. Out of scope (deferred): sleep/wake (700's roadmap, reserved as `
 starting/stopping the app itself, uploading photos, HA reading/adding sources, authentication
 changes.
 
+> **Purchase-gate tiering (per spec 1100, amended 2026-07-20).** The entities defined here
+> split across tiers: the **read-only sensor entities** (current photo + metadata, current-photo
+> image, playback phase, photo count, version) plus broker connection + availability (LWT) are
+> **free** — an unentitled frame publishes them so Home Assistant can *see* it. The
+> **controllable entities** (everything with a `command_topic`: brightness/light, album select,
+> playback switch, the settings controls, next/previous) and all command handling require the
+> **Automation** unlock. The state/echo model here is unchanged; the gate only decides which
+> entities are published and whether command topics are subscribed. See FR-1100-03 / FR-1100-03a.
+
 ## Clarifications
 
 ### Session 2026-07-04

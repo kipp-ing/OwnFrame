@@ -346,13 +346,16 @@ final class TVAppModel {
     /// hydration may not have delivered (`.manualRequired`) — offering them would let a
     /// remote pick tear the frame down into onboarding.
     private func makeCoordinator(for slideshow: SlideshowViewModel) async -> HAControlCoordinator? {
-        // 1100: the `.automation` gate, and it MUST come first — the very next line is the
-        // app's only hop from here into the Keychain item holding the MQTT password, and an
-        // unentitled frame never reaches it (FR-1100-14). A construction gate, never a mute:
-        // nothing is cleared or masked, so buying Automation restores HA with zero re-entry.
-        // (The iOS side expresses the same ordering as a wrapper — `AutomationCoordinatorGate`
-        // — which cannot be reused here: it is typed on the iOS-only adapter.)
-        guard entitlements().contains(.automation) else { return nil }
+        // 1100 (amended 2026-07-20): telemetry is free, only *control* is gated. Without
+        // Automation the coordinator builds in `.telemetryOnly` — a configured broker connects
+        // and publishes read-only sensors so HA can *see* the frame (FR-1100-03a) — while
+        // control (command topics) stays behind the unlock. Reading the broker credential is now
+        // a free-tier op; nothing is cleared or masked, so buying Automation upgrades to `.full`
+        // with zero re-entry (FR-1100-14). Entitlements are read at call time, so a live
+        // purchase upgrades telemetry → full on the next build. (iOS expresses the same via
+        // `AutomationCoordinatorGate`, which is typed on the iOS-only adapter and not reusable
+        // here.)
+        let mode: HAControlCoordinator.Mode = entitlements().contains(.automation) ? .full : .telemetryOnly
         guard let brokerConfig = brokerProvider.load() else { return nil }
         let library = sourceStore.load()
         let playable = library.sources.filter { source in
@@ -381,7 +384,8 @@ final class TVAppModel {
             photoReporter: adapter,
             configStore: brokerProvider,
             deviceName: frameIdentity.deviceName,
-            enabledEntities: HAEntity.defaultEnabled
+            enabledEntities: HAEntity.defaultEnabled,
+            mode: mode
         )
     }
 
