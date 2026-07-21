@@ -251,7 +251,17 @@ struct Immich_SlideshowApp: App {
         // host consumes it on launch/foreground/open-URL (210, US2).
         let pendingLinkStore = AppGroupPendingSharedLinkStore()
         let brokerStore = KeychainBrokerSettingsStore()
-        let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "immich-slideshow-device"
+        // 700 US3 / FR-700-16…21: the frame's Home Assistant identity. Resolved once and kept in
+        // the Keychain so it survives a delete/reinstall — `identifierForVendor` alone does not
+        // (iOS regenerates it once the last vendor app is removed), which used to make a
+        // reinstalled frame re-register as a NEW device and strand every entity bound to the old
+        // one. The IDFV is passed only as the *legacy* value to adopt on first run, so frames
+        // already registered under it keep the identity they have (FR-700-21).
+        let deviceID = FrameIdentityResolver.resolve(
+            storage: KeychainFrameIdentityStorage(),
+            legacyIdentifier: UIDevice.current.identifierForVendor?.uuidString
+        )
+        let frameNameStore = UserDefaultsFrameNameStore(defaultName: "Photo Frame")
         let brokerProvider = BrokerConfigProvider(settingsStore: brokerStore, deviceID: deviceID)
         // Persistence tier (320): images under Caches (iOS may purge — tolerated,
         // FR-320-10), snapshots under Application Support (backup-excluded by the
@@ -489,7 +499,10 @@ struct Immich_SlideshowApp: App {
                 settings: adapter,
                 photoReporter: adapter,
                 configStore: brokerProvider,
-                deviceName: "Photo Frame",
+                // FR-700-22: the user's name for this frame, read at coordinator-build time so a
+                // rename lands on the next build. Display only — identity is `deviceID` above and
+                // never changes with the name, so renaming cannot orphan an entity.
+                deviceName: frameNameStore.name,
                 enabledEntities: enabledEntities,
                 mode: mode
             )
