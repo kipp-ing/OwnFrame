@@ -16,17 +16,21 @@
 //  Run the WHOLE class via XcodeBuildMCP `test_sim` — a single `-only-testing` method reports
 //  a false green (memory: xcodebuildmcp-single-test-false-green).
 //
-//  Environment skip-guard: `SKTestSession` only serves products where the simulator's StoreKit
-//  test daemon is actually activated for the run. Under this project's headless `xcodebuild test`
-//  path (XcodeBuildMCP) that activation does not happen: the session loads but serves *zero*
-//  products — reproduced across init styles (`configurationFileNamed:`, `contentsOf:`, a scheme
-//  `StoreKitConfigurationFileReference`) and runtimes (iOS 18.6 and 26.x), so it is the runner,
-//  not the runtime. Rather than let every case go red for that environmental reason, `setUp`
-//  probes the store once and `throw`s `XCTSkip` when it comes back empty, so the suite reports an
-//  honest **skip** — never a false pass, never a false red. These cases DO run for real when the
-//  suite is executed from the Xcode IDE test runner or on a device (T042), where the daemon is
-//  live. Until then the adapter's semantics are held by review + the pure PurchaseKit host tests
-//  above the seam.
+//  Two setup traps that between them made this class serve zero products and skip itself
+//  (2026-07-21). Both are in the test, not the runner — the earlier "the StoreKit test daemon
+//  isn't active under headless xcodebuild" conclusion was wrong, and these cases run for real
+//  under plain `xcodebuild test` with no IDE and no device:
+//
+//  1. `SKTestSession(configurationFileNamed:)` resolves the name against `Bundle.main`. In an
+//     app-hosted unit test `Bundle.main` is the HOST APP bundle, which does not carry the
+//     fixture — `Configuration.storekit` is a resource of the TEST bundle. The lookup fails
+//     *silently*: the initializer does not throw, it hands back a session backed by no
+//     configuration, which presents exactly as "loads fine, serves 0 products". Initialize from
+//     the explicit test-bundle URL (`contentsOf:`) so bundle-search semantics can't bite.
+//  2. `resetToDefaultState()` restores session settings to their defaults, so it turns
+//     `disableDialogs` back OFF. Setting that flag before the reset leaves purchase dialogs on,
+//     and the Ask-to-Buy cases then block forever waiting for a tap no headless run will make.
+//     Configure the session AFTER resetting it.
 //
 
 import StoreKit
@@ -42,27 +46,34 @@ final class StoreKitClientTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         // A fresh StoreKit environment per test, from the fixture bundled into THIS (test)
-        // target. `configurationFileNamed:` activates that config as the process's StoreKit test
+        // target. Creating the session activates that config as the process's StoreKit test
         // environment, which is what makes `Product.products` / `Transaction.currentEntitlements`
-        // resolve against it — the canonical pattern for a programmatic StoreKit unit test. (The
-        // scheme carries no StoreKit config: the code-created session is the single authority, so
-        // the two can't disagree.) `Configuration.storekit` is a resource of the test bundle.
-        session = try SKTestSession(configurationFileNamed: "Configuration")
-        session.disableDialogs = true        // no confirmation sheets — purchases auto-complete
+        // resolve against it. The scheme carries no StoreKit config, so the code-created session
+        // is the single authority and the two can't disagree.
+        //
+        // Resolve the fixture through the TEST bundle explicitly — see trap 1 in the file header.
+        let configURL = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: "Configuration", withExtension: "storekit"),
+            "Configuration.storekit is missing from the test bundle — it is picked up via the "
+            + "target's synchronized folder, so check it still ships as a test resource."
+        )
+        session = try SKTestSession(contentsOf: configURL)
+
+        // Configure AFTER resetting — see trap 2 in the file header.
         session.resetToDefaultState()
         session.clearTransactions()
+        session.disableDialogs = true        // no confirmation sheets — purchases auto-complete
 
-        // Skip-guard (see file header): when the StoreKit test daemon isn't activated for the run
-        // — as under headless `xcodebuild test` here — the session serves no products and every
-        // case below would fail for that environmental reason, not an adapter one. Report an honest
-        // skip instead. Run from the Xcode IDE test runner or on a device and the six fixture
-        // products load and the whole class runs for real.
+        // Fail loudly, never skip: an empty store here means the fixture stopped reaching the
+        // session (a renamed/removed resource, a broken config), and every case below would fail
+        // for that reason rather than an adapter one. This used to be an `XCTSkipIf` on the
+        // theory that headless runs simply can't serve products; that theory was wrong, so a
+        // silent skip would now only hide a real regression.
         let available = try await Product.products(for: ProductCatalog.unlocks.map(\.rawValue))
-        try XCTSkipIf(
-            available.isEmpty,
-            "SKTestSession served 0 products — StoreKit test daemon not active under headless "
-            + "xcodebuild (reproduced on iOS 18.6 + 26.x). Adapter held by review; these cases run "
-            + "for real from the Xcode IDE runner or on device (T042)."
+        XCTAssertEqual(
+            available.count, ProductCatalog.unlocks.count,
+            "SKTestSession served \(available.count) of \(ProductCatalog.unlocks.count) unlocks — "
+            + "the fixture is not reaching the session."
         )
     }
 

@@ -62,9 +62,11 @@ Code-complete is not ship-ready until these are ticked (tracked in
 - [ ] ASC: create IAPs exactly matching `ProductID` raw values; Family Sharing ON for the three
       unlocks; localized names/descriptions using "one-time purchase" phrasing (never
       "lifetime"); attach to the 1.1 submission (IAPs reviewed with the build).
-- [ ] Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device — the SKTestSession
-      adapter suite skips under headless `xcodebuild`, so this is where the StoreKit adapter (T030)
-      is actually proven at runtime.
+- [x] ~~Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device.~~ **Done 2026-07-21 —
+      not a device-day item.** The suite skipped because of two setup bugs in the test, not because
+      headless `xcodebuild` can't serve products; both fixed. All 7 cases now pass under plain
+      `xcodebuild` (verified on iOS 18.6 sim, Framepad 17.7.10, FramePhone 26.0.1), so the StoreKit
+      adapter (T030) is proven at runtime in CI. See `docs/testing.md`; issue #16 closed.
 - [ ] Sandbox on device: products load (id-drift smoke test), real purchase of each unlock,
       tips, cancel mid-flow, Ask-to-Buy with a child test account.
 - [ ] Restore on a second device with the same sandbox account (SC-1100-05).
