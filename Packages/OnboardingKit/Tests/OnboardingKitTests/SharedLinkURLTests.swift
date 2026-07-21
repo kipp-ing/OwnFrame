@@ -9,6 +9,7 @@ import Testing
     #expect(parsed.slug == "geo2026")
 }
 
+// @covers FR-210-09
 @Test func sharedLinkURLAddsHTTPSWhenSchemeMissing() throws {
     let parsed = try #require(SharedLinkURL.parse("bilder.kippings.de/s/korsika2026"))
 
@@ -29,10 +30,12 @@ import Testing
     #expect(parsed.slug == "geo2026")
 }
 
+// @covers FR-210-09
 @Test func sharedLinkURLRejectsNonHTTPS() {
     #expect(SharedLinkURL.parse("http://bilder.kippings.de/s/geo2026") == nil)
 }
 
+// @covers FR-210-09
 @Test func sharedLinkURLRejectsMissingSlug() {
     #expect(SharedLinkURL.parse("https://bilder.kippings.de") == nil)
     #expect(SharedLinkURL.parse("https://bilder.kippings.de/s/") == nil)

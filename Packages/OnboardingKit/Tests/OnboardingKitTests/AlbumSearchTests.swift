@@ -3,6 +3,7 @@ import ImmichClient
 import Testing
 @testable import OnboardingKit
 
+// @covers FR-210-20
 @Test func albumSearchEmptyQueryReturnsAllAlbumsInOriginalOrder() {
     let albums = albumSearchFixtures()
 
@@ -19,6 +20,7 @@ import Testing
     #expect(filtered.map(\.id) == ["munich", "summer-2024", "summer-2023", "archive", "nil-metadata"])
 }
 
+// @covers FR-210-19
 @Test func albumSearchMatchesNameSubstringCaseInsensitively() {
     let albums = albumSearchFixtures()
 
@@ -27,6 +29,7 @@ import Testing
     #expect(filtered.map(\.id) == ["munich"])
 }
 
+// @covers FR-210-19
 @Test func albumSearchMatchesNameSubstringDiacriticInsensitively() {
     let albums = albumSearchFixtures()
 
@@ -35,6 +38,7 @@ import Testing
     #expect(filtered.map(\.id) == ["munich"])
 }
 
+// @covers FR-210-19
 @Test func albumSearchMatchesUTCYearAndExcludesOtherYears() {
     let albums = albumSearchFixtures()
 
@@ -43,6 +47,7 @@ import Testing
     #expect(filtered.map(\.id) == ["munich", "summer-2024"])
 }
 
+// @covers FR-210-19
 @Test func albumSearchMatchesAssetCount() {
     let albums = albumSearchFixtures()
 
@@ -51,6 +56,7 @@ import Testing
     #expect(filtered.map(\.id) == ["munich"])
 }
 
+// @covers FR-210-20
 @Test func albumSearchNilDateAndCountStillMatchesByName() {
     let albums = albumSearchFixtures()
 

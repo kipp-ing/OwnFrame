@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardingKit
 
+// @covers FR-120-01
 @Test func userDefaultsSourceLibraryStorePersistsJSONLibrary() {
     let defaults = makeSourceLibraryDefaults()
     let store = UserDefaultsSourceLibraryStore(defaults: defaults)
@@ -30,6 +31,7 @@ import Testing
     #expect(store.load() == SourceLibrary())
 }
 
+// @covers FR-120-06
 @Test func userDefaultsSourceLibraryStoreMigratesLegacySelectedAlbumIDOnce() {
     let defaults = makeSourceLibraryDefaults()
     defaults.set("legacy-album", forKey: "immich.selectedAlbumID")
@@ -45,6 +47,7 @@ import Testing
     #expect(store.load() == migrated)
 }
 
+// @covers FR-120-06
 @Test func userDefaultsSourceLibraryStoreDoesNotMigrateWhenLibraryExists() {
     let defaults = makeSourceLibraryDefaults()
     let store = UserDefaultsSourceLibraryStore(defaults: defaults)
@@ -56,6 +59,7 @@ import Testing
     #expect(store.load() == library)
 }
 
+// @covers FR-120-02
 @Test func userDefaultsSourceLibraryStorePersistsPhotoLibrarySource() {
     let defaults = makeSourceLibraryDefaults()
     let store = UserDefaultsSourceLibraryStore(defaults: defaults)

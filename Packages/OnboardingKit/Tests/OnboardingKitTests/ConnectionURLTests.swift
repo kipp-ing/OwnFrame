@@ -26,10 +26,12 @@ import Testing
     #expect(ConnectionURL.normalize("   ") == nil)
 }
 
+// @covers FR-200-05
 @Test func normalizeRejectsPlainHTTP() {
     #expect(ConnectionURL.normalize("http://immich.example.com") == nil)
 }
 
+// @covers FR-200-05
 @Test func normalizeRejectsNonHTTPScheme() {
     #expect(ConnectionURL.normalize("ftp://immich.example.com") == nil)
 }
@@ -44,6 +46,7 @@ import Testing
     #expect(url.absoluteString == "https://immich.example.com:2283/api")
 }
 
+// @covers FR-200-05
 @Test func normalizeRejectsSchemeWithoutHost() {
     #expect(ConnectionURL.normalize("https://") == nil)
 }

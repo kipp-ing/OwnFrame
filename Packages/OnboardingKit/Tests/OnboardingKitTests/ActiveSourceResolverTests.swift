@@ -20,6 +20,7 @@ import Testing
     #expect(resolved.albumID == "album-1")
 }
 
+// @covers FR-210-03
 @Test func activeSourceResolverMapsSharedLinkSourceToShareKeyConfigAndResolvedAlbumID() async throws {
     let source = Source(
         id: "source-1",
@@ -55,6 +56,7 @@ import Testing
 // FR-210-03/04 (device black-screen bug): a shared-link active source is a complete config on
 // its own — it MUST resolve with no album API key / base URL (a shared-link-only setup has
 // neither).
+// @covers FR-210-03
 @Test func activeSourceResolverResolvesSharedLinkWithoutAlbumCredentials() async throws {
     let source = Source(
         id: "source-1",
