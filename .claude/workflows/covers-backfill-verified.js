@@ -1,12 +1,7 @@
 export const meta = {
   name: 'covers-backfill-verified',
   description: 'Backfill @covers requirement tags per module, then adversarially verify each tag',
-  whenToUse:
-    'Raising requirement traceability for one or more spec modules. Pass args as ' +
-    '[{id:"300-slideshow", pkg:"SlideshowKit"}, ...]. One agent per entry tags, a second ' +
-    'independently tries to refute every tag. Refuted tags are reported, NOT auto-stripped — ' +
-    'the caller decides. Partition by PACKAGE, never by module: two agents in the same package ' +
-    'will collide. SlideshowKit alone owns 300/310/320, so those three go in ONE entry.',
+  whenToUse: 'Raising requirement traceability for spec modules. args: [{id:"300-slideshow", pkg:"SlideshowKit", alsoModules:["310-…"]}]. One agent per entry tags, a second refutes every tag, a third audits the second’s own missedCoverage claims. Refuted tags are reported, NOT auto-stripped — apply them with .claude/scripts/strip-refuted.py. Partition by PACKAGE, never by module: two agents in one package corrupt each other, and SlideshowKit alone owns 300/310/320, so those three go in ONE entry. See docs/traceability.md.',
   phases: [
     { title: 'Tag', detail: 'one agent per entry adds @covers annotations' },
     { title: 'Verify', detail: 'independent agent refutes each tag, requirement-first' },
@@ -15,13 +10,42 @@ export const meta = {
 }
 
 // args: [{ id: "300-slideshow", pkg: "SlideshowKit", alsoModules: ["310-…","320-…"] }, …]
-const MODULES = Array.isArray(args) && args.length ? args : []
-if (!MODULES.length) {
-  throw new Error(
-    'covers-backfill-verified needs args: [{id, pkg, alsoModules?}, …]. ' +
-      'See docs/traceability.md.',
-  )
+//
+// Tolerate a JSON-encoded string as well as a real array: depending on how the caller passes
+// `args`, the list can arrive already serialised, and a bare Array.isArray() check then rejects
+// a perfectly good invocation before any agent starts.
+function parseModules(raw) {
+  let v = raw
+  if (typeof v === 'string') {
+    try {
+      v = JSON.parse(v)
+    } catch (e) {
+      throw new Error(`covers-backfill-verified: args was a string but not valid JSON: ${v}`)
+    }
+  }
+  if (!Array.isArray(v) || !v.length) {
+    throw new Error(
+      'covers-backfill-verified needs args: [{id, pkg, alsoModules?}, …]. See docs/traceability.md.',
+    )
+  }
+  const bad = v.filter((m) => !m || typeof m.id !== 'string' || typeof m.pkg !== 'string')
+  if (bad.length) {
+    throw new Error(`covers-backfill-verified: every entry needs {id, pkg}. Bad: ${JSON.stringify(bad)}`)
+  }
+  // Two entries on one package would have their agents overwrite each other's edits.
+  const pkgs = v.map((m) => m.pkg)
+  const dupes = pkgs.filter((p, i) => pkgs.indexOf(p) !== i)
+  if (dupes.length) {
+    throw new Error(
+      `covers-backfill-verified: package(s) ${[...new Set(dupes)].join(', ')} appear twice. ` +
+        'Concurrent agents in one package corrupt each other — merge them into a single entry ' +
+        'using alsoModules.',
+    )
+  }
+  return v
 }
+
+const MODULES = parseModules(args)
 
 const TAG_SCHEMA = {
   type: 'object',
