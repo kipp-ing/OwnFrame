@@ -190,9 +190,19 @@ final class TVAppModel {
     let screen = SoftwareDimScreenController()
     /// Distinct HA identity for the TV frame — own MQTT topics/discovery/unique_id vs the
     /// iPad frame (FR-1000-08). Broker credentials are entered on the TV (TVBrokerSetupView).
+    /// 700 US3 / FR-700-16…21: resolved once and kept in the Keychain so it survives a
+    /// delete/reinstall; the IDFV is only the legacy value adopted on first run. The `-appletv`
+    /// suffix keeps this frame distinct from the iPad's on the same broker, and the distinct
+    /// Keychain service means a device restored from another's backup cannot inherit its identity.
     let frameIdentity = FrameIdentity(
-        deviceID: (UIDevice.current.identifierForVendor?.uuidString ?? "immich-slideshow") + "-appletv",
-        deviceName: "Photo Frame (Apple TV)"
+        deviceID: FrameIdentityResolver.resolve(
+            storage: KeychainFrameIdentityStorage(
+                service: "de.kippings.ImmichSlideshow.frameIdentity.tv"
+            ),
+            legacyIdentifier: UIDevice.current.identifierForVendor?.uuidString,
+            platformSuffix: "-appletv"
+        ),
+        deviceName: UserDefaultsFrameNameStore(defaultName: "Photo Frame (Apple TV)").name
     )
     let brokerProvider: BrokerConfigProvider
     let powerManager: PowerManager
