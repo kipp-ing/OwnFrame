@@ -3,6 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
+// @covers FR-100-02, FR-100-05
 @Test func previewSendsGetRequestWithPreviewSizeQueryAndReturnsRawData() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/assets/asset-1/thumbnail?size=preview"))
@@ -33,6 +34,7 @@ import ImmichClientTestSupport
     #expect(request.value(forHTTPHeaderField: "x-api-key") == config.apiKey)
 }
 
+// @covers FR-100-02, FR-100-14
 @Test func thumbnailSendsGetRequestWithThumbnailSizeQueryAndReturnsRawData() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/assets/asset-1/thumbnail?size=thumbnail"))

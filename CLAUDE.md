@@ -152,12 +152,17 @@ anywhere in this public repo — pricing is decided in App Store Connect at subm
 at the point of effect in both apps, Unlocks settings section (Restore + tip jar), US5 broker
 degradation (masked config behind a locked banner), and launch `refresh()` + `listenForUpdates()`
 now wired on both apps' production entry points. PurchaseKit 110 host tests + full iOS suite
-**153/0/9** green on iOS 18.6. **T030 done with a caveat:** its 7 `SKTestSession` cases exist and
-are RED-then-green by construction, but `SKTestSession` serves 0 products under the headless
-`xcodebuild test` path (reproduced across every init style + iOS 18.6/26.x — the runner, not the
-runtime), so a `setUp` skip-guard makes them skip honestly; they must be run once from the Xcode
-IDE runner or on device (folds into T042), and the adapter is otherwise held by review + the pure
-host tests. **T033 done (2026-07-20):** the tvOS unlock surface — new `TVSettingsView` (gear
+**153/0/9** green on iOS 18.6. **T030 fully done — the old "caveat" was a misdiagnosis, corrected
+2026-07-21.** It held that `SKTestSession` serves 0 products under headless `xcodebuild` ("the
+runner, not the runtime") so its 7 cases needed the Xcode IDE or a device. Actually two setup bugs
+in the test: `configurationFileNamed:` resolves against `Bundle.main` (the *host app* bundle, which
+lacks `Configuration.storekit`) and fails **silently**; and `resetToDefaultState()` clears
+`disableDialogs`, so setting it first left Ask-to-Buy blocking on a dialog. Both fixed, skip-guard
+replaced by a hard assertion, all 7 passing on the iOS 18.6 sim + Framepad (17.7.10) + FramePhone
+(26.0.1). Runs headlessly in CI; nothing folds into T042. See `docs/testing.md`; issue #16 closed.
+**Also note:** a 2026-07-21 full-suite run found two failures **pre-existing on `main`** and
+unrelated to 1100 — `BrokerSetupUITests` (#21) and `ShareSheetIncomingUITests` (#22, order-dependent)
+— so the "153/0/9 green" line above no longer reproduces as stated. **T033 done (2026-07-20):** the tvOS unlock surface — new `TVSettingsView` (gear
 destination) with the Ambience/Pro locked row, an Automation-gated Home-Assistant row
 (`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
 tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
@@ -165,8 +170,8 @@ the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-o
 backing. **Code-complete (T001–T041 done):** final gate 2026-07-20 — PurchaseKit 110 host + full
 iOS XCUITest 153/0/9 (iOS 26.5, same on 18.6) green, iOS + tvOS build. **Remaining: T042 only** —
 the manual ASC/device day (create IAPs, sandbox purchase/restore/Family-Sharing/universal checks,
-the one Xcode-IDE/device StoreKitTest run, release sequencing v1.0-b8-stays-unreleased →
-v1.1-gated-first, FR-1100-17); blocked on Jan's ASC access.
+release sequencing v1.0-b8-stays-unreleased → v1.1-gated-first, FR-1100-17); blocked on Jan's ASC
+access. Now purely ASC-gated — the StoreKitTest run came off this list on 2026-07-21.
 
 Prior feature `1000-apple-tv` (tvOS port + 13 review fixes + Ken Burns micro-judder redesign:
 shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead) is

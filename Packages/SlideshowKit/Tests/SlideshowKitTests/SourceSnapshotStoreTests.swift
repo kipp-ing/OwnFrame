@@ -13,6 +13,7 @@ struct SourceSnapshotStoreTests {
         SourceAsset(id: "photo-3", kind: .image),
     ]
 
+    // @covers FR-320-06
     @Test func roundTripReturnsTheSavedList() throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -52,6 +53,7 @@ struct SourceSnapshotStoreTests {
         #expect(store.load(forKey: "never-played") == nil)
     }
 
+    // @covers FR-320-06
     @Test func saveReplacesTheKeysPreviousSnapshot() throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -64,6 +66,7 @@ struct SourceSnapshotStoreTests {
         #expect(store.load(forKey: "album-1")?.map(\.id) == ["photo-9"])
     }
 
+    // @covers FR-320-06
     @Test func snapshotsAreIsolatedPerSourceKey() throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -102,6 +105,7 @@ struct SourceSnapshotStoreTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
     }
 
+    // @covers FR-320-10
     @Test func aCreatedRootIsExcludedFromBackup() throws {
         let parent = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: parent) }
@@ -113,6 +117,7 @@ struct SourceSnapshotStoreTests {
         #expect(values.isExcludedFromBackup == true)
     }
 
+    // @covers FR-320-06, FR-320-10
     @Test func snapshotFileContainsOnlyIdsAndTypes() throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

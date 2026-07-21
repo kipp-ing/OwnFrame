@@ -3,6 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
+// @covers FR-100-06
 @Test func albumsMapsUnauthorizedStatusToUnauthorizedError() async throws {
     let client = try makeClient(
         responseData: Data(),
@@ -14,6 +15,7 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-100-07
 @Test func albumsMapsURLErrorToUnreachableError() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .failure(URLError(.timedOut)))
@@ -25,6 +27,7 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-100-10
 @Test func albumsMapsNonSuccessStatusToInvalidResponseError() async throws {
     let responseData = try #require("[]".data(using: .utf8))
     let client = try makeClient(
@@ -37,6 +40,7 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-100-10
 @Test func albumsMapsUndecodableBodyToInvalidResponseError() async throws {
     let responseData = try #require(#"{"unexpected":"shape"}"#.data(using: .utf8))
     let client = try makeClient(
