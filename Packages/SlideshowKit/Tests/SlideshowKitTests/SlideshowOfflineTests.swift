@@ -45,6 +45,7 @@ private func waitForDiskEntry(_ disk: DiskImageCache, _ key: String) async -> Da
 struct OfflinePlaybackTests {
     // FR-320-01 (scenario 1): every photo the show displays or prefetches lands
     // on disk, byte-identical, under its quality-variant key.
+    // @covers FR-320-01
     @Test func shownAndPrefetchedPhotosAreWrittenThroughToDisk() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -79,6 +80,7 @@ struct OfflinePlaybackTests {
     // FR-320-02 + SC-320-05 (scenario 2): a photo evicted from RAM but present
     // on disk is shown with zero network requests, and the RAM tier is
     // repopulated by the hit.
+    // @covers FR-320-02, SC-320-05
     @Test func diskHitMakesNoNetworkRequestAndRepopulatesRAM() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -123,6 +125,7 @@ struct OfflinePlaybackTests {
     // US1 + SC-320-01 (scenario 3): after one full pass, cutting the network
     // still rotates the ENTIRE album from disk — not just the RAM handful —
     // with zero network image requests and no error surface.
+    // @covers FR-320-08, SC-320-01
     @Test func wholeAlbumKeepsRotatingOfflineAfterOnePass() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -220,6 +223,7 @@ struct OfflineRelaunchTests {
     // US2-1 + SC-320-02 + FR-320-06/07 (scenario 4): relaunch with the source
     // dead plays the remembered list from disk — no error screen, no user
     // input; the fetch was attempted, and the sourceReload retry is armed.
+    // @covers FR-320-06, FR-320-07, SC-320-02
     @Test func offlineRelaunchPlaysFromTheRememberedList() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -291,6 +295,7 @@ struct OfflineRelaunchTests {
     // US2-2 (scenario 5): when the retry reaches the server, the live list
     // replaces the remembered one via 310's reconciliation — an asset added
     // server-side enters the rotation and the snapshot is replaced.
+    // @covers FR-320-06, FR-320-07
     @Test func recoveryAfterSnapshotStartMergesTheLiveList() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -335,6 +340,7 @@ struct OfflineRelaunchTests {
     // nothing. If it cancels the sourceReload retry (and no refresh is armed
     // because no fetch ever succeeded in this process), the engine stops
     // trying to reach the server forever: the network's return goes unnoticed.
+    // @covers FR-320-07, FR-320-08
     @Test func offlineAdvancesDoNotKillTheSourceRetry() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -388,6 +394,7 @@ struct OfflineRelaunchTests {
 
     // US2-4 + SC-320-06 (scenario 6): remembered list present but the stored
     // photos were purged — calm error state with the retry armed, no crash.
+    // @covers FR-320-10, SC-320-06
     @Test func purgedPhotosDegradeToTheCalmErrorState() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -418,6 +425,7 @@ struct OfflineRelaunchTests {
 
     // US2-3 (scenario 7): no snapshot for the active source — the launch
     // behaves exactly like 310's dead-server scenario, recovery included.
+    // @covers FR-320-06
     @Test func launchWithoutASnapshotKeeps310BehaviorVerbatim() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -456,6 +464,7 @@ struct ClearCacheSemanticsTests {
     // US3-4/5 + FR-320-05 (scenario 8): clearing both stores mid-show leaves
     // the current photo and phase untouched; the next advance (online)
     // re-fetches from the network and re-fills the cache — no restart needed.
+    // @covers FR-320-05, SC-320-04
     @Test func clearingBothStoresMidShowKeepsPlayingAndRefills() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

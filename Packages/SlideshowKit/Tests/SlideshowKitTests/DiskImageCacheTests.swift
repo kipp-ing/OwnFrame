@@ -40,6 +40,7 @@ struct DiskImageCacheTests {
         #expect(await cache.data(forKey: "asset-2#preview") == nil)
     }
 
+    // @covers FR-320-03, SC-320-03
     @Test func usageNeverExceedsBudgetAfterAnyStore() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -53,6 +54,7 @@ struct DiskImageCacheTests {
         }
     }
 
+    // @covers FR-320-03, SC-320-03
     @Test func fillingPastBudgetEvictsLeastRecentlyStampedFirst() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -71,6 +73,7 @@ struct DiskImageCacheTests {
         #expect(await cache.data(forKey: "d") != nil)
     }
 
+    // @covers FR-320-02, FR-320-03
     @Test func readRestampsRecencySoTheOtherEntryIsEvicted() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -91,6 +94,7 @@ struct DiskImageCacheTests {
         #expect(await cache.data(forKey: "c") != nil)
     }
 
+    // @covers FR-320-09
     @Test func unreadableEntryIsAMissAndGetsDeleted() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -109,6 +113,7 @@ struct DiskImageCacheTests {
         #expect(await cache.currentUsage() == 0)
     }
 
+    // @covers FR-320-03, SC-320-03
     @Test func entryLargerThanTheWholeBudgetIsNotPersisted() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -122,6 +127,7 @@ struct DiskImageCacheTests {
         #expect(await cache.currentUsage() <= 50)
     }
 
+    // @covers FR-320-03, FR-320-04, SC-320-04
     @Test func loweringTheBudgetPrunesImmediately() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -141,6 +147,7 @@ struct DiskImageCacheTests {
         #expect(await cache.data(forKey: "c") != nil)
     }
 
+    // @covers SC-320-04
     @Test func clearRemovesEveryEntryAndZeroesUsage() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -195,6 +202,7 @@ struct DiskImageCacheTests {
         #expect(await second.data(forKey: "a") == Data(repeating: 1, count: 100))
     }
 
+    // @covers FR-320-09
     @Test func writeFailureIsSwallowedAndPlaybackNeverNotices() async throws {
         let root = try makeTempDirectory()
         defer {
@@ -229,6 +237,7 @@ struct DiskImageCacheTests {
 /// T002 (budget half) — CacheBudget steps/default + UserDefaults round-trip (FR-320-04).
 @Suite("CacheBudget — fixed steps and persistence")
 struct CacheBudgetTests {
+    // @covers FR-320-04
     @Test func stepsAreTheFiveFixedSizesWithHalfAGigabyteDefault() {
         let megabyte: Int64 = 1_000_000
         #expect(CacheBudget.steps.map(\.bytes) == [
@@ -239,6 +248,7 @@ struct CacheBudgetTests {
         #expect(CacheBudget.steps.contains(CacheBudget.default))
     }
 
+    // @covers FR-320-04
     @Test func userDefaultsStoreRoundTripsAndDefaultsWhenUnset() {
         let suiteName = "CacheBudgetTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

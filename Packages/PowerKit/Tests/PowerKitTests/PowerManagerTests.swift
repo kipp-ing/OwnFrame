@@ -4,6 +4,7 @@ import Testing
 @MainActor
 @Suite
 struct PowerManagerTests {
+    // @covers FR-400-01
     @Test
     func activateKeepsScreenAwake() {
         let screen = FakeScreenController()
@@ -15,6 +16,7 @@ struct PowerManagerTests {
         #expect(manager.isKeepingAwake == true)
     }
 
+    // @covers FR-400-02, SC-400-02
     @Test
     func deactivateReleasesScreenAwake() {
         let screen = FakeScreenController()
@@ -27,6 +29,7 @@ struct PowerManagerTests {
         #expect(manager.isKeepingAwake == false)
     }
 
+    // @covers FR-400-03, FR-400-04
     @Test
     func backgroundReleasesAwakeWithoutBrightnessWriteAndForegroundRestoresAwake() {
         let screen = FakeScreenController()
@@ -46,6 +49,7 @@ struct PowerManagerTests {
         #expect(screen.brightnessWrites.isEmpty)
     }
 
+    // @covers FR-400-10, FR-400-11, SC-400-05
     @Test
     func deactivateRestoresBaselineAfterBrightnessChange() async {
         let screen = FakeScreenController(brightness: 0.7)
@@ -58,6 +62,7 @@ struct PowerManagerTests {
         #expect(screen.brightnessWrites.last == 0.7)
     }
 
+    // @covers FR-400-11
     @Test
     func deactivateDoesNotWriteBrightnessWhenUnchanged() {
         let screen = FakeScreenController(brightness: 0.7)
@@ -69,6 +74,7 @@ struct PowerManagerTests {
         #expect(screen.brightnessWrites.isEmpty)
     }
 
+    // @covers FR-400-02, SC-400-02
     @Test
     func repeatedActivationAndSceneTransitionsEndReleased() {
         let screen = FakeScreenController()
