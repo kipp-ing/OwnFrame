@@ -150,10 +150,18 @@ automated (compare `docs/manual-verification.md`).
 24 h soak/burn-in, real-panel Ken Burns smoothness, camera (QR scan), Siri phrases,
 real Photos library.
 
-**Needs an account, not hardware:** StoreKit sandbox purchase/restore/Family Sharing. Note
-`SKTestSession` fails on this device with `ASDErrorDomain 509 "No active account"` —
-Framepad has no App Store account, so **the device is not a substitute for the Xcode IDE
-runner** for those seven cases.
+**Needs an account, not hardware:** StoreKit sandbox purchase/restore/Family Sharing — i.e.
+buying against the *real* sandbox store. This does not include `SKTestSession`.
+
+> **Corrected 2026-07-21.** This section used to say `SKTestSession` fails on Framepad with
+> `ASDErrorDomain 509 "No active account"`, so the device was "not a substitute for the Xcode
+> IDE runner". Both halves were wrong. The 509 was a *symptom*: the session was being created
+> from a config the initializer never found (it resolves against the host app's `Bundle.main`),
+> so with no test store active StoreKit fell through to the **real** store — which of course
+> has no account. With the fixture actually loaded, `SKTestSession` needs no App Store account
+> at all and the seven cases pass 7/7 on Framepad (17.7.10) and FramePhone (26.0.1) — and
+> headlessly on the simulator, so they no longer need a device *or* the IDE. Details in
+> `docs/testing.md` § "`SKTestSession` serves 0 products".
 
 **Only blocked by missing infrastructure (build it, don't schedule a device day):** the
 tvOS gates — `Immich SlideshowTV.xcscheme` has an empty `<Testables>` and the TV app has no

@@ -154,6 +154,35 @@ red test means a real regression, or that a green one means success.
 - **Screenshots confirm layout, not behaviour.** Assertions only fail when actually run —
   a red `SettingsUITests` sat undetected across two user stories because per-task
   validation was screenshots only. Run the full suite before merging any SwiftUI change.
+- **A skip is not a pass, and a skip-guard can outlive its reason.** The seven
+  `StoreKitClientTests` cases skip-guarded themselves for a day on the belief that headless
+  `xcodebuild` couldn't serve StoreKit products. The belief was wrong (see below) and the
+  guard hid it. If a guard says "this environment can't do X", re-test the claim before
+  trusting it — otherwise it launders a bug into a documented limitation.
+
+### `SKTestSession` serves 0 products (fixed 2026-07-21)
+
+Two independent setup bugs, both of which *look* like an environment/runner limitation. They
+cost a wrong diagnosis ("the StoreKit test daemon isn't active under headless `xcodebuild` —
+it's the runner, not the runtime"), a skip-guard, and issue #16. Neither was true: the cases
+run for real under plain `xcodebuild test`, on the simulator **and** on both devices.
+
+- **`SKTestSession(configurationFileNamed:)` resolves against `Bundle.main`.** In an
+  app-hosted unit test `Bundle.main` is the **host app** bundle, which does not carry
+  `Configuration.storekit` — that file is a resource of the **test** bundle. The lookup fails
+  **silently**: the initializer does not throw, it returns a session backed by no
+  configuration. Symptom: "loads fine, serves 0 products". Worse, with no test configuration
+  active, StoreKit falls through to the **real** store, which on an account-less device
+  reports `ASDErrorDomain 509 "No active account"` — the false evidence behind issue #16.
+  Fix: resolve the URL through `Bundle(for: Self.self)` and use `SKTestSession(contentsOf:)`.
+- **`resetToDefaultState()` restores session settings, so it turns `disableDialogs` back
+  OFF.** Setting that flag *before* the reset leaves purchase dialogs on, and the Ask-to-Buy
+  cases then block forever waiting for a tap no headless run will make — presenting as a hang,
+  not a failure. Configure the session **after** resetting it.
+
+Run them anywhere: `-only-testing:"Immich SlideshowTests/StoreKitClientTests"`. Verified
+2026-07-21 on iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1) — 7/7 each. Always pass
+`-test-timeouts-enabled YES` so a future dialog regression fails instead of hanging the run.
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
   access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
   transition moves monotonically between the two photos' YAVG levels, a dip below both is

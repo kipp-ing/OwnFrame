@@ -94,12 +94,15 @@ account, a second device, a family member account, and ASC access. **Nothing her
 
 **Sandbox on device:**
 
-- [ ] **Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device.** The SKTestSession
-      adapter suite skip-guards to a no-op under headless `xcodebuild`/MCP (the StoreKit test daemon
-      isn't activated there — reproduced on iOS 18.6 + 26.x), so this is the *only* place its 7
-      cases actually execute: purchase→owned, restore, refund→relock, Ask-to-Buy defer→approve,
-      interrupted purchase owned next launch, tips never owned. Green here is the runtime proof of
-      the StoreKit adapter (T030).
+- [x] ~~Run `StoreKitClientTests` from the Xcode IDE or on device.~~ **Done 2026-07-21 — no
+      longer a device-day item.** The suite never needed the IDE: it skip-guarded itself because
+      of two setup bugs in the test (`configurationFileNamed:` resolving against the host app's
+      `Bundle.main`, and `disableDialogs` being set before `resetToDefaultState()` cleared it).
+      Both fixed; see `docs/testing.md` § "`SKTestSession` serves 0 products". The 7 cases —
+      purchase→owned, restore, refund→relock, Ask-to-Buy defer→approve, interrupted purchase owned
+      next launch, tips never owned — now execute under plain headless `xcodebuild`, and were
+      verified 7/7 on the iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1). This is the
+      runtime proof of the StoreKit adapter (T030); it runs in CI now, not on device day.
 - [ ] Products load at all (the id-drift smoke test — if this fails, re-check the ids above).
 - [ ] Buy each unlock for real; the feature activates without a relaunch (SC-1100-03).
 - [ ] Buy a tip → thank-you state, and **no entitlement change whatsoever** (FR-1100-08).
