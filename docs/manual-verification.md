@@ -141,13 +141,26 @@ account, a second device, a family member account, and ASC access. **Nothing her
 - [ ] **Retained-discovery retraction (T056)** — the check that only a frame *upgrading from the
       pre-gate build* can fail, so run it on a frame whose broker already carries the old retained
       configs (Jan's own): after the gated build connects unentitled, the controllable entities must
-      **disappear from HA**, not merely go stale. Watch for empty retained payloads on
-      `homeassistant/+/<deviceID>/+/config` and confirm in HA that `light.`/`select.`/`switch.`/
-      `number.`/`button.` frame entities are gone while the sensors remain. Before the fix these
-      lingered as live-looking controls that silently did nothing, because all entities share the one
-      availability topic telemetry mode still sets to `online`.
+      **disappear from HA**, not merely go stale. Confirm `light.`/`select.`/`switch.`/`number.`/
+      `button.` frame entities are gone while the sensors remain.
+
+      **Premise and mechanism are already verified live (2026-07-21) — only the app-side run is
+      left.** Against the real broker: all **19** discovery configs are present with `retain=1`
+      (14 controllable), so skipping the publish provably cannot remove them. And on this exact
+      Home Assistant, a retained config published under a throwaway device id created a live,
+      interactive `switch.` entity, and an **empty retained payload on the same topic removed it**
+      (test residue cleaned; the real frame's 19 configs/entities untouched). So what remains is
+      narrow: install the gated build on a *configured* frame and confirm the app emits those
+      empty retained payloads on connect. Framepad could not do it in that session — its app was
+      already unconfigured, see the note at the end of this section.
 - [ ] Buy Automation → the controllable entities appear and HA control resumes using the previously
       stored settings with **zero re-entry** (FR-1100-14).
+
+> **Frame state note (2026-07-21).** Framepad (iPad Pro 10.5, iOS 17.7.10 — the deployment floor)
+> currently carries a **dev-signed Debug build** and its app is **unconfigured**: no source, no
+> broker, which is why its HA entities have been `unavailable` since 07-20 07:05. Reconfigure it
+> (and reinstall the App Store build when done) before running the two checks above — both need a
+> frame that actually connects.
 
 **Listing:**
 
