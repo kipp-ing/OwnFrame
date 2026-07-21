@@ -79,6 +79,22 @@ a fact rather than an opinion. The single best catch so far was exactly this sha
 
 Both prompts now instruct the agents to reach for this whenever it applies.
 
+### Check the wiring, not just the component
+
+The highest-value finding so far was not a tag. `FR-510-03` requires the random clock to "never
+land on the caption's place". `ClockRandomPlacePicker` honours an `occupied` set and had a green
+test for it — but `SlideshowView.relocateRandomClockIfNeeded()` passes `occupied: []`, hardcoded.
+The feature does not work in the shipping app, every test passes, and code review missed it
+(issue #26).
+
+The shape to hunt: **a correct component, a green component test, and an app that does not wire
+it.** These packages are components; the app is what ships. All three prompts now instruct agents
+to follow an app-behaviour requirement to its production call site in `Immich Slideshow/` and
+check what is actually passed. A component test that stays green regardless of what the app hands
+it does not cover the requirement.
+
+Ten findings of this class are worth more than three hundred tags.
+
 ## Calibration — what a healthy run looks like
 
 Measured over 6 modules, 2026-07-21:
