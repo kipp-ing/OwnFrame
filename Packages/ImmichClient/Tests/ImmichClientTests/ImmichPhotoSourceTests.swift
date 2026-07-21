@@ -59,7 +59,6 @@ import PhotoSourceKit
     ])
 }
 
-// @covers FR-100-04
 @Test func assetsMapsImmichAssetsWithMediaKindPassthrough() async throws {
     // Immich `type` string flows through `MediaKind(rawValue:) ?? .other`: IMAGE/VIDEO map
     // directly, an unknown string (AUDIO) degrades to `.other`.
@@ -186,6 +185,7 @@ import PhotoSourceKit
     try await source.ensureReady()
 }
 
+// @covers FR-130-07
 @Test func ensureReadyMapsTooOldServerToPermanent() async throws {
     let json = #"{"major":2,"minor":118,"patch":0}"#
     let (source, _) = try makeSource(data: Data(json.utf8), statusCode: 200)

@@ -7,7 +7,7 @@ import ImmichClientTestSupport
 // deviceId/deviceAssetId on assets, token on shared links) are never required, and the
 // simplified error envelope still yields a message where the client reads one.
 
-// @covers FR-100-09
+// @covers FR-100-09, FR-130-08, SC-130-05
 @Test func albumDecodesV3ShapeWithoutOwnerOrAssets() throws {
     // v3 AlbumResponseDto: no owner/ownerId/assets; albumUsers + order present instead.
     let json = """
@@ -28,6 +28,7 @@ import ImmichClientTestSupport
     #expect(album.assetCount == 3)
 }
 
+// @covers FR-130-08, SC-130-05
 @Test func assetDecodesV3ShapeIgnoringRemovedDeviceFields() throws {
     // v3 AssetResponseDto is rich; Asset reads only id + type and ignores everything else.
     let json = """
@@ -46,6 +47,7 @@ import ImmichClientTestSupport
     #expect(asset.type == "IMAGE")
 }
 
+// @covers FR-130-08, SC-130-05
 @Test func assetInfoDecodesV3AssetWithoutDeviceFields() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/assets/a1"))
@@ -72,6 +74,7 @@ import ImmichClientTestSupport
     #expect(info.country == "DE")
 }
 
+// @covers FR-130-08
 @Test func resolverReadsSimplifiedV3ErrorEnvelopeForInvalidIdentifier() async throws {
     // v3 drops the redundant error/statusCode fields; the resolver still reads `message` to tell
     // an invalid-key/slug 401 from a password challenge (110 key↔slug discrimination).

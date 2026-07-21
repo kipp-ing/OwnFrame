@@ -3,7 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
-// @covers FR-100-06
+// @covers FR-100-06, SC-100-03
 @Test func albumsMapsUnauthorizedStatusToUnauthorizedError() async throws {
     let client = try makeClient(
         responseData: Data(),
@@ -15,7 +15,7 @@ import ImmichClientTestSupport
     }
 }
 
-// @covers FR-100-07
+// @covers FR-100-07, SC-100-04
 @Test func albumsMapsURLErrorToUnreachableError() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .failure(URLError(.timedOut)))
@@ -53,6 +53,7 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-130-07
 @Test func serverTooOldCarriesVersionAndIsDistinctFromOtherCases() {
     let tooOld = ImmichError.serverTooOld(version: "2.118.0")
     #expect(tooOld == .serverTooOld(version: "2.118.0"))
