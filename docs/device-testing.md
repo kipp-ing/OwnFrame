@@ -159,3 +159,8 @@ runner** for those seven cases.
 tvOS gates — `Immich SlideshowTV.xcscheme` has an empty `<Testables>` and the TV app has no
 hermetic `--uitest` seam. `XCUIRemote.shared.press(…)` runs fine in the tvOS Simulator; it
 is `simctl` that cannot send Siri-Remote events, not XCUITest.
+
+> **Deferred as of 2026-07-21** (CLAUDE.md § Testing Target): tvOS is out of scope until the iOS
+> side is ready, so none of the above is scheduled. The diagnosis stands for when it returns — it
+> is buildable work, not device work, and doing it shrinks the device day rather than consuming
+> it. Framepad (iOS) is the only hardware target for now.
