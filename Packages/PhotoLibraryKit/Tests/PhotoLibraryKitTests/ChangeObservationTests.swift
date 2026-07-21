@@ -76,6 +76,7 @@ import PhotoLibraryTestSupport
     // `PHPhotoLibraryChangeObserver` is what fires the system TCC prompt, and the spec forbids
     // any permission request outside the picker moment. So at registration the provider stores
     // the handler but does NOT forward it to the gateway — the gateway is left untouched.
+    // @covers FR-900-04
     @Test func notDeterminedDoesNotForwardChangeHandlerAtRegistration() async {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.notDetermined)
@@ -131,6 +132,7 @@ import PhotoLibraryTestSupport
     // forward), the user then grants full access, and the next `ensureReady()` — which runs at
     // engine start, every refresh, and manual retry — forwards it. A second `ensureReady()`
     // must not re-register (a double PhotoKit registration).
+    // @covers FR-900-04
     @Test func deferredHandlerForwardsOnceAfterAccessIsGranted() async throws {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.notDetermined)
@@ -151,6 +153,7 @@ import PhotoLibraryTestSupport
 
     // Access never gets granted: the handler stays deferred and `ensureReady()` still surfaces
     // the calm auth gate, having never touched the gateway.
+    // @covers FR-900-04
     @Test func deferredHandlerStaysUnforwardedWhileAccessRemainsNotDetermined() async {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.notDetermined)

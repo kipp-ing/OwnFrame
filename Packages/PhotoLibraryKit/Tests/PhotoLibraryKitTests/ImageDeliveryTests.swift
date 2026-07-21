@@ -18,6 +18,7 @@ import PhotoLibraryTestSupport
     // final callback carrying no payload is a transient failure. `.highQualityFormat` means
     // the final callback is the only non-degraded one, so this is the whole decision surface.
 
+    // @covers FR-900-07
     @Test func degradedFrameIsNeverDeliveredRegardlessOfPayload() {
         // FR-900-07: a degraded frame is dropped whether or not it already carries bytes —
         // only the final-quality callback may reach the frame.
@@ -33,6 +34,7 @@ import PhotoLibraryTestSupport
         #expect(ImageDeliveryRules.decision(isDegraded: false, hasPayload: false) == .fail)
     }
 
+    // @covers FR-900-07
     @Test func decisionTableIsExhaustiveAndDegradedDominates() {
         // Full 2×2 table in one place: degraded dominates the payload flag; the non-degraded
         // row splits on whether a payload arrived.
