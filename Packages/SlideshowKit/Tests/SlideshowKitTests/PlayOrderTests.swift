@@ -10,6 +10,7 @@ import Testing
 // and wraps; shuffle shows every photo once per cycle, then reshuffles (SC-004).
 
 @MainActor
+// @covers FR-300-05
 @Test func sequentialOrderVisitsAlbumOrderAndWraps() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -33,6 +34,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-300-05
 @Test func shuffleShowsEveryPhotoOncePerCycleThenReshuffles() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
