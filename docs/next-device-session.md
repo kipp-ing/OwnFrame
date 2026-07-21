@@ -1,5 +1,10 @@
 # Next Device Session — plan
 
+> **Scope policy (2026-07-21, until further notice): iOS first, Framepad is the target, tvOS is
+> deferred.** See CLAUDE.md § Testing Target. Nothing in this plan should block on tvOS or on
+> owning a second device; where a check needs either, it is listed under *Deferred* at the bottom
+> rather than scheduled.
+
 **Precondition that defines this session: an Apple ID signed in to the App Store on the test
 device.** That single change unblocks everything below that today cannot run at all. Sign in
 *before* starting; it is the one thing that cannot be done from the CLI.
@@ -63,9 +68,9 @@ and cover the cases the first pass could not:
       `start: connecting (device=…)` log line is unchanged and HA shows no `_2` duplicates.
 - [ ] **Rename is safe (FR-700-22)** — change the frame name in Settings, confirm HA shows the
       new display name while every `entity_id` and binding still works.
-- [ ] **Two frames never collide (SC-700-12)** — needs a second device; the iPad + Apple TV pair
-      is the cheapest way to exercise it.
-- [ ] **tvOS identity** — the tvOS path is implemented but has never run on hardware.
+
+*(SC-700-12 "two frames never collide" and the tvOS identity path both need hardware this policy
+defers — see Deferred below. The resolver logic behind both is covered by host tests.)*
 
 ## Priority 3 — FINAL DEVICE DAY leftovers
 
@@ -81,9 +86,21 @@ From `manual-verification.md`. Triage against
 - [ ] Ken Burns smoothness on a real panel — hardware; the luma/kinematics traces in
       `testing.md` are the objective method, not eyeballing.
 
-**Not hardware-blocked, do not spend device time on:** the tvOS gates behind the empty
-`<Testables>` and missing hermetic seam (issue #17). Building those shrinks the device day
-instead of consuming it.
+## Deferred (not this session, not cancelled)
+
+Per the scope policy: **iOS first, tvOS later, no second-device work for now.** These stay on the
+list so they are not lost, but nothing above should wait on them.
+
+- **All tvOS gates** — SC-1000-02/05/06/08, tvOS clock + FR-1000-10 pixel-shift, CloudKit-decrypt
+  on tvOS, tvOS identity on hardware. Revisit when the iOS side is ready.
+- **Issue #17 — the tvOS test target + hermetic seam.** Still the right diagnosis (these gates are
+  blocked by missing infrastructure, not by hardware, so building it *shrinks* the device day),
+  but deferred under the current policy. It is not device work and can be picked up any time
+  without a frame.
+- **SC-700-12 — two frames never collide.** Needs a second device. The resolver's uniqueness is
+  covered by host tests (`FrameIdentityResolverTests`), including an explicit guard that a fresh
+  identity is never one of the retired shared constants; what is missing is only the live
+  two-device proof.
 
 ## Session hygiene
 
@@ -102,5 +119,8 @@ instead of consuming it.
 
 - Should Framepad keep a **sandbox Apple ID permanently**? It would make every StoreKit gate
   re-runnable instead of once-per-session, at the cost of a signed-in account on the frame.
+  Under the current iOS-first policy this is the single highest-leverage change to the rig.
 - Are the orphaned-entity semantics in #15 fully settled, or does the rename path need a
   migration story of its own?
+- What signals "iOS is ready" and re-opens tvOS? Suggested bar: v1.1 shipped, T042 closed, and no
+  open iOS device gates — at which point #17 becomes the natural next piece of work.
