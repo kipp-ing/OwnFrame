@@ -30,7 +30,7 @@ confidence is not evidence.** Everything below follows from that.
 
 Two agents per unit of work, run as a pipeline (`.claude/workflows/covers-backfill-verified.js`):
 
-```
+```text
 Tag  ──►  Verify  ──►  human strips refuted tags, commits the rest
 ```
 
