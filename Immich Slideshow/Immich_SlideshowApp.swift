@@ -444,7 +444,7 @@ struct Immich_SlideshowApp: App {
                 publishOptions: HAPublishOptionsStoreFactory.make()
             )
         }
-        let makeCoordinator: @MainActor @Sendable (SlideshowRemoteControlAdapter) async -> HAControlCoordinator? = { adapter in
+        let makeCoordinator: @MainActor @Sendable (SlideshowRemoteControlAdapter, HAControlCoordinator.Mode) async -> HAControlCoordinator? = { adapter, mode in
             guard let brokerConfig = brokerProvider.load() else { return nil }
 
             // Best-effort album list, empty on failure so pause/play and brightness
@@ -475,15 +475,19 @@ struct Immich_SlideshowApp: App {
                 photoReporter: adapter,
                 configStore: brokerProvider,
                 deviceName: "Photo Frame",
-                enabledEntities: enabledEntities
+                enabledEntities: enabledEntities,
+                mode: mode
             )
         }
 
-        // 1100: the `.automation` gate wraps the factory above rather than living inside it.
-        // Short-circuiting BEFORE the closure runs is the point — the closure's first act is
-        // `brokerProvider.load()`, the app's only hop from here into the Keychain item holding
-        // the MQTT password, so an unentitled frame never reaches it (FR-1100-14). Nothing is
-        // cleared or masked either: buying Automation later restores HA with zero re-entry.
+        // 1100 (amended 2026-07-20): the `.automation` gate wraps the factory and selects its
+        // Mode. Without Automation the coordinator still builds in `.telemetryOnly` — a
+        // configured broker connects and publishes read-only sensors so HA can *see* the frame
+        // (FR-1100-03a) — while control (command topics, App Intents) stays behind the unlock.
+        // Reading the broker credential is now a free-tier op; the factory still never clears or
+        // masks stored config, so buying Automation later upgrades to `.full` with zero
+        // re-entry (FR-1100-14). Entitlements are read at call time, so a live purchase upgrades
+        // telemetry → full on the next build.
         let gatedMakeCoordinator = AutomationCoordinatorGate(
             entitlements: { entitlementStore.current },
             makeCoordinator: makeCoordinator

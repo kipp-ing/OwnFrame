@@ -28,6 +28,26 @@ public extension HAEntity {
     /// Entities enabled by default (contracts/ha-mqtt-entities.md §2: "all except
     /// current_photo_image", which is opt-in via `HAPublishOptions`, FR-710-07/15).
     static let defaultEnabled: Set<HAEntity> = Set(HAEntity.allCases).subtracting([.currentPhotoImage])
+
+    /// Read-only status entities (HA sensors / diagnostics / image) — no command topic.
+    /// These are the **free** telemetry surface: an unentitled frame publishes them so Home
+    /// Assistant can *see* it (spec 1100 FR-1100-03a). Their discovery sets `command_topic`
+    /// to `nil` (see `HADiscovery`); nothing here is ever driven from HA.
+    var isReadOnlySensor: Bool {
+        switch self {
+        case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            true
+        case .playback, .brightness, .album, .order, .duration, .transition, .kenBurns,
+             .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate,
+             .next, .previous:
+            false
+        }
+    }
+
+    /// Controllable entities carry a `command_topic`; Home Assistant can drive them. These
+    /// (plus command handling and App Intents) require the **Automation** unlock — they are
+    /// only published/subscribed in `.full` mode (spec 1100 FR-1100-03).
+    var isControllable: Bool { !isReadOnlySensor }
 }
 
 public enum PlaybackState: Sendable, Equatable {
