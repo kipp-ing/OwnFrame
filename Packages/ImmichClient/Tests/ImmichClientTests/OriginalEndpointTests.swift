@@ -3,7 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
-// @covers FR-100-02, FR-100-13
+// @covers FR-100-02, FR-100-13, SC-100-01
 @Test func originalSendsGetRequestWithoutSizeQueryAndReturnsRawData() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/assets/asset-1/original"))
@@ -40,7 +40,7 @@ import ImmichClientTestSupport
     #expect(original == api.previewData)
 }
 
-// @covers FR-100-06
+// @covers FR-100-06, SC-100-03
 @Test func originalMapsUnauthorizedStatusToUnauthorizedError() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/assets/asset-1/original"))
