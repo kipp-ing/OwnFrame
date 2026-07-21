@@ -105,18 +105,21 @@ import Testing
 
 /// The everything-bundle is a *product* that grants both tiers — it is never an entitlement of
 /// its own (data-model.md §Entitlement).
+// @covers FR-1100-04
 @Test func everythingBundleGrantsBothTiers() {
     #expect(ProductCatalog.grants(.everything) == [.pro, .automation])
     #expect(ProductCatalog.grants(.everything) == EntitlementSet.all)
 }
 
 /// FR-1100-08: tips are pure goodwill and never unlock anything.
+// @covers FR-1100-08
 @Test func tipsGrantNothing() {
     #expect(ProductCatalog.grants(.tipSmall).isEmpty)
     #expect(ProductCatalog.grants(.tipMedium).isEmpty)
     #expect(ProductCatalog.grants(.tipLarge).isEmpty)
 }
 
+// @covers FR-1100-08
 @Test func everyUnlockGrantsAtLeastOneTierAndNoTipDoes() {
     for unlock in ProductCatalog.unlocks {
         #expect(ProductCatalog.grants(unlock).isEmpty == false)

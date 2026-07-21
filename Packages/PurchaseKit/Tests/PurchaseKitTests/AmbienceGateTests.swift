@@ -50,6 +50,7 @@ import Testing
     #expect(gate.effectiveClock(setting: true))
 }
 
+// @covers FR-1100-12
 @Test func entitlementLostTakesEffectAtTheNextRelatch() {
     var gate = AmbienceGate(entitled: true)
 
