@@ -112,6 +112,7 @@ final class StoreKitClientTests: XCTestCase {
     }
 
     // MARK: - 3. A refunded transaction drops out of ownership (FR-1100-12)
+    // @covers FR-1100-12
 
     func test_refund_excludesProductFromOwned() async throws {
         let client = StoreKitClient()
@@ -130,6 +131,7 @@ final class StoreKitClientTests: XCTestCase {
     }
 
     // MARK: - 4. Ask to Buy: deferral then approval (FR-1100-15)
+    // @covers FR-1100-15
 
     func test_askToBuy_deferral_returnsPending_thenApprovalBecomesOwned() async throws {
         session.askToBuyEnabled = true
