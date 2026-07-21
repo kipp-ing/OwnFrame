@@ -10,6 +10,7 @@ import Testing
     /// package's `Sources/` and fails if `import Photos` leaks into any other file. It holds
     /// vacuously today (PHKitGateway.swift does not exist yet) and keeps holding once T017
     /// adds it, so the seam can never silently erode.
+    // @covers FR-900-13
     @Test func photosImportIsConfinedToPHKitGateway() throws {
         let sourcesURL = Self.packageSourcesURL()
         let fileManager = FileManager.default

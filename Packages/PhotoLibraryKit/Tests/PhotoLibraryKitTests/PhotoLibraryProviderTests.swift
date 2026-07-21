@@ -154,6 +154,7 @@ import PhotoLibraryTestSupport
         #expect(failure?.isAuthentication == true)
     }
 
+    // @covers FR-900-04
     @Test func ensureReadyUnderLimitedThrowsAuthenticationForRegularCollection() async {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.limited)
@@ -164,6 +165,7 @@ import PhotoLibraryTestSupport
         #expect(failure?.isAuthentication == true)
     }
 
+    // @covers FR-900-04
     @Test func ensureReadyUnderLimitedIsOkForSelectedPhotosSource() async throws {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.limited)
@@ -206,6 +208,7 @@ import PhotoLibraryTestSupport
         #expect(gateway.fetchAssetsCallCount(for: PhotoLibrarySource.selectedPhotosID) == 0)
     }
 
+    // @covers FR-900-04
     @Test func assetsForSelectedPhotosUnderLimitedReturnsGrantedPool() async throws {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.limited)
@@ -219,6 +222,7 @@ import PhotoLibraryTestSupport
         #expect(gateway.fetchGrantedAssetsCallCount == 1)
     }
 
+    // @covers FR-900-04
     @Test func assetsForRegularCollectionUnderLimitedThrowsAuthentication() async {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.limited)

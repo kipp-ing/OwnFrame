@@ -90,6 +90,7 @@ import PhotoLibraryTestSupport
     /// Mid-session downgrade full → limited while serving an ALBUM source: readiness and asset
     /// fetches that worked a moment ago start failing `.authentication` on the SAME instance,
     /// and the now-forbidden album is not enumerated again (gate closes before the gateway).
+    // @covers FR-900-04
     @Test func downgradeFullToLimitedFailsAlbumSourceMidSession() async throws {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.full)
@@ -115,6 +116,7 @@ import PhotoLibraryTestSupport
 
     /// The same full → limited downgrade leaves a Selected-Photos provider serving: the
     /// granted-assets pool is the one source that survives narrowing to limited access.
+    // @covers FR-900-04
     @Test func downgradeFullToLimitedKeepsSelectedPhotosServing() async throws {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.full)
@@ -212,6 +214,7 @@ import PhotoLibraryTestSupport
     /// The pool maps to one pickable collection: sentinel id, "Selected Photos" title,
     /// assetCount = whatever the gateway reports (all kinds — the engine filters later, not
     /// this surface), cover = the first granted asset.
+    // @covers FR-900-04
     @Test func selectedPhotosCollectionMapsCountAndCoverFromGrantedPool() throws {
         let gateway = FakePhotoLibraryGateway()
         gateway.setAuthorization(.limited)
