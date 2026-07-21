@@ -2,6 +2,7 @@ import Foundation
 import HAControlKit
 import Testing
 
+// @covers FR-710-22
 @Test func storeEvictsLeastRecentlyUsedEntryWhenLimitIsExceeded() {
     let cache = MetadataCache(limit: 2)
 
@@ -15,6 +16,7 @@ import Testing
     #expect(cache.metadata(for: "c") != nil)
 }
 
+// @covers FR-710-22
 @Test func metadataLookupRefreshesLRUPosition() {
     let cache = MetadataCache(limit: 2)
     cache.store(CachedMetadata(takenAt: nil, city: nil, state: nil, country: nil), for: "a")
@@ -28,6 +30,7 @@ import Testing
     #expect(cache.metadata(for: "c") != nil)
 }
 
+// @covers FR-710-22
 @Test func storeOverwritesExistingKeyWithoutGrowingCount() {
     let cache = MetadataCache(limit: 2)
 

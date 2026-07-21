@@ -25,6 +25,7 @@ import HAControlKit
 // after the broker drops and comes back.
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["MQTT_INTEGRATION"] == "1"))
 struct NIOMQTTTransportIntegrationTests {
+    // @covers FR-700-05
     @Test
     func connectsPublishesSubscribesAndReconnectsOverTLS() async throws {
         let env = ProcessInfo.processInfo.environment

@@ -39,6 +39,7 @@ struct FrameIdentityResolverTests {
 
     // FR-700-16: the whole point. Reinstall wipes the legacy platform identifier but not the
     // durable store, so a stored value must win outright — and must not be rewritten.
+    // @covers FR-700-16
     @Test("A stored identity is returned unchanged and never regenerated")
     func storedIdentityWins() {
         let storage = FakeStorage(stored: "frame-abc")
@@ -53,6 +54,7 @@ struct FrameIdentityResolverTests {
         #expect(storage.saves.isEmpty, "a stored identity must not be rewritten on every launch")
     }
 
+    // @covers FR-700-16
     @Test("Repeated resolves return the same identity and generate only once")
     func stableAcrossRepeatedResolves() {
         let storage = FakeStorage()
@@ -71,6 +73,7 @@ struct FrameIdentityResolverTests {
     // FR-700-21: the migration. An app *update* does not change identifierForVendor, so adopting
     // it on first run means every already-registered frame keeps its entities — the fix must not
     // itself cause the orphaning it exists to prevent.
+    // @covers FR-700-21
     @Test("With nothing stored, an existing legacy identifier is adopted rather than replaced")
     func adoptsLegacyIdentifierOnFirstRun() {
         let storage = FakeStorage()
@@ -86,6 +89,7 @@ struct FrameIdentityResolverTests {
     }
 
     // FR-700-18: no shared-constant fallback, ever.
+    // @covers FR-700-18
     @Test("With nothing stored and no legacy identifier, a fresh identity is generated")
     func generatesWhenNothingToAdopt() {
         let storage = FakeStorage()
@@ -103,6 +107,7 @@ struct FrameIdentityResolverTests {
     // The collision case that motivated FR-700-18. Two frames, both with no stored identity and
     // both unable to read the platform identifier, must NOT converge on one value. With the real
     // `UUID()` default this is what stops them sharing a topic namespace.
+    // @covers FR-700-18
     @Test("Two frames with no stored identity and no legacy value never collide")
     func distinctFramesNeverCollide() {
         let a = FrameIdentityResolver.resolve(storage: FakeStorage(), legacyIdentifier: nil)
@@ -115,6 +120,7 @@ struct FrameIdentityResolverTests {
     // Defensive: an empty or whitespace legacy value is absence, not an identity. Adopting "" and
     // persisting it would durably brick the frame's identity — the one failure the store cannot
     // recover from on its own.
+    // @covers FR-700-18
     @Test("A blank legacy identifier counts as absent, not as an identity to adopt", arguments: ["", "   "])
     func blankLegacyIsTreatedAsAbsent(blank: String) {
         let storage = FakeStorage()
@@ -130,6 +136,7 @@ struct FrameIdentityResolverTests {
     }
 
     // FR-1000-08: the iPad and Apple TV frames must stay distinct devices on one broker.
+    // @covers FR-700-18
     @Test("The platform suffix distinguishes frames sharing a legacy identifier")
     func platformSuffixKeepsPlatformsDistinct() {
         let ipad = FrameIdentityResolver.resolve(
@@ -146,6 +153,7 @@ struct FrameIdentityResolverTests {
 
     // The suffix is part of the stored value, so re-reading must not append it twice — that
     // would change identity on the second launch, which is the original bug wearing a hat.
+    // @covers FR-700-16
     @Test("A stored identity that already carries the suffix is not suffixed again")
     func suffixIsNotDoubleApplied() {
         let storage = FakeStorage(stored: "abc-appletv")
@@ -161,6 +169,7 @@ struct FrameIdentityResolverTests {
     // FR-700-17 as an executable guard: whatever the resolver returns for a fresh frame must not
     // be one of the constants that caused this defect. If someone reintroduces a literal default,
     // this fails.
+    // @covers FR-700-18
     @Test("A fresh identity is never one of the retired shared constants")
     func neverTheRetiredConstants() {
         let retired = ["immich-slideshow-device", "immich-slideshow", "immich-slideshow-appletv"]
