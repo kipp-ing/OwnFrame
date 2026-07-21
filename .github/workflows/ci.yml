@@ -8,15 +8,23 @@ on:
 jobs:
   package-tests:
     name: Package unit tests (host)
-    runs-on: macos-15
+    # macos-26 ships Xcode 26.x (Swift 6.3), which is what this project is actually built and
+    # shipped with. It previously ran on macos-15 pinned to Xcode 16 (Swift 6.0/6.1) and was red
+    # on every run for months — DecodedImageStore<DecodedImage: AnyObject> relies on Sendable
+    # inference the newer compiler accepts and the older one rejects. That is toolchain skew, not
+    # a defect: CI was failing the code for not compiling under a toolchain nobody ships with.
+    # A red signal that everyone has to merge past is worse than no signal, so CI tracks the
+    # shipping toolchain. See issue #20.
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
         run: |
-          # Newest Xcode 16.x on the runner image; packages need swift-tools 6.0.
-          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          # Newest Xcode 26.x on the runner image. Floats within the major version so a runner
+          # image refresh does not silently re-pin us to an older toolchain.
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
           swift --version
 
       - name: Run all package test suites
@@ -24,6 +32,16 @@ jobs:
           set -euo pipefail
           for package in Packages/*/; do
             echo "::group::${package}"
-            swift test --package-path "${package}"
+            log="$(mktemp)"
+            # No pipe into head/tail: with pipefail the pipeline still reports swift test's
+            # status, but a filter that truncates would hide the summary line checked below.
+            swift test --package-path "${package}" 2>&1 | tee "${log}"
+
+            # Assert tests actually RAN. A suite that matches nothing still exits 0, which is how
+            # a green check can mean "nothing was verified". Green must mean tests executed.
+            if ! grep -qE 'Test run with [0-9]+ test|Executed [0-9]+ test' "${log}"; then
+              echo "::error::${package}: no test-count line found — the suite did not run"
+              exit 1
+            fi
             echo "::endgroup::"
           done
