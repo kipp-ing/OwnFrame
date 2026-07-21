@@ -136,6 +136,50 @@ panel smoothness, soak). Those run on the physical frame — see
 honest list of what genuinely needs hardware versus what is merely missing a test
 target.
 
+## Requirement traceability — `.claude/scripts/coverage.py`
+
+Prose status rots. `CLAUDE.md` recorded "153/0/9 green" and on 2026-07-21 that was simply
+false; a skip-guard had also been hiding a real bug for a day. Anything asserting what is
+proven must therefore be **derived from the tree on every run**, never written down by hand.
+
+```bash
+.claude/scripts/coverage.py              # report
+.claude/scripts/coverage.py --uncovered  # ids only
+.claude/scripts/coverage.py --json       # for CI
+.claude/scripts/coverage.py --check      # exit 1 if any requirement is untraceable
+```
+
+It maps the requirement ids defined in `specs/*/spec.md` (the authoritative site — a bullet
+`- **FR-1100-12**: …`; plan/tasks merely cite them) to the tests that claim them, bucketed by
+layer: `host` → `app` → `ui` → `manual`.
+
+**Read the output correctly.** It measures whether a requirement can be *traced* to a test,
+not whether it is *tested*. At the time of writing 71% is untraceable, which is emphatically
+not 71% untested: `ImmichClient` has 73 tests and cites no ids at all. The number says how
+much of the suite is auditable, not how much risk we carry.
+
+Two grades, because the tree is mid-migration:
+
+- **`@covers FR-1100-12`** — an explicit annotation in a comment above the test. Machine-checkable.
+- **mention** — today's informal `// … (FR-1100-12)` style. Counted so the baseline is honest
+  on day one, but a mention proves someone thought about the requirement, not that the test
+  asserts it. Treat as a backfill queue.
+
+Two report sections earn their keep beyond the headline number:
+
+- **Manual only** — requirements whose sole cited proof is a human remembering to check.
+  This is the tier to empty. `StoreKitClientTests` sat here until 2026-07-21, when the
+  "needs the Xcode IDE or a device" blocker turned out to be a bug in the test; it now runs
+  headlessly at the `app` tier. Assume the rest are similarly reducible until proven otherwise.
+- **Orphan citations** — an id cited by a test but defined in no `spec.md`. That means a
+  requirement was renamed or retired while a test kept citing the old id, so the test now
+  silently claims to prove something that no longer exists. Currently zero; keep it there.
+
+Note the id grammar has three shorthand forms that a naive regex gets wrong — `FR-1000-01…12`
+(a range covering 12 requirements), `FR-1000-05/06`, and `FR-1100-03a`. The feature segment is
+**3 or 4 digits**: a `[0-9]{3}` pattern silently drops every 1000/1100-series id and reports
+already-cited files as untested.
+
 ## Known traps — false greens, flakes, and landmines
 
 Each of these has burned at least one debugging cycle. Check here before concluding a
