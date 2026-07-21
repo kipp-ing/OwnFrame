@@ -58,6 +58,7 @@ private final class StoreFixture {
 // MARK: - Launch: synchronous cache seeding, client never awaited
 
 @MainActor
+// @covers FR-1100-10
 @Test func currentIsSeededFromTheCacheAtInitWithoutTouchingTheClient() {
     let fixture = StoreFixture(seed: [.pro])
 
@@ -67,6 +68,7 @@ private final class StoreFixture {
 }
 
 @MainActor
+// @covers FR-1100-10
 @Test func bothTiersAreSeededFromTheCacheAtInit() {
     let fixture = StoreFixture(seed: EntitlementSet.all)
 
@@ -86,6 +88,7 @@ private final class StoreFixture {
 
 /// FR-1100-10: the snapshot never expires, so age must not affect the launch seed.
 @MainActor
+// @covers FR-1100-10
 @Test func anAncientSnapshotStillSeedsTheFullEntitlementSet() {
     let fixture = StoreFixture(seed: EntitlementSet.all, savedAt: Date(timeIntervalSince1970: 0))
 
@@ -122,6 +125,7 @@ private final class StoreFixture {
 }
 
 @MainActor
+// @covers FR-1100-04
 @Test func successfulRefreshResolvesTheBundleIntoBothTiers() async {
     let fixture = StoreFixture()
     fixture.client.enqueueOwned(.everything)
@@ -132,6 +136,7 @@ private final class StoreFixture {
 }
 
 @MainActor
+// @covers FR-1100-10
 @Test func successfulRefreshPersistsTheResolvedEntitlements() async throws {
     let fixture = StoreFixture()
     fixture.client.enqueueOwned(.automation)
@@ -146,6 +151,7 @@ private final class StoreFixture {
 /// The persisted snapshot is what the *next* launch seeds from — the round trip that makes an
 /// unattended frame survive a reboot offline.
 @MainActor
+// @covers FR-1100-10
 @Test func entitlementsPersistedByRefreshSeedTheNextLaunch() async {
     let fixture = StoreFixture()
     fixture.client.enqueueOwned(.everything)
@@ -159,6 +165,7 @@ private final class StoreFixture {
 
 /// FR-1100-08: a tip purchase resolves to no entitlement at all.
 @MainActor
+// @covers FR-1100-08, FR-1100-12
 @Test func refreshIgnoresTipsAndRevokedTransactions() async {
     let fixture = StoreFixture()
     fixture.client.enqueueOwnedTransactions([
@@ -175,6 +182,7 @@ private final class StoreFixture {
 // MARK: - restore(): platform sync, then refresh
 
 @MainActor
+// @covers FR-1100-11
 @Test func restoreCallsTheClientRestoreAndThenRefreshes() async throws {
     let fixture = StoreFixture()
     fixture.client.enqueueOwned(.everything)
@@ -186,6 +194,7 @@ private final class StoreFixture {
 }
 
 @MainActor
+// @covers FR-1100-10, FR-1100-11
 @Test func restorePersistsTheRepopulatedEntitlements() async throws {
     let fixture = StoreFixture()
     fixture.client.enqueueOwned(.pro)
@@ -199,6 +208,7 @@ private final class StoreFixture {
 
 /// FR-1100-11: restore is idempotent — running it twice ends in the same state.
 @MainActor
+// @covers FR-1100-11
 @Test func restoreIsIdempotent() async throws {
     let fixture = StoreFixture()
     fixture.client.enqueueOwned(.pro)
@@ -213,6 +223,7 @@ private final class StoreFixture {
 }
 
 @MainActor
+// @covers FR-1100-10
 @Test func restoreRethrowsAPlatformSyncFailureWithoutRefreshing() async {
     let fixture = StoreFixture(seed: [.pro])
     fixture.client.failNextRestore()
@@ -262,6 +273,7 @@ private func waitFor(
 
 /// The core US3 promise: a failed ownership query means "unknown", never "owns nothing".
 @MainActor
+// @covers FR-1100-10
 @Test func aFailedRefreshLeavesTheEntitlementsAndTheSnapshotUntouched() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     let snapshotBefore = try #require(fixture.persistedSnapshot)
@@ -279,6 +291,7 @@ private func waitFor(
 
 /// Flaky wifi is not one failure, it is thousands. None of them may erode the set.
 @MainActor
+// @covers FR-1100-10
 @Test func repeatedRefreshFailuresNeverShrinkTheEntitlements() async {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.client.alwaysFailOwnedTransactions()
@@ -297,6 +310,7 @@ private func waitFor(
 /// refreshes, then a power cut. The frame comes back entitled. There is no expiry path
 /// anywhere in this type, and this test exists to keep it that way (FR-1100-10).
 @MainActor
+// @covers FR-1100-10
 @Test func aFrameOfflineForMonthsStaysEntitledAcrossRefreshesAndRelaunch() async {
     let fixture = StoreFixture(
         seed: EntitlementSet.all,
@@ -317,6 +331,7 @@ private func waitFor(
 /// which would silently break revocation. A *store-confirmed* smaller set must take effect and
 /// must be persisted, so the relock survives a relaunch instead of flapping back.
 @MainActor
+// @covers FR-1100-12
 @Test func aSuccessfulResolveToASmallerSetShrinksAndPersists() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.client.enqueueOwned(.pro)
@@ -331,6 +346,7 @@ private func waitFor(
 
 /// A refund of everything: the set empties, and it empties in the cache too.
 @MainActor
+// @covers FR-1100-12
 @Test func aFullRevocationClearsTheEntitlementsAndTheSnapshot() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.client.enqueueOwnedTransactions([
@@ -346,6 +362,7 @@ private func waitFor(
 
 /// The shrink is durable: a relaunch must not resurrect the refunded tier from a stale cache.
 @MainActor
+// @covers FR-1100-12
 @Test func aRevokedTierDoesNotComeBackOnTheNextLaunch() async {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.client.enqueueOwned(.automation)
@@ -362,6 +379,7 @@ private func waitFor(
 /// A late Ask-to-Buy approval, a purchase made on another device, a pushed revocation: the
 /// store learns about all of them through `updates`, and each event is a reason to re-resolve.
 @MainActor
+// @covers FR-1100-15
 @Test func anUpdateEventReResolvesAndPersistsTheNewEntitlements() async throws {
     let fixture = StoreFixture()
     fixture.store.listenForUpdates()
@@ -380,6 +398,7 @@ private func waitFor(
 /// nothing; the parent approves later and a second event carries the entitlement in. The
 /// listener must still be listening — one event may not end the loop.
 @MainActor
+// @covers FR-1100-15
 @Test func aLateAskToBuyApprovalArrivesOnASubsequentUpdateEvent() async throws {
     let fixture = StoreFixture()
     fixture.store.listenForUpdates()
@@ -404,6 +423,7 @@ private func waitFor(
 /// relock the frame. This is the failure mode that would hurt most — it fires unprompted, with
 /// nobody in the room.
 @MainActor
+// @covers FR-1100-10
 @Test func anUpdateEventWhoseReResolveFailsLeavesTheEntitlementsIntact() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     let snapshotBefore = try #require(fixture.persistedSnapshot)
@@ -424,6 +444,7 @@ private func waitFor(
 /// The updates path can shrink too, when the store actually says so (revocation pushed while
 /// the app is running) — the same asymmetry as `refresh()`.
 @MainActor
+// @covers FR-1100-12
 @Test func anUpdateEventAppliesAPushedRevocation() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.store.listenForUpdates()

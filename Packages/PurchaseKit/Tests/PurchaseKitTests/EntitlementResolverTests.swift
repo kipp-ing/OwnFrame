@@ -20,6 +20,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
     #expect(EntitlementResolver.resolve([owned(.automation)]) == [.automation])
 }
 
+// @covers FR-1100-04
 @Test func rule1OwnedBundleGrantsBothTiers() {
     #expect(EntitlementResolver.resolve([owned(.everything)]) == EntitlementSet.all)
 }
@@ -47,17 +48,20 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 // MARK: - Rule 2 — isRevoked == true contributes nothing (FR-1100-12)
 
+// @covers FR-1100-12
 @Test func rule2RevokedUnlockContributesNothing() {
     #expect(EntitlementResolver.resolve([owned(.pro, revoked: true)]).isEmpty)
     #expect(EntitlementResolver.resolve([owned(.automation, revoked: true)]).isEmpty)
 }
 
+// @covers FR-1100-12
 @Test func rule2RevokedBundleContributesNothing() {
     #expect(EntitlementResolver.resolve([owned(.everything, revoked: true)]) == EntitlementSet.none)
 }
 
 /// Revocation is evaluated per transaction, not globally: a refunded bundle must not take an
 /// independently owned unlock down with it.
+// @covers FR-1100-12
 @Test func rule2RevokedBundleLeavesAnIndependentlyOwnedUnlockIntact() {
     let resolved = EntitlementResolver.resolve([
         owned(.everything, revoked: true),
@@ -70,6 +74,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 /// Combination case: the *same* product owned both revoked and non-revoked (re-purchase after a
 /// refund). The non-revoked transaction still grants; the revoked one contributes nothing.
+// @covers FR-1100-12
 @Test func rule2SameProductOwnedRevokedAndNonRevokedStillGrants() {
     let revokedFirst = EntitlementResolver.resolve([
         owned(.pro, revoked: true),
@@ -84,6 +89,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
     #expect(revokedLast == [.pro])
 }
 
+// @covers FR-1100-12
 @Test func rule2AllTransactionsRevokedResolvesToEmpty() {
     let resolved = EntitlementResolver.resolve([
         owned(.pro, revoked: true),
@@ -96,6 +102,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 // MARK: - Rule 3 — tips contribute nothing (FR-1100-08)
 
+// @covers FR-1100-08
 @Test func rule3TipsAloneResolveToEmpty() {
     let resolved = EntitlementResolver.resolve([
         owned(.tipSmall),
@@ -106,6 +113,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
     #expect(resolved.isEmpty)
 }
 
+// @covers FR-1100-08
 @Test func rule3TipsDoNotChangeAnExistingEntitlement() {
     let withoutTips = EntitlementResolver.resolve([owned(.pro)])
     let withTips = EntitlementResolver.resolve([owned(.pro), owned(.tipLarge), owned(.tipSmall)])

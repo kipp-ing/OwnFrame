@@ -157,6 +157,7 @@ private extension TipPhase {
 /// a tip must neither add a tier nor remove one. It must also never re-resolve entitlements: a
 /// tip cannot change ownership, so `ownedTransactions()` must never be queried.
 @MainActor
+// @covers FR-1100-08
 @Test func aSuccessfulTipThanksTheUserAndLeavesEntitlementsByteForByteUnchanged() async throws {
     let fixture = TipFixture(owned: [.pro])
     fixture.stocksTips()
@@ -180,6 +181,7 @@ private extension TipPhase {
 /// restore, no second products fetch. This is the `callLog` proof that a tip never touches the
 /// entitlement resolution path.
 @MainActor
+// @covers FR-1100-08
 @Test func aTipNeverReResolvesEntitlements() async {
     let fixture = TipFixture(owned: [.pro])
     fixture.stocksTips()
@@ -196,6 +198,7 @@ private extension TipPhase {
 
 /// Cancelling drops the user back on the idle offer, with no thank-you and no entitlement change.
 @MainActor
+// @covers FR-1100-15
 @Test func aCancelledTipReturnsToTheOfferWithNoThanksAndNoEntitlementChange() async throws {
     let fixture = TipFixture(owned: [.pro])
     fixture.stocksTips()
@@ -215,6 +218,7 @@ private extension TipPhase {
 /// A throwing tip is not swallowed into a false thank-you: it returns to the idle offer, and
 /// changes nothing.
 @MainActor
+// @covers FR-1100-15
 @Test func aFailedTipReturnsToTheOfferWithNoThanksAndNoEntitlementChange() async throws {
     let fixture = TipFixture(owned: [.pro])
     fixture.stocksTips()

@@ -93,6 +93,7 @@ private func launchStore(
 /// The whole story in one test: entitled snapshot on disk, a store that will never answer, and
 /// the gating decision is already correct with no await in between.
 @MainActor
+// @covers FR-1100-10
 @Test func anEntitledFrameRendersItsPaidAmbienceOnTheFirstPassWithADeadStore() {
     let defaults = DefaultsFixture()
     let launched = launchStore(seededWith: EntitlementSet.all, defaults: defaults)
@@ -111,6 +112,7 @@ private func launchStore(
 /// The automation half of the same pass: the HA coordinator gate reads true offline, so an
 /// unattended frame stays remotely controllable after a power cut.
 @MainActor
+// @covers FR-1100-10
 @Test func theAutomationGateIsOpenOnTheFirstPassWithADeadStore() {
     let defaults = DefaultsFixture()
     let launched = launchStore(seededWith: [.automation], defaults: defaults)
@@ -125,6 +127,7 @@ private func launchStore(
 /// Age is not a gate. A snapshot written before the app was ever installed on this device seeds
 /// exactly the same — there is no expiry path to regress into (FR-1100-10).
 @MainActor
+// @covers FR-1100-10
 @Test func anAncientSnapshotStillOpensTheGateAtLaunchWithADeadStore() {
     let defaults = DefaultsFixture()
     let launched = launchStore(
@@ -145,6 +148,7 @@ private func launchStore(
 /// Repeated cold starts against the same dead store keep answering entitled — the launch path
 /// has no "first run" side effect that a second boot could lose.
 @MainActor
+// @covers FR-1100-10
 @Test func everyColdStartAgainstADeadStoreSeedsTheSameEntitlements() {
     let defaults = DefaultsFixture()
     let first = launchStore(seededWith: EntitlementSet.all, defaults: defaults)
