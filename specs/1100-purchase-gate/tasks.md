@@ -299,40 +299,66 @@ outside settings.
 Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-03a). Folded into
 1100 before first public release (widens the free tier — never a claw-back). Inline/TDD (Codex off).
 
-- [ ] T043 [US5] RED then implement: partition the entity model — mark each `HAEntity` as
+- [x] T043 [US5] RED then implement: partition the entity model — mark each `HAEntity` as
       read-only sensor vs controllable (command-bearing) in `Packages/HAControlKit/.../
       HAEntityState.swift`. Test asserts sensors = {currentPhoto, currentPhotoImage, phase,
       photoCount, version}; controls = {playback, brightness, album, the settings entities, next,
       previous}.
-- [ ] T044 [US5] RED: coordinator-mode tests in HAControlKit — in `.telemetryOnly`, `announce()`
+- [x] T044 [US5] RED: coordinator-mode tests in HAControlKit — in `.telemetryOnly`, `announce()`
       publishes sensor discovery + availability only and subscribes to **zero** command topics
       (`handleIncoming` never wired); in `.full`, behaviour is unchanged. 
-- [ ] T045 [US5] Implement the mode in `HAControlCoordinator`: add `mode` (`.telemetryOnly` /
+- [x] T045 [US5] Implement the mode in `HAControlCoordinator`: add `mode` (`.telemetryOnly` /
       `.full`); split `announce()`'s per-entity publish vs subscribe; gate control-entity
       discovery + `subscribe` + `startConsumers`/`handleIncoming` behind `.full`. GREEN T043/T044.
-- [ ] T046 [US5] App wiring (iOS `Immich_SlideshowApp.swift`): replace the all-or-nothing
+- [x] T046 [US5] App wiring (iOS `Immich_SlideshowApp.swift`): replace the all-or-nothing
       `AutomationCoordinatorGate` with mode selection — `.telemetryOnly` when a broker is
       configured but Automation is unentitled, `.full` when entitled; keychain broker read is now
       free-tier telemetry (FR-1100-14 restated).
-- [ ] T047 [US5] App wiring (tvOS `TVRootView.swift`): mirror T046 (inlined gate).
-- [ ] T048 [US5] Settings UI (iOS `SlideshowSettingsView.swift` + `BrokerSetupView.swift`): broker
+- [x] T047 [US5] App wiring (tvOS `TVRootView.swift`): mirror T046 (inlined gate).
+- [x] T048 [US5] Settings UI (iOS `SlideshowSettingsView.swift` + `BrokerSetupView.swift`): broker
       connection section goes live/free; narrow the locked surface to a *control-locked* banner;
       repurpose `LockedBrokerView` from "mask everything" → "connection live, control locked".
-- [ ] T049 [US5] Settings UI (tvOS `TVSettingsView.swift` + `TVLockedBrokerView`): mirror T048.
-- [ ] T050 [US5] Restate US5 tests: update the host integration test(s) + any XCUITest asserting the
+- [x] T049 [US5] Settings UI (tvOS `TVSettingsView.swift` + `TVLockedBrokerView`): mirror T048.
+- [x] T050 [US5] Restate US5 tests: update the host integration test(s) + any XCUITest asserting the
       old "no connection / fully-masked" behaviour to the telemetry-free contract (SC-1100-06).
-- [ ] T051 Verification gate: PurchaseKit + HAControlKit host green; iOS + tvOS build; iOS XCUITest
+- [x] T051 Verification gate: PurchaseKit + HAControlKit host green; iOS + tvOS build; iOS XCUITest
       green; add an unentitled-telemetry item to the 710 checklist in `docs/manual-verification.md`.
 
 ## Phase 11: Transparency statement ("Where your money goes", 2026-07-20)
 
 - [x] T052 [P] `docs/where-the-money-goes.md` — English reference pledge (statement only, no
       transparency log). Done 2026-07-20.
-- [ ] T053 Add the short in-app pledge string to the Unlocks settings footer (iOS
+- [x] T053 Add the short in-app pledge string to the Unlocks settings footer (iOS
       `SlideshowSettingsView.swift` + tvOS `TVSettingsView.swift`) → new key in
       `Immich Slideshow/Localizable.xcstrings`.
-- [ ] T054 [translate-later] Translate the pledge string into the separate localized file.
-- [ ] T055 [P] Optional: one pledge line in `docs/app-store-listing.md`.
+- [x] T054 Pledge string carried into `Immich Slideshow/Localizable.xcstrings`. The app ships
+      English-only by policy, so there is nothing to *translate* — the task is the catalog entry,
+      added by hand because command-line `xcodebuild` never writes extracted strings back to the
+      source catalog (only the Xcode IDE does). Same pass removed four keys left behind by the
+      masked-broker views this branch deleted (`Remote control needs the Automation unlock`,
+      `Saved configuration`, `Unlock Automation`, `Your Home Assistant setup is saved…`).
+- [x] T055 `docs/app-store-listing.md` accuracy pass — grew past the optional pledge line into
+      a correctness fix: the Description still sold Ken Burns motion and full Home Assistant
+      control as free, which the gated build makes untrue. Reworked the slideshow + Home
+      Assistant bullets to the real free/paid split, added a "WHAT'S INCLUDED, WHAT'S AN
+      UNLOCK" section carrying the pledge line, noted the tvOS clock gap under HONEST LIMITS,
+      and gave App Review an explicit IAP paragraph so a reviewer meeting a locked row is not
+      surprised. Still zero price points in the repo (FR-1100-06). 3,450/4,000 chars.
+
+## Phase 12: Retained-discovery retraction on the upgrade path (2026-07-20)
+
+- [x] T056 RED then GREEN: `.telemetryOnly` must **retract** controllable discovery, not just
+      skip publishing it. Found while verifying the amendment against the live broker: a frame
+      coming from the pre-gate build left a *retained* discovery config for all 16 controllable
+      entities, so the broker keeps replaying them to Home Assistant. Because every entity
+      shares the single availability topic that telemetry mode still sets to `online`, HA
+      rendered them as live, interactive controls the app no longer subscribes to — silently
+      dead. Skipping a publish cannot undo a retained message; only an empty retained payload
+      on the same topic can. `announce()` now sweeps `HAEntity.allCases where isControllable`
+      with an empty retained payload before announcing, covering all cases rather than the
+      enabled set (a stale config can survive from a run with a different selection). Two new
+      tests: the telemetry tombstone sweep, and its mirror asserting `.full` never tombstones
+      (or buying Automation would erase what it just unlocked). HAControlKit 99/0.
 
 **Status (2026-07-20):** T043–T053 done and verified. Spec 1100/710 amended; HAControlKit
 `.telemetryOnly`/`.full` mode + `HAEntity` sensor/control partition (94 host tests green, incl. 5
@@ -354,7 +380,7 @@ the editor **inline** (plain Section, no DisclosureGroup) in the unentitled path
 committed collapsible group for entitled. PurchaseGate + BrokerSetup + Storage re-verified 12/0/0 on
 the unmodified tests; iOS + tvOS build clean.
 
-**Remaining: T054** (translate the pledge string — deferred) and **T055** (optional listing line).
+**Remaining: T042 only** (the manual ASC/device day). T054–T056 closed 2026-07-20.
 
 ---
 

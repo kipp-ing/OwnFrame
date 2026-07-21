@@ -49,11 +49,14 @@ struct HAControlCoordinatorModeTests {
                 $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: sensor)
             }, "sensor \(sensor.rawValue) discovery should be published")
         }
-        // Controllable discovery is NOT published — HA must never show a dead control.
+        // No controllable entity is announced with a real config — HA must never show a
+        // dead control. (An *empty* retained payload on the same topic is the removal
+        // tombstone and is asserted separately below.)
         for controllable: HAEntity in [.playback, .brightness, .album] {
             #expect(!transport.published.contains {
                 $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: controllable)
-            }, "controllable \(controllable.rawValue) discovery must NOT publish in telemetry mode")
+                    && !$0.payload.isEmpty
+            }, "controllable \(controllable.rawValue) discovery must NOT publish a config in telemetry mode")
         }
         // Zero command-topic subscriptions (SC-1100-06).
         #expect(transport.subscriptions.isEmpty,
@@ -100,6 +103,66 @@ struct HAControlCoordinatorModeTests {
         #expect(transport.published.contains {
             $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: .currentPhotoImage) && $0.payload == Data([0xFF, 0xD8])
         }, "photo image telemetry must publish free when its toggle is on")
+
+        await coordinator.stop()
+    }
+
+    /// The upgrade path, which is the *common* path: a frame that ran the pre-gate build
+    /// left a **retained** discovery config on the broker for every controllable entity.
+    /// Skipping the publish does not remove those — the broker replays them to Home
+    /// Assistant forever, and because every entity shares one availability topic (which
+    /// telemetry mode still sets to "online"), HA renders them as live, interactive
+    /// controls that silently do nothing. Removing a retained discovery config requires an
+    /// explicit empty retained payload on the same topic, so telemetry mode must publish
+    /// that tombstone (SC-1100-06 "zero controllable entities" / FR-1100-03a).
+    @Test
+    func telemetryModeTombstonesControlDiscoverySoAPreGateUpgradeLeavesNoDeadControls() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        control.albumOptions = ["A"]
+        let coordinator = makeCoordinator(
+            transport: transport, control: control, photoReporter: nil,
+            mode: .telemetryOnly,
+            entities: [.playback, .brightness, .album, .phase, .photoCount])
+
+        await coordinator.start()
+
+        // Every controllable entity gets an empty *retained* payload, whether or not it is
+        // in the currently enabled set — a stale config can survive from any earlier run.
+        for controllable in HAEntity.allCases where controllable.isControllable {
+            #expect(transport.published.contains {
+                $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: controllable)
+                    && $0.payload.isEmpty && $0.retain
+            }, "controllable \(controllable.rawValue) must be tombstoned with an empty retained payload")
+        }
+
+        // Sensors are untouched by the tombstone sweep.
+        for sensor in HAEntity.allCases where sensor.isReadOnlySensor {
+            #expect(!transport.published.contains {
+                $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: sensor)
+                    && $0.payload.isEmpty
+            }, "sensor \(sensor.rawValue) must never be tombstoned")
+        }
+
+        await coordinator.stop()
+    }
+
+    /// The mirror of the above: `.full` must never tombstone, or buying Automation would
+    /// erase the very entities it just unlocked.
+    @Test
+    func fullModeNeverTombstonesControlDiscovery() async throws {
+        let transport = FakeMQTTTransport()
+        let control = FakeRemoteControl()
+        control.albumOptions = ["A"]
+        let coordinator = makeCoordinator(
+            transport: transport, control: control, photoReporter: nil,
+            mode: .full, entities: [.playback, .brightness, .album, .phase])
+
+        await coordinator.start()
+
+        #expect(!transport.published.contains {
+            $0.topic.contains("/config") && $0.payload.isEmpty
+        }, "full mode must never publish an empty discovery payload")
 
         await coordinator.stop()
     }
