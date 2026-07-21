@@ -74,6 +74,9 @@ struct SlideshowSettingsView: View {
     // HA photo-publishing prefs (image off by default, FR-710-15). Owned here so the
     // toggle survives collapse/relaunch; shares the coordinator's UserDefaults key.
     @State private var publishOptions: any HAPublishOptionsStore
+    // The frame's Home Assistant display name (700 / FR-700-22). Cosmetic only — identity is
+    // resolved at app start and never derives from this.
+    @State private var frameNames: any FrameNameStore
     // The MQTT section collapses by default (Constitution VII). UI tests pre-expand it via a
     // launch argument so its fields are reachable without a tap. Connection is a pushed editor.
     @State private var mqttExpanded: Bool
@@ -112,6 +115,7 @@ struct SlideshowSettingsView: View {
         broker.load()
         _brokerViewModel = State(initialValue: broker)
         _publishOptions = State(initialValue: HAPublishOptionsStoreFactory.make())
+        _frameNames = State(initialValue: FrameNameStoreFactory.make())
         let args = ProcessInfo.processInfo.arguments
         _mqttExpanded = State(initialValue: args.contains("--uitest-broker"))
     }
@@ -297,7 +301,7 @@ struct SlideshowSettingsView: View {
                 if isAutomationEntitled {
                     Section {
                         DisclosureGroup(isExpanded: $mqttExpanded) {
-                            BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
+                            BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions, frameNames: frameNames)
                         } label: {
                             Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
                                 .accessibilityIdentifier("settings.mqtt")
@@ -321,7 +325,7 @@ struct SlideshowSettingsView: View {
                     }
 
                     Section {
-                        BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions)
+                        BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions, frameNames: frameNames)
                     } header: {
                         Label("MQTT", systemImage: "antenna.radiowaves.left.and.right")
                             .accessibilityIdentifier("settings.mqtt")

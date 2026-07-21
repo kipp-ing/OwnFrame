@@ -17,6 +17,18 @@ This project uses XcodeBuildMCP for builds, tests, and the simulator.
 - On red tests: read the error from the structured MCP output, fix it targetedly.
 - Use SwiftUI previews for visual verification when the Apple Xcode MCP is active.
 
+## Testing Target (current policy, 2026-07-21 — until further notice)
+**iOS first. Framepad is the testing target. tvOS is deferred.**
+
+- **Framepad** — the real frame iPad (iPad Pro 10.5, **iOS 17.7.10 = the deployment floor**) — is
+  the reasonable hardware target for all device work. Recipes and traps:
+  `docs/device-testing.md`; drive it with `.claude/scripts/framepad.sh`.
+- **Do not spend effort on tvOS constraints for now.** tvOS code stays built and compiling, but
+  its gates, its missing test target/hermetic seam (issue #17), and any success criterion needing
+  a second device are **deferred** — not cancelled. Revisit once the iOS side is fully ready.
+- When a requirement can only be verified on tvOS or with two devices, record it as deferred and
+  move on rather than blocking iOS progress on it.
+
 ## Working Method (binding)
 - **TDD**: test first (red), then minimal implementation (green), then refactor. Details in
   `tdd-workflow.md`.
