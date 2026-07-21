@@ -2,6 +2,7 @@ import Foundation
 import SlideshowKit
 import Testing
 
+// @covers FR-300-07
 @Test func storeEvictsLeastRecentlyStoredEntryWhenLimitIsExceeded() {
     let cache = ImageCache(limit: 2)
 

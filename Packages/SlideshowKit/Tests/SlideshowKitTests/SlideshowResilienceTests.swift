@@ -137,6 +137,7 @@ struct AutoRetryTests {
     // US1-2 + SC-310-01: dead server at launch → calm failed state, auto-retry
     // behind it, playback starts by itself when the server returns; success
     // clears the failure reason.
+    // @covers FR-310-01, SC-310-01
     @Test func deadServerAtLaunchShowsCalmStateAndAutoRecovers() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -190,6 +191,7 @@ struct AutoRetryTests {
     }
 
     // FR-310-02 at engine level: the retry provably waits out the backoff delay.
+    // @covers FR-310-01, FR-310-02, FR-310-12
     @Test func retryWaitsOutTheBackoffDelayBeforeRefetching() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -217,6 +219,7 @@ struct AutoRetryTests {
     // current photo on screen (no error surface), parks the pointless
     // auto-advance, and recovers to the *next* photo within one backoff
     // interval of the images returning.
+    // @covers FR-310-01, FR-310-03, FR-300-31
     @Test func imageExhaustionKeepsCurrentImageAndAutoRecovers() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -281,6 +284,7 @@ struct AutoRetryTests {
     // US1-3/4: intervals grow while failing, and any success resets the curve —
     // the second breakage (image exhaustion, which does not pass through
     // start()) must begin retrying at ~1 s again, not at attempt 4's ≥ 5.1 s.
+    // @covers FR-310-02, SC-310-04
     @Test func recoveryResetsTheBackoff() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -343,6 +347,7 @@ struct AutoRetryTests {
 
     // US1-5 + FR-310-04: manual retry fires immediately (no clock movement) and
     // resets the backoff for the next automatic attempt.
+    // @covers FR-310-04
     @Test func manualRetryFiresImmediatelyAndResetsBackoff() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -412,6 +417,7 @@ struct AutoRetryTests {
     // FR-310-03/07 spirit: recovery must not jump the frame — the retry resumes
     // on the *displayed* photo (cursor restored after the failed walk) and the
     // next photo arrives via the normal advance, not mid-slot.
+    // @covers FR-310-03
     @Test func retryRecoveryKeepsTheDisplayedPhotoAndAdvancesNaturally() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -491,6 +497,7 @@ struct AutoRetryTests {
 
     // US1-6 + FR-310-05: auth failures name the problem and retry at the cap
     // only — no hot loop against a 401, but recovery still happens eventually.
+    // @covers FR-310-05
     @Test func authFailureSurfacesActionableReasonAndRetriesAtCapOnly() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -553,6 +560,7 @@ struct PeriodicRefreshTests {
     // US2-1/3 + FR-310-06/07 + SC-310-05: exactly one background re-fetch per
     // interval; the on-screen photo, the pending tick, and the cursor are
     // untouched by a same-list refresh.
+    // @covers FR-310-06, FR-310-07, SC-310-05
     @Test func hourlyRefreshRefetchesWithoutDisturbingPlayback() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -594,6 +602,7 @@ struct PeriodicRefreshTests {
     }
 
     // US2-2 (sequential) + SC-310-02: additions appear at their album position.
+    // @covers FR-310-08, SC-310-02
     @Test func sequentialAdditionEntersAtItsAlbumPosition() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -628,6 +637,7 @@ struct PeriodicRefreshTests {
 
     // US2-2 (shuffle) + SC-310-02: additions join the running cycle — every
     // remaining photo, including the new one, plays exactly once before the wrap.
+    // @covers FR-310-07, FR-310-08, SC-310-02
     @Test func shuffleAdditionJoinsTheCurrentCycle() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -670,6 +680,7 @@ struct PeriodicRefreshTests {
     }
 
     // US2-5 first half: a removed asset never shows again.
+    // @covers FR-310-08, SC-310-03
     @Test func removedAssetLeavesTheRotation() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -696,6 +707,7 @@ struct PeriodicRefreshTests {
 
     // US2-5 second half + SC-310-03: the removed *current* photo finishes its
     // slot on screen and is skipped afterwards — no crash, no blank.
+    // @covers FR-310-07, FR-310-08, SC-310-03
     @Test func removedCurrentPhotoFinishesItsSlotThenIsSkipped() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -730,6 +742,7 @@ struct PeriodicRefreshTests {
     // US2-4 + FR-310-09: a failed refresh never replaces a working slideshow —
     // stale keeps playing and the backoff retry takes over; its success is the
     // refresh and re-arms the hourly cadence.
+    // @covers FR-310-09
     @Test func refreshFailureKeepsStalePlayingAndHandsToRetry() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -789,6 +802,7 @@ struct PeriodicRefreshTests {
 
     // US3-2 + FR-310-10: while backgrounded, no retry or refresh timer fires —
     // however much time passes.
+    // @covers FR-310-06, FR-310-10
     @Test func backgroundStopsAllTimers() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -808,6 +822,7 @@ struct PeriodicRefreshTests {
 
     // US3-1: returning to the foreground stale (last refresh older than the
     // interval) triggers an immediate refresh — no waiting out a fresh hour.
+    // @covers FR-310-10
     @Test func staleForegroundReturnRefreshesImmediately() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -850,6 +865,7 @@ struct PeriodicRefreshTests {
 
     // US3-3: a retry that was pending at background time resumes on foreground
     // return — immediately when overdue.
+    // @covers FR-310-10
     @Test func overduePendingRetryFiresImmediatelyOnForegroundReturn() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -940,6 +956,7 @@ struct PeriodicRefreshTests {
     // FR-310-11 (T017): a source switch while a retry is pending rebinds every
     // timer — nothing ever fires against the old source, and the schedule
     // belongs to the new one.
+    // @covers FR-310-11
     @Test func sourceSwitchMidRetryRebindsAllTimers() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -977,6 +994,7 @@ struct PeriodicRefreshTests {
     // SC-310-06 (T018): a long simulated run of network flaps, refreshes with
     // list churn, and advances ends with the show still advancing and the
     // image cache inside its bound.
+    // @covers SC-310-06, SC-300-04
     @Test func longRunSoakSurvivesFlapsAndChurn() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -1144,6 +1162,7 @@ struct PhotosDeliveryTests {
     // skips the broken photo like any other and the rotation lands on the next loadable one —
     // no blank, no error surface. (The Immich-flavored equivalents live in
     // SlideshowViewModelTests; this pins the same contract through the neutral source.)
+    // @covers FR-300-09
     @Test func failingImageLoadIsSkippedAndRotationContinues() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
@@ -1266,6 +1285,7 @@ struct MidPlayTerminalFailureTests {
     // Authentication is non-terminal, so a mid-play 401/revocation keeps the current photo on
     // screen (FR-310-03 wins while a photo is showing) and arms the cap-only retry — exactly as
     // before. Only `.notFound` / `.unsupportedServer` surface the calm `.failed` state mid-play.
+    // @covers FR-310-03, FR-310-05
     @Test func authFailureMidPlayKeepsCurrentPhotoAndArmsRetry() async {
         let source = StubPhotoSource()
         let ticker = ManualTicker()
