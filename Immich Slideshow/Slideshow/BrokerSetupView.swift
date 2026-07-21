@@ -18,18 +18,38 @@ import SwiftUI
 struct BrokerSettingsSection: View {
     @Bindable var viewModel: BrokerSetupViewModel
     let publishOptions: any HAPublishOptionsStore
+    let frameNames: any FrameNameStore
     @State private var imageEnabled: Bool
     @State private var byteCapKB: Double
+    // 700 / FR-700-22. Local edit buffer committed on change, so typing never round-trips
+    // through the store's blank-means-default normalisation mid-word.
+    @State private var frameName: String
 
-    init(viewModel: BrokerSetupViewModel, publishOptions: any HAPublishOptionsStore) {
+    init(
+        viewModel: BrokerSetupViewModel,
+        publishOptions: any HAPublishOptionsStore,
+        frameNames: any FrameNameStore
+    ) {
         self._viewModel = Bindable(viewModel)
         self.publishOptions = publishOptions
+        self.frameNames = frameNames
         self._imageEnabled = State(initialValue: publishOptions.options.imageEnabled)
         self._byteCapKB = State(initialValue: (Double(publishOptions.options.byteCap) / 1000).rounded())
+        self._frameName = State(initialValue: frameNames.name)
     }
 
     var body: some View {
         Group {
+            // Display name only (FR-700-22). Renaming is deliberately safe: Home Assistant
+            // anchors on `unique_id`, which comes from the frame's identity and never from this
+            // field, so a rename cannot orphan an entity.
+            TextField("Frame name", text: $frameName)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("frame.name")
+                .onChange(of: frameName) { _, newValue in
+                    frameNames.name = newValue
+                }
+
             TextField("Host", text: $viewModel.host)
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
@@ -148,6 +168,25 @@ enum HAPublishOptionsStoreFactory {
         }
         #endif
         return UserDefaultsHAPublishOptionsStore()
+    }
+}
+
+/// The frame's Home Assistant display name (700 / FR-700-22). Same shape as the publish-options
+/// factory: a hermetic suite under `--uitest` so a rename in one test cannot leak into the next,
+/// the standard defaults in production. Not a secret and not an identity — purely cosmetic.
+enum FrameNameStoreFactory {
+    static func make() -> any FrameNameStore {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--uitest") {
+            let suite = "uitest.frameName"
+            let defaults = UserDefaults(suiteName: suite) ?? .standard
+            if ProcessInfo.processInfo.arguments.contains("--uitest-reset-publish-options") {
+                defaults.removePersistentDomain(forName: suite)
+            }
+            return UserDefaultsFrameNameStore(defaults: defaults, defaultName: "Photo Frame")
+        }
+        #endif
+        return UserDefaultsFrameNameStore(defaultName: "Photo Frame")
     }
 }
 
