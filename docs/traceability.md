@@ -28,10 +28,11 @@ confidence is not evidence.** Everything below follows from that.
 
 ## The method
 
-Two agents per unit of work, run as a pipeline (`.claude/workflows/covers-backfill-verified.js`):
+Three agents per unit of work, run as a pipeline
+(`.claude/workflows/covers-backfill-verified.js`), then a deterministic apply step:
 
 ```text
-Tag  ──►  Verify  ──►  human strips refuted tags, commits the rest
+Tag  ──►  Verify  ──►  Audit  ──►  strip-refuted.py  ──►  re-run suites, commit
 ```
 
 **Stage 1 — tag.** One agent per package. Reads the spec, reads the tests, adds
@@ -52,8 +53,18 @@ the weight:
 - **Read-only.** A verifier that can edit will quietly fix what it finds, and the finding is the
   product.
 
-**Stage 3 — a human decides.** Refuted tags are reported, never auto-stripped. Stripping is
-mechanical once the verdicts exist; the judgement of whether a refutation is *correct* is not.
+**Stage 3 — audit the verifier's own claims.** The verifier also volunteers `missedCoverage`:
+requirements it believes *are* proven but carry no tag. Those are unrefuted assertions, and
+adopting them on trust reintroduces exactly the problem stage 2 exists to remove — so a third
+agent attacks them under the same rules. Only `UPHELD` additions are safe to adopt.
+
+**Stage 4 — apply, deterministically.** `.claude/scripts/strip-refuted.py <result.json>` removes
+the refuted tags. It is a script, not an agent: the judgement already happened in stage 2, and
+mechanics executed by a model is a slower, less predictable `sed` that might also "improve"
+something on the way past. It matches structurally (find the test, walk up to the `@covers`
+line) because line numbers go stale the moment the first tag is removed. It distinguishes
+`already absent` (benign idempotent re-run) from `not found` (a refutation was dropped, so a
+rejected tag may still stand) and exits non-zero only for the latter. `--dry-run` previews.
 
 ### The sharpest tool: mutation arguments
 
@@ -109,10 +120,8 @@ confirm before dispatching.
 - **`@covers` records intent, not proof.** It says a human-or-agent believed this test proves
   this requirement, and that a second agent could not refute it. Nothing stops a tag that is
   wrong in a way neither caught.
-- **`missedCoverage` is unverified.** The verifier also reports requirements that *do* have a
-  proving test but no tag. Those are its own unrefuted suggestions — adopting them directly
-  reintroduces exactly the trust problem this method exists to solve. They need their own
-  adversarial pass.
+- **Adopt only `UPHELD` additions.** The audit stage exists because `missedCoverage` was
+  previously unguarded. `REJECTED` additions stay claims — do not tag them.
 - **Traceability is not regression protection.** See below. This is the most commonly assumed
   and most wrong inference about what this tooling does.
 
@@ -146,9 +155,23 @@ months. **Until that is fixed, 100% traceability would still gate nothing.**
 #                       alsoModules: ["310-slideshow-resilience", "320-disk-image-cache"] }] })
 ```
 
-Then: strip refuted tags, re-run the affected `swift test` packages **checking the test count
-rather than the exit code**, re-run `coverage.py` for the delta, and commit — recording the
-refuted tags and the gaps in the commit message, since that is the durable part.
+Then apply and check:
+
+```bash
+.claude/scripts/strip-refuted.py <workflow-result.json> --dry-run   # preview
+.claude/scripts/strip-refuted.py <workflow-result.json>             # apply
+
+# Re-run affected suites — CHECK THE COUNT, not the exit code.
+swift test --package-path Packages/<Pkg> 2>&1 | grep 'Test run with'
+```
+
+**Never trust a bare exit 0 here.** A `grep`/`-only-testing` filter that matches nothing still
+exits 0, and piping `xcodebuild` into `head`/`tail` replaces its exit code with the filter's.
+Both have produced a convincing "all green" on this repo *while building the tooling meant to
+prevent it*. Assert on observed test counts.
+
+Finally re-run `coverage.py` for the delta and commit — recording the refuted tags and the gaps
+in the commit message, since that is the durable part.
 
 **Budget.** The verified batch of 4 modules cost ~489k subagent tokens across 8 agents
 (~122k/module) — roughly double the unverified rate. Worth it for tags, which are trusted
