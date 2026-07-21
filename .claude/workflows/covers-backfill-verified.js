@@ -172,6 +172,13 @@ For each claim, decide independently whether that test really proves that requir
 Apply the mutation test wherever it fits: if the implementation were replaced with a trivial
 stub, would this test go red? If not, REJECT — that is a fact, not a judgement call.
 
+Check the wiring too. When the requirement describes **app** behaviour but the proposed test
+exercises a **component** in isolation, read the production call site in \`Immich Slideshow/\` or
+\`Immich SlideshowTV/\` and confirm the app actually passes what the requirement demands. A
+component test that stays green regardless of what the app hands it does not cover the
+requirement — REJECT, and name the call site. (This is how issue #26 surfaced: a picker honoured
+an \`occupied\` set, its test was green, and the app passed \`occupied: []\`.)
+
 Read the requirement text in the relevant \`specs/<module>/spec.md\` first, then the test. Do not
 assume the earlier agent read either carefully.
 
@@ -203,6 +210,13 @@ requirement") is NOT sufficient — the test must verify what the requirement st
 A useful self-check before you commit to a tag: if the production code implementing this
 requirement were replaced with a trivial stub, would this test go red? If not, it does not
 prove the requirement.
+
+Second self-check — **component vs app**. These packages are components; the app is what ships.
+When a requirement describes app behaviour but the test exercises a component in isolation, the
+component being correct proves nothing about the app: the wiring may be missing. Record it as a
+gap unless you have checked the production call site in \`Immich Slideshow/\` and it genuinely
+passes what the requirement demands. (FR-510-03 is the cautionary case: the picker honoured an
+\`occupied\` set and its test was green, but the app passed \`occupied: []\` — issue #26.)
 
 ## Steps
 
@@ -272,6 +286,29 @@ reasoning, so you cannot anchor on it.
 The sharpest refutation is a mutation argument: "replacing X with a trivial stub keeps this test
 green, therefore it does not constrain the requirement." Prefer that whenever it applies — it is
 a fact rather than an opinion.
+
+## Check the wiring, not just the component
+
+This is where the real defects hide, so spend effort here.
+
+These packages are components; the app is what ships. When a requirement describes **app**
+behaviour ("the clock never lands on the caption's place", "the frame reconnects after a broker
+drop") but the test only exercises a **component** in isolation, the component being correct
+proves nothing about the shipping app. Go find the production call site and read it.
+
+Search the app targets — \`Immich Slideshow/\`, \`Immich SlideshowTV/\` — for the type or method
+under test, and check the call actually passes what the requirement demands. A component test
+that is green regardless of what the app hands it does not cover the requirement: REFUTE it, and
+say so explicitly, naming the call site and what it actually passes.
+
+This is not hypothetical. FR-510-03 requires the random clock to "never land on the caption's
+place". \`ClockRandomPlacePicker\` honours an \`occupied\` set and had a green test for it — but
+\`SlideshowView.relocateRandomClockIfNeeded()\` passes \`occupied: []\`, hardcoded, so the exclusion
+never happens in the shipping app. The test asserted a mechanism where the requirement stated an
+outcome, and stayed green while the feature did not exist (issue #26).
+
+**A dead-wiring finding is worth more than any tag.** If you find one, that is the most valuable
+thing you can return — report it in \`notes\` with the file, line, and what is actually passed.
 
 Being unable to find fault is a valid outcome — do not manufacture objections. But a tag you
 merely find plausible is REFUTED, not CONFIRMED. The standard is a quotable assertion.
