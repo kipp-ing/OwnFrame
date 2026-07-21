@@ -180,6 +180,13 @@ Note the id grammar has three shorthand forms that a naive regex gets wrong — 
 **3 or 4 digits**: a `[0-9]{3}` pattern silently drops every 1000/1100-series id and reports
 already-cited files as untested.
 
+**Raising the number without lying about it** is a method in its own right — one agent tags, a
+second independently tries to refute every tag. See [traceability.md](traceability.md) for the
+workflow, the calibration data (what a healthy refutation rate looks like), and the limits of
+what a tag actually proves. Most important of those limits: traceability is a **map, not an
+alarm** — `coverage.py` is static and will happily report the same percentage after a
+regression. Only a running test catches those.
+
 ## Known traps — false greens, flakes, and landmines
 
 Each of these has burned at least one debugging cycle. Check here before concluding a
