@@ -3,6 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
+// @covers FR-100-01
 @Test func serverConfigStoresBaseURLAndAPIKey() throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let apiKey = "test-api-key"

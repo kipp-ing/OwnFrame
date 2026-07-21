@@ -6,6 +6,7 @@ import ImmichClientTestSupport
 // v3 (130): an API-key album lists its assets from POST /api/search/metadata; the removed album
 // `assets` array is gone. See MetadataSearchTests for paging and the shared-link branch.
 
+// @covers FR-100-02
 @Test func assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/search/metadata"))
@@ -40,6 +41,7 @@ import ImmichClientTestSupport
     #expect(object["page"] as? Int == 1)
 }
 
+// @covers FR-100-08
 @Test func assetsReturnsEmptyArrayForAlbumWithoutAssets() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/search/metadata"))

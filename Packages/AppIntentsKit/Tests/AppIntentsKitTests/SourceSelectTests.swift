@@ -13,6 +13,7 @@ struct SourceSelectTests {
 
     // MARK: - Live id applies via the resolved label
 
+    // @covers FR-800-02
     @Test
     func liveId_appliesViaTheResolvedLabelNotTheCallersStaleName() async throws {
         // Rename-with-same-id robustness: the caller passes a stale display
@@ -31,6 +32,7 @@ struct SourceSelectTests {
 
     // MARK: - Deleted-source edge
 
+    // @covers FR-800-08
     @Test
     func staleId_throwsSourceMissingWithTheCallersLabelAndZeroCalls() async {
         let registry = FrameControlRegistry()
@@ -46,6 +48,7 @@ struct SourceSelectTests {
         #expect(surface.calls.isEmpty)
     }
 
+    // @covers FR-800-08
     @Test
     func staleId_failsFastEvenWhenNotLive_withoutTouchingTheSleepSeam() async {
         // Options lookup runs BEFORE awaitReady (data-model.md resolution
@@ -67,6 +70,7 @@ struct SourceSelectTests {
 
     // MARK: - Duplicate labels, distinct ids
 
+    // @covers FR-800-02
     @Test
     func duplicateLabels_selectingByIdAppliesTheSharedLabel() async throws {
         // Parity note: the adapter's `selectAlbum(_:)` resolves by label, first

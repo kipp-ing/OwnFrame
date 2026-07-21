@@ -7,6 +7,7 @@ import Testing
     #expect(settings.validate() == nil)
 }
 
+// @covers FR-600-02
 @Test func validationReturnsFirstErrorInContractOrder() {
     #expect(BrokerSettings(host: " \n", port: 0, username: "", password: "").validate() == .emptyHost)
     #expect(BrokerSettings(host: "broker.local", port: 0, username: "", password: "").validate() == .invalidPort)
@@ -14,11 +15,13 @@ import Testing
     #expect(BrokerSettings(host: "broker.local", port: 1883, username: "mqtt", password: "").validate() == .emptyPassword)
 }
 
+// @covers FR-600-02
 @Test func validationAcceptsBoundaryPorts() {
     #expect(BrokerSettings(host: "broker.local", port: 1, username: "mqtt", password: "secret").validate() == nil)
     #expect(BrokerSettings(host: "broker.local", port: 65_535, username: "mqtt", password: "secret").validate() == nil)
 }
 
+// @covers FR-600-02
 @Test func validationRejectsPortsOutsideTCPRange() {
     #expect(BrokerSettings(host: "broker.local", port: 0, username: "mqtt", password: "secret").validate() == .invalidPort)
     #expect(BrokerSettings(host: "broker.local", port: 65_536, username: "mqtt", password: "secret").validate() == .invalidPort)

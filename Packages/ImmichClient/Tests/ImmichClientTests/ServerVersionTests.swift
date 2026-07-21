@@ -26,6 +26,7 @@ import ImmichClientTestSupport
     #expect(request.httpMethod == "GET")
 }
 
+// @covers FR-100-07
 @Test func serverVersionMapsURLErrorToUnreachable() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .failure(URLError(.timedOut)))

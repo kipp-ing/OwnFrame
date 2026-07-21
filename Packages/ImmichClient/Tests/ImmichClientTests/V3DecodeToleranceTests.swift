@@ -7,6 +7,7 @@ import ImmichClientTestSupport
 // deviceId/deviceAssetId on assets, token on shared links) are never required, and the
 // simplified error envelope still yields a message where the client reads one.
 
+// @covers FR-100-09
 @Test func albumDecodesV3ShapeWithoutOwnerOrAssets() throws {
     // v3 AlbumResponseDto: no owner/ownerId/assets; albumUsers + order present instead.
     let json = """

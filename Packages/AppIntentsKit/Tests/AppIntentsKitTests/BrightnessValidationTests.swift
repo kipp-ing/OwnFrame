@@ -12,6 +12,7 @@ struct BrightnessValidationTests {
 
     // MARK: - Percent → fraction mapping
 
+    // @covers FR-800-02, FR-800-08
     @Test
     func setBrightness_zeroPercent_mapsToZeroFraction() async throws {
         let (service, surface) = makeReadyService()
@@ -19,6 +20,7 @@ struct BrightnessValidationTests {
         #expect(surface.calls == [.setBrightness(0.0)])
     }
 
+    // @covers FR-800-02, FR-800-08
     @Test
     func setBrightness_oneHundredPercent_mapsToOneFraction() async throws {
         let (service, surface) = makeReadyService()
@@ -26,6 +28,7 @@ struct BrightnessValidationTests {
         #expect(surface.calls == [.setBrightness(1.0)])
     }
 
+    // @covers FR-800-02, FR-800-08
     @Test
     func setBrightness_fortyPercent_mapsToPointFourFraction() async throws {
         let (service, surface) = makeReadyService()
@@ -35,6 +38,7 @@ struct BrightnessValidationTests {
 
     // MARK: - Out-of-range rejection, zero calls
 
+    // @covers FR-800-08
     @Test
     func setBrightness_negativePercent_throwsOutOfRangeWithZeroCalls() async {
         let (service, surface) = makeReadyService()
@@ -42,6 +46,7 @@ struct BrightnessValidationTests {
         #expect(surface.calls.isEmpty)
     }
 
+    // @covers FR-800-08
     @Test
     func setBrightness_aboveOneHundredPercent_throwsOutOfRangeWithZeroCalls() async {
         let (service, surface) = makeReadyService()
@@ -51,6 +56,7 @@ struct BrightnessValidationTests {
 
     // MARK: - Validation before resolution
 
+    // @covers FR-800-08
     @Test
     func setBrightness_outOfRangeBeatsNotConfigured() async {
         // Parameter errors beat availability errors: even with isConfigured ==
