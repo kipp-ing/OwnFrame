@@ -1,0 +1,161 @@
+# Device Testing — real hardware ("Framepad")
+
+Layer 4 of the pyramid in [testing.md](testing.md): the checks that a simulator
+**cannot** perform. Everything here is about driving a physical iPad from the CLI.
+
+Use `.claude/scripts/framepad.sh` rather than typing these commands by hand — every
+trap below is already encoded in it.
+
+## The device
+
+**Framepad** — iPad Pro 10.5-inch (A1701, iPad7,3), **iOS 17.7.10**. This is the app's
+exact deployment floor, which makes it the most valuable device available: anything that
+works here works on everything newer.
+
+```bash
+xcrun devicectl list devices     # id E7B3970E-8FD1-546B-8A1F-EC9A85167731
+```
+
+Developer mode is enabled and signing works out of the box (Apple Development,
+mobil@kippings.de). Installing a dev build over the existing one **preserves the data
+container**.
+
+## Prerequisites (one-time, physical)
+
+Two device settings must be on, and **neither can be set from the CLI**:
+
+1. **Settings → Developer → UI AUTOMATION → Enable UI Automation.** Without it *no* test
+   bundle runs. UI tests fail `Timed out while enabling automation mode`; app-hosted unit
+   tests fail `The test runner hung before establishing connection`. Note this is a
+   *separate* switch from Developer Mode, which reports `enabled` regardless.
+2. **Settings → Display & Brightness → Auto-Lock → Never.** A locked device parks a run at
+   `Run Destination Preflight … "Unlock Framepad to Continue"` — it *waits* rather than
+   failing, so a run can hang indefinitely mid-suite.
+
+## Build/run traps
+
+Each of these cost a real debugging cycle at least once.
+
+- **`-allowProvisioningUpdates` is required.** The UI-test runner needs its own profile
+  (`ing.kipp.Immich-SlideshowUITests.xctrunner`) and automatic signing is off. Without the
+  flag: `No profiles for '…xctrunner' were found`.
+- **`-derivedDataPath` must not be under `/private/tmp`** (i.e. never the agent scratchpad).
+  CoreDevice fails with `unable to create bookmark data … denied by this process' sandbox`.
+  Use `~/Library/Developer/Xcode/DerivedData/…`. Same family as the App Store export trap
+  in [handover-release-prep.md](handover-release-prep.md).
+- **Never pipe `xcodebuild` into `tail`/`head`.** The pipeline's exit code becomes the
+  *filter's*, so a failed build reports `exit 0`. Redirect to a log and check `$?`.
+- **Expect slowness.** A 2017 iPad is not a simulator; simulator-calibrated timeouts
+  produce flakes that look like product bugs. The rig uses 90 s waits.
+
+## Reading the device's logs — this DOES work
+
+Earlier notes claimed app logs could not be read off this device. **That is wrong**, and
+this is the single most useful capability here:
+
+```bash
+xcrun devicectl device process launch \
+  --device <id> --console --terminate-existing \
+  --environment-variables '{"OS_ACTIVITY_DT_MODE":"enable"}' \
+  ing.kipp.Immich-Slideshow [--app-args...]
+```
+
+`OS_ACTIVITY_DT_MODE=enable` routes `os.Logger` output to stderr, which `--console`
+captures — full `[HAControl] announce: published … [full]` lines and everything else the
+app logs.
+
+- **`--terminate-existing` is mandatory.** Launching against an already-running app merely
+  re-activates it, so new launch arguments are **silently ignored**.
+- Arguments after the bundle id are passed to the app, so DEBUG seams
+  (`--uitest-entitlements=all`) can be driven this way.
+- `xcrun devicectl device info apps` fails on this device (`CoreDevice.ActionError error 3`).
+- `log stream --device-name` does not work — this macOS `log` binary has no `--device*`
+  options despite its man page. Also, `log` is shadowed by a zsh function; use `/usr/bin/log`.
+
+## Seeing the screen
+
+There is **no** `devicectl` screenshot and no MCP device UI automation. XCUITest is the only
+eye *and* the only hand. Screenshots come out of the result bundle:
+
+```bash
+xcrun xcresulttool export attachments --path <bundle>.xcresult --output-path <dir>
+# then read <dir>/manifest.json to map suggestedHumanReadableName → exportedFileName
+```
+
+The rig attaches a screenshot per step with `lifetime = .keepAlways`, so failures are
+diagnosable after the fact. The result bundle also contains an **App UI hierarchy** `.txt`
+dump — grep it for `label:` to see exactly what was on screen when an assertion failed.
+That is how `Server not reachable.` was found without any logs.
+
+## The device rig
+
+`Immich SlideshowUITests/DeviceRigConfigUITests.swift`. Unlike every other test in that
+target it launches with **no launch arguments**, i.e. the real production path: real
+network, real Keychain, real broker, real StoreKit. Opt-in only:
+
+```bash
+.claude/scripts/framepad.sh rig            # configure source + broker
+.claude/scripts/framepad.sh gates          # T056 telemetry/full round trip
+```
+
+Environment (forwarded by `xcodebuild` with the prefix stripped):
+
+- `TEST_RUNNER_DEVICE_RIG=1` — required, else every rig test skips. Keeps a normal suite
+  run from ever touching the live broker.
+- `TEST_RUNNER_MQTT_PASSWORD=…` — the broker password is **never** hard-coded (Konstitution III).
+
+### Why the rig can't use `--uitest`
+
+The hermetic branch wires `makeCoordinator: { _ in nil }` — under `--uitest` there is **no
+MQTT broker in the process at all**. So the hermetic suite is structurally incapable of
+exercising the HA contract; that is exactly what hardware is for.
+
+## MQTT / Home Assistant on device
+
+- **MQTT is foreground-only**, the same class of constraint as `isIdleTimerDisabled` and
+  `UIScreen.brightness` (see CLAUDE.md "Constraints"). A `devicectl process launch` against
+  a sleeping screen never foregrounds the app, so it never connects and publishes nothing.
+  Hold the app foreground under XCUITest (`testHoldForegroundSoCoordinatorAnnounces`) or
+  wake the device.
+- **The device identity is not stable.** `HAControlCoordinator.ensureDeviceID()` reads
+  `deviceID` from the **broker config**, so configuring a broker from scratch mints a brand
+  new HA identity. Symptom: the retraction fires correctly against the *new* id while the
+  broker still shows the old id's configs untouched — which reads as "nothing happened".
+  **Always take the device id from the `start: connecting (device=…)` log line before
+  verifying anything.** Consequence for users: reconfiguring a broker orphans the previous
+  entities (they stay `unavailable` forever) and breaks dashboards bound to the old
+  `entity_id`s.
+- Verify against Home Assistant, not just the broker — HA is the actual contract:
+
+  ```bash
+  .claude/scripts/framepad.sh ha-check <device-id>
+  hactl --dir /Users/jan/dev/repos/hactl-dev/jansHA ent ls --pattern '*photo_frame*'
+  ```
+
+  `hactl` needs no MQTT credentials. Broker: `home.kippings.de:8883`, user `car`,
+  `--cafile /etc/ssl/cert.pem` (publicly-trusted ZeroSSL chain, no TLS exception). A lone
+  `Connection Refused: not authorised` is **transient — retry** before concluding the
+  credentials are stale.
+- **Retained MQTT state is a persistence channel independent of UserDefaults** and survives
+  delete+reinstall. It also carries values the app UI may not be able to represent (HA's
+  duration entity is min 3 / max 600 / step 1 versus six UI presets) — any HA-settable
+  setting must render off-menu values.
+
+## What only hardware can prove
+
+Keep this list honest — it decides what needs a scarce device day versus what can be
+automated (compare `docs/manual-verification.md`).
+
+**Irreducibly hardware:** real MQTT/TLS against the live broker, real CloudKit/KVS sync,
+24 h soak/burn-in, real-panel Ken Burns smoothness, camera (QR scan), Siri phrases,
+real Photos library.
+
+**Needs an account, not hardware:** StoreKit sandbox purchase/restore/Family Sharing. Note
+`SKTestSession` fails on this device with `ASDErrorDomain 509 "No active account"` —
+Framepad has no App Store account, so **the device is not a substitute for the Xcode IDE
+runner** for those seven cases.
+
+**Only blocked by missing infrastructure (build it, don't schedule a device day):** the
+tvOS gates — `Immich SlideshowTV.xcscheme` has an empty `<Testables>` and the TV app has no
+hermetic `--uitest` seam. `XCUIRemote.shared.press(…)` runs fine in the tvOS Simulator; it
+is `simctl` that cannot send Siri-Remote events, not XCUITest.
