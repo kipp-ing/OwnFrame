@@ -70,6 +70,9 @@ struct SlideshowSettingsView: View {
     // collapsing/re-expanding a section keeps typed-but-unsaved edits.
     @State private var connectionViewModel: ConnectionSettingsViewModel?
     @State private var sourceLibraryViewModel: SourceLibraryViewModel?
+    // 1200/US1: the album picker's no-server "Add a server" shortcut opens the shared
+    // connection editor (FR-210-29/30) as a sheet; a fresh VM is built per presentation.
+    @State private var addServerConnectionVM: ConnectionSettingsViewModel?
     @State private var brokerViewModel: BrokerSetupViewModel
     // HA photo-publishing prefs (image off by default, FR-710-15). Owned here so the
     // toggle survives collapse/relaunch; shares the coordinator's UserDefaults key.
@@ -252,7 +255,13 @@ struct SlideshowSettingsView: View {
                 if let sourceLibraryViewModel {
                     Section {
                         NavigationLink {
-                            SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway)
+                            SourceLibraryView(
+                                viewModel: sourceLibraryViewModel,
+                                makeServerAPI: makeServerAPI,
+                                makePhotoGateway: makePhotoGateway,
+                                // 1200/US1: no-server guidance opens the connection editor.
+                                onAddServer: { addServerConnectionVM = makeConnectionViewModel() }
+                            )
                         } label: {
                             Label("Sources", systemImage: "photo.stack")
                                 .accessibilityIdentifier("settings.sources")
@@ -475,6 +484,16 @@ struct SlideshowSettingsView: View {
         }
         .sheet(isPresented: $showTipJar) {
             TipJarView { showTipJar = false }
+        }
+        // 1200/US1: the album picker's "Add a server" guidance opens the shared connection
+        // editor (FR-210-29/30). On success, reconnect and drop the sheet.
+        .sheet(item: $addServerConnectionVM) { vm in
+            NavigationStack {
+                ConnectionSettingsView(viewModel: vm) { outcome in
+                    addServerConnectionVM = nil
+                    onConnectionChanged(outcome)
+                }
+            }
         }
     }
 

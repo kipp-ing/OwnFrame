@@ -50,6 +50,16 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     public var onLocalChange: (@MainActor () -> Void)?
     public var onSettingsChange: (@MainActor () -> Void)?
     public var onPhotoChange: (@MainActor (PhotoReport) -> Void)?
+    public var onBatteryChange: (@MainActor () -> Void)?
+
+    // Battery telemetry (710 FR-710-23): UIDevice battery monitoring, bridged into an
+    // `AsyncStream<Void>` so the change callback fires on the main actor without capturing
+    // `self` in the (Sendable) notification block. Torn down in `deinit`.
+    // `nonisolated(unsafe)`: appended only once during `init` (synchronously, on the main
+    // actor) and read only in the nonisolated `deinit` to remove the observers — never
+    // concurrently — so the opt-out is safe and lets `deinit` tear down this non-Sendable array.
+    nonisolated(unsafe) private var batteryObservers: [NSObjectProtocol] = []
+    private var batteryMonitorTask: Task<Void, Never>?
 
     // Photo-reporting dependencies (US2). Optional so the existing playback/settings
     // call sites keep compiling; when unwired, reports degrade to asset ID + phase
@@ -100,6 +110,36 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         observeThemeSettings()
         observeCurrentPhoto()
         observePlayback()
+        observeBattery()
+    }
+
+    deinit {
+        batteryObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        batteryMonitorTask?.cancel()
+    }
+
+    // MARK: - Battery observation (710 FR-710-23)
+
+    /// Enable `UIDevice` battery monitoring and bridge the two battery notifications into a
+    /// single `AsyncStream<Void>` consumed on the main actor. The notification blocks capture
+    /// only the (Sendable) continuation — never `self` — and the consuming task holds a weak
+    /// self, matching the coordinator's `incoming` consumer pattern.
+    private func observeBattery() {
+        UIDevice.current.isBatteryMonitoringEnabled = true
+
+        let (stream, continuation) = AsyncStream<Void>.makeStream()
+        let center = NotificationCenter.default
+        for name in [UIDevice.batteryLevelDidChangeNotification, UIDevice.batteryStateDidChangeNotification] {
+            let token = center.addObserver(forName: name, object: nil, queue: nil) { _ in
+                continuation.yield(())
+            }
+            batteryObservers.append(token)
+        }
+        batteryMonitorTask = Task { [weak self] in
+            for await _ in stream {
+                self?.onBatteryChange?()
+            }
+        }
     }
 
     // The chrome play/pause button calls `slideshow.togglePause()` directly, never
@@ -378,6 +418,28 @@ extension SlideshowRemoteControlAdapter: PhotoReporting {
 
     public func showPrevious() async {
         await slideshow.showPrevious()
+    }
+}
+
+// MARK: - BatteryReporting (710 FR-710-23)
+
+extension SlideshowRemoteControlAdapter: BatteryReporting {
+    /// Whether this device has a usable battery. After monitoring is enabled a real battery
+    /// reports a known state and/or a level ≥ 0; the Simulator (no real battery) reports
+    /// `.unknown` / `-1`, which correctly omits the entities there too.
+    public var hasBattery: Bool {
+        let device = UIDevice.current
+        return device.batteryState != .unknown || device.batteryLevel >= 0
+    }
+
+    /// Current reading from `UIDevice`. `batteryLevel` is 0.0–1.0, or `-1.0` when unknown →
+    /// `nil` (never a misleading 0%). On external power (`.charging`/`.full`) → `isOnPower`.
+    public var current: BatteryReading {
+        let device = UIDevice.current
+        let raw = device.batteryLevel
+        let level: Int? = raw < 0 ? nil : Int((raw * 100).rounded())
+        let isOnPower = device.batteryState == .charging || device.batteryState == .full
+        return BatteryReading(level: level, isOnPower: isOnPower)
     }
 }
 

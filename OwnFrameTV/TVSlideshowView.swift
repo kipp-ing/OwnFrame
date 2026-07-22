@@ -71,7 +71,7 @@ struct TVSlideshowView: View {
                     .resizable()
                     .aspectRatio(contentMode: fillsScreen ? .fill : .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .kenBurnsMotion(isActive: kenBurnsActive, durationSeconds: durationSeconds, pan: 24)
+                    .kenBurnsMotion(isActive: kenBurnsActive, durationSeconds: durationSeconds, pan: kenBurnsPan)
                     .clipped()
                     .id(viewModel.currentAssetID)
                     .transition(imageTransition)
@@ -220,10 +220,17 @@ struct TVSlideshowView: View {
         latchedAmbience = gate
     }
 
-    /// Fill framing when the user chose Fill, or while Ken Burns is on (so the pan/zoom
-    /// never reveals a letterbox gap). Mirrors the iOS renderer.
+    /// Fill framing only when the user chose Fill. Ken Burns no longer forces fill: with Fit,
+    /// the pan is suppressed and the zoom stays centered, so a fitted photo stays letterboxed
+    /// (FR-500-20 / SC-500-09). Mirrors the iOS renderer via the shared `KenBurnsFraming`.
     private var fillsScreen: Bool {
-        themeStore.settings.fit == .fill || effectiveKenBurns
+        KenBurnsFraming.fillsScreen(fit: themeStore.settings.fit)
+    }
+
+    /// The Ken Burns pan magnitude, fit-aware: the tvOS base pan (24 pt) under Fill, `0` under
+    /// Fit (centered zoom, no revealed background). Mirrors the iOS renderer.
+    private var kenBurnsPan: CGFloat {
+        KenBurnsFraming.pan(fit: themeStore.settings.fit, basePan: 24)
     }
 
     /// Ken Burns runs only when enabled AND the show is actively playing and not paused.
