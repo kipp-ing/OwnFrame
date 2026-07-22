@@ -5,11 +5,14 @@ State as of 2026-07-09. Read this first in the next session; the previous handov
 
 ## Where the project stands
 
-- **Name**: the app is **"Photo Frame for Immich"** (accepted by Alex, the Immich creator,
-  direct channel contact 2026-07-09). Home-screen/share-sheet/HA-device name is
-  **"Photo Frame"** (the full name truncates under the icon). Renamed everywhere: repo
-  (commit 4f56d16), README, and App Store Connect (name + subtitle, both locales, via API).
-- **ASC**: app id `6784154405`, state PREPARE_FOR_SUBMISSION. Name/subtitle are set;
+- **Name**: the app is **"OwnFrame"** (renamed 2026-07-22 from "Photo Frame for Immich" —
+  the name Alex, the Immich creator, had accepted in direct channel contact 2026-07-05).
+  Home-screen/share-sheet/HA-device name is **"OwnFrame"** (8 chars, no icon-label
+  truncation). Renamed across the repo, the Xcode project/source-folders/schemes, README, and
+  docs; bundle IDs (`ing.kipp.Immich-Slideshow`) are unchanged.
+- **ASC**: app id `6784154405`, state PREPARE_FOR_SUBMISSION. ⚠️ **Name/subtitle still carry
+  the old "Photo Frame for Immich" name — update them to "OwnFrame" before submission.**
+  description/promo/keywords are **not** yet pushed — source of truth is
   description/promo/keywords are **not** yet pushed — source of truth is
   `docs/app-store-listing.md`. Privacy policy is live (ASC links
   `docs/privacy-policy.md` on GitHub; was a 404 until 2026-07-09, now fixed and agreed).

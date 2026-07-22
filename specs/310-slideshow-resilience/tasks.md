@@ -23,7 +23,7 @@ testable.
 
 - Engine: `Packages/SlideshowKit/Sources/SlideshowKit/`
 - Host tests: `Packages/SlideshowKit/Tests/SlideshowKitTests/` (Swift Testing, `swift test`)
-- App target: `Immich Slideshow/` (verified via XcodeBuildMCP, never raw `xcodebuild`)
+- App target: `OwnFrame/` (verified via XcodeBuildMCP, never raw `xcodebuild`)
 
 ---
 
@@ -111,10 +111,10 @@ backoff interval without user input. No real timers, no real network.
       `start()` rebinds the retry task (depends on T006, T007)
 - [x] T009 [US1] Auth-actionable message variant (FR-310-05: "check your connection settings"
       copy) behind a failure-reason input in
-      `Immich Slideshow/Slideshow/SlideshowErrorView.swift`; keep accessibility IDs
+      `OwnFrame/Slideshow/SlideshowErrorView.swift`; keep accessibility IDs
       `slideshow.error`/`slideshow.retry` stable; `#Preview` renders both variants
 - [x] T010 [US1] Pass `viewModel.failureReason` into `SlideshowErrorView` at
-      `Immich Slideshow/Slideshow/SlideshowView.swift` (error-state branch, ~line 199)
+      `OwnFrame/Slideshow/SlideshowView.swift` (error-state branch, ~line 199)
 
 **Checkpoint**: `cd Packages/SlideshowKit && swift test` green; error view preview shows both
 variants. US1 fully functional — this is the release-gate core.
@@ -222,7 +222,7 @@ fetches), `resume()` ⇒ immediate refresh and overdue retry fires.
 - [x] T020 Verification gate (Claude-owned): XcodeBuildMCP build of the app scheme + `test_sim`
       on the app-hosted test classes (whole classes — memory
       `xcodebuildmcp-single-test-false-green`); confirm the two `SlideshowViewModel` build
-      sites in `Immich Slideshow/Immich_SlideshowApp.swift` need no change (clock default
+      sites in `OwnFrame/OwnFrameApp.swift` need no change (clock default
       parameter) or inject `ContinuousSlideshowClock()` explicitly if the team prefers it
       visible
 - [x] T021 Full XCUITest suite via XcodeBuildMCP `test_sim` (SwiftUI files touched — repo

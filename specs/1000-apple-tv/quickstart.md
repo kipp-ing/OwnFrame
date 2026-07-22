@@ -3,9 +3,9 @@
 ## Build / run (simulator)
 
 - tvOS sim: **Apple TV 4K (3rd generation)** `C3A8C51D-0CA6-45B2-BE17-1B11E1BF7AC8`, tvOS 26.5.
-- Scheme: `Immich SlideshowTV`. Build/run/test via XcodeBuildMCP (`build_sim` / `test_sim` /
+- Scheme: `OwnFrameTV`. Build/run/test via XcodeBuildMCP (`build_sim` / `test_sim` /
   `build_run_sim`, `screenshot`, `record_sim_video`).
-- iOS regression: existing `Immich Slideshow` scheme on an iOS 26.x iPad sim stays green.
+- iOS regression: existing `OwnFrame` scheme on an iOS 26.x iPad sim stays green.
 - Host unit tier: `swift test` in each touched package (esp. `Packages/ConfigSyncKit`).
 
 ## Session verification gate (simulator-provable)

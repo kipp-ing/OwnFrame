@@ -111,7 +111,7 @@ and `PhotoReporting` protocols plus `PhotoReport`) and nothing else.
 
 **Decision**: Hoist construction of `SlideshowRemoteControlAdapter` **out of
 `makeCoordinator`** (today it is built inside the HA path and only when a broker
-config exists — `Immich_SlideshowApp.swift:329-388`). The slideshow composition
+config exists — `OwnFrameApp.swift:329-388`). The slideshow composition
 point builds **one** adapter per slideshow generation unconditionally (synchronous —
 sources come from the already-loaded library), registers it with the
 `FrameControlRegistry`, and passes it *into* `makeCoordinator(adapter:)`, which
@@ -209,7 +209,7 @@ shortcuts use parameterized phrases where supported but resolve fine without.
 
 **Rationale**: FR-800-03 (works with zero manual setup) is exactly what
 `AppShortcutsProvider` exists for; the mandatory app-name token plus verb phrasing
-("Pause Photo Frame") keeps clear of HomeKit's "pause the living room" namespace
+("Pause OwnFrame") keeps clear of HomeKit's "pause the living room" namespace
 (edge case: phrase collisions).
 
 ## R8 — Onboarding / not-running / timing edge cases
@@ -218,7 +218,7 @@ shortcuts use parameterized phrases where supported but resolve fine without.
 command surface: `.ready(adapter)`, `.notConfigured` (app has never completed
 onboarding — the app flips a flag on the registry from its existing startup gate),
 and `.notLive` (configured but no slideshow generation registered). Shells map these
-to two localized errors: "Set up the frame first…" and "Open Photo Frame on the
+to two localized errors: "Set up the frame first…" and "Open OwnFrame on the
 frame device…". After `openAppWhenRun` foregrounds a cold-launched app, the
 slideshow needs a beat to build; the registry exposes
 `awaitReady(timeout:)` (default ~5 s, injected clock, host-tested) so a control

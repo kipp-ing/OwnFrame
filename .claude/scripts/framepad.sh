@@ -19,11 +19,11 @@ set -euo pipefail
 
 DEVICE_ID="${FRAMEPAD_DEVICE_ID:-E7B3970E-8FD1-546B-8A1F-EC9A85167731}"
 BUNDLE_ID="ing.kipp.Immich-Slideshow"
-PROJECT="Immich Slideshow.xcodeproj"
-SCHEME="Immich Slideshow"
+PROJECT="OwnFrame.xcodeproj"
+SCHEME="OwnFrame"
 DD="${FRAMEPAD_DD:-$HOME/Library/Developer/Xcode/DerivedData/FramepadRig}"
 OUT="${FRAMEPAD_OUT:-$HOME/Library/Developer/Xcode/DerivedData/framepad-out}"
-UITESTS="Immich SlideshowUITests/DeviceRigConfigUITests"
+UITESTS="OwnFrameUITests/DeviceRigConfigUITests"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
@@ -77,7 +77,7 @@ cmd_install() {
   require_device
   xcb "$OUT/build.log" build
   xcrun devicectl device install app --device "$DEVICE_ID" \
-    "$DD/Build/Products/Debug-iphoneos/Immich Slideshow.app" | tail -3
+    "$DD/Build/Products/Debug-iphoneos/OwnFrame.app" | tail -3
 }
 
 # Launch with app logs streaming to stdout. Args after `logs` go to the app, e.g.

@@ -101,15 +101,15 @@ Packages/OnboardingKit/Sources/OnboardingKit/
 ├── SharedLinkSecretStore.swift # NEW: protocol + Keychain impl (per-source password)
 └── AppConfiguration.swift    # keep baseURL + apiKey; selectedAlbumID superseded by the library
 
-Immich Slideshow/
-├── Immich_SlideshowApp.swift # build ImmichAPI + albumID from the ACTIVE source; wire HA/library
+OwnFrame/
+├── OwnFrameApp.swift # build ImmichAPI + albumID from the ACTIVE source; wire HA/library
 ├── Onboarding/SourceStepView.swift (NEW)                  # add a source (album or shared link)
 ├── Slideshow/SourceLibraryView.swift (NEW)                # manage list in Settings
 └── Slideshow/SlideshowSettingsView.swift                  # surface the source manager
 
 Packages/HAControlKit/Sources/HAControlKit/
 └── (RemoteControlling / HAControlCoordinator)             # select options/state from the library
-   Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift  # back select with the library
+   OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift  # back select with the library
 ```
 
 **Structure Decision**: Reuse the existing per-module packages. The `Source`/`SourceLibrary` config

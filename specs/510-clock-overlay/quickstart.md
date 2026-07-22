@@ -8,7 +8,7 @@ gotcha); full XCUITest suite before merge.
 ## Prerequisites
 
 - Branch `510-clock-overlay`; XcodeBuildMCP session defaults set (project, scheme
-  `Immich Slideshow`, an iOS 26.x iPad simulator id; repeat key scenarios once on the
+  `OwnFrame`, an iOS 26.x iPad simulator id; repeat key scenarios once on the
   iOS 17.5 iPad for the material fallback).
 
 ## Host (Swift Testing)

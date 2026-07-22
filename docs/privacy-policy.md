@@ -1,8 +1,8 @@
-# Privacy Policy — Photo Frame for Immich
+# Privacy Policy — OwnFrame
 
 Last updated: 2026-07-09
 
-Photo Frame for Immich is an iPad app that displays photos from an Immich server you control.
+OwnFrame is an iPad app that displays photos from an Immich server you control.
 This policy is short because the app collects nothing.
 
 ## What the app collects

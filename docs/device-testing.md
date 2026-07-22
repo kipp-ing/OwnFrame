@@ -89,7 +89,7 @@ That is how `Server not reachable.` was found without any logs.
 
 ## The device rig
 
-`Immich SlideshowUITests/DeviceRigConfigUITests.swift`. Unlike every other test in that
+`OwnFrameUITests/DeviceRigConfigUITests.swift`. Unlike every other test in that
 target it launches with **no launch arguments**, i.e. the real production path: real
 network, real Keychain, real broker, real StoreKit. Opt-in only:
 
@@ -164,7 +164,7 @@ buying against the *real* sandbox store. This does not include `SKTestSession`.
 > `docs/testing.md` § "`SKTestSession` serves 0 products".
 
 **Only blocked by missing infrastructure (build it, don't schedule a device day):** the
-tvOS gates — `Immich SlideshowTV.xcscheme` has an empty `<Testables>` and the TV app has no
+tvOS gates — `OwnFrameTV.xcscheme` has an empty `<Testables>` and the TV app has no
 hermetic `--uitest` seam. `XCUIRemote.shared.press(…)` runs fine in the tvOS Simulator; it
 is `simctl` that cannot send Siri-Remote events, not XCUITest.
 

@@ -12,7 +12,7 @@ red run. A task whose red state is "suite doesn't compile yet" says so explicitl
 **Organization**: Setup → Foundational (registry + the adapter-hoisting refactor —
 blocks everything) → user stories in priority order (US1, US2 both P1; US3 P2) →
 polish. Delegation per the 900 model (Fable orchestrates, Opus subagents implement):
-package-only slices are delegable; everything touching `Immich_SlideshowApp.swift`,
+package-only slices are delegable; everything touching `OwnFrameApp.swift`,
 the AppIntents shells, or the simulator stays Fable-inline (CLAUDE.md: entry-point /
 cross-cutting work is not delegated).
 
@@ -26,10 +26,10 @@ cross-cutting work is not delegated).
       HAControlKit, dependency `../HAControlKit` — the `HAControlKit` product only,
       never `HAControlMQTT`; products `AppIntentsKit` + `AppIntentsTestSupport`;
       empty source/test targets so `swift test` runs zero tests green)
-- [x] T002 Add the package reference to `Immich Slideshow.xcodeproj/project.pbxproj`
+- [x] T002 Add the package reference to `OwnFrame.xcodeproj/project.pbxproj`
       and link the `AppIntentsKit` product to the app target (pbxproj explicitly IN
       SCOPE for this task only); create the synchronized group folder
-      `Immich Slideshow/Intents/` (empty)
+      `OwnFrame/Intents/` (empty)
 
 ---
 
@@ -55,15 +55,15 @@ the single `SlideshowRemoteControlAdapter` is built for every user — broker or
       arguments in order, scriptable `playbackState`/`brightness`/`currentAlbum`/
       `currentPhotoReport` (parity with the HAControlKit test fakes' surface)
 - [x] T006 Red tests (app-hosted): extend
-      `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift` —
+      `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift` —
       `updateAlbums(_:)` after init feeds `albumOptions` (legacy no-library fallback),
       photo-report `albumName`/`photoCount` enrichment, and a sources-present adapter
       ignores albums for options (900 semantics unchanged)
 - [x] T007 Implement `updateAlbums(_:)` in
-      `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` (albums becomes
+      `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` (albums becomes
       private var; `albums:` init parameter keeps its default — existing tests compile
       unchanged) — green T006
-- [x] T008 Hoist the adapter in `Immich Slideshow/Immich_SlideshowApp.swift`
+- [x] T008 Hoist the adapter in `OwnFrame/OwnFrameApp.swift`
       (Fable-inline): extract `makeAdapter` from `makeCoordinator` and build the ONE
       adapter per slideshow generation unconditionally (sync — sources from the loaded
       library); `makeCoordinator(adapter:)` keeps its broker gate and its async
@@ -111,7 +111,7 @@ out-of-range brightness rejected with zero calls; shells forward and map errors
       (pause/resume/nextPhoto/previousPhoto/setBrightness + the shared awaitReady
       plumbing) — green T010 + T011
 - [x] T013 [US1] Red tests (app-hosted): new
-      `Immich SlideshowTests/FrameIntentGlueTests.swift` — each of the five control
+      `OwnFrameTests/FrameIntentGlueTests.swift` — each of the five control
       shells forwards to the matching service verb against a fake-backed registry;
       `FrameCommandError` cases map to the contract's exact localized copy;
       `openAppWhenRun == true` on all five; HA and the intents resolve the SAME
@@ -120,10 +120,10 @@ out-of-range brightness rejected with zero calls; shells forward and map errors
       `register(...)` a `RecordingControlSurface` into it — never re-register
       `AppDependencyManager`. Expected red = suite doesn't compile until T014
 - [x] T014 [US1] Implement the five `AppIntent` shells + localized error mapping in
-      `Immich Slideshow/Intents/FrameIntents.swift` (`openAppWhenRun = true`,
+      `OwnFrame/Intents/FrameIntents.swift` (`openAppWhenRun = true`,
       `ParameterSummary` on every intent, brightness `Int` parameter with
       `inclusiveRange` 0–100 — contracts § Intents) — green T013
-- [x] T015 [US1] Implement `Immich Slideshow/Intents/FrameAppShortcuts.swift`
+- [x] T015 [US1] Implement `OwnFrame/Intents/FrameAppShortcuts.swift`
       (`AppShortcutsProvider`) with the five US1 phrases from contracts § App
       Shortcuts (every phrase carries `\(.applicationName)`; English-only).
       No red pair — phrases are extracted metadata, manual-gated by SC-800-03
@@ -145,7 +145,7 @@ morning wake) — no prompts, ever (FR-800-05) — and the recipe docs ship
 the automation triggers themselves are OS-owned → quickstart manual gate SC-800-02.
 
 - [x] T017 [P] [US2] Red-then-green (app-hosted): unattended-conformance pins in
-      `Immich SlideshowTests/FrameIntentGlueTests.swift` — every control intent
+      `OwnFrameTests/FrameIntentGlueTests.swift` — every control intent
       declares `openAppWhenRun == true`, no intent invokes
       `requestConfirmation`/dialog APIs in any service path (recording fake shows
       command calls only), and a fully-parameterized SetBrightness/SelectSource
@@ -189,17 +189,17 @@ of leaking (SC-800-04).
       `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift` and
       `FrameStateSnapshot.swift` — green T020 + T021
 - [x] T023 [US3] Red tests (app-hosted): extend
-      `Immich SlideshowTests/FrameIntentGlueTests.swift` — SelectSourceIntent and
+      `OwnFrameTests/FrameIntentGlueTests.swift` — SelectSourceIntent and
       GetFrameStateIntent forward correctly; `GetFrameStateIntent.openAppWhenRun ==
       false`; `SourceEntity` query answers `entities(for:)` and
       `suggestedEntities()` from the registry's `sourceOptions` (same closure the HA
       select list is built from); `FrameStateEntity` mirrors the snapshot
       field-for-field. Expected red = doesn't compile until T024
-- [x] T024 [US3] Implement `Immich Slideshow/Intents/SourceEntity.swift`
-      (`AppEntity` + query), `Immich Slideshow/Intents/FrameStateEntity.swift`
+- [x] T024 [US3] Implement `OwnFrame/Intents/SourceEntity.swift`
+      (`AppEntity` + query), `OwnFrame/Intents/FrameStateEntity.swift`
       (`TransientAppEntity` mirror), the two shells in
-      `Immich Slideshow/Intents/FrameIntents.swift`, and the two remaining
-      AppShortcuts phrases in `Immich Slideshow/Intents/FrameAppShortcuts.swift`
+      `OwnFrame/Intents/FrameIntents.swift`, and the two remaining
+      AppShortcuts phrases in `OwnFrame/Intents/FrameAppShortcuts.swift`
       (7 total, cap 10) — green T023
 - [x] T025 [US3] **Checkpoint**: all AppIntentsKit suites (40) + `FrameIntentGlueTests`
       (13) green via `test_sim` ✅ (2026-07-17); `build_sim` clean ✅. The Shortcuts-app
@@ -260,7 +260,7 @@ of leaking (SC-800-04).
 Red test task strictly before its implementation task; package before shells;
 shells before phrases; checkpoint last. Commit per task or logical pair
 (explicit `git add` paths — new intent error strings will also touch
-`Immich Slideshow/Localizable.xcstrings` via Xcode's auto-extraction; stage it
+`OwnFrame/Localizable.xcstrings` via Xcode's auto-extraction; stage it
 with the shell commits).
 
 ---

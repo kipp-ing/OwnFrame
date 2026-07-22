@@ -90,7 +90,7 @@ Reuse **`AppStoreScreenshotUITests`** (env-gated, commit 2239845) on the iPhone 
    `xcrun simctl uninstall <SIM> ing.kipp.Immich-Slideshow` (fresh onboarding),
    `xcrun simctl status_bar <SIM> override --time "9:41" --batteryState charged
    --batteryLevel 100 --wifiBars 3 --wifiMode active`.
-2. `test_sim` with `extraArgs: ["-only-testing:Immich SlideshowUITests/AppStoreScreenshotUITests",
+2. `test_sim` with `extraArgs: ["-only-testing:OwnFrameUITests/AppStoreScreenshotUITests",
    "-parallel-testing-enabled", "NO"]` and `testRunnerEnv: {SCREENSHOT_CAPTURE: "1"}`.
    The test forces landscape (photo-frame story; matches the iPad set) — ASC accepts
    2868×1320 landscape for the 6.9" class. The asset-id oracles (chapel `87b68d06-…`,

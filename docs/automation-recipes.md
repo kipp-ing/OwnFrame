@@ -1,6 +1,6 @@
 # Automation Recipes: Controlling the Frame with Shortcuts & Siri
 
-Photo Frame for Immich exposes its remote-control commands as **App Intents** — the
+OwnFrame exposes its remote-control commands as **App Intents** — the
 same commands Home Assistant drives (see `docs/`, topic 700), available to Siri, the
 Shortcuts app, and on-device **personal automations**. No broker, no network, no
 extra hardware: the frame schedules itself.
@@ -12,13 +12,13 @@ All actions appear in the Shortcuts app automatically after installing the app
 
 | Action | Siri phrase | Notes |
 |---|---|---|
-| Pause Slideshow | "Pause Photo Frame" | Same semantics as the on-screen pause |
-| Resume Slideshow | "Resume Photo Frame" | |
-| Next Photo | "Next photo on Photo Frame" | Steps while paused without resuming |
-| Previous Photo | "Previous photo on Photo Frame" | |
-| Set Frame Brightness | "Set Photo Frame brightness" | 0–100 % |
-| Set Frame Source | "Set Photo Frame source" | Options = your saved sources |
-| Get Frame State | "Get Photo Frame state" | Returns playing/paused, brightness, source, photo date & place |
+| Pause Slideshow | "Pause OwnFrame" | Same semantics as the on-screen pause |
+| Resume Slideshow | "Resume OwnFrame" | |
+| Next Photo | "Next photo on OwnFrame" | Steps while paused without resuming |
+| Previous Photo | "Previous photo on OwnFrame" | |
+| Set Frame Brightness | "Set OwnFrame brightness" | 0–100 % |
+| Set Frame Source | "Set OwnFrame source" | Options = your saved sources |
+| Get Frame State | "Get OwnFrame state" | Returns playing/paused, brightness, source, photo date & place |
 
 ## The two assumptions (read this first)
 
@@ -84,9 +84,9 @@ third-party intents:
 
 ## Errors you might see
 
-- "Set up the frame first — open Photo Frame and add a source." — the app has
+- "Set up the frame first — open OwnFrame and add a source." — the app has
   never finished onboarding.
-- "Photo Frame must be open on the frame device for this." — the app wasn't
+- "OwnFrame must be open on the frame device for this." — the app wasn't
   running (or was still starting) when the action ran.
 - "Brightness must be between 0 and 100 percent." — a Shortcuts variable fed an
   out-of-range number; the frame state is unchanged.
