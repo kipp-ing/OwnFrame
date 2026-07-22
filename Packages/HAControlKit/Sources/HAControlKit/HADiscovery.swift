@@ -75,6 +75,21 @@ public enum HADiscovery {
             // HA files them under the device's diagnostics (FR-710-07).
             json["command_topic"] = nil
             json["entity_category"] = "diagnostic"
+        case .battery:
+            // Read-only diagnostic percent sensor (FR-710-23). device_class + unit let HA
+            // draw the battery glyph; state_class enables long-term statistics.
+            json["command_topic"] = nil
+            json["entity_category"] = "diagnostic"
+            json["device_class"] = "battery"
+            json["unit_of_measurement"] = "%"
+            json["state_class"] = "measurement"
+        case .charging:
+            // Read-only diagnostic binary_sensor (FR-710-23): ON = on external power.
+            json["command_topic"] = nil
+            json["entity_category"] = "diagnostic"
+            json["device_class"] = "battery_charging"
+            json["payload_on"] = "ON"
+            json["payload_off"] = "OFF"
         case .currentPhoto:
             json["command_topic"] = nil
             json["state_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
@@ -135,6 +150,10 @@ public enum HADiscovery {
             "Slideshow Photo Count"
         case .version:
             "Slideshow Version"
+        case .battery:
+            "Slideshow Battery"
+        case .charging:
+            "Slideshow Charging"
         }
     }
 }

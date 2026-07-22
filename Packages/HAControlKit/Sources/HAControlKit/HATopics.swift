@@ -65,6 +65,10 @@ public enum HATopics {
             "sensor"
         case .version:
             "sensor"
+        case .battery:
+            "sensor"
+        case .charging:
+            "binary_sensor"
         }
     }
 }

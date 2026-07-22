@@ -14,7 +14,7 @@ struct HAControlCoordinatorModeTests {
 
     @Test
     func readOnlySensorsAreExactlyTheNonCommandEntities() {
-        let sensors: Set<HAEntity> = [.currentPhoto, .currentPhotoImage, .phase, .photoCount, .version]
+        let sensors: Set<HAEntity> = [.currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging]
         for entity in HAEntity.allCases {
             #expect(entity.isReadOnlySensor == sensors.contains(entity),
                     "\(entity.rawValue): isReadOnlySensor mismatch")
