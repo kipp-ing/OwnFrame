@@ -110,7 +110,7 @@ concern).
 
 ## R6 — App wiring
 
-**Decision**: `Immich_SlideshowApp` creates one `DiskImageCache` (root:
+**Decision**: `OwnFrameApp` creates one `DiskImageCache` (root:
 `Library/Caches/ImageCache/`, budget from the store), one `FileSourceSnapshotStore`, and one
 `UserDefaultsCacheBudgetStore` at startup, and passes them to `makeSlideshow` (new optional
 view-model init params) and to `SlideshowSettingsView`. The UITest seam (`UITestSupport`)

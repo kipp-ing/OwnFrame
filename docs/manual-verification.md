@@ -41,7 +41,7 @@ Status): the sim proves the mechanics, your eyes prove the elegance.
 - [ ] KVS non-secret sync on hardware: iPad companion publish → TV restores theme/broker config
       (under 2 min to playing, zero secrets typed on the TV — SC-1000-01 path).
 - [ ] Real MQTT broker (`home.kippings.de:8883`): TV appears as its own HA device
-      **"Photo Frame (Apple TV)"**; **SC-1000-06** pause/play, source select, dim from HA while the
+      **"OwnFrame (Apple TV)"**; **SC-1000-06** pause/play, source select, dim from HA while the
       iPad frame runs simultaneously — no cross-talk. Include the B8/B9 broker orderings from the
       1000 test review.
 - [ ] **SC-1000-02** Siri-Remote-only walkthrough: every function reachable with the remote alone
@@ -197,7 +197,7 @@ MQTT_INTEGRATION=1 Packages/HAControlKit/Scripts/mqtt-integration.sh
 
 ### T019 — US1: Pause/Play + availability
 1. Start the slideshow with valid broker credentials present.
-2. In Home Assistant a device **"Immich Slideshow"** appears with a Pause/Play switch and an availability
+2. In Home Assistant a device **"OwnFrame"** appears with a Pause/Play switch and an availability
    (online/offline) indicator. *(SC-001)*
 3. Toggle the switch in HA → the slideshow pauses / resumes; the HA state mirrors the app. *(SC-002)*
 4. Pause/resume **in the app** → the HA switch reflects it. *(SC-003)*
@@ -228,7 +228,7 @@ US2 (change / remove) is now covered automatically by
 remove → dismiss). What's left here is the **real-Keychain** round-trip, which the XCUITests deliberately
 skip (they use an in-memory store), plus the quickstart SC walkthrough.
 
-Run on the iPad simulator via XcodeBuildMCP (scheme "Immich Slideshow").
+Run on the iPad simulator via XcodeBuildMCP (scheme "OwnFrame").
 
 ### T014 — US1: persistence + UserDefaults secret boundary
 1. Open the slideshow → reveal chrome → **"Broker einrichten"**.
@@ -264,7 +264,7 @@ foreground). Photo image publishing: Settings → MQTT → "Publish photo image 
 (off by default, FR-710-07).
 
 ### Checklist
-1. **Discovery**: the "Immich Slideshow" device shows all entities from
+1. **Discovery**: the "OwnFrame" device shows all entities from
    [the 710 contract](../specs/710-ha-full-control/contracts/ha-mqtt-entities.md) — the 3 existing
    (playback switch, brightness light, album select) plus order/transition/fit/quality/clock-corner
    selects, duration number, Ken Burns/clock/clock-date switches, next/previous buttons, and the

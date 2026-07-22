@@ -156,12 +156,12 @@ Packages/SlideshowKit/Sources/SlideshowKit/
                                    #   alongside unauthorized/shareLinkExpired/wrong/required.
                                    #   Refresh path surfaces the notice instead of looping.
 
-Immich Slideshow/
-└── Immich_SlideshowApp.swift     # update the preview/stub serverVersion() (currently "1.0.0")
+OwnFrame/
+└── OwnFrameApp.swift     # update the preview/stub serverVersion() (currently "1.0.0")
                                    #   and any share-link stub to the v3 shapes so previews/UITests
                                    #   don't trip the new gate.
 
-Immich SlideshowUITests/
+OwnFrameUITests/
 └── <onboarding suite>.swift      # + one flow: too-old server -> upgrade notice shown, no advance
                                    #   (hermetic --uitest seams).
 ```

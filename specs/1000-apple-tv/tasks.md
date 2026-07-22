@@ -54,12 +54,12 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
       green on host; ManifestKit builds for tvOS dest (checked in T022).
 - [x] T004 [delegate] Create `Packages/ConfigSyncKit` (Package.swift iOS17/tvOS17/macOS14; target +
       testTarget; empty stub type + one passing test). `swift test` green. Home for Phase 6.
-- [x] T005 [inline] Add the **tvOS app target** `Immich SlideshowTV` to the xcodeproj via the
+- [x] T005 [inline] Add the **tvOS app target** `OwnFrameTV` to the xcodeproj via the
       `xcodeproj` gem: shared bundle-id family (`ing.kipp.Immich-Slideshow`), `TVOS_DEPLOYMENT_TARGET
       = 17.0`, `SUPPORTED_PLATFORMS = appletvos appletvsimulator`, `TARGETED_DEVICE_FAMILY = 3`; link
       the tvOS package set (ImmichClient, OnboardingKit, SlideshowKit, PowerKit, HAControlKit,
       HAControlMQTT, BrokerSetupKit, ThemeKit, PhotoSourceKit, ConfigSyncKit — **not** PhotoLibraryKit
-      /AppIntentsKit); new synchronized group `Immich SlideshowTV/`; share `Immich Slideshow/` with a
+      /AppIntentsKit); new synchronized group `OwnFrameTV/`; share `OwnFrame/` with a
       build-file **exception set** excluding `Onboarding/QRScannerView.swift`, `Onboarding/
       PhotoAlbumPickerView.swift`, `Slideshow/UIScreenController.swift`; **no** Share-Extension embed/
       dependency (FR-1000-09); entitlements (iCloud KVS + CloudKit private DB); shared scheme.
@@ -70,7 +70,7 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
 
 ## Phase 3: US1 — the frame plays on the TV (P1) 🎯 MVP
 
-- [x] T006 [delegate] Red+green `SoftwareDimModel` (pure) in `Immich SlideshowTV/` (host-testable via
+- [x] T006 [delegate] Red+green `SoftwareDimModel` (pure) in `OwnFrameTV/` (host-testable via
       a tiny test target or ConfigSyncKit-adjacent): `brightness→overlayOpacity = 1−clamp(b)`;
       monotonic; clamps. Tests first.
 - [x] T007 [inline] `SoftwareDimScreenController: ScreenControlling` (tvOS): `brightness` drives an
@@ -106,7 +106,7 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
 ## Phase 5: US4 — Home Assistant parity in the living room (P2)
 
 - [x] T014 [delegate] Red+green `FrameIdentity` provider: distinct tvOS `deviceID`+`deviceName`
-      ("Photo Frame (Apple TV)") vs iOS; assert distinct MQTT base topic / discovery identifiers /
+      ("OwnFrame (Apple TV)") vs iOS; assert distinct MQTT base topic / discovery identifiers /
       unique_id via `HATopics`/`HADiscovery` (host tests, no kit change).
 - [x] T015 [inline] Wire HA on the tvOS app entry: BrokerSetup + `HAControlCoordinator` with the tvOS
       `FrameIdentity`; brightness command → `SoftwareDimScreenController` dim; confirm HAControlKit

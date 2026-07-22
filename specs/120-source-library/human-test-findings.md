@@ -53,7 +53,7 @@ Bugs/observations from the real-iPad test pass (iPad jk, iPad16,3). To be batch-
   re-screenshotting KB on/off (chrome inset identical) and re-running `SlideshowChromeUITests`
   (tap-toggle + swipe must still work). Consider keeping `--uitest-kenburns` to back a regression
   screenshot check.
-  - Files: `Immich Slideshow/Slideshow/SlideshowView.swift` (body ZStack / `chromeOverlay`).
+  - Files: `OwnFrame/Slideshow/SlideshowView.swift` (body ZStack / `chromeOverlay`).
 
 ## Finding 3 (feature gap) — MQTT broker setup gives zero connection feedback
 - **Observed:** After entering broker host/user/password and saving, nothing tells the user whether
@@ -75,7 +75,7 @@ Bugs/observations from the real-iPad test pass (iPad jk, iPad16,3). To be batch-
   2. Optionally a live **status row** reflecting the running coordinator (connected/connecting/last
      error) so HA control state is visible while the show runs.
   - Files (when specced): `Packages/HAControlKit` (classify/expose connect errors), `BrokerSetupKit`/
-    `BrokerSetupViewModel` (test action), `Immich Slideshow/Slideshow/BrokerSetupView.swift` (UI).
+    `BrokerSetupViewModel` (test action), `OwnFrame/Slideshow/BrokerSetupView.swift` (UI).
   - Belongs to specs `600-broker-setup` / `700-ha-control`, not 120.
 
 ## Finding 4 (perf/power investigation) — slideshow feels power-hungry

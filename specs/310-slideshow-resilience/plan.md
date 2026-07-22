@@ -134,8 +134,8 @@ Packages/SlideshowKit/Tests/SlideshowKitTests/
 └── SlideshowResilienceTests.swift # NEW: view-model level — US1/US2/US3 acceptance scenarios
                                 #   under TestClock + StubImmichAPI (see quickstart.md)
 
-Immich Slideshow/
-├── Immich_SlideshowApp.swift   # inject ContinuousSlideshowClock() at the two
+OwnFrame/
+├── OwnFrameApp.swift   # inject ContinuousSlideshowClock() at the two
 │                               #   SlideshowViewModel build sites (default parameter keeps
 │                               #   this a one-line change per site)
 └── Slideshow/

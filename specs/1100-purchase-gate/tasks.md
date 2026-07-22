@@ -23,11 +23,11 @@ full XCUITest suite runs before merge.
 - [x] T001 Create `Packages/PurchaseKit` skeleton: `Package.swift` (platforms `.iOS(.v17)`,
       `.tvOS(.v17)`, zero dependencies), empty `Sources/PurchaseKit/` + `Tests/PurchaseKitTests/`
       with one placeholder test; `swift build`/`swift test` green on host.
-- [x] T002 Add PurchaseKit as a local package dependency of both app targets (`Immich Slideshow`,
-      `Immich SlideshowTV`) in `Immich Slideshow.xcodeproj/project.pbxproj` via the `xcodeproj`
+- [x] T002 Add PurchaseKit as a local package dependency of both app targets (`OwnFrame`,
+      `OwnFrameTV`) in `OwnFrame.xcodeproj/project.pbxproj` via the `xcodeproj`
       gem script pattern from 1000 (pbxproj explicitly in scope); verify both schemes build via
       XcodeBuildMCP.
-- [x] T003 [P] Add StoreKit test configuration `Immich SlideshowTests/Configuration.storekit`
+- [x] T003 [P] Add StoreKit test configuration `OwnFrameTests/Configuration.storekit`
       defining the six products with the exact ids from data-model.md (3 non-consumables with
       Family Sharing, 3 consumable tips), wired into the iOS test scheme.
 
@@ -69,7 +69,7 @@ every user story depends on these.
       (conforms to `StoreClient`, trivial bodies, NO behavioral logic — constitution I: the
       adapter's behavior is implemented in T030 only after its StoreKitTest cases are red).
 - [x] T014 Wire injection + hermetic seams in both apps: create `EntitlementStore` at startup
-      in `Immich Slideshow/Immich_SlideshowApp.swift` and the TV entry (`Immich
+      in `OwnFrame/OwnFrameApp.swift` and the TV entry (`Immich
       SlideshowTV/TVRootView.swift`), honoring `--uitest-entitlements=<none|pro|automation|all>`
       and `--uitest-store=<stub|unavailable|pending>` per contracts/uitest-seams.md (stub
       client lives in PurchaseKit, guarded by the uitest flag).
@@ -95,24 +95,24 @@ zero `unlock.`-prefixed elements.
       in-flight photo's motion — the effective flag is latched per photo and applies at the
       next photo advance (or next foreground), never mid-photo.
 - [x] T016 [US1] Gate Ken Burns + clock at point of effect in
-      `Immich Slideshow/Slideshow/SlideshowView.swift` (effective flags feeding
+      `OwnFrame/Slideshow/SlideshowView.swift` (effective flags feeding
       `KenBurnsMotionModifier` and the `ClockOverlayView` branch) until T015 is green,
       including the per-photo latch (T015's boundary rule);
       `ThemeSettings`/`ClockSettings` reads/writes unchanged.
-- [x] T017 [P] [US1] Same Ken Burns gate in `Immich SlideshowTV/TVSlideshowView.swift`
+- [x] T017 [P] [US1] Same Ken Burns gate in `OwnFrameTV/TVSlideshowView.swift`
       (tvOS clock rendering doesn't exist yet — 1000 leftover; nothing to gate there).
 - [x] T018 [US1] RED then implement: coordinator-gate tests — `.automation` absent →
       `HAControlCoordinator` never constructed/started; present → started. Gate in
-      `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` and
-      `Immich SlideshowTV/TVRemoteControlAdapter.swift`. Broker config and keychain untouched
+      `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` and
+      `OwnFrameTV/TVRemoteControlAdapter.swift`. Broker config and keychain untouched
       (asserted by test). Also assert the R5 state-topic rule: MQTT state topics report the
       STORED settings values (data), not effective rendering — an Automation-only owner setting
       the Ken Burns/clock selects sees the stored value echoed while rendering stays Pro-gated.
 - [x] T019 [US1] RED then implement: intent guards in
-      `Immich Slideshow/Intents/FrameIntents.swift` — every remote-control intent's
+      `OwnFrame/Intents/FrameIntents.swift` — every remote-control intent's
       `perform()` throws the localized `unlock.required.automation` error without
       `.automation`; error message asserted in test; intents remain listed in Shortcuts.
-- [x] T020 [US1] RED: XCUITest `Immich SlideshowUITests/PurchaseGateUITests.swift` — seam
+- [x] T020 [US1] RED: XCUITest `OwnFrameUITests/PurchaseGateUITests.swift` — seam
       assertions 1 + 2 from contracts/uitest-seams.md (locked rows
       `settings.row.kenburns.locked` / `.clock.locked` / `.broker.locked` exist, are hittable;
       a stub playback window of ≥ 3 photo advances surfaces no `unlock.`-prefixed element),
@@ -122,7 +122,7 @@ zero `unlock.`-prefixed elements.
       `Packages/PurchaseKit/Sources/PurchaseKit/UI/LockedRow.swift` with the contract
       accessibility identifiers; SwiftUI preview renders on iOS + tvOS.
 - [x] T022 [US1] Apply locked treatment + "Unlocks" section skeleton in
-      `Immich Slideshow/Slideshow/SlideshowSettingsView.swift` (Ken Burns row, clock rows,
+      `OwnFrame/Slideshow/SlideshowSettingsView.swift` (Ken Burns row, clock rows,
       broker/remote-control entry; free rows untouched) until T020 is green.
 
 **Checkpoint**: MVP — the gate exists and bites; a free frame is indistinguishable from
@@ -151,7 +151,7 @@ states.
       neutral sample as fallback per research R7), localized price, buy, Restore, `unavailable`
       + `pending` states; accessibility ids per contract.
 - [x] T027 [US2] Present unlock screens from every locked row and the Unlocks section in
-      `Immich Slideshow/Slideshow/SlideshowSettingsView.swift`; no auto-presentation anywhere;
+      `OwnFrame/Slideshow/SlideshowSettingsView.swift`; no auto-presentation anywhere;
       T025 green.
 
 **Checkpoint**: purchase loop works end to end against the stub store; US2 scenarios 1–3 pass
@@ -174,7 +174,7 @@ at first render across relaunches; StoreKitTest session drives refund/deferral f
 - [x] T029 [US3] Implement `listenForUpdates()` + never-downgrade refinement in
       `EntitlementStore.swift` until T028 is green.
 - [x] T030 [US3] RED then implement: StoreKitTest adapter tests (XCTest — strictly-necessary
-      exception) in `Immich SlideshowTests/StoreKitClientTests.swift` against T003's
+      exception) in `OwnFrameTests/StoreKitClientTests.swift` against T003's
       `.storekit` config — purchase→owned, restore, refund→excluded from owned, Ask-to-Buy
       deferral then approval, interrupted purchase completes on next launch, unverified
       transaction dropped. Each case red first (observed: notImplemented → productUnavailable),
@@ -246,8 +246,8 @@ visible (masked as usual) behind a locked banner, no connect attempt; stub-purch
 Automation → coordinator starts with stored config.
 
 - [x] T035 [US5] RED then implement: locked-banner state in
-      `Immich Slideshow/Slideshow/BrokerSetupView.swift` and
-      `Immich SlideshowTV/TVBrokerSetupView.swift` — stored config shown (secrets masked as
+      `OwnFrame/Slideshow/BrokerSetupView.swift` and
+      `OwnFrameTV/TVBrokerSetupView.swift` — stored config shown (secrets masked as
       today), `settings.row.broker.locked` banner, no clearing/migration of any stored value
       (host tests assert keychain/defaults untouched by the gate path).
 - [x] T036 [P] [US5] Negative test in `Packages/ConfigSyncKit/Tests/ConfigSyncKitTests/`:
@@ -278,7 +278,7 @@ outside settings.
 
 ## Phase 9: Polish & Cross-Cutting
 
-- [x] T039 [P] Copy audit (SC-1100-07): sweep `Immich Slideshow/Localizable.xcstrings`, all
+- [x] T039 [P] Copy audit (SC-1100-07): sweep `OwnFrame/Localizable.xcstrings`, all
       PurchaseKit UI strings, `docs/app-store-listing.md`, `README.md`, and user-facing pages
       under `docs/` for "lifetime"/subscription terminology on the unlocks (FR-1100-05 covers
       any user-facing document); sanctioned phrasing "one-time purchase"; note the audit
@@ -320,7 +320,7 @@ Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-0
 - [x] T045 [US5] Implement the mode in `HAControlCoordinator`: add `mode` (`.telemetryOnly` /
       `.full`); split `announce()`'s per-entity publish vs subscribe; gate control-entity
       discovery + `subscribe` + `startConsumers`/`handleIncoming` behind `.full`. GREEN T043/T044.
-- [x] T046 [US5] App wiring (iOS `Immich_SlideshowApp.swift`): replace the all-or-nothing
+- [x] T046 [US5] App wiring (iOS `OwnFrameApp.swift`): replace the all-or-nothing
       `AutomationCoordinatorGate` with mode selection — `.telemetryOnly` when a broker is
       configured but Automation is unentitled, `.full` when entitled; keychain broker read is now
       free-tier telemetry (FR-1100-14 restated).
@@ -340,8 +340,8 @@ Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-0
       transparency log). Done 2026-07-20.
 - [x] T053 Add the short in-app pledge string to the Unlocks settings footer (iOS
       `SlideshowSettingsView.swift` + tvOS `TVSettingsView.swift`) → new key in
-      `Immich Slideshow/Localizable.xcstrings`.
-- [x] T054 Pledge string carried into `Immich Slideshow/Localizable.xcstrings`. The app ships
+      `OwnFrame/Localizable.xcstrings`.
+- [x] T054 Pledge string carried into `OwnFrame/Localizable.xcstrings`. The app ships
       English-only by policy, so there is nothing to *translate* — the task is the catalog entry,
       added by hand because command-line `xcodebuild` never writes extracted strings back to the
       source catalog (only the Xcode IDE does). Same pass removed four keys left behind by the
@@ -372,7 +372,7 @@ Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-0
 
 **Status (2026-07-20):** T043–T053 done and verified. Spec 1100/710 amended; HAControlKit
 `.telemetryOnly`/`.full` mode + `HAEntity` sensor/control partition (94 host tests green, incl. 5
-new mode tests + all prior coordinator tests); iOS (`Immich_SlideshowApp` + `AutomationCoordinatorGate`)
+new mode tests + all prior coordinator tests); iOS (`OwnFrameApp` + `AutomationCoordinatorGate`)
 and tvOS (`TVRootView`) wiring select the mode by entitlement; iOS + tvOS settings UI restructured —
 the broker editor is live/free with an Automation "Remote control" control-locked banner above it
 (old `LockedBrokerView`/`TVLockedBrokerView` masked screens removed); `PurchaseGateCoordinatorTests`

@@ -11,8 +11,8 @@ struct FrameIdentityTests {
 
         #expect(ipad.deviceID != appleTV.deviceID)
         #expect(HATopics.base(deviceID: ipad.deviceID) != HATopics.base(deviceID: appleTV.deviceID))
-        #expect(HATopics.base(deviceID: ipad.deviceID) == "immichslideshow/ABC")
-        #expect(HATopics.base(deviceID: appleTV.deviceID) == "immichslideshow/ABC-appletv")
+        #expect(HATopics.base(deviceID: ipad.deviceID) == "ownframe/ABC")
+        #expect(HATopics.base(deviceID: appleTV.deviceID) == "ownframe/ABC-appletv")
     }
 
     // @covers FR-700-06, FR-700-22

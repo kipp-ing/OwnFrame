@@ -38,7 +38,7 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR-100-06 | Map HTTP 401 to unauthorized | `ErrorTests.swift` `albumsMapsUnauthorizedStatusToUnauthorizedError`; `OriginalEndpointTests.swift` `originalMapsUnauthorizedStatusToUnauthorizedError` | covered | host-unit |
 | FR-100-07 | Map network failure to unreachable | `ErrorTests.swift` `albumsMapsURLErrorToUnreachableError`; `ServerVersionTests.swift` `serverVersionMapsURLErrorToUnreachable` | covered | host-unit |
 | FR-100-08 | Empty album returns empty list | `AssetTests.swift` `assetsReturnsEmptyArrayForAlbumWithoutAssets` | covered | host-unit |
-| FR-100-09 | Preserve album IDs/names | `AlbumTests.swift` `albumJSONDecodesAlbumNameAsName`; app-hosted `Immich_SlideshowTests.swift` `albumsDecodeAlbumNameAsName` | covered | host-unit |
+| FR-100-09 | Preserve album IDs/names | `AlbumTests.swift` `albumJSONDecodesAlbumNameAsName`; app-hosted `OwnFrameTests.swift` `albumsDecodeAlbumNameAsName` | covered | host-unit |
 | FR-100-10 | Malformed response is invalid-response, not crash | `ErrorTests.swift` `albumsMapsNonSuccessStatusToInvalidResponseError`, `albumsMapsUndecodableBodyToInvalidResponseError`; `ServerVersionTests.swift` `serverVersionMapsInvalidResponseToInvalidResponse` | covered | host-unit |
 | FR-100-11 | Fully mock-transport testable | `FoundationTypesTests.swift` `mockTransportReturnsConfiguredResponseAndRecordsRequest`, `mockTransportThrowsConfiguredErrorAndRecordsRequest` plus all `MockTransport` client tests | covered | host-unit |
 | FR-100-12 | Normal HTTPS/TLS validation, no TLS-disable path | — | missing | manual |
@@ -51,14 +51,14 @@ Status values: `covered` means existing tests exercise the requirement directly 
 |---|---|---|---|---|
 | FR-200-01 | Startup detects complete config before skipping onboarding | `Packages/OnboardingKit/Tests/OnboardingKitTests/StartupGateTests.swift` `startupGateReturnsDoneForConnectionAndActiveSource`, `startupGateReturnsConnectionWithoutAPIKey`, `startupGateMigratesLegacySelectedAlbumIDToDone`; `ConfigStoreTests.swift` load/partial URL tests | covered | host-unit |
 | FR-200-02 | Resume first missing step; do not unlock partial setup | `StartupGateTests.swift` `startupGateReturnsConnectionWithoutConfigAndWithoutAPIKey`, `startupGateReturnsConnectionWithoutBaseURL`, `startupGateReturnsSourceWhenConnectedButLibraryEmpty` | covered | host-unit |
-| FR-200-03 | Combined URL/API-key screen with one Continue | `Immich SlideshowUITests/Immich_SlideshowUITests.swift` `testFreshLaunchShowsConnectionStep`, `testOnboardingHappyPathReachesSlideshow` | covered | ui-sim |
+| FR-200-03 | Combined URL/API-key screen with one Continue | `OwnFrameUITests/OwnFrameUITests.swift` `testFreshLaunchShowsConnectionStep`, `testOnboardingHappyPathReachesSlideshow` | covered | ui-sim |
 | FR-200-04 | Continue disabled until URL and key non-empty | — | missing | ui-sim |
 | FR-200-05 | Validate well-formed HTTPS before network | `OnboardingViewModelTests.swift` `rejectsNonHTTPSURL`; `ConnectionSettingsViewModelTests.swift` `connectionSettingsRejectsMalformedURL` | covered | host-unit |
 | FR-200-06 | Validate reachability/auth in one action | `OnboardingViewModelTests.swift` `advancesToSourceWhenReachableAndAuthorized` | covered | host-unit |
 | FR-200-07 | Preserve values and classify validation failures | `OnboardingViewModelTests.swift` `staysWhenServerUnreachable`, `staysWhenUnauthorized`, `staysWhenKeychainSaveFails`; invalid-response classification not directly covered | partial | host-unit |
-| FR-200-08 | API key only in Keychain, never plaintext | `Immich SlideshowTests/OnboardingKeychainTests.swift` `keychainStoreRoundTripsSaveReadDelete`; `ConnectionSettingsViewModelTests.swift` `connectionSettingsPrefillsStoredConnectionWithoutExposingStoredKey` | partial | manual |
+| FR-200-08 | API key only in Keychain, never plaintext | `OwnFrameTests/OnboardingKeychainTests.swift` `keychainStoreRoundTripsSaveReadDelete`; `ConnectionSettingsViewModelTests.swift` `connectionSettingsPrefillsStoredConnectionWithoutExposingStoredKey` | partial | manual |
 | FR-200-09 | Persist server URL (and album source) in non-secret storage | `ConfigStoreTests.swift` `userDefaultsConfigStoreLoadsSavedConfiguration`, `userDefaultsConfigStoreSaveBaseURLPersistsBaseURLWithoutSelectedAlbum`; `OnboardingViewModelTests.swift` `finishWithActiveAlbumSourcePersistsConfigurationAndCompletes` | covered | host-unit |
-| FR-200-10 | Load live albums; require one source (album or shared link, 120) | `OnboardingViewModelTests.swift` `advancesToSourceWhenReachableAndAuthorized`, `finishWithActiveAlbumSourcePersistsConfigurationAndCompletes`; `Immich_SlideshowUITests.swift` `testOnboardingHappyPathReachesSlideshow` | covered | host-unit |
+| FR-200-10 | Load live albums; require one source (album or shared link, 120) | `OnboardingViewModelTests.swift` `advancesToSourceWhenReachableAndAuthorized`, `finishWithActiveAlbumSourcePersistsConfigurationAndCompletes`; `OwnFrameUITests.swift` `testOnboardingHappyPathReachesSlideshow` | covered | host-unit |
 | FR-200-11 | Empty album list is clear, not dead end (now advances to add-source, 120) | `OnboardingViewModelTests.swift` `advancesToSourceEvenWhenAlbumListEmpty` | covered | host-unit |
 | FR-200-12 | Settings shows URL and key-set indicator without key | `ConnectionSettingsViewModelTests.swift` `connectionSettingsPrefillsStoredConnectionWithoutExposingStoredKey` | covered | ui-sim |
 | FR-200-13 | Settings edits URL/key independently with secure key entry | `ConnectionSettingsViewModelTests.swift` `connectionSettingsURLOnlyChangeUsesStoredKeyAndDoesNotWriteKeychain`, `connectionSettingsPersistsNewURLAndKeyWhenSelectedAlbumStillExists` | partial | ui-sim |
@@ -68,12 +68,12 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR-200-17 | Cancel/dismiss editor has no side effects | — | missing | ui-sim |
 | FR-200-18 | Connection editor reachable from Settings and error recovery | Settings reachability covered by `SettingsUITests.swift` `testConnectionAndMqttAppearAsCollapsedSections`; error recovery path not directly tested | partial | ui-sim |
 | FR-200-19 | Missing selected album prompts reselection, not onboarding | `ConnectionSettingsViewModelTests.swift` `connectionSettingsReturnsAlbumMissingAfterPersistingWhenSelectedAlbumIsAbsent` | covered | host-unit |
-| FR-200-20 | Broker section surfaced from Settings only | `Immich SlideshowUITests/SettingsUITests.swift` `testConnectionAndMqttAppearAsCollapsedSections`; `BrokerSetupUITests.swift` broker editor tests | covered | ui-sim |
+| FR-200-20 | Broker section surfaced from Settings only | `OwnFrameUITests/SettingsUITests.swift` `testConnectionAndMqttAppearAsCollapsedSections`; `BrokerSetupUITests.swift` broker editor tests | covered | ui-sim |
 | FR-200-21 | Connection/Broker collapsed by default; display/brightness remain owned elsewhere | `SettingsUITests.swift` `testConnectionAndMqttAppearAsCollapsedSections`, `testSettingsShowsBrightnessAndPlannedOptionsAndDismisses`; `SettingsDisplayOptionsUITests.swift` display option tests | covered | ui-sim |
 | FR-200-22 | All Settings sections reachable by scrolling | `SettingsUITests.swift` `testBottomSettingsSectionReachableInBothOrientations`; missing reduced-width and keyboard-open variants | partial | ui-sim |
 | FR-200-23 | Reset dialog only reset/cancel, no broker setup | — | missing | ui-sim |
 | FR-200-24 | Reset clears URL, album, key and returns connection step | `OnboardingViewModelTests.swift` `resetReturnsToConnectionAndClearsLibrary`; app-hosted `OnboardingResetTests.swift` `resetClearsRealConfigAndKeychainAndReturnsToConnection` | covered | host-unit |
-| FR-200-25 | Shared-link source in onboarding and Settings (placeholder replaced by the real feature in 120) | `Immich SlideshowUITests/SourceOnboardingUITests.swift` `testOnboardingAddSharedLinkSourceReachesSlideshow`; Settings via `SourceLibraryUITests.swift` | covered | ui-sim |
+| FR-200-25 | Shared-link source in onboarding and Settings (placeholder replaced by the real feature in 120) | `OwnFrameUITests/SourceOnboardingUITests.swift` `testOnboardingAddSharedLinkSourceReachesSlideshow`; Settings via `SourceLibraryUITests.swift` | covered | ui-sim |
 | FR-200-26 | No new Immich backend behavior/endpoints | — | missing | manual |
 | FR-200-27 | Dependencies injected behind protocols | `OnboardingViewModelTests.swift`, `ConnectionSettingsViewModelTests.swift`, `StartupGateTests.swift`, and `ConfigStoreTests.swift` all use fakes/injected stores | covered | host-unit |
 
@@ -81,7 +81,7 @@ Status values: `covered` means existing tests exercise the requirement directly 
 
 | FR | Requirement (short) | Covering test(s) | Status | Testability |
 |---|---|---|---|---|
-| FR-300-01 | Start fullscreen with only image visible | `Immich SlideshowUITests/SlideshowChromeUITests.swift` `testChromeHiddenByDefaultAndRevealsOnTap` | covered | ui-sim |
+| FR-300-01 | Start fullscreen with only image visible | `OwnFrameUITests/SlideshowChromeUITests.swift` `testChromeHiddenByDefaultAndRevealsOnTap` | covered | ui-sim |
 | FR-300-02 | Load configured single album through topic 100 | `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowViewModelTests.swift` `startShowsFirstImageAssetAndFiltersVideos`, `switchAlbumLoadsNewAlbumAndExposesCurrentAlbumID` | covered | host-unit |
 | FR-300-03 | One image, timed advance, transition, loop | `SlideshowViewModelTests.swift` `manualTickAdvancesExactlyOneImageAndWraps`, `singleImageAlbumRemainsStableOnTick`; `TransitionMappingTests.swift` transition tests | covered | host-unit |
 | FR-300-04 | Consume topic 500 options live | `PlayOrderTests.swift` order tests; `DurationTickerTests.swift` `tickerWaitsCurrentDurationAndReArmsWhenDurationChangesMidShow`; `QualitySelectionTests.swift` quality tests; fit/Ken Burns/clock live rendering only partially covered by UI tests | partial | host-unit |
@@ -100,11 +100,11 @@ Status values: `covered` means existing tests exercise the requirement directly 
 | FR-300-17 | Swipes navigate without revealing chrome | `SlideshowChromeUITests.swift` `testSwipeAdvancesWithoutRevealingChrome` | covered | ui-sim |
 | FR-300-18 | Play/pause controls auto-advance only | `SlideshowChromeUITests.swift` `testTransportAndPlayPauseToggle`; `SlideshowViewModelTests.swift` `togglePauseStopsTickerAndSurvivesForegroundResume` | covered | host-unit |
 | FR-300-19 | Auto-advance forward-only | `SlideshowViewModelTests.swift` `manualTickAdvancesExactlyOneImageAndWraps`, `showPreviousStepsBackwardAndWraps`, `showNextStepsForwardAndResetsTicker` | covered | host-unit |
-| FR-300-20 | Album browser sheet with album/photo grids | `Immich SlideshowUITests/AlbumBrowserUITests.swift` `testAlbumBrowserOpensDrillsInAndSelectionReturnsToSlideshow` | covered | ui-sim |
+| FR-300-20 | Album browser sheet with album/photo grids | `OwnFrameUITests/AlbumBrowserUITests.swift` `testAlbumBrowserOpensDrillsInAndSelectionReturnsToSlideshow` | covered | ui-sim |
 | FR-300-21 | Album browser uses thumbnail endpoint | `Packages/ImmichClient/Tests/ImmichClientTests/PreviewTests.swift` `thumbnailSendsGetRequestWithThumbnailSizeQueryAndReturnsRawData`; no direct album-browser transport assertion | partial | ui-sim |
 | FR-300-22 | Thumbnail selection jumps and can switch album | `AlbumBrowserUITests.swift` `testAlbumBrowserOpensDrillsInAndSelectionReturnsToSlideshow`; `SlideshowViewModelTests.swift` `switchAlbumLoadsNewAlbumAndExposesCurrentAlbumID`, `jumpGoesToRequestedAssetAndIgnoresUnknown` | covered | ui-sim |
 | FR-300-23 | Unknown asset jump is no-op | `SlideshowViewModelTests.swift` `jumpGoesToRequestedAssetAndIgnoresUnknown` | covered | host-unit |
-| FR-300-24 | Info overlay date/location only, updates, empty when absent | `Immich SlideshowUITests/PhotoInfoUITests.swift` `testInfoButtonTogglesDateAndLocationOverlay`; `ImmichClient/AssetInfoTests.swift` `assetInfoWithoutExifFallsBackToLocalDateTimeAndNilLocation`; update/empty overlay not directly tested | partial | ui-sim |
+| FR-300-24 | Info overlay date/location only, updates, empty when absent | `OwnFrameUITests/PhotoInfoUITests.swift` `testInfoButtonTogglesDateAndLocationOverlay`; `ImmichClient/AssetInfoTests.swift` `assetInfoWithoutExifFallsBackToLocalDateTimeAndNilLocation`; update/empty overlay not directly tested | partial | ui-sim |
 | FR-300-25 | Info overlay excludes filenames, album names, secrets | — | missing | ui-sim |
 | FR-300-26 | Settings reachable with live brightness slider | `SettingsUITests.swift` `testSettingsShowsBrightnessAndPlannedOptionsAndDismisses`; `PowerKit/PowerManagerTests.swift` and `BrightnessRampTests.swift` cover owner behavior | covered | ui-sim |
 | FR-300-27 | Settings surface display options and disk-cache controls | `SettingsDisplayOptionsUITests.swift` `testOrderAndDurationPersistAcrossRelaunch`, `testTransitionAndKenBurnsPersistAcrossRelaunch`; disk-cache size/clear via `SettingsStorageUITests.swift` (320, 2026-07-09) | covered | ui-sim |
@@ -142,7 +142,7 @@ All host-unit tests live in `Packages/SlideshowKit/Tests/SlideshowKitTests/` —
 Host-unit tests live in `Packages/SlideshowKit/Tests/SlideshowKitTests/` —
 `DiskImageCacheTests.swift`, `SourceSnapshotStoreTests.swift`, and `SlideshowOfflineTests.swift`
 (real file-backed stores in per-test temp dirs, injected `now`, TestClock-driven engine scenarios).
-UI coverage in `Immich SlideshowUITests/SettingsStorageUITests.swift` (hermetic `--uitest` build
+UI coverage in `OwnFrameUITests/SettingsStorageUITests.swift` (hermetic `--uitest` build
 with real stores under the sandbox tmp dir).
 
 | FR | Requirement (short) | Covering test(s) | Status | Testability |
@@ -168,7 +168,7 @@ v3-only baseline (drops v2). Host-unit unless noted.
 | Req | Statement | Test evidence | Status | Kind |
 |-----|-----------|---------------|--------|------|
 | FR-130-01 | v3-only; no v2 compatibility path | All 130 tests below run against v3 fixtures; the v2 album `assets` decode path was removed | covered | host-unit |
-| FR-130-02 | Album assets via `POST /search/metadata`, paged | `ImmichClient/MetadataSearchTests.swift` `searchResponseDecodesItemsTypeAndNextPageToken`, `assetsPageThroughMetadataSearchUntilNextPageIsNil`, `metadataSearchRequestEncodesAlbumFilterPagingAndImageType`; `AssetTests.swift` `assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader`, `assetsReturnsEmptyArrayForAlbumWithoutAssets`; app `Immich_SlideshowTests.swift` `assetsFetchImagesViaMetadataSearchWithAPIKey`, `assetsReturnsEmptyArrayForEmptyAlbum` | covered | host-unit + app |
+| FR-130-02 | Album assets via `POST /search/metadata`, paged | `ImmichClient/MetadataSearchTests.swift` `searchResponseDecodesItemsTypeAndNextPageToken`, `assetsPageThroughMetadataSearchUntilNextPageIsNil`, `metadataSearchRequestEncodesAlbumFilterPagingAndImageType`; `AssetTests.swift` `assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader`, `assetsReturnsEmptyArrayForAlbumWithoutAssets`; app `OwnFrameTests.swift` `assetsFetchImagesViaMetadataSearchWithAPIKey`, `assetsReturnsEmptyArrayForEmptyAlbum` | covered | host-unit + app |
 | FR-130-03 | Shared-link password in login body, never query | `SharedLinkResolverTests.swift` `resolverLogsInWithPasswordInBodyNotQueryAndReturnsResolution`, `resolverFallsBackToSlugWhenKeyIsInvalid` (no-password GET `/me`) | covered | host-unit |
 | FR-130-12 | Shared-link source lists assets from `/shared-links/me` | `MetadataSearchTests.swift` `sharedLinkSourceListsAssetsFromSharedLinksMe` | covered | host-unit |
 | FR-130-04/09 | Detect major<3; unknown never blocks | `ServerVersionTests.swift` `serverVersionGateClassifiesMajorVersions`, `ensureServerSupportedThrowsServerTooOldForMajorBelowThree`, `ensureServerSupportedPassesForMajorThreePlus`, `ensureServerSupportedPropagatesUnreachableRatherThanTooOld` | covered | host-unit |
@@ -216,7 +216,7 @@ SC-130-01…06 map to the same tests (paging/order, no-query-password, connect n
 | FR-500-11 | Preview/Original quality | `UserDefaultsThemeStoreTests.swift` `userDefaultsThemeStoreRoundTripsEveryFieldAcrossRelaunch`; `SlideshowKit/QualitySelectionTests.swift` `originalQualityLoadsOriginalBytesWithoutPreviewFetch`, `previewQualityLoadsPreviewBytesWithoutOriginalFetch` | covered | host-unit |
 | FR-500-12 | Optional clock corner/date | `ThemeSettingsDefaultsTests.swift`; `UserDefaultsThemeStoreTests.swift` round-trip clock fields; no rendered overlay test | partial | ui-sim |
 | FR-500-13 | Replace placeholder rows with live controls | `SettingsDisplayOptionsUITests.swift` order/duration/transition/Ken Burns tests; fit/quality not UI-tested | partial | ui-sim |
-| FR-500-14 | Brightness still works | `Immich SlideshowUITests/SettingsUITests.swift` `testSettingsShowsBrightnessAndPlannedOptionsAndDismisses`; `PowerKit` tests cover owner behavior | covered | ui-sim |
+| FR-500-14 | Brightness still works | `OwnFrameUITests/SettingsUITests.swift` `testSettingsShowsBrightnessAndPlannedOptionsAndDismisses`; `PowerKit` tests cover owner behavior | covered | ui-sim |
 | FR-500-15 | Calm default overlay-free | `ThemeSettingsDefaultsTests.swift` `themeSettingsDefaultsMatchDisplayOptionsSpec`; `SlideshowChromeUITests.swift` hidden/default UI tests | covered | ui-sim |
 | FR-500-16 | Invalid/corrupt settings fall back to defaults | `UserDefaultsThemeStoreTests.swift` `userDefaultsThemeStoreFallsBackPerFieldForCorruptValues`, `userDefaultsThemeStoreUsesDefaultsForEmptySuite` | covered | host-unit |
 
@@ -224,7 +224,7 @@ SC-130-01…06 map to the same tests (paging/order, no-query-password, connect n
 
 | FR | Requirement (short) | Covering test(s) | Status | Testability |
 |---|---|---|---|---|
-| FR-600-01 | Enter host, port, username, password | `Packages/BrokerSetupKit/Tests/BrokerSetupKitTests/BrokerSetupViewModelTests.swift` `saveNewBrokerPersists`; `Immich SlideshowUITests/BrokerSetupUITests.swift` broker field tests | covered | ui-sim |
+| FR-600-01 | Enter host, port, username, password | `Packages/BrokerSetupKit/Tests/BrokerSetupKitTests/BrokerSetupViewModelTests.swift` `saveNewBrokerPersists`; `OwnFrameUITests/BrokerSetupUITests.swift` broker field tests | covered | ui-sim |
 | FR-600-02 | Validate host/port/username/password | `BrokerSettingsTests.swift` `validationAcceptsCompleteSettings`, `validationReturnsFirstErrorInContractOrder`, `validationAcceptsBoundaryPorts`, `validationRejectsPortsOutsideTCPRange`; `BrokerSetupViewModelTests.swift` invalid tests | covered | host-unit |
 | FR-600-03 | Invalid input prevents save and shows hint | `BrokerSettingsTests.swift` `inMemoryStoreRejectsInvalidSettingsWithoutWriting`; `BrokerSetupViewModelTests.swift` `saveInvalidPortReportsError`, `saveEmptyHostReportsError`; no UI assertion for every hint | partial | ui-sim |
 | FR-600-04 | Username/password only in Keychain, never elsewhere | `BrokerSetupUITests.swift` `testExistingBrokerPrefillsFieldsMasksPasswordAndRemoves` covers no cleartext UI; storage audit not covered by package tests | partial | manual |
@@ -262,7 +262,7 @@ Host-unit tests live in `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/`
 `ChangeObservationTests`, `SeamTests`) and `Packages/SlideshowKit/Tests/SlideshowKitTests/`
 (`DualBackendScenarioTests`, additions to the offline/resilience/view-model suites). UI-sim
 coverage is `PhotoAlbumPickerUITests` (hermetic `--uitest-photos*` seams) plus round-trip
-additions in `Immich SlideshowTests/HAControlRoundTripTests`.
+additions in `OwnFrameTests/HAControlRoundTripTests`.
 
 | FR | Requirement (short) | Covering test(s) | Status | Testability |
 |---|---|---|---|---|
@@ -296,7 +296,7 @@ Host-unit tests live in `Packages/AppIntentsKit/Tests/AppIntentsKitTests/`
 (`RegistryTests`, `FrameCommandServiceTests`, `BrightnessValidationTests`,
 `SourceSelectTests`, `FrameStateSnapshotTests` — 40 tests, all `swift test` on the
 host, SC-800-05). App-hosted glue coverage is
-`Immich SlideshowTests/FrameIntentGlueTests` (13 tests over the shells against the
+`OwnFrameTests/FrameIntentGlueTests` (13 tests over the shells against the
 process registry). The shells resolve via `FrameIntentContext`, not
 `AppDependencyManager` (untestable app-hosted — research R2 amendment). Pre-merge
 full XCUITest suite green 2026-07-17 (108 passed / 0 failed / 2 intentional skips;
@@ -325,7 +325,7 @@ the T008 entry-point hoist did not regress the broader app) — T028.
 accelerator on the shared-link path, and a light-decorated three friction-ordered options.
 Host-unit tests live in `Packages/OnboardingKit/Tests/OnboardingKitTests/`
 (`OnboardingWelcomePathTests`, `ScannedShareLinkTests`, `StartupGatePhotoLibraryTests`,
-`ScannedLinkRoutingTests`). UI-sim coverage is `Immich SlideshowUITests/`
+`ScannedLinkRoutingTests`). UI-sim coverage is `OwnFrameUITests/`
 (`WelcomeICloudUITests`, and the extended `OnboardingDescriptionsUITests` /
 `OnboardingBackUITests`), with the shared-link/source/Share-Sheet regression classes staying
 green. The live camera QR decode + permission prompt is a manual **device gate** (SC-220-07).
@@ -341,7 +341,7 @@ green. The live camera QR decode + permission prompt is a manual **device gate**
 | FR-220-07 | Server path + downstream steps unchanged | `SourceOnboardingUITests`; `OnboardingBackUITests`; `OnboardingDescriptionsUITests` (connection/source/confirm descriptions) | covered | ui-sim |
 | FR-220-08 | Concise non-technical helper copy per option | `OnboardingDescriptionsUITests.testChoiceScreenShowsThreeFrictionOrderedOptions` (per-option helper text) | covered | ui-sim |
 | FR-220-09 | Welcome contract preserved (no Back; shared-link no key; helper text; Share Sheet) | `OnboardingBackUITests.testChoiceScreenHasNoBack`; `SharedLinkOnboardingUITests` (reaches slideshow, no API key); `ShareSheetIncomingUITests` | covered | ui-sim |
-| FR-220-10 | Sources land in one library (downstream/HA/App-Intent unchanged) | reuses `SourceLibrary`/`addPhotoLibrarySource`/`resolveSharedLink` (120/900 round-trip; `Immich SlideshowTests/HAControlRoundTripTests`) | covered | host-unit (reuse) |
+| FR-220-10 | Sources land in one library (downstream/HA/App-Intent unchanged) | reuses `SourceLibrary`/`addPhotoLibrarySource`/`resolveSharedLink` (120/900 round-trip; `OwnFrameTests/HAControlRoundTripTests`) | covered | host-unit (reuse) |
 | FR-220-11 | No secrets; a scanned URL carries none (password still prompted) | `ScannedLinkRoutingTests` (nothing persisted on invalid; `.needsPassword` still prompts); `QRScannerView` logs no decoded URL — audit 2026-07-17 | covered | host-unit + static audit |
 | FR-220-12 | Scan feeds a host-testable seam (no camera in unit tests) | `ScannedShareLinkTests` + `ScannedLinkRoutingTests` drive a fake `CodeScanning` (no `AVFoundation`) | covered | host-unit |
 | FR-220-13 | New user-facing strings are English-only | repo localization hook enforces English; new strings audited | covered | static |
@@ -373,7 +373,7 @@ of the traceability holes noted in the header.
 slideshow: Digits/Pill/Analog styles, six places + Random, Room/Cozy sizes, optional date
 line; it vanishes whenever the chrome is visible and returns on auto-hide. Model + placement
 in `Packages/ThemeKit` (`ClockStyle`/`ClockPlace`/`ClockSize`, `ClockPlacement`), HA entities
-in `Packages/HAControlKit`, renderer in `Immich Slideshow/Slideshow/ClockOverlayView.swift`.
+in `Packages/HAControlKit`, renderer in `OwnFrame/Slideshow/ClockOverlayView.swift`.
 
 | FR/SC | Requirement (short) | Covering test(s) | Status |
 |---|---|---|---|
@@ -417,4 +417,4 @@ in `Packages/HAControlKit`, renderer in `Immich Slideshow/Slideshow/ClockOverlay
 - FR-300-11 / FR-300-12: the spec requires auto-retry with backoff and periodic source refresh. `SlideshowViewModel` exposes manual `retry()` and `start()`, but no backoff loop or periodic refresh path was found.
 - FR-300-29 / FR-500-12: **resolved** — the optional clock overlay is implemented in `510-clock-overlay` (`ClockOverlayView` + live settings rows + HA `clock_style`/`clock_size`/`clock_corner` entities), iOS/iPadOS.
 - FR-700-08: the spec says inbound `"pause"` and `"play"` commands. `HAControlCoordinator` handles HA switch payloads `"OFF"` and `"ON"` for playback; tests assert `"OFF"`/`"ON"`, not literal `"pause"`/`"play"`.
-- Topic 700 roadmap drift: active spec 700 defers brightness and album entities to sub-specs 710/720, but `Immich_SlideshowApp.swift` enables `[.playback, .brightness, .album]` and `HAControlCoordinatorTests.swift` covers brightness and album commands.
+- Topic 700 roadmap drift: active spec 700 defers brightness and album entities to sub-specs 710/720, but `OwnFrameApp.swift` enables `[.playback, .brightness, .album]` and `HAControlCoordinatorTests.swift` covers brightness and album commands.

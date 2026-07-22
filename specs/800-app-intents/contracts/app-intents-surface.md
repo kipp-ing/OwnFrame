@@ -33,8 +33,8 @@ Rules every intent obeys:
 
 | Condition | Error shown in Shortcuts |
 |---|---|
-| Onboarding never completed | "Set up the frame first — open Photo Frame and add a source." |
-| App not running / slideshow not live after the open-app grace (~5 s) | "Photo Frame must be open on the frame device for this." |
+| Onboarding never completed | "Set up the frame first — open OwnFrame and add a source." |
+| App not running / slideshow not live after the open-app grace (~5 s) | "OwnFrame must be open on the frame device for this." |
 | Brightness outside 0–100 (e.g. via a Shortcuts variable) | "Brightness must be between 0 and 100 percent." |
 | Source id no longer in the library | "This source no longer exists in the frame's library." |
 

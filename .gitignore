@@ -88,3 +88,7 @@ tmp/
 # Python bytecode (.claude/scripts/coverage.py imported by ad-hoc verification snippets)
 __pycache__/
 *.pyc
+
+# xcodemake (XcodeBuildMCP incremental-build) artifacts
+/Makefile
+xcodemake_*.log

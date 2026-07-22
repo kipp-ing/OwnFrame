@@ -1,4 +1,4 @@
-# Setup — Immich Slideshow (Claude Code + XcodeBuildMCP + Spec Kit)
+# Setup — OwnFrame (Claude Code + XcodeBuildMCP + Spec Kit)
 
 Order of steps to get started on the Mac. Everything here runs *there* — not in chat.
 

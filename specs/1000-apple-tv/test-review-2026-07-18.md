@@ -24,8 +24,8 @@ of the branch diff (4 finder angles, 26 independent verifiers; 27 candidates ver
 | Gate | Result |
 |------|--------|
 | Host unit tests, all 11 packages | ✅ 678/678 (ConfigSyncKit 21, HAControlKit 92, SlideshowKit 161, OnboardingKit 154, …) |
-| Full iOS simulator suite (`Immich Slideshow` scheme, iPad Pro 13" M5) | ✅ 120 passed / 0 failed / 2 skipped (matches pre-branch baseline; ~35 min) |
-| tvOS build (`Immich SlideshowTV`, Apple TV 4K 3rd gen sim) | ✅ builds + launches |
+| Full iOS simulator suite (`OwnFrame` scheme, iPad Pro 13" M5) | ✅ 120 passed / 0 failed / 2 skipped (matches pre-branch baseline; ~35 min) |
+| tvOS build (`OwnFrameTV`, Apple TV 4K 3rd gen sim) | ✅ builds + launches |
 | US1 e2e (demo shared link → real photos render + auto-advance) | ✅ verified |
 | US2 fresh install → Welcome choice screen | ✅ verified |
 | US3 purge smoke (wipe data container, relaunch) | ✅ clean return to onboarding, no crash |
@@ -36,7 +36,7 @@ of the branch diff (4 finder angles, 26 independent verifiers; 27 candidates ver
 ## Findings (ranked)
 
 ### B1 — tvOS photo swap is a hard cut to black + fade-in (CONFIRMED, empirical)
-`Immich SlideshowTV/TVSlideshowView.swift:58`
+`OwnFrameTV/TVSlideshowView.swift:58`
 
 The pre-release iOS transition bug (fixed in `05afa82`) is re-introduced on tvOS.
 The photo uses plain symmetric `.transition(.opacity)` with **no `.zIndex(1)`**, so
@@ -56,11 +56,11 @@ Fix shape (port of `05afa82`): `.zIndex(1)` on the photo + sequenced asymmetric
 insertion/removal fades.
 
 ### B2 — `CKContainer.default()` will crash real devices signed into iCloud (entitlements verified absent)
-`Immich Slideshow/CompanionSync.swift:55` and `Immich SlideshowTV/TVRootView.swift:143`
+`OwnFrame/CompanionSync.swift:55` and `OwnFrameTV/TVRootView.swift:143`
 
 `makeSecretStore()` gates only on `FileManager.default.ubiquityIdentityToken != nil`
 — an **account** signal, not an entitlement check. Verified this session:
-`Immich Slideshow.entitlements` contains only the app group (no iCloud container,
+`OwnFrame.entitlements` contains only the app group (no iCloud container,
 no CloudKit, no KVS identifier) and the TV target has no entitlements file.
 `CKContainer.default()` without a container entitlement raises
 `NSInternalInconsistencyException` ("containerIdentifier can not be nil"), so on any
@@ -72,7 +72,7 @@ on hardware — FR-1000-06 cannot work until the entitlements land.
 Merge-blocker for any device build; must be resolved before the device-gate day.
 
 ### B3 — Post-onboarding resolve failure = permanent black screen (CONFIRMED)
-`Immich SlideshowTV/TVRootView.swift:171-180,190`
+`OwnFrameTV/TVRootView.swift:171-180,190`
 
 `buildSlideshow()` swallows resolve errors (`try?`); on failure `route = .onboarding`
 with `onboarding.step == .done`, and `TVOnboardingView` renders `EmptyView` for
@@ -82,7 +82,7 @@ is up (bypassing the engine's own retry/offline tolerance, which only engages on
 `SlideshowViewModel` exists).
 
 ### B4 — Secret hydration clobbers TV-local keychain on every launch; `start()` blocks on CloudKit (CONFIRMED)
-`Immich SlideshowTV/TVRootView.swift:152-155`
+`OwnFrameTV/TVRootView.swift:152-155`
 
 `restoreSyncedConfigIfFresh()` is guarded (fresh installs only), but
 `hydrateSecrets` runs **unconditionally** every launch and `TVSecretWriter`
@@ -92,7 +92,7 @@ re-entered on the TV is silently reverted to the stale synced one on next launch
 device sits on the loading spinner until CloudKit times out, every boot.
 
 ### B5 — Opening/closing broker settings resets playback (CONFIRMED)
-`Immich SlideshowTV/TVRootView.swift:57-59` + `TVSlideshowView.swift:115-125`
+`OwnFrameTV/TVRootView.swift:57-59` + `TVSlideshowView.swift:115-125`
 
 The settings `fullScreenCover` removes `TVSlideshowView` from the hierarchy:
 `onDisappear` fires on present (keep-awake released, HA coordinator stopped), and
@@ -101,7 +101,7 @@ the order, and jumping to a different photo. A paused favorite photo is lost eve
 time settings is opened.
 
 ### B6 — tvOS renderer ignores `fit` and `transition` settings (CONFIRMED)
-`Immich SlideshowTV/TVSlideshowView.swift:53,58`
+`OwnFrameTV/TVSlideshowView.swift:53,58`
 
 Hardcoded `.scaledToFill()` + fixed opacity fade. The default `fit = .fit` (and the
 value synced from the iPad or set via HA) is discarded — portrait photos are always
@@ -110,7 +110,7 @@ nothing on tvOS while the adapter dutifully mirrors it. US4 "parity" accepts the
 settings but the renderer discards them.
 
 ### B7 — HA album select can tear a playing frame down into onboarding (CONFIRMED)
-`Immich SlideshowTV/TVRootView.swift:253-256` + `TVRemoteControlAdapter.swift:45`
+`OwnFrameTV/TVRootView.swift:253-256` + `TVRemoteControlAdapter.swift:45`
 
 `albumOptions` exposes every synced source, including `.album` sources restored from
 the iPad. If secret hydration degraded to manual (no API key on the TV), selecting
@@ -119,7 +119,7 @@ the frame out of the slideshow onto a setup form until someone picks up the remo
 A remote-triggered action should never route an unattended frame into onboarding.
 
 ### B8 — Shared `PowerManager` across `.id`-swapped views: activate/deactivate race + dim snap-back (PLAUSIBLE)
-`Immich SlideshowTV/TVSlideshowView.swift:116-125` + `TVRootView.swift:51,56`
+`OwnFrameTV/TVSlideshowView.swift:116-125` + `TVRootView.swift:51,56`
 
 On an HA source switch the new view's `.task` (`activate`) and old view's
 `onDisappear` (`deactivate`) run in SwiftUI-defined order against the **same**
@@ -128,7 +128,7 @@ keep-awake off mid-slideshow and subsequent HA `setBrightness` silently no-ops;
 additionally any HA-set software dim snaps back to full brightness on every switch.
 
 ### B9 — HA availability can end "offline" after a source switch (PLAUSIBLE)
-`Immich SlideshowTV/TVSlideshowView.swift:124,148-165`
+`OwnFrameTV/TVSlideshowView.swift:124,148-165`
 
 Old-coordinator `stop()` (retained "offline") and new-coordinator `start()`
 (retained "online") run as unordered concurrent tasks against the same topics, and
@@ -137,7 +137,7 @@ connection's LWT after the new connect. HA then greys the frame out although it 
 connected and playing. Needs the real-broker session to confirm (device gate).
 
 ### B10 — iOS regression risk: brightness slider can seed at 0 (PLAUSIBLE)
-`Immich Slideshow/Slideshow/SlideshowSettingsView.swift:96`
+`OwnFrame/Slideshow/SlideshowSettingsView.swift:96`
 
 This branch replaces the old `?? 1.0` bright fallback with
 `powerManager.currentBrightness`, whose `UIScreenController` getter falls back to
@@ -146,7 +146,7 @@ full-bright to black. Timing-dependent (sheet built during scene activation / St
 Manager transitions).
 
 ### B11 — Duplicate album label: silent failure + dead-end confirm loop (CONFIRMED)
-`Immich SlideshowTV/TVRootView.swift:218-224`
+`OwnFrameTV/TVRootView.swift:218-224`
 
 `selectAlbum` ignores `addAlbumSource`'s duplicate-label rejection; the
 `last(where:)` lookup then activates an unrelated same-album source — or nothing —
@@ -155,7 +155,7 @@ onboarding with no message.
 
 ## Testability gaps (this session's focus)
 
-1. **The tvOS target has zero automated tests.** The shared `Immich SlideshowTV`
+1. **The tvOS target has zero automated tests.** The shared `OwnFrameTV`
    scheme's `<Testables>` block is empty — no app-hosted tests, no XCUITests. ~1,600
    lines of tvOS app-layer Swift (`TVRootView` 290, `TVOnboardingView` 380,
    `TVRemoteControlAdapter` 267, `TVSlideshowView` 219, …) are covered only by
@@ -172,7 +172,7 @@ onboarding with no message.
    plus a `--uitest` seam would convert B3/B5/B11 into red tests.
 4. **Contract drift.** `contracts/config-sync.md` says publish is "called on config
    change"; the implementation publishes on launch + foreground only
-   (`Immich_SlideshowApp.swift:541`), so mid-session changes don't sync until the
+   (`OwnFrameApp.swift:541`), so mid-session changes don't sync until the
    next foreground. Either the contract or the wiring should change (and today it
    double-publishes on cold launch: `.task` + the initial scenePhase `.active`).
 
@@ -220,7 +220,7 @@ onboarding with no message.
 ## Session evidence
 
 - Host sweep: `for pkg in Packages/*: swift test` — 678 pass, 0 fail.
-- tvOS run: `build_run_sim` scheme `Immich SlideshowTV`, sim `Apple TV 4K (3rd
+- tvOS run: `build_run_sim` scheme `OwnFrameTV`, sim `Apple TV 4K (3rd
   generation)` (C3A8C51D), launch arg `--tv-demo-sharedlink`; real photos from
   `https://bilder.kippings.de/s/Iceland2021` rendered and auto-advanced.
 - Luminance: 40 s simctl recording, 129 variable-rate frames, black frames (YAVG

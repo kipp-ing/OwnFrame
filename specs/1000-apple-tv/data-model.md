@@ -49,5 +49,5 @@ Directional press ⇒ next/previous (maps the iOS swipe semantics) without revea
 ## HA identity
 
 `FrameIdentity { deviceID: String, deviceName: String }`. iOS: `identifierForVendor` +
-"Photo Frame". tvOS: distinct stable id (`identifierForVendor` on tvOS, own fallback literal) +
-"Photo Frame (Apple TV)". Distinct ⇒ own MQTT base topic, discovery identifiers, unique_ids.
+"OwnFrame". tvOS: distinct stable id (`identifierForVendor` on tvOS, own fallback literal) +
+"OwnFrame (Apple TV)". Distinct ⇒ own MQTT base topic, discovery identifiers, unique_ids.

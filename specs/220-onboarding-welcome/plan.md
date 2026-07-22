@@ -140,7 +140,7 @@ Packages/OnboardingKit/Sources/OnboardingKit/
 
 Packages/OnboardingKit/Tests/OnboardingKitTests/   # new suites (path/step/validator)
 
-Immich Slideshow/Onboarding/
+OwnFrame/Onboarding/
 ├── OnboardingChoiceView.swift   # REWORK — three friction-ordered options + welcoming copy +
 │                                #   light decoration; iCloud row → choosePath(.photoLibrary)
 ├── OnboardingFlowView.swift     # + .photoLibrarySetup → PhotoAlbumPickerView (finish → .done)
@@ -149,7 +149,7 @@ Immich Slideshow/Onboarding/
 │                                #   handles camera auth denied / no-camera → calm + manual entry
 └── PhotoAlbumPickerView.swift   # REUSED unchanged (900)
 
-Immich Slideshow.xcodeproj/project.pbxproj   # + INFOPLIST_KEY_NSCameraUsageDescription
+OwnFrame.xcodeproj/project.pbxproj   # + INFOPLIST_KEY_NSCameraUsageDescription
 ```
 
 **Structure Decision**: No new package. The host-testable logic (third path, new step, scanned-code

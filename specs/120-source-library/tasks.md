@@ -21,7 +21,7 @@ Ticked in this pass, against evidence rather than new work:
 - **T023–T026 (US3, HA select backed by the library)** — satisfied by later work under `900`, not
   under these IDs: `SlideshowRemoteControlAdapter` takes `sources: [Source]`, publishes source
   labels as the select's options, and resolves a picked label back to a `Source`
-  (`Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift:31,46,142` — FR-900-11).
+  (`OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:31,46,142` — FR-900-11).
 - **T031** — the full XCUITest suite has run green many times since 120 merged.
 - **T030** — done *in* this pass: `specs/200-connection-onboarding/spec.md`'s Roadmap item
   (110 placeholder + "Settings placeholder deferred") was superseded in place, and `510` was
@@ -40,7 +40,7 @@ Ticked in this pass, against evidence rather than new work:
 ## Progress (2026-06-24, cont.) — US2 onboarding redesign DONE
 
 - **US2 onboarding redesign done & verified** (T017, T019, T021, T022): the onboarding flow is now
-  connection → **add source** (`Immich Slideshow/Onboarding/SourceStepView.swift`: segmented album
+  connection → **add source** (`OwnFrame/Onboarding/SourceStepView.swift`: segmented album
   picker / shared-link URL+password form, reusing `SourceLibraryViewModel`) → **confirm**
   (`OnboardingConfirmStepView` lists the library, marks the active source, Start) → slideshow. The
   `.album` onboarding step was renamed `.source` and a `.confirm` step added (`OnboardingStep`).
@@ -66,7 +66,7 @@ Ticked in this pass, against evidence rather than new work:
 
 - **Done & verified**: T001–T016 (Setup + all Foundational + **US1 complete**). OnboardingKit 54
   tests + ImmichClient 34 tests green on host; app builds clean via XcodeBuildMCP; SlideshowChrome
-  XCUITests (4) green. US1 wiring: `Immich_SlideshowApp` builds slideshow/API from the **active
+  XCUITests (4) green. US1 wiring: `OwnFrameApp` builds slideshow/API from the **active
   source** via `ActiveSourceResolver`; `switchActiveSource` + `RootView.switchSource` persist + restart
   (`switchAlbum` for album→album, full rebuild for album↔link, via `SourceLibrary.restartStrategy`);
   `saveSelectedAlbum` reconciles the library (`updateActiveAlbumID`) so the 009 album re-select stays
@@ -159,13 +159,13 @@ source's photos show; switching active swaps to the other source's photos.
 - [X] T013 [US1] Implement `ActiveSourceResolver` (Source + Keychain API key + `SharedLinkSecretStore`
   + `SharedLinkResolving` → `ServerConfig` + albumID) in `Packages/OnboardingKit/Sources/OnboardingKit/`
   to green T012
-- [X] T014 [US1] Wire `Immich_SlideshowApp` factories (`makeSlideshow`, `makeAPI`) to build the
+- [X] T014 [US1] Wire `OwnFrameApp` factories (`makeSlideshow`, `makeAPI`) to build the
   `ImmichClient` + albumID from the **active source** via `ActiveSourceResolver` instead of
-  `selectedAlbumID`, in `Immich Slideshow/Immich_SlideshowApp.swift`
+  `selectedAlbumID`, in `OwnFrame/OwnFrameApp.swift`
 - [X] T015 [US1] Implement source switching at the app level: switching the active source persists it
   and restarts the slideshow from it — `switchAlbum(albumID)` when only the album changes, full
   slideshow rebuild (existing `connectionGeneration` path) when the client/auth changes (album↔link),
-  in `Immich Slideshow/Immich_SlideshowApp.swift` (+ `RootView`)
+  in `OwnFrame/OwnFrameApp.swift` (+ `RootView`)
 - [X] T016 [US1] Verify via XcodeBuildMCP/XCUITest (`--uitest`): hermetic 2-source library switches in
   the running slideshow (extend the UI-test seam + `SlideshowChromeUITests`/a new test)
   — switch decision host-tested + app build + chrome XCUITest green; UI-driven switch deferred to
@@ -182,14 +182,14 @@ source's photos show; switching active swaps to the other source's photos.
 removes; confirmation lists the library with the active one marked.
 
 - [X] T017 [P] [US2] Red XCUITest: onboarding "add source" (album pick or shared-link form) → confirm
-  → slideshow runs the chosen source, in `Immich SlideshowUITests/SourceOnboardingUITests.swift`
+  → slideshow runs the chosen source, in `OwnFrameUITests/SourceOnboardingUITests.swift`
 - [X] T018 [P] [US2] Red XCUITest: Settings → Sources manager adds a second source, switches active,
-  removes one; running slideshow swaps on switch, in `Immich SlideshowUITests/SourceLibraryUITests.swift`
+  removes one; running slideshow swaps on switch, in `OwnFrameUITests/SourceLibraryUITests.swift`
 - [X] T019 [US2] Build the onboarding add-source step (album picker / shared-link URL+password form)
-  in `Immich Slideshow/Onboarding/SourceStepView.swift` (+ wire into `OnboardingFlowView`)
+  in `OwnFrame/Onboarding/SourceStepView.swift` (+ wire into `OnboardingFlowView`)
 - [X] T020 [US2] Build the Settings **Sources** manager (list + add/remove/reorder/rename/set-active,
-  unique-label enforced) in `Immich Slideshow/Slideshow/SourceLibraryView.swift` and surface it in
-  `Immich Slideshow/Slideshow/SlideshowSettingsView.swift`
+  unique-label enforced) in `OwnFrame/Slideshow/SourceLibraryView.swift` and surface it in
+  `OwnFrame/Slideshow/SlideshowSettingsView.swift`
 - [X] T021 [US2] Make the onboarding confirmation list the library and mark the active source
   (`OnboardingConfirmStepView` in `SourceStepView.swift`)
 - [X] T022 [US2] Green T017/T018 via XcodeBuildMCP/XCUITest; screenshot portrait + landscape
@@ -209,14 +209,14 @@ echoes; unknown label = no-op echo.
 
 - [X] T023 [P] [US3] Red tests: `SlideshowRemoteControlAdapter` backed by a 2-source `SourceLibrary`
   → `albumOptions` == labels; `selectAlbum(label)` switches active + `currentAlbum` echoes; unknown
-  label no-op, in `Immich SlideshowUITests`/a host test, or `Packages/HAControlKit/Tests/HAControlKitTests/`
+  label no-op, in `OwnFrameUITests`/a host test, or `Packages/HAControlKit/Tests/HAControlKitTests/`
   (adapter lives in the app target — place the adapter test where it compiles, mirroring the existing
   adapter tests)
 - [X] T024 [US3] Back `SlideshowRemoteControlAdapter` with the `SourceLibrary` + `ActiveSourceResolver`
   (options/current/select over source labels; select switches active source) in
-  `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift`
-- [X] T025 [US3] Wire `Immich_SlideshowApp.makeCoordinator` to pass the library to the adapter instead
-  of the server album list, in `Immich Slideshow/Immich_SlideshowApp.swift` (HA entity key `album`
+  `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift`
+- [X] T025 [US3] Wire `OwnFrameApp.makeCoordinator` to pass the library to the adapter instead
+  of the server album list, in `OwnFrame/OwnFrameApp.swift` (HA entity key `album`
   stays stable; options now = source labels — research D5)
 - [X] T026 [US3] Verify HA select round-trip with the mock transport (extend the coordinator tests in
   `Packages/HAControlKit/Tests/HAControlKitTests/`)
@@ -271,16 +271,16 @@ shipped with 220.
       write** — the view model already threaded `label` through `resolveSharedLink`; only the UI
       discarded it. Recorded as regression pins, not as a red-then-green cycle (same pattern as
       220/T006).
-- [X] T035 Red XCUITest in `Immich SlideshowUITests/SourceLibraryUITests.swift`:
+- [X] T035 Red XCUITest in `OwnFrameUITests/SourceLibraryUITests.swift`:
       `testAddSharedLinkFormOffersQRScanAlongsideManualEntry` — Settings → Sources → + → Shared
       link exposes `sources.add.scan`, and the URL + name fields stay present so a denied or
       missing camera can never strand the user (FR-220-05 parity). Verified RED first (button
       absent), then green.
-- [X] T036 Implement in `Immich Slideshow/Onboarding/SharedLinkAddForm.swift`: `Scan QR` button
+- [X] T036 Implement in `OwnFrame/Onboarding/SharedLinkAddForm.swift`: `Scan QR` button
       (`\(idPrefix).scan`), `.fullScreenCover` anchored on the URL field's always-present leaf
       (Form/List drops `Section` modifiers — same reason the password sheet hangs there), and
       `startScan()` passing `labelText` to `addScannedSharedLink(using:label:)` rather than the
-      first-run path's `""`. tvOS is unaffected: its target compiles only `Immich SlideshowTV/`.
+      first-run path's `""`. tvOS is unaffected: its target compiles only `OwnFrameTV/`.
 
 ## Dependencies & order
 

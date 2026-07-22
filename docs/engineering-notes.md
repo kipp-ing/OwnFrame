@@ -27,7 +27,7 @@ not the live editor diagnostics.
 ## Test seam pattern
 
 The onboarding UI is tested hermetically via a `--uitest` launch-argument seam
-(`UITestSupport` in `Immich_SlideshowApp.swift`) that injects a stub API + in-memory
+(`UITestSupport` in `OwnFrameApp.swift`) that injects a stub API + in-memory
 stores. This is the project's standard way to make a SwiftUI flow deterministically
 testable — reuse it for future flows. Full details in
 [testing.md](testing.md#layer-3--ui-tests-hermetic-xcuitest).
@@ -38,7 +38,7 @@ SwiftPM **test** targets can't run on the simulator through the app `.xcodeproj`
 
 - Package **logic** → host `swift test`.
 - Anything needing the real simulator runtime (real Keychain, real-target
-  integration) → the **app-hosted** `Immich SlideshowTests` bundle, which links the
+  integration) → the **app-hosted** `OwnFrameTests` bundle, which links the
   packages.
 
 ## Xcode project file (`project.pbxproj`)
@@ -47,8 +47,8 @@ Editing `project.pbxproj` by hand is brittle — **prefer to avoid it.**
 
 - **Adding source files to an *existing* target:** you can often sidestep pbxproj
   entirely by putting code in a file the target already compiles. The UI-test seam,
-  for example, was inlined into `Immich_SlideshowApp.swift` and the UI tests were
-  added to the existing `Immich_SlideshowUITests.swift` — **zero pbxproj changes.**
+  for example, was inlined into `OwnFrameApp.swift` and the UI tests were
+  added to the existing `OwnFrameUITests.swift` — **zero pbxproj changes.**
 - **Adding a new local Swift package** (when unavoidable): wire it into 6 spots —
   `PBXBuildFile` (one per target frameworks phase), each target's
   `PBXFrameworksBuildPhase` `files`, each target's `packageProductDependencies`, the

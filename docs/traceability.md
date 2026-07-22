@@ -89,7 +89,7 @@ The feature does not work in the shipping app, every test passes, and code revie
 
 The shape to hunt: **a correct component, a green component test, and an app that does not wire
 it.** These packages are components; the app is what ships. All three prompts now instruct agents
-to follow an app-behaviour requirement to its production call site in `Immich Slideshow/` and
+to follow an app-behaviour requirement to its production call site in `OwnFrame/` and
 check what is actually passed. A component test that stays green regardless of what the app hands
 it does not cover the requirement.
 
@@ -156,7 +156,7 @@ So traceability is a **map**, not an alarm. It makes these questions answerable 
 - which tests must run for a change to a given spec area
 
 — and none of those are "did this change break something". That is CI's job, and
-[#20](https://github.com/kipp-ing/Immich-Slideshow/issues/20) records that CI has been red for
+[#20](https://github.com/kipp-ing/OwnFrame/issues/20) records that CI has been red for
 months. **Until that is fixed, 100% traceability would still gate nothing.**
 
 ## Running it

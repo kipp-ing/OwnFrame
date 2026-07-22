@@ -24,7 +24,7 @@ Foundational are shared prerequisites.
   implementation work suitable for a Codex briefing. **Keep inline** (Claude, not delegated):
   echo-loop/coalescing test *design* involving concurrent/timing behavior (T011, T023, T033 —
   shared/timing state per `CLAUDE.md`'s "keep inline" list), the app-entry-point wiring
-  (T013, T025 — `Immich_SlideshowApp.swift`), and all SwiftUI/simulator work (T035–T038).
+  (T013, T025 — `OwnFrameApp.swift`), and all SwiftUI/simulator work (T035–T038).
 
 ---
 
@@ -82,18 +82,18 @@ re-echo the actual value.
   conformance — all 9 fields map both directions through `ThemeSettingsStore`; a suppress-flag
   prevents `onSettingsChange` firing on a remote-applied change; a genuinely local
   `ThemeSettingsStore` mutation fires it normally — in
-  `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift` (NEW)
+  `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift` (NEW)
 - [x] T010 [US1] Implement `SettingsControlling` on `SlideshowRemoteControlAdapter`
   (`ThemeSettingsSnapshot` ↔ `ThemeSettings` mapping, suppress-flag) in
-  `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` to green T009
+  `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` to green T009
 - [x] T011 [P] [US1] Red tests: a local settings change echoes only the changed entity (not all
   9); N rapid repeated commands on one entity coalesce to last-wins with ≤ N+1 publishes
   (SC-710-02) in `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
 - [x] T012 [US1] Wire `onSettingsChange` to a scoped, coalesced echo in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T011
-- [x] T013 [US1] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as
+- [x] T013 [US1] Wire `OwnFrameApp.makeCoordinator`: pass the adapter as
   `SettingsControlling`, expand `enabledEntities` to the 9 settings entities, in
-  `Immich Slideshow/Immich_SlideshowApp.swift`
+  `OwnFrame/OwnFrameApp.swift`
 - [x] T014 [US1] Verify via XcodeBuildMCP: `swift test` green for `HAControlKit`; app builds; a
   full settings round-trip (coordinator + adapter + real `ThemeSettingsStore`) is host-testable
   end-to-end
@@ -125,9 +125,9 @@ empty attributes; oversized images downscale or skip.
 - [x] T019 [P] [US2] Red tests for `SlideshowRemoteControlAdapter`'s `PhotoReporting` conformance —
   a `currentAssetID` change produces a `PhotoReport` (metadata via cache + `assetInfo`, image
   bytes via `thumbnail()` downscaled/capped when enabled, `nil` image when disabled or a fetch
-  fails) in `Immich SlideshowTests/SlideshowRemoteControlAdapterTests.swift`
+  fails) in `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift`
 - [x] T020 [US2] Implement `PhotoReporting` on `SlideshowRemoteControlAdapter` in
-  `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` to green T019
+  `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` to green T019
 - [x] T021 [P] [US2] Red tests for discovery of `current_photo` (sensor: `value_template` +
   `json_attributes_topic` on the same topic) and `current_photo_image` (image: `content_type`, not
   retained) in `Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift`
@@ -141,10 +141,10 @@ empty attributes; oversized images downscale or skip.
   `Packages/HAControlKit/Tests/HAControlKitTests/HAControlCoordinatorTests.swift`
 - [x] T024 [US2] Implement the photo-report publish path in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift` to green T023
-- [x] T025 [US2] Wire `Immich_SlideshowApp.makeCoordinator`: pass the adapter as `PhotoReporting` +
+- [x] T025 [US2] Wire `OwnFrameApp.makeCoordinator`: pass the adapter as `PhotoReporting` +
   `HAPublishOptionsStore`, add `current_photo`/`current_photo_image` to `enabledEntities` (image
   gated by `HAPublishOptions.imageEnabled`, off by default) in
-  `Immich Slideshow/Immich_SlideshowApp.swift`
+  `OwnFrame/OwnFrameApp.swift`
 
 **Checkpoint**: US2 — HA shows the current photo + its metadata; image capped/optional; zero
 added slide-transition delay (SC-710-04/05).
@@ -190,7 +190,7 @@ republishes discovery + availability + every enabled entity's state.
 - [x] T032 [US4] Implement diagnostics sourcing + discovery in
   `Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift`,
   `Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift`, and
-  `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` (photo count/version surfaced
+  `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` (photo count/version surfaced
   through `PhotoReporting`) to green T031
 - [x] T033 [P] [US4] Red test: on reconnect, `announce()` republishes discovery + availability +
   the state of every enabled entity (all 19, incl. `current_photo`/`current_photo_image`),
@@ -207,10 +207,10 @@ republishes discovery + availability + every enabled entity's state.
 ## Phase 7: Polish & Cross-Cutting
 
 - [x] T035 [P] Add the image-publishing toggle + byte-cap control to
-  `Immich Slideshow/Slideshow/BrokerSetupView.swift`, surfacing `HAPublishOptionsStore`, off by
+  `OwnFrame/Slideshow/BrokerSetupView.swift`, surfacing `HAPublishOptionsStore`, off by
   default (FR-710-15)
 - [x] T036 [P] Red XCUITest: the broker-setup image toggle persists across relaunch, extending
-  `Immich SlideshowUITests/BrokerSetupUITests.swift`
+  `OwnFrameUITests/BrokerSetupUITests.swift`
 - [x] T037 Green T036 via XcodeBuildMCP/XCUITest; screenshot the new toggle
 - [x] T038 Run the full XCUITest suite via XcodeBuildMCP (`test_sim`) — must stay green before
   merge (screenshots alone miss UI-test regressions)

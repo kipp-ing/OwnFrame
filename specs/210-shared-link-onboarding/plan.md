@@ -120,8 +120,8 @@ Packages/OnboardingKit/Sources/OnboardingKit/
 ├── IncomingSharedLink.swift      # NEW: route a pending share URL → onboarding pre-fill | add+activate | switch-to-existing
 └── PendingSharedLinkStore.swift  # NEW: protocol + App-Group UserDefaults impl (non-secret URL hand-off)
 
-Immich Slideshow/
-├── Immich_SlideshowApp.swift           # onOpenURL / scenePhase: consume pending shared link; wire choice path
+OwnFrame/
+├── OwnFrameApp.swift           # onOpenURL / scenePhase: consume pending shared link; wire choice path
 ├── Onboarding/OnboardingChoiceView.swift (NEW)   # first screen: shared link vs server, with descriptions
 ├── Onboarding/SharedLinkSetupView.swift (NEW)    # shared-link-only entry: link → (pw sheet if needed) → start
 ├── Onboarding/ConnectionStepView.swift           # add concise description copy (US5)
@@ -129,12 +129,12 @@ Immich Slideshow/
 ├── Onboarding/SourceStepView.swift               # resolve-first shared-link section; the reusable searchable+subscrollable album picker (search + internal scroll + pinned select-then-confirm)
 └── Slideshow/SourceLibraryView.swift             # Settings → Sources: same resolve-first add-link flow AND the same reusable album picker (no separate unsearchable album-add screen)
 
-Immich SlideshowShareExtension/ (NEW target)
+OwnFrameShareExtension/ (NEW target)
 ├── ShareViewController.swift     # capture the shared URL, write to App Group, hand off to host
 ├── ShareLinkExtraction.swift     # NEW: pure URL-extraction helper (host-unit-tested)
 └── Info.plist                    # NSExtension activation rule: accept public.url
 
-Immich Slideshow.xcodeproj/project.pbxproj
+OwnFrame.xcodeproj/project.pbxproj
 └── new Share Extension target + App Group entitlement on host & extension; URL scheme for hand-off
 ```
 

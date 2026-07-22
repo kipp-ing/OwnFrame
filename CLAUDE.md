@@ -1,7 +1,10 @@
-# ImmichSlideshow
+# OwnFrame
 
-iPad slideshow app for Immich. Standalone, **not a fork** of the official Immich app.
-Immich serves only as a data source via the REST API.
+iPad slideshow app for Immich (formerly "Photo Frame for Immich"; the code target/module was
+"Immich Slideshow"). Standalone, **not a fork** of the official Immich app.
+Immich serves only as a data source via the REST API. Bundle IDs
+(`ing.kipp.Immich-Slideshow`) are deliberately unchanged to preserve the App Store record,
+Keychain items, and the app group; only the human-readable names were changed to OwnFrame.
 
 ## Quick Reference
 - Platform: iPadOS/iOS 17+ deployment floor, built against the current SDK (iPad-first, iPhone optional)

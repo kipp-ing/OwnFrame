@@ -173,7 +173,7 @@ The user can still reset the app configuration. Reset removes the server URL, se
   deferred (reconciled 2026-07-19, task 120/T030).** The placeholders were replaced by real
   surfaces: [`110`](../110-shared-album-link/spec.md) shipped shared/public link playback (with
   optional password), and [`120`](../120-source-library/spec.md) shipped the Settings **Sources**
-  manager (`Immich Slideshow/Slideshow/SourceLibraryView.swift`) plus the onboarding add-source
+  manager (`OwnFrame/Slideshow/SourceLibraryView.swift`) plus the onboarding add-source
   step — both Active. [`210`](../210-shared-link-onboarding/spec.md) then made the choice-first
   onboarding and shared-link-only setup the default path, and
   [`220`](../220-onboarding-welcome/spec.md) added the welcome screen and camera QR scan.

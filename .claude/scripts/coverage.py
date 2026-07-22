@@ -13,8 +13,8 @@ Layers, cheapest first. The point of the tiering is to push each requirement DOW
 cheapest layer that can genuinely prove it (see docs/testing.md):
 
   host        Packages/*/Tests/**          swift test, seconds, no simulator
-  app         Immich SlideshowTests/       app-hosted, simulator
-  ui          Immich SlideshowUITests/     XCUITest, simulator, slow
+  app         OwnFrameTests/       app-hosted, simulator
+  ui          OwnFrameUITests/     XCUITest, simulator, slow
   manual      docs/manual-verification.md  human, scarce — the tier to empty
 
 Two grades of coverage, because the tree is mid-migration:
@@ -131,8 +131,8 @@ LAYERS = ("host", "app", "ui", "manual")
 # Ordered cheapest-first; first match wins.
 LAYER_GLOBS: tuple[tuple[str, str], ...] = (
     ("host", "Packages/*/Tests/**/*.swift"),
-    ("app", "Immich SlideshowTests/*.swift"),
-    ("ui", "Immich SlideshowUITests/*.swift"),
+    ("app", "OwnFrameTests/*.swift"),
+    ("ui", "OwnFrameUITests/*.swift"),
 )
 
 MANUAL_DOC = Path("docs/manual-verification.md")

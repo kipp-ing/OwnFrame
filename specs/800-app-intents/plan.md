@@ -52,7 +52,7 @@ parameter prompts); ≤10 App Shortcuts (7 used); English-only strings (FR-300-3
 no secrets/bytes in intent results (FR-800-07)
 
 **Scale/Scope**: 7 intents, 1 new package (~6 source files), ~4 app-target files,
-1 docs page; touches `Immich_SlideshowApp.swift` (hoisting) and
+1 docs page; touches `OwnFrameApp.swift` (hoisting) and
 `SlideshowRemoteControlAdapter.swift` (`updateAlbums` post-init injection)
 
 ## Constitution Check
@@ -119,18 +119,18 @@ Packages/AppIntentsKit/
     ├── FrameStateSnapshotTests.swift      # privacy whitelist (SC-800-04)
     └── RegistryTests.swift                # states, awaitReady + test clock
 
-Immich Slideshow/Intents/                  # (synchronized group — no pbxproj edit)
+OwnFrame/Intents/                  # (synchronized group — no pbxproj edit)
 ├── FrameIntents.swift                     # 7 thin AppIntent shells + localized error mapping
 ├── SourceEntity.swift                     # AppEntity + query over registry.sourceOptions
 ├── FrameStateEntity.swift                 # TransientAppEntity mirror of the snapshot
 └── FrameAppShortcuts.swift                # AppShortcutsProvider, 7 phrases
 
-Immich Slideshow/Immich_SlideshowApp.swift # hoist adapter out of makeCoordinator;
+OwnFrame/OwnFrameApp.swift # hoist adapter out of makeCoordinator;
                                            # registry registration per connectionGeneration;
                                            # AppDependencyManager.register at init
-Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift
+OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift
                                            # + updateAlbums(_:) post-init injection
-Immich SlideshowTests/
+OwnFrameTests/
 └── FrameIntentGlueTests.swift             # shells→service forwarding; same-instance invariant
 
 docs/automation-recipes.md                 # FR-800-10 — night/morning recipes, boundaries

@@ -8,7 +8,7 @@ noted in the spec's Assumptions.
 
 ## Summary
 
-Second app target (`Immich SlideshowTV`) in the same app record (universal purchase, shared
+Second app target (`OwnFrameTV`) in the same app record (universal purchase, shared
 bundle id family) that plays the same slideshow on tvOS 17+, reusing every SPM package. The
 port is app-target wiring behind existing seams: a **software-dim** `ScreenControlling` (black
 compositing, no panel API), **Siri-Remote-first** chrome (focus/`onMoveCommand`/
@@ -55,7 +55,7 @@ secret/non-secret channel split is a hard boundary (FR-1000-05, SC-1000-08); no 
 ## Architecture decisions (grounded in recon)
 
 1. **One shared app-source tree, conditional compilation.** The slideshow/chrome/onboarding
-   SwiftUI lives in the app target (`Immich Slideshow/`), not in a package. The tvOS target
+   SwiftUI lives in the app target (`OwnFrame/`), not in a package. The tvOS target
    **shares** that source via the file-system-synchronized group, **excludes** the three
    genuinely iOS-only files (`Onboarding/QRScannerView.swift` [camera], `Onboarding/
    PhotoAlbumPickerView.swift` [Photos source], `Slideshow/UIScreenController.swift` [iOS
@@ -63,7 +63,7 @@ secret/non-secret channel split is a hard boundary (FR-1000-05, SC-1000-08); no 
    branches inside the rest for the handful of iOS-only touchpoints (`.statusBarHidden`,
    `DragGesture`, `UIApplication.openSettingsURLString`, `UIImage` scaling, `UIDevice`
    identity). tvOS-specific files (App entry, `SoftwareDimScreenController`, remote-chrome
-   wiring, tvOS onboarding shell) live in a new `Immich SlideshowTV/` synchronized group.
+   wiring, tvOS onboarding shell) live in a new `OwnFrameTV/` synchronized group.
    Rationale: honors constitution II (no per-platform package fork; differences in the app
    target behind seams) without a risky UI-layer extraction refactor.
 
@@ -83,7 +83,7 @@ secret/non-secret channel split is a hard boundary (FR-1000-05, SC-1000-08); no 
 
 4. **HA distinct identity** is injected at the app entry (kits are identity-neutral): tvOS
    supplies a distinct `deviceID` (own MQTT topics/identifiers/unique_id) and `deviceName`
-   (e.g. "Photo Frame (Apple TV)"). No kit changes (FR-1000-08).
+   (e.g. "OwnFrame (Apple TV)"). No kit changes (FR-1000-08).
 
 5. **Packages gaining `.tvOS(.v17)`**: PhotoSourceKit, ThemeKit, PowerKit, ImmichClient,
    OnboardingKit, HAControlKit, BrokerSetupKit, SlideshowKit, PhotoLibraryKit(+iOS guards),
@@ -111,11 +111,11 @@ Packages/ConfigSyncKit/                      # NEW
   Sources/ConfigSyncKit/{SyncedConfig,ConfigSyncStore,UbiquitousKVSConfigSyncStore,
     SecretSyncStore,CloudKitSecretSyncStore,ConfigPublisher,ConfigConsumer,InMemory*}.swift
   Tests/ConfigSyncKitTests/*.swift
-Immich SlideshowTV/                           # NEW synchronized group (tvOS-only files)
+OwnFrameTV/                           # NEW synchronized group (tvOS-only files)
   ImmichSlideshowTVApp.swift  SoftwareDimScreenController.swift  TVRemoteChrome.swift
   TVOnboarding*.swift  ...
-Immich Slideshow/                             # shared source (conditionalized) + iOS-only excl.
-Immich Slideshow.xcodeproj                    # + tvOS target, scheme, entitlements (via xcodeproj gem)
+OwnFrame/                             # shared source (conditionalized) + iOS-only excl.
+OwnFrame.xcodeproj                    # + tvOS target, scheme, entitlements (via xcodeproj gem)
 ```
 
 ## Phase → Story mapping
