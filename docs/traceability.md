@@ -156,7 +156,7 @@ So traceability is a **map**, not an alarm. It makes these questions answerable 
 - which tests must run for a change to a given spec area
 
 — and none of those are "did this change break something". That is CI's job, and
-[#20](https://github.com/kipp-ing/Immich-Slideshow/issues/20) records that CI has been red for
+[#20](https://github.com/kipp-ing/OwnFrame/issues/20) records that CI has been red for
 months. **Until that is fixed, 100% traceability would still gate nothing.**
 
 ## Running it
