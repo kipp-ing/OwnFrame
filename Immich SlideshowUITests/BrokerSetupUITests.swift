@@ -37,10 +37,16 @@ final class BrokerSetupUITests: XCTestCase {
         XCTAssertTrue(scrollToElement(host, in: app), "broker fields should be reachable in the MQTT section")
 
         // Host / port / username are prefilled from the stored broker so the user can
-        // edit them (FR-013 change flow).
+        // edit them (FR-013 change flow). The form lazily drops off-screen rows, so each
+        // field is scrolled into view before it is read — the MQTT section is now long
+        // enough that port/username can start below the fold on first render.
         XCTAssertEqual(host.value as? String, "mqtt.example.com")
-        XCTAssertEqual(app.textFields["broker.port"].value as? String, "8883")
-        XCTAssertEqual(app.textFields["broker.username"].value as? String, "ha-user")
+        let port = app.textFields["broker.port"]
+        XCTAssertTrue(scrollToElement(port, in: app), "port field should be reachable in the MQTT section")
+        XCTAssertEqual(port.value as? String, "8883")
+        let username = app.textFields["broker.username"]
+        XCTAssertTrue(scrollToElement(username, in: app), "username field should be reachable in the MQTT section")
+        XCTAssertEqual(username.value as? String, "ha-user")
 
         // The stored password is never prefilled in cleartext; a "set" hint stands in
         // for it instead (FR-013).
