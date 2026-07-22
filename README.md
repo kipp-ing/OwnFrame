@@ -1,23 +1,33 @@
-# Photo Frame for Immich
+# Photo Frame for Immich & iCloud
 
-Turns an iPad into a full-screen **photo frame**, powered by your own
-[Immich](https://immich.app) server. It is a standalone app — **not** a fork of the
-official Immich client — and uses Immich purely as a photo source over its REST API.
+Turns an iPad or iPhone into a full-screen **photo frame**. It supports devices down to
+iOS 17 — a retired or cheap second-hand device makes a perfect frame. Setup really takes
+seconds: pick an iCloud album, scan an Immich share QR code, or connect your Immich account.
+No fiddling
+with album creation inside the frame app — you keep managing albums in the app you already
+know and like.
 
-This is an independent app, not affiliated with or endorsed by Immich or FUTO. (The
-repository keeps its historical name, `Immich-Slideshow`; the app ships as
-**Photo Frame for Immich**.)
+It is a standalone app — **not** a fork of the official Immich client, and it works
+entirely without Immich if you use an iCloud album.
 
-> ⚠️ **Active development.** Onboarding, the full-screen slideshow, display & power control,
-> display options, and Home Assistant remote control are built. Home Assistant control is
-> verified live against a real Home Assistant instance over a TLS broker. Since then:
-> auto-retry + periodic refresh ([310](specs/310-slideshow-resilience/spec.md)), the disk image
-> cache ([320](specs/320-disk-image-cache/spec.md)), the rendered clock overlay
-> ([510](specs/510-clock-overlay/spec.md)), Shortcuts/Siri intents
-> ([800](specs/800-app-intents/spec.md)), Apple Photos / iCloud albums as a source
-> ([900](specs/900-photo-library-source/spec.md)), and an **Apple TV app**
-> ([1000](specs/1000-apple-tv/spec.md)) have all landed. Remaining before those ship: a pass of
-> real-hardware verification (see [docs/manual-verification.md](docs/manual-verification.md)).
+## Why it exists
+
+This is a **hobby project** with a clear ambition: to show how to build a real, shippable
+app cleanly with AI coding tools, using a **spec-driven, test-first workflow**. The lessons
+learned along the way are documented in this repo.
+
+The second reason: I didn't like the photo frame apps on the App Store. I wanted a
+reasonably priced app that uses **already existing albums** and picks up changes
+automatically — share pictures with your loved ones by simply updating your own album.
+When this project started, that was either uncommon or uncommonly expensive.
+
+## This is free
+
+For the main use case. Additional features will cost a few bucks. The money covers my
+costs: mostly the Apple Developer account, AI coding subscriptions, and dedicated test
+hardware. If those costs are ever covered, everything beyond goes to the open source
+community. That decision is mine alone — I prefer to sponsor the libraries that power
+the tools most other projects rely on but that seldom get direct funding.
 
 ## What it does (and will do)
 
@@ -34,7 +44,7 @@ repository keeps its historical name, `Immich-Slideshow`; the app ships as
 - **Home Assistant control** — play/pause, brightness, album, every display setting,
   next/previous, current-photo metadata (image opt-in), and diagnostics over MQTT (TLS). ✅ done
 - **Apple Photos / iCloud albums** — use an iCloud album as the source instead of (or alongside)
-  Immich. 🧪 built, pending hardware verification
+  Immich. ✅ done
 - **Shortcuts & Siri** — play/pause, brightness, source switching and frame state as App Intents,
   usable in personal automations. 🧪 built, pending hardware verification
 - **Apple TV** — the same frame on tvOS, set up without typing by syncing the iPad's
@@ -42,7 +52,7 @@ repository keeps its historical name, `Immich-Slideshow`; the app ships as
 
 ## Requirements
 
-- An iPad running **iPadOS 17** or later (a retired iPad makes a good frame).
+- An iPad or iPhone running **iOS/iPadOS 17** or later (a retired device makes a good frame).
 - For Immich sources: an **Immich server reachable over HTTPS with a valid TLS certificate.**
   (Self-signed / local certificates are not supported yet.) An iCloud-album source needs no
   server at all.
