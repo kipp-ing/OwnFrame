@@ -114,6 +114,7 @@ Every onboarding screen carries concise helper text that explains what to do on 
 - **Offline / unreachable server when resolving (in-app or shared-in)**: unreachable error, retryable, nothing persisted.
 - **Share Sheet hand-off to a not-yet-launched or unconfigured app**: the link survives the cold start and lands in shared-link setup pre-filled.
 - **Album search with zero matches**: explicit no-results state.
+- **Album tab with no server configured**: in a shared-link-only setup, opening the picker's Album tab shows an add-a-server prompt (routing into the connection editor), not a generic "couldn't load albums" failure.
 - **Albums missing date or count metadata**: such albums still appear and remain matchable by name; missing fields simply do not match date/count queries.
 - **Very long album list with the keyboard open**: the primary action remains reachable and the list scrolls independently.
 - **Going back during onboarding**: from any step after the choice screen the user can step back to the previous screen (e.g. shared-link setup → choice, source → connection) without restarting the app; the choice screen itself has nowhere further back.
@@ -160,6 +161,7 @@ Every onboarding screen carries concise helper text that explains what to do on 
 - **FR-210-22**: Album search results MUST update as the user types, and a no-match state MUST be shown clearly rather than as a blank list.
 - **FR-210-27**: The album/source picker MUST be a single reusable component used identically in onboarding and in Settings → Sources: Album / Shared-link tabs, a search field, an internally-scrollable album list, and a pinned confirm action, all simultaneously visible on one screen. The two surfaces MUST NOT diverge into separate album-picker implementations.
 - **FR-210-28**: In every surface that uses the picker (onboarding and Settings → Sources), adding an album MUST be select-then-confirm: tapping albums marks them and a pinned confirm commits, allowing one or more albums to be added in a single pass; tapping an album MUST NOT immediately add it and dismiss the picker.
+- **FR-210-30**: The album tab of the picker MUST distinguish, to the user, two reasons it cannot show albums: (a) **no server configured** — the Album tab was reached with no server URL + API key stored (e.g. a shared-link-only setup) — MUST show guidance to add a server and route into the server-connection editor (FR-210-29), not a generic load failure; (b) a genuine **network / load error** against a configured server MUST show a distinct, retryable connection error. The two MUST NOT collapse into the same message. This applies identically in onboarding and Settings → Sources (FR-210-27).
 
 #### Descriptions & cross-cutting
 
@@ -192,6 +194,7 @@ Every onboarding screen carries concise helper text that explains what to do on 
 - **SC-210-10**: From any onboarding step after the choice screen, the user can return to the previous step (and ultimately to the path choice) using an in-app Back affordance, without ever needing to kill and relaunch the app.
 - **SC-210-11**: Album selection looks and behaves identically in onboarding and Settings → Sources (one shared picker: tabs, search, internal scroll, pinned select-then-confirm); there is no second, unsearchable album-add screen anywhere in the app.
 - **SC-210-12**: The server URL and API key can be changed after onboarding via Settings → Connection using the same editor as first-run; a successful change reconnects the running slideshow without re-onboarding, and the same editor appears in the slideshow's connection-error recovery.
+- **SC-210-13**: Opening the picker's Album tab with no server configured shows an add-a-server prompt that routes into the server-connection editor, never a bare "couldn't load albums" message; a load failure against a configured server shows a distinct, retryable connection error.
 
 ## Assumptions
 
