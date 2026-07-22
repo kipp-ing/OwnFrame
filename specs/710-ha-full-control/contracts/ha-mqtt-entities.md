@@ -7,11 +7,11 @@ topics for `playback`/`brightness`/`album` — FR-710-08).
 ## 1. Topic scheme
 
 ```
-immichslideshow/<deviceID>/availability                  (retained, online|offline, LWT — unchanged)
-immichslideshow/<deviceID>/<entity>/set                  (commands, NOT retained)
-immichslideshow/<deviceID>/<entity>/state                (state, retained — except the two below)
-immichslideshow/<deviceID>/current_photo/state           (JSON: id + attributes, NOT retained)
-immichslideshow/<deviceID>/current_photo_image/state     (raw image bytes, NOT retained)
+ownframe/<deviceID>/availability                  (retained, online|offline, LWT — unchanged)
+ownframe/<deviceID>/<entity>/set                  (commands, NOT retained)
+ownframe/<deviceID>/<entity>/state                (state, retained — except the two below)
+ownframe/<deviceID>/current_photo/state           (JSON: id + attributes, NOT retained)
+ownframe/<deviceID>/current_photo_image/state     (raw image bytes, NOT retained)
 homeassistant/<component>/<deviceID>/<entity>/config     (discovery, retained — unchanged)
 ```
 

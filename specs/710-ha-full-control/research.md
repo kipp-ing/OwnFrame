@@ -31,7 +31,7 @@ coordinator code path depends on which capability.
 ## 2. `current_photo` payload shape
 
 **Decision**: A single JSON payload on one topic
-(`immichslideshow/<deviceID>/current_photo/state`, NOT retained per the Clarifications).
+(`ownframe/<deviceID>/current_photo/state`, NOT retained per the Clarifications).
 Discovery for the `sensor` sets `state_topic` and `json_attributes_topic` to that same topic:
 `value_template: "{{ value_json.id }}"` extracts the state (asset ID), and the whole payload is
 also read as the attributes object (`taken_at`, `city`, `state`, `country`, `album_id`,

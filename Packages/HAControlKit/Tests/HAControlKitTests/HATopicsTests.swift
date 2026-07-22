@@ -63,7 +63,7 @@ struct HATopicsTests {
 
     @Test
     func stateTopicForPhotoEntities() {
-        #expect(HATopics.stateTopic(deviceID: "dev1", entity: .currentPhoto) == "immichslideshow/dev1/current_photo/state")
-        #expect(HATopics.stateTopic(deviceID: "dev1", entity: .currentPhotoImage) == "immichslideshow/dev1/current_photo_image/state")
+        #expect(HATopics.stateTopic(deviceID: "dev1", entity: .currentPhoto) == "ownframe/dev1/current_photo/state")
+        #expect(HATopics.stateTopic(deviceID: "dev1", entity: .currentPhotoImage) == "ownframe/dev1/current_photo_image/state")
     }
 }

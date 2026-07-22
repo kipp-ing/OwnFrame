@@ -248,9 +248,9 @@ struct HADiscoveryTests {
 
         // Sensor entity: NO command_topic
         #expect(json["command_topic"] == nil)
-        #expect(json["state_topic"] as? String == "immichslideshow/dev1/current_photo/state")
+        #expect(json["state_topic"] as? String == "ownframe/dev1/current_photo/state")
         #expect(json["value_template"] as? String == "{{ value_json.id }}")
-        #expect(json["json_attributes_topic"] as? String == "immichslideshow/dev1/current_photo/state")
+        #expect(json["json_attributes_topic"] as? String == "ownframe/dev1/current_photo/state")
 
         #expect(json["unique_id"] as? String == "dev1_current_photo")
         #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
@@ -270,7 +270,7 @@ struct HADiscoveryTests {
         // Image entity: NO command_topic, NO state_topic
         #expect(json["command_topic"] == nil)
         #expect(json["state_topic"] == nil)
-        #expect(json["image_topic"] as? String == "immichslideshow/dev1/current_photo_image/state")
+        #expect(json["image_topic"] as? String == "ownframe/dev1/current_photo_image/state")
         #expect(json["content_type"] as? String == "image/jpeg")
 
         #expect(json["unique_id"] as? String == "dev1_current_photo_image")
