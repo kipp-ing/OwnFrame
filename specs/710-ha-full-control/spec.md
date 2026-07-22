@@ -16,7 +16,8 @@ changes.
 
 > **Purchase-gate tiering (per spec 1100, amended 2026-07-20).** The entities defined here
 > split across tiers: the **read-only sensor entities** (current photo + metadata, current-photo
-> image, playback phase, photo count, version) plus broker connection + availability (LWT) are
+> image, playback phase, photo count, version, and — on battery-bearing devices — battery level
+> and charging state) plus broker connection + availability (LWT) are
 > **free** — an unentitled frame publishes them so Home Assistant can *see* it. The
 > **controllable entities** (everything with a `command_topic`: brightness/light, album select,
 > playback switch, the settings controls, next/previous) and all command handling require the
@@ -114,9 +115,9 @@ update; verify pressing while paused steps without resuming.
 
 ### User Story 4 - Diagnostics & state on reconnect (Priority: P3)
 
-HA shows diagnostic sensors (slideshow phase, photo count of the active album, app version) and
-after any reconnect the full state of *all* entities is re-published, so HA never shows stale
-values.
+HA shows diagnostic sensors (slideshow phase, photo count of the active album, app version, and —
+on battery-bearing devices — battery level and charging state) and after any reconnect the full
+state of *all* entities is re-published, so HA never shows stale values.
 
 **Acceptance Scenarios**:
 
@@ -128,6 +129,10 @@ values.
 3. **Given** the slideshow enters `empty`/`failed`, **Then** the phase sensor reflects it and the
    image/current-photo topics publish an "unknown"/cleared state rather than the stale last
    photo.
+4. **Given** the frame runs on a battery-bearing device, **When** the battery level or charging
+   state changes, **Then** the battery sensor and the charging binary sensor update (event-driven,
+   no polling); on a device without a battery (e.g. Apple TV) these two entities are absent from
+   discovery.
 
 ### Edge Cases
 
@@ -227,6 +232,15 @@ Numbering continues the 700 series in the `710` sub-spec block.
 - **FR-710-22**: Metadata (`assetInfo`) results MUST be cached per asset for the session (bounded,
   evicting least-recently-used entries) so revisiting a photo (previous/shuffle cycle) does not
   re-fetch, without growing unbounded across a multi-day/week session.
+- **FR-710-23**: The app MUST expose device power as two read-only diagnostic entities: a **battery
+  level** sensor (`battery`, `device_class: battery`, `unit_of_measurement: "%"`,
+  `state_class: measurement`, integer 0–100) and a **charging** binary sensor (`charging`,
+  `device_class: battery_charging`, `ON` when on external power — charging or full — else `OFF`).
+  Both are `entity_category: diagnostic`, publish retained state, carry no `command_topic`, and —
+  being read-only sensors — are **free** telemetry an unentitled frame still publishes (tiering
+  note; 1100, FR-1100-03a). Battery values MUST be sourced event-driven (battery level/state
+  notifications), not by polling. On a device without a battery (e.g. Apple TV) both entities MUST
+  be omitted from discovery rather than published with a placeholder.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -236,8 +250,9 @@ Numbering continues the 700 series in the `710` sub-spec block.
   (re)connect instead) and metadata (sensor state + attributes, also not retained, cached
   per-asset in a bounded LRU for the session); lifecycle bound to `SlideshowViewModel`
   photo-change events.
-- **Diagnostics**: read-only sensors (`phase`, `photo_count`, `version`) marked
-  `entity_category: diagnostic`.
+- **Diagnostics**: read-only sensors (`phase`, `photo_count`, `version`, `battery`) and the
+  `charging` binary sensor, marked `entity_category: diagnostic`; `battery`/`charging` appear only
+  on battery-bearing devices.
 - **Publish Options**: image publishing enabled flag (default off), image source size, byte
   cap — stored with the broker configuration (non-secret part).
 
@@ -258,6 +273,10 @@ Numbering continues the 700 series in the `710` sub-spec block.
   gracefully (skip + log), never a broker disconnect.
 - **SC-710-06**: All of the above verified with fake transport/API only; the test suite runs
   without any broker or Immich server.
+- **SC-710-07**: On a battery-bearing device, HA shows a battery-level sensor (`%`) and a charging
+  binary sensor that reflect the device's actual battery level and charging state and update on
+  change without polling; on a device without a battery, neither entity is discovered — verified
+  with the fake transport (no real broker) and an injected battery source.
 
 ## Open Questions
 

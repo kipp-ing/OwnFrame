@@ -20,6 +20,10 @@ struct SourceLibraryView: View {
     // 900 / US1: builds the PhotoKit seam for the add-sheet's Photos-album tab — the real
     // gateway in production, the scripted fake under `--uitest` (injected from the app).
     var makePhotoGateway: () -> any PhotoLibraryGateway = { PHKitGateway() }
+    // 210, FR-210-30: routes the album tab's "no server configured" guidance into the shared
+    // server-connection editor (FR-210-29). Nil when no editor route is wired (the guidance
+    // still explains the problem; only the shortcut button is withheld).
+    var onAddServer: (() -> Void)? = nil
 
     @State private var showAddSheet = false
     @State private var renameTarget: Source?
@@ -76,7 +80,7 @@ struct SourceLibraryView: View {
             }
         }
         .sheet(isPresented: $showAddSheet) {
-            AddSourceView(viewModel: viewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway)
+            AddSourceView(viewModel: viewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway, onAddServer: onAddServer)
         }
         .alert("Rename", isPresented: renameAlertPresented, presenting: renameTarget) { source in
             TextField("Name", text: $renameText)
@@ -136,6 +140,7 @@ private struct AddSourceView: View {
     @Bindable var viewModel: SourceLibraryViewModel
     var makeServerAPI: () async -> (any ImmichAPI)?
     var makePhotoGateway: () -> any PhotoLibraryGateway
+    var onAddServer: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var kind: Kind = .album
@@ -172,7 +177,13 @@ private struct AddSourceView: View {
 
                 switch kind {
                 case .album:
-                    AddAlbumPicker(viewModel: viewModel, makeServerAPI: makeServerAPI)
+                    // Dismiss the add-source sheet before routing to the connection editor,
+                    // which the parent presents (210, FR-210-29/30).
+                    AddAlbumPicker(
+                        viewModel: viewModel,
+                        makeServerAPI: makeServerAPI,
+                        onAddServer: onAddServer.map { route in { dismiss(); route() } }
+                    )
                 case .sharedLink:
                     Form {
                         SharedLinkAddForm(
@@ -212,11 +223,18 @@ private struct AddSourceView: View {
 private struct AddAlbumPicker: View {
     @Bindable var viewModel: SourceLibraryViewModel
     var makeServerAPI: () async -> (any ImmichAPI)?
+    /// Routes the no-server guidance into the shared server-connection editor (210,
+    /// FR-210-29). Nil when no route is wired — the guidance still shows, minus the button.
+    var onAddServer: (() -> Void)?
 
     @State private var albums: [Album] = []
     @State private var phase: Phase = .loading
 
-    enum Phase { case loading, loaded, failed }
+    // `noServer` is the "no base URL + API key stored" case (e.g. a shared-link-only setup):
+    // it is reached without any network call and guides the user to add a server. `failed` is
+    // a genuine network/load error against a configured server. Keeping them distinct is
+    // 210, FR-210-30 / SC-210-13.
+    enum Phase { case loading, loaded, noServer, failed }
 
     var body: some View {
         Group {
@@ -224,6 +242,18 @@ private struct AddAlbumPicker: View {
             case .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .noServer:
+                ContentUnavailableView {
+                    Label("Add a server or check your connection", systemImage: "server.rack")
+                } description: {
+                    Text("Listing albums needs an Immich server. Add one to browse albums, or add a shared link instead.")
+                } actions: {
+                    if let onAddServer {
+                        Button("Add a server", action: onAddServer)
+                            .accessibilityIdentifier("sources.add.addServer")
+                    }
+                }
+                .frame(maxHeight: .infinity)
             case .failed:
                 ContentUnavailableView {
                     Label("Couldn't load albums", systemImage: "wifi.exclamationmark")
@@ -236,7 +266,9 @@ private struct AddAlbumPicker: View {
             }
         }
         .task {
-            guard let api = await makeServerAPI() else { phase = .failed; return }
+            // A nil client means no server URL + API key is stored — the no-server case, with
+            // no network attempted. A thrown error below is a real load failure (210, FR-210-30).
+            guard let api = await makeServerAPI() else { phase = .noServer; return }
             do {
                 albums = try await api.albums()
                 phase = .loaded

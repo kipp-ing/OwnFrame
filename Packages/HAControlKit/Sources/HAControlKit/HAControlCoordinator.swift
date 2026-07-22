@@ -26,6 +26,9 @@ public final class HAControlCoordinator {
     private let control: any PlaybackControlling
     private let settings: (any SettingsControlling)?
     private let photoReporter: (any PhotoReporting)?
+    /// Optional battery telemetry source (spec 710 FR-710-23). `nil` (or `hasBattery ==
+    /// false`, e.g. Apple TV) means the `battery`/`charging` entities are omitted entirely.
+    private let battery: (any BatteryReporting)?
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
@@ -43,6 +46,7 @@ public final class HAControlCoordinator {
         photoReporter: (any PhotoReporting)? = nil,
         configStore: any BrokerConfigStore,
         deviceName: String,
+        battery: (any BatteryReporting)? = nil,
         enabledEntities: Set<HAEntity> = [.playback],
         mode: Mode = .full
     ) {
@@ -50,6 +54,7 @@ public final class HAControlCoordinator {
         self.control = control
         self.settings = settings
         self.photoReporter = photoReporter
+        self.battery = battery
         self.configStore = configStore
         self.deviceName = deviceName
         self.enabledEntities = enabledEntities
@@ -145,6 +150,10 @@ public final class HAControlCoordinator {
             // Free telemetry publishes read-only sensors only; controllable entities and
             // their command topics require the Automation unlock (FR-1100-03 / FR-1100-03a).
             if mode == .telemetryOnly && entity.isControllable { continue }
+            // Battery/charging exist only on a battery-bearing device with a source — omit
+            // both entirely otherwise (no discovery, no state) so Apple TV shows neither
+            // (FR-710-23).
+            if entity.isBatteryEntity && !hasBatterySource { continue }
 
             try? await transport.publish(MQTTMessage(
                 topic: HATopics.discoveryConfigTopic(deviceID: deviceID, entity: entity),
@@ -183,6 +192,25 @@ public final class HAControlCoordinator {
         // Photo telemetry (read-only sensors) is free — always wired (FR-1100-03a).
         photoReporter?.onPhotoChange = { [weak self] report in
             self?.schedulePhotoPublish(report)
+        }
+
+        // Battery telemetry (read-only sensors) is free too, but only wired on a
+        // battery-bearing device — the source pushes a fresh reading and we re-echo
+        // both entities (FR-710-23).
+        if hasBatterySource {
+            battery?.onBatteryChange = { [weak self] in
+                self?.scheduleBatteryEcho()
+            }
+        }
+    }
+
+    /// Re-echo `battery`/`charging` after the source signals a change. Detached from the
+    /// caller like `schedulePhotoPublish`, and guarded by the enabled set.
+    private func scheduleBatteryEcho() {
+        Task { [weak self] in
+            guard let self else { return }
+            if self.enabledEntities.contains(.battery) { await self.echo(.battery) }
+            if self.enabledEntities.contains(.charging) { await self.echo(.charging) }
         }
     }
 
@@ -298,7 +326,7 @@ public final class HAControlCoordinator {
                 await photoReporter?.showNext()
             case .previous:
                 await photoReporter?.showPrevious()
-            case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+            case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
                 break
             }
 
@@ -382,6 +410,16 @@ public final class HAControlCoordinator {
             payload = photoReporter.map { String($0.currentPhotoReport.photoCount) } ?? ""
         case .version:
             payload = photoReporter?.version ?? ""
+        case .battery:
+            // Publish nothing until a real reading exists — never a misleading 0%
+            // (data-model: `level == nil` → skip). The entity still exists in discovery.
+            guard let level = battery?.current.level else { return }
+            payload = String(level)
+        case .charging:
+            // On/off external power. No source → nothing to echo (announce already
+            // omitted it, but guard so a stray echo can't publish a false "OFF").
+            guard let battery else { return }
+            payload = battery.current.isOnPower ? "ON" : "OFF"
         case .next, .previous, .currentPhoto, .currentPhotoImage:
             payload = ""  // routed above; kept for switch exhaustiveness
         }
@@ -432,7 +470,7 @@ public final class HAControlCoordinator {
         switch entity {
         case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate:
             true
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
             false
         }
     }
@@ -461,7 +499,7 @@ public final class HAControlCoordinator {
             snapshot.clockSize.rawValue
         case .clockDate:
             snapshot.clockDate ? "ON" : "OFF"
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
             ""
         }
     }
@@ -507,7 +545,7 @@ public final class HAControlCoordinator {
         case .clockDate:
             guard let value = switchBool(payload) else { return }
             snapshot.clockDate = value
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
             return
         }
 
@@ -534,6 +572,12 @@ public final class HAControlCoordinator {
 
     private var orderedEnabledEntities: [HAEntity] {
         HAEntity.allCases.filter { enabledEntities.contains($0) }
+    }
+
+    /// Whether a battery source is present and reports a battery. Gates discovery/state/echo
+    /// for `battery`/`charging` so batteryless devices (Apple TV) publish neither (FR-710-23).
+    private var hasBatterySource: Bool {
+        battery?.hasBattery ?? false
     }
 
     private func ensureDeviceID() -> String? {

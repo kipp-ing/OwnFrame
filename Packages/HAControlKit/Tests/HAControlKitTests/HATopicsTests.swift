@@ -29,7 +29,8 @@ struct HATopicsTests {
 
     @Test
     func haEntityAllCasesCount() {
-        #expect(HAEntity.allCases.count == 21)
+        // 21 core + battery + charging (1200 US3).
+        #expect(HAEntity.allCases.count == 23)
     }
 
     // @covers FR-710-01, FR-710-08

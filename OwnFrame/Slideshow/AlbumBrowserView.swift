@@ -17,6 +17,16 @@ struct AlbumBrowserView: View {
     /// Hands the chosen (album, asset) back to the slideshow, which switches album
     /// if needed and jumps to that asset.
     var onSelect: (_ albumID: String, _ assetID: String) -> Void
+    /// Whether a server (base URL + API key) is configured — the discriminator that keeps the
+    /// "no server configured" guidance distinct from a genuine load failure, mirroring the add
+    /// source picker (210, FR-210-30 / FR-210-27). Injectable; defaults to `true` because both
+    /// runtime call sites present this browser only with a live connection, so the default
+    /// preserves existing behavior. A shared-link-only caller can pass the host-tested
+    /// `OnboardingKit.serverConfigured(config:keychain:)` to route to the connection editor.
+    var isServerConfigured: () -> Bool = { true }
+    /// Routes the no-server guidance into the shared server-connection editor (FR-210-29); nil
+    /// withholds only the shortcut button (the guidance still explains the problem).
+    var onAddServer: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var albums: [Album] = []
@@ -43,6 +53,17 @@ struct AlbumBrowserView: View {
         switch phase {
         case .loading:
             ProgressView().controlSize(.large)
+        case .noServer:
+            ContentUnavailableView {
+                Label("Add a server or check your connection", systemImage: "server.rack")
+            } description: {
+                Text("Listing albums needs an Immich server. Add one to browse albums, or add a shared link instead.")
+            } actions: {
+                if let onAddServer {
+                    Button("Add a server", action: onAddServer)
+                        .accessibilityIdentifier("album.addServer")
+                }
+            }
         case .failed:
             ContentUnavailableView(
                 "Couldn't load albums",
@@ -76,6 +97,13 @@ struct AlbumBrowserView: View {
     }
 
     private func loadAlbums() async {
+        // No stored base URL + API key is the no-server case — reached without a network call,
+        // guiding the user to add a server rather than showing "couldn't load albums". A thrown
+        // error below is a genuine load failure against a configured server (210, FR-210-30).
+        guard isServerConfigured() else {
+            phase = .noServer
+            return
+        }
         do {
             albums = try await api.albums()
             phase = .loaded
@@ -84,7 +112,7 @@ struct AlbumBrowserView: View {
         }
     }
 
-    private enum BrowserPhase { case loading, loaded, failed }
+    private enum BrowserPhase { case loading, loaded, noServer, failed }
 }
 
 /// A single album tile in the album grid.

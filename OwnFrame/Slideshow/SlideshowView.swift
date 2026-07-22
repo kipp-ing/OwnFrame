@@ -268,7 +268,18 @@ struct SlideshowView: View {
         .sheet(isPresented: $showSources) {
             if let sourceLibraryViewModel = makeSourceLibraryViewModel() {
                 NavigationStack {
-                    SourceLibraryView(viewModel: sourceLibraryViewModel, makeServerAPI: makeServerAPI, makePhotoGateway: makePhotoGateway)
+                    SourceLibraryView(
+                        viewModel: sourceLibraryViewModel,
+                        makeServerAPI: makeServerAPI,
+                        makePhotoGateway: makePhotoGateway,
+                        // 1200/US1: the album tab's no-server guidance routes into the shared
+                        // connection editor (FR-210-29/30). Dismiss the sources sheet, then
+                        // present the editor — two separate sheet anchors, one off / one on.
+                        onAddServer: {
+                            showSources = false
+                            errorConnectionViewModel = makeConnectionViewModel()
+                        }
+                    )
                 }
             }
         }
@@ -435,6 +446,7 @@ struct SlideshowView: View {
                 image: image,
                 fillsScreen: fillsScreen,
                 kenBurnsActive: kenBurnsActive,
+                kenBurnsPan: kenBurnsPan,
                 durationSeconds: photoDurationSeconds
             )
             .id(viewModel.currentAssetID)
@@ -490,10 +502,17 @@ struct SlideshowView: View {
 
     // MARK: - Render-time settings (008)
 
-    /// Fill framing when the user chose Fill, or while Ken Burns is on (so the pan/zoom
-    /// never reveals a letterbox gap).
+    /// Fill framing only when the user chose Fill. Ken Burns no longer forces fill: with Fit,
+    /// the pan is suppressed and the zoom stays centered, so a fitted photo stays letterboxed
+    /// (FR-500-20 / SC-500-09). Decision extracted to `KenBurnsFraming` for host testing.
     private var fillsScreen: Bool {
-        themeStore.settings.fit == .fill || effectiveKenBurns
+        KenBurnsFraming.fillsScreen(fit: themeStore.settings.fit)
+    }
+
+    /// The Ken Burns pan magnitude, fit-aware: the iPad base pan (16 pt) under Fill, `0` under
+    /// Fit (centered zoom, no revealed background).
+    private var kenBurnsPan: CGFloat {
+        KenBurnsFraming.pan(fit: themeStore.settings.fit, basePan: 16)
     }
 
     private var kenBurnsActive: Bool {
@@ -577,6 +596,8 @@ private struct SlidePhotoView: View {
     let image: UIImage
     let fillsScreen: Bool
     let kenBurnsActive: Bool
+    /// Fit-aware pan magnitude: the iPad base pan under Fill, `0` under Fit (centered zoom).
+    let kenBurnsPan: CGFloat
     let durationSeconds: Double
 
     var body: some View {
@@ -584,8 +605,9 @@ private struct SlidePhotoView: View {
         // `.ignoresSafeArea()` directly to a `scaledToFit` image expands its frame
         // asymmetrically by the safe-area insets, which pushed the picture off-center
         // in landscape; instead the whole ZStack ignores the safe area and the image
-        // fills + centers within it. Fill (or Ken Burns, which implies fill-style
-        // framing) crops to fill with no bars.
+        // fills + centers within it. Fill crops to fill with no bars; Fit stays
+        // letterboxed even with Ken Burns on, which then suppresses the pan (`kenBurnsPan`
+        // is 0) so the centered zoom reveals no background beyond the letterbox.
         let base = Image(uiImage: image).resizable()
         Group {
             if fillsScreen {
@@ -596,6 +618,6 @@ private struct SlidePhotoView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .kenBurnsMotion(isActive: kenBurnsActive, durationSeconds: durationSeconds, pan: 16)
+        .kenBurnsMotion(isActive: kenBurnsActive, durationSeconds: durationSeconds, pan: kenBurnsPan)
     }
 }
