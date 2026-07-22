@@ -34,7 +34,13 @@ final class ShareSheetIncomingUITests: XCTestCase {
 
         let url = app.textFields["onboarding.sharedLink.url"]
         XCTAssertTrue(url.waitForExistence(timeout: 5), "an incoming link should open the shared-link setup screen")
-        XCTAssertEqual(url.value as? String, link, "the setup field should be pre-filled with the shared link")
+        // The pending link populates the field as onboarding flips to the shared-link step.
+        // Under full-suite load that propagation can lag the field's first appearance by a
+        // beat, during which the still-empty field reads back as its "https://host/s/slug"
+        // placeholder — so wait for the value to converge instead of reading it once (#22).
+        let prefilled = NSPredicate(format: "value == %@", link)
+        expectation(for: prefilled, evaluatedWith: url)
+        waitForExpectations(timeout: 5)
     }
 
     /// Configured: a shared link arriving while a slideshow is already running resolves and
