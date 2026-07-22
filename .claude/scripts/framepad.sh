@@ -128,7 +128,7 @@ cmd_ha_check() {
              --cafile /etc/ssl/cert.pem)
 
   echo "=== availability"
-  { "${sub[@]}" -t "immichslideshow/$dev/availability" -v -W 5 2>&1 || true; } | grep -v '^Timed' || true
+  { "${sub[@]}" -t "ownframe/$dev/availability" -v -W 5 2>&1 || true; } | grep -v '^Timed' || true
 
   # `mosquitto_sub -W` exits non-zero on its timeout, which is the NORMAL end of a
   # retained-state dump. With `set -e -o pipefail` that would abort the function midway

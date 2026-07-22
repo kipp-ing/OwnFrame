@@ -856,8 +856,8 @@ extension HAControlCoordinatorTests {
         for _ in 0..<50 { await Task.yield() }
     }
 
-    private var photoMetaTopic: String { "immichslideshow/dev1/current_photo/state" }
-    private var photoImageTopic: String { "immichslideshow/dev1/current_photo_image/state" }
+    private var photoMetaTopic: String { "ownframe/dev1/current_photo/state" }
+    private var photoImageTopic: String { "ownframe/dev1/current_photo_image/state" }
 
     private func makeCoordinator(
         transport: FakeMQTTTransport,
