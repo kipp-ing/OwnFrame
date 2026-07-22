@@ -42,7 +42,7 @@ memory `opus-subagent-implementation`).
 7. `ActiveSourceResolver` **throws** for `.photoLibrary` (it's Immich-only). The T020
    factory MUST branch on `SourceKind` BEFORE the resolver: `.photoLibrary` →
    `PhotoLibraryProvider(gateway: PHKitGateway(), collectionID:)`; else resolver path.
-   Today `makeSlideshow` (Immich_SlideshowApp.swift ~line 227) resolves first — rework it.
+   Today `makeSlideshow` (OwnFrameApp.swift ~line 227) resolves first — rework it.
 
 ## Recon already done for T018/T019 (saves reading)
 
@@ -60,7 +60,7 @@ memory `opus-subagent-implementation`).
   (test-target fakes are inaccessible) — deterministic collections, auth state via
   `--uitest-photos-auth=full|limited|denied|notDetermined`, launch arg `--uitest-photos`;
   hermetic slideshow for a photoLibrary source currently maps to stub album "a1"
-  (Immich_SlideshowApp.swift `makeSlideshowViewModel` switch — fine for T018).
+  (OwnFrameApp.swift `makeSlideshowViewModel` switch — fine for T018).
 - Purpose string: pbxproj uses `GENERATE_INFOPLIST_FILE = YES` →
   `INFOPLIST_KEY_NSPhotoLibraryUsageDescription` in build settings (both configs);
   T019 explicitly scopes this pbxproj edit.
@@ -86,6 +86,6 @@ swift test --package-path Packages/PhotoLibraryKit    # 24
 swift test --package-path Packages/ImmichClient       # 73
 swift test --package-path Packages/OnboardingKit      # 137
 swift test --package-path Packages/SlideshowKit       # 133
-# XcodeBuildMCP defaults: project + scheme "Immich Slideshow" + sim iPad Pro 13" (26.5,
+# XcodeBuildMCP defaults: project + scheme "OwnFrame" + sim iPad Pro 13" (26.5,
 # id CA71157B-6C86-43D2-9151-543BE1984649), preferXcodebuild — re-set per session.
 ```

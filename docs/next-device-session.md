@@ -39,11 +39,11 @@ The skip-guard is now a hard assertion, so a regression fails loudly. Issue #16 
 They run anywhere, including CI:
 
 ```bash
-xcodebuild -project "Immich Slideshow.xcodeproj" -scheme "Immich Slideshow" \
+xcodebuild -project "OwnFrame.xcodeproj" -scheme "OwnFrame" \
   -destination "id=$FRAMEPAD_DEVICE_ID" -configuration Debug \
   -derivedDataPath ~/Library/Developer/Xcode/DerivedData/FramepadRig \
   -allowProvisioningUpdates -test-timeouts-enabled YES \
-  -only-testing:"Immich SlideshowTests/StoreKitClientTests" \
+  -only-testing:"OwnFrameTests/StoreKitClientTests" \
   test-without-building
 ```
 

@@ -12,7 +12,7 @@ public struct FrameIdentity: Sendable, Equatable {
     /// Topic-namespace and discovery id seed. Distinct per platform => non-colliding topics.
     public let deviceID: String
 
-    /// Human-facing device name in Home Assistant (e.g. "Photo Frame (Apple TV)").
+    /// Human-facing device name in Home Assistant (e.g. "OwnFrame (Apple TV)").
     public let deviceName: String
 
     public init(deviceID: String, deviceName: String) {

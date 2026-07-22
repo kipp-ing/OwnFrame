@@ -9,8 +9,8 @@ constitution-level rules (TDD first; see also [tdd-workflow.md](../tdd-workflow.
 | Layer | Where | Runs on | Speed | What it covers |
 |-------|-------|---------|-------|----------------|
 | **Unit (host)** | `Packages/*/Tests` | macOS host (`swift test`) | sub-second | Pure module logic behind protocols (API decode, view-model state, config/keychain stores) |
-| **App-hosted** | `Immich SlideshowTests` | iOS Simulator | seconds | Things that need the real device runtime: real Keychain round-trip, reset, integration decode |
-| **UI (XCUITest)** | `Immich SlideshowUITests` | iOS Simulator | ~10–20 s/test | The user-facing flow, driven end to end and hermetically |
+| **App-hosted** | `OwnFrameTests` | iOS Simulator | seconds | Things that need the real device runtime: real Keychain round-trip, reset, integration decode |
+| **UI (XCUITest)** | `OwnFrameUITests` | iOS Simulator | ~10–20 s/test | The user-facing flow, driven end to end and hermetically |
 
 The host layer is the fast inner loop. The simulator layers are the gate.
 
@@ -33,7 +33,7 @@ server or the Keychain.
 > simulator runtime lives in the app-hosted bundle. See
 > [engineering-notes.md](engineering-notes.md#spm-test-targets-vs-the-simulator).
 
-## Layer 2 — App-hosted tests (`Immich SlideshowTests`)
+## Layer 2 — App-hosted tests (`OwnFrameTests`)
 
 These link the packages into the app and run on the simulator — used where the
 host can't help: the **real `KeychainAPIKeyStore`** round-trip, the reset flow
@@ -42,7 +42,7 @@ host can't help: the **real `KeychainAPIKeyStore`** round-trip, the reset flow
 Run the whole simulator suite:
 
 ```text
-XcodeBuildMCP → test_sim   (scheme "Immich Slideshow", iPad Pro 11" M5, preferXcodebuild: true)
+XcodeBuildMCP → test_sim   (scheme "OwnFrame", iPad Pro 11" M5, preferXcodebuild: true)
 ```
 
 ## Layer 3 — UI tests (hermetic XCUITest)
@@ -57,7 +57,7 @@ no live server, no real Keychain, fully deterministic and CI-safe.
    app.launchArguments = ["--uitest"]
    ```
 2. That trips a **DEBUG-only** seam, `UITestSupport`, in
-   `Immich Slideshow/Immich_SlideshowApp.swift`. It injects a **stub `ImmichAPI`**
+   `OwnFrame/OwnFrameApp.swift`. It injects a **stub `ImmichAPI`**
    (canned albums) plus **in-memory** `ConfigStore`/`KeychainStore`. The production
    launch path is untouched and the seam is never compiled into Release.
 3. Views carry **accessibility identifiers** as stable anchors:
@@ -71,7 +71,7 @@ no live server, no real Keychain, fully deterministic and CI-safe.
    | `onboarding.album.<id>` | each album row |
    | `main.completed` | the post-onboarding main screen |
 
-**Current tests** (`Immich SlideshowUITests/Immich_SlideshowUITests.swift`):
+**Current tests** (`OwnFrameUITests/OwnFrameUITests.swift`):
 
 - `testOnboardingHappyPathReachesMainScreen` — drives Server → API key → album → main screen.
 - `testFreshLaunchShowsServerStep` — a fresh launch starts at step 1.
@@ -80,7 +80,7 @@ no live server, no real Keychain, fully deterministic and CI-safe.
 
 ```text
 test_sim  extraArgs:
-  -only-testing:Immich SlideshowUITests/Immich_SlideshowUITests/testOnboardingHappyPathReachesMainScreen
+  -only-testing:OwnFrameUITests/OwnFrameUITests/testOnboardingHappyPathReachesMainScreen
 ```
 
 **Extending it to a new flow** (e.g. SlideshowView): add accessibility identifiers
@@ -231,7 +231,7 @@ run for real under plain `xcodebuild test`, on the simulator **and** on both dev
   cases then block forever waiting for a tap no headless run will make — presenting as a hang,
   not a failure. Configure the session **after** resetting it.
 
-Run them anywhere: `-only-testing:"Immich SlideshowTests/StoreKitClientTests"`. Verified
+Run them anywhere: `-only-testing:"OwnFrameTests/StoreKitClientTests"`. Verified
 2026-07-21 on iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1) — 7/7 each. Always pass
 `-test-timeouts-enabled YES` so a future dialog regression fails instead of hanging the run.
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
@@ -305,7 +305,7 @@ Verified against **Immich 2.7.5** (2026-06-18): `serverVersion()` → `"2.7.5"`,
 ## Environment / tooling
 
 - **XcodeBuildMCP** drives builds/tests — do not parse raw `xcodebuild`. Session
-  defaults: scheme **"Immich Slideshow"**, simulator **iPad Pro 11" (M5)**,
+  defaults: scheme **"OwnFrame"**, simulator **iPad Pro 11" (M5)**,
   `preferXcodebuild: true` (the incremental builder chokes on project changes).
 - **No `axe`/`idb`** UI-automation backend is installed, so XcodeBuildMCP can only
   *observe* the simulator (`snapshot_ui`/`screenshot`), not tap/type. This is why

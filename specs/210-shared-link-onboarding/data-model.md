@@ -81,7 +81,7 @@ protocol PendingSharedLinkStore: Sendable {
 ### `StartupGate` *(changed — see research D2)*
 Adds shared-link-active ⇒ `.done` (no API key) and empty ⇒ `.choice`.
 
-## App layer (Immich Slideshow)
+## App layer (OwnFrame)
 
 ### Album search *(new — pure predicate, `AlbumSearch`)*
 `func filter(_ albums: [Album], query: String) -> [Album]` — case/diacritic-insensitive substring of a

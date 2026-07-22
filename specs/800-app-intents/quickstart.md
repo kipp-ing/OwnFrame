@@ -42,7 +42,7 @@ Via XcodeBuildMCP (`test_sim`, whole classes — never a single `@Test`):
 ## Manual device checklist (real hardware)
 
 - [ ] **SC-800-03**: fresh install → Shortcuts app lists all 7 actions with no
-      setup; each Siri phrase ("Pause Photo Frame", …) resolves and executes.
+      setup; each Siri phrase ("Pause OwnFrame", …) resolves and executes.
 - [ ] **US1 sweep**: from Shortcuts — pause, resume, next, previous while paused
       (must step, not resume), brightness 0/40/100; each behaves exactly like the
       chrome / HA equivalent.

@@ -127,14 +127,14 @@ Packages/SlideshowKit/Tests/SlideshowKitTests/
 │                                #   real stores in temp dirs)
 └── Fakes.swift                  # + temp-dir helper; existing fakes unchanged
 
-Immich Slideshow/
-├── Immich_SlideshowApp.swift    # create ONE shared DiskImageCache + snapshot store + budget
+OwnFrame/
+├── OwnFrameApp.swift    # create ONE shared DiskImageCache + snapshot store + budget
 │                                #   store at startup; inject into makeSlideshow (the VM's new
 │                                #   optional params) and into Settings
 └── Slideshow/SlideshowSettingsView.swift  # "Storage" Section: usage label, budget picker
                                  #   (fixed steps), Clear button (confirmation dialog)
 
-Immich SlideshowUITests/
+OwnFrameUITests/
 └── SettingsStorageUITests.swift # NEW: storage section present, picker persists, Clear resets
                                  #   the usage label (hermetic --uitest build)
 ```

@@ -14,12 +14,12 @@ pick up with the "Open / unresolved" section below.
 - Found and fixed **4 real bugs**, each via a red test first, each confirmed green
   (80/80 `HAControlKit` host tests, 67/67 full simulator suite) *and* confirmed live against the
   real broker/HA:
-  1. **Missing entities in production.** `Immich_SlideshowApp.swift`'s `makeCoordinator` only
+  1. **Missing entities in production.** `OwnFrameApp.swift`'s `makeCoordinator` only
      ever enabled 13 of the 18 default entities — `next`, `previous`, `phase`, `photo_count`,
      `version` were fully implemented in `HAControlKit` (discovery, coordinator logic, host
      tests) but never wired into the shipped app. Fixed by adding
      `HAEntity.defaultEnabled` (`HAEntityState.swift`) — all cases except the opt-in
-     `currentPhotoImage` — and using it in `Immich_SlideshowApp.swift` instead of a hand-rolled
+     `currentPhotoImage` — and using it in `OwnFrameApp.swift` instead of a hand-rolled
      subset. Verified: HA now shows 19 entities (was 14).
   2. **In-app pause/resume never reached HA.** `SlideshowChrome`'s play/pause button calls
      `viewModel.togglePause()` directly on `SlideshowViewModel`, never through
@@ -99,10 +99,10 @@ pick up with the "Open / unresolved" section below.
 Nothing from this session has been committed. `git status --short`:
 
 ```
- M Immich Slideshow/Immich_SlideshowApp.swift
- M Immich Slideshow/Localizable.xcstrings
- M Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift
- M Immich SlideshowTests/HAControlRoundTripTests.swift
+ M OwnFrame/OwnFrameApp.swift
+ M OwnFrame/Localizable.xcstrings
+ M OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift
+ M OwnFrameTests/HAControlRoundTripTests.swift
  M Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift
  M Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift
  M Packages/HAControlKit/Sources/HAControlKit/HAEntityState.swift

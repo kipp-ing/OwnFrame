@@ -12,14 +12,14 @@
   Bool }`. Concrete `UIScreenController` lives in the **app target** — replaced on tvOS, not
   patched. `UIApplication.isIdleTimerDisabled` exists on tvOS; `UIScreen.brightness` /
   `wantsSoftwareDimming` do not.
-- **Slideshow UI is in the app target** (`Immich Slideshow/Slideshow/…`), not SlideshowKit
+- **Slideshow UI is in the app target** (`OwnFrame/Slideshow/…`), not SlideshowKit
   (which holds the ViewModel + KenBurnsDrift). Chrome state = `SlideshowView.chromeVisible`;
   auto-hide 4.5s; input = one `TapGesture` (toggle) + `DragGesture(40)` (next/prev). Ken Burns
   is TimelineView-driven (tvOS-safe) *(superseded 2026-07-18: now a shared scoped-animation
   `KenBurnsMotionModifier` in SlideshowKit)*. tvOS blockers: `.statusBarHidden`, `DragGesture`,
   `UIDevice.userInterfaceIdiom` (needs a `.tv`/idiom case for clock sizing).
 - **HAControlKit/BrokerSetupKit** are Foundation/NIO-only; identity (`deviceID`/`deviceName`)
-  injected from the app entry (`Immich_SlideshowApp.swift:239/:424`). mqtt-nio pinned 2.13.0;
+  injected from the app entry (`OwnFrameApp.swift:239/:424`). mqtt-nio pinned 2.13.0;
   HAControlMQTT also links `swift-nio-ssl` (tvOS build to be confirmed in T004).
 - **Persistence**: six non-secret UserDefaults stores (all inject `UserDefaults`), three keychain
   seams for secrets. No `NSUbiquitousKeyValueStore`/CloudKit today — sync is greenfield.

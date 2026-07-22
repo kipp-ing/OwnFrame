@@ -84,7 +84,7 @@ passes.
 
 That is the shape to hunt: **a correct component, a green component test, and an app that does
 not wire it.** All three verifier prompts now instruct agents to follow app-behaviour
-requirements to their production call site in `Immich Slideshow/` and check what is actually
+requirements to their production call site in `OwnFrame/` and check what is actually
 passed. Ten more findings like #26 would be a better night's work than three hundred more tags.
 
 The second most valuable output is the **gap list** — requirements with no covering test, each

@@ -42,19 +42,19 @@ precedes it. iOS/iPadOS only (session scoping in plan.md).
 ## Phase 3: US4 slice A — renderer + seams (depends on Phase 2)
 
 - [x] T006 [US4] Red XCUITests in
-      `Immich SlideshowUITests/ClockOverlayUITests.swift` (hermetic
+      `OwnFrameUITests/ClockOverlayUITests.swift` (hermetic
       `--uitest --uitest-slideshow` launches per contracts/clock-overlay.md):
       (a) `--uitest-clock` shows `slideshow.clock` with `slideshow.clock.digits`;
       (b) chrome reveal hides the clock while `slideshow.chrome.playPause` is hittable,
       auto-hide returns it (SC-500-07); (c) swipe advances without revealing chrome and
       without hiding the clock; (d) `--uitest-assets-fail` pinned-chrome phase keeps the
       clock hidden.
-- [x] T007 [US4] Green: create `Immich Slideshow/Slideshow/ClockOverlayView.swift` —
+- [x] T007 [US4] Green: create `OwnFrame/Slideshow/ClockOverlayView.swift` —
       `TimelineView(.everyMinute)` container, digits style (rounded semibold, tabular
       numerals, soft halo + text shadow, optional date line), glass via existing
       `View+Compat` shims only, `.allowsHitTesting(false)`, a11y ids per contract.
 - [x] T008 [US4] Green: ambient-layer slot in
-      `Immich Slideshow/Slideshow/SlideshowView.swift` — sibling of the chrome branch,
+      `OwnFrame/Slideshow/SlideshowView.swift` — sibling of the chrome branch,
       chrome-parity insets (32/44), visibility `clock.isOn && !chromeVisible && playing`
       with 0.3 s ease (FR-510-02); parse seams `--uitest-clock`,
       `--uitest-clock-style/place/size=<raw>`, `--uitest-clock-date`,
@@ -77,7 +77,7 @@ precedes it. iOS/iPadOS only (session scoping in plan.md).
       Includes a Random relaunch sanity: place Random persists as Random and the clock
       appears at some fixed place after relaunch (fresh pick, no stored position).
 - [x] T012 [US4] Green: replace the clock placeholder row in
-      `Immich Slideshow/Slideshow/SlideshowSettingsView.swift` with live rows bound to the
+      `OwnFrame/Slideshow/SlideshowSettingsView.swift` with live rows bound to the
       store (Clock toggle · Clock style · Clock place · Clock size · Date line), ids
       `settings.clock*`, sentence-case copy per the Quiet Glass settings mock.
 
@@ -94,7 +94,7 @@ precedes it. iOS/iPadOS only (session scoping in plan.md).
       `RemoteControlling.swift` (`ThemeSettingsSnapshot` fields), and
       `HAControlCoordinator` publish/command paths.
 - [x] T015 [US4] Green: bridge the widened fields in
-      `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` (raw-value mapping
+      `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` (raw-value mapping
       both directions, same pattern as existing clock fields); host tests for the mapping.
 
 ## Phase 6: Polish & gates

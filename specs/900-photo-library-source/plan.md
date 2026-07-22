@@ -160,7 +160,7 @@ Packages/ImmichClient/
 Packages/OnboardingKit/
 └── Sources/OnboardingKit/Source.swift      # SourceKind + .photoLibrary case (+ library/vm updates)
 
-Immich Slideshow/                           # app target
+OwnFrame/                           # app target
 ├── Onboarding/PhotoAlbumPickerView.swift   # NEW — Photos album picker (full-access gate, 210 pattern)
 ├── Slideshow/…                             # wiring: provider factory, restart strategy, calm states
 └── Slideshow/SlideshowRemoteControlAdapter.swift  # HA mapping via neutral collections

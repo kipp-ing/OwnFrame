@@ -21,7 +21,7 @@ Run `test_sim` on the iOS scheme (and the TV scheme for tvOS wiring):
 - **Unit**: everything from layer 1 plus app-target gating tests (effective Ken Burns/clock
   flags, coordinator-not-started, intent guard error) and the ConfigSync negative test (no
   entitlement keys in payloads).
-- **StoreKitTest adapter tests** (XCTest + `Configuration.storekit` in `Immich SlideshowTests`):
+- **StoreKitTest adapter tests** (XCTest + `Configuration.storekit` in `OwnFrameTests`):
   sandbox-free purchase, restore, refund/revocation, Ask-to-Buy deferral,
   interrupted-transaction recovery.
 - **XCUITest**: the seven binding assertions in uitest-seams.md. Repo rule applies: run the

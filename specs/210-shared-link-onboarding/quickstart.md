@@ -6,7 +6,7 @@ End-to-end validation scenarios mapped to FR/SC. Logic scenarios run on the host
 
 ## Prerequisites
 - Host unit tests: `cd Packages/<Pkg> && swift test` (OnboardingKit, ImmichClient).
-- UI: build the `Immich Slideshow` scheme on the pinned iOS 26.5 iPad sim; drive via `--uitest*` launch args.
+- UI: build the `OwnFrame` scheme on the pinned iOS 26.5 iPad sim; drive via `--uitest*` launch args.
 - New seams to add (mirroring existing `--uitest*` ones): a way to start at `.choice`, to seed a
   shared-link-only library, to inject a pending shared link (App-Group store fake), and to seed 50+
   stub albums with date/count for the picker.

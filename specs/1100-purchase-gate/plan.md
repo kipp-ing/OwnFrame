@@ -33,8 +33,8 @@ gating flags) against protocol fakes; XCTest only for `SKTestSession` adapter te
 requires the Xcode test environment); XCUITest via the existing `--uitest-*` launch-seam pattern
 for locked/unlocked UI; real sandbox purchases on device for the SC device gates.
 
-**Target Platform**: iPadOS/iOS 17+ and tvOS 17+ (both app targets: `Immich Slideshow`,
-`Immich SlideshowTV`; shared bundle id `ing.kipp.Immich-Slideshow` → universal purchase is
+**Target Platform**: iPadOS/iOS 17+ and tvOS 17+ (both app targets: `OwnFrame`,
+`OwnFrameTV`; shared bundle id `ing.kipp.Immich-Slideshow` → universal purchase is
 already structurally in place).
 
 **Project Type**: Mobile app — new local SPM package `Packages/PurchaseKit` + app-target wiring.
@@ -106,23 +106,23 @@ Packages/PurchaseKit/                          # NEW package, platforms .iOS(.v1
 │       └── TipJarView.swift
 └── Tests/PurchaseKitTests/                    # Swift Testing, protocol fakes (host-runnable)
 
-Immich Slideshow/                              # iOS app target — wiring only
+OwnFrame/                              # iOS app target — wiring only
 ├── Slideshow/SlideshowView.swift              # effective Ken Burns/clock flags (point-of-effect gate)
 ├── Slideshow/ClockOverlayView.swift           # (rendered only when entitled; no internal change expected)
 ├── Slideshow/SlideshowSettingsView.swift      # locked rows, Unlocks section, tip jar, Restore
 ├── Slideshow/BrokerSetupView.swift            # locked banner when unentitled (config preserved)
 ├── Slideshow/SlideshowRemoteControlAdapter.swift  # HA coordinator start gated on .automation
 ├── Intents/FrameIntents.swift                 # entitlement check → localized needsUnlock error
-└── Immich_SlideshowApp.swift                  # EntitlementStore injection + --uitest seams
+└── OwnFrameApp.swift                  # EntitlementStore injection + --uitest seams
 
-Immich SlideshowTV/                            # tvOS app target — same gates, TV idioms
+OwnFrameTV/                            # tvOS app target — same gates, TV idioms
 ├── TVSlideshowView.swift                      # effective Ken Burns flag
 ├── TVRootView.swift / TVOnboardingView.swift  # EntitlementStore injection + unlock surface entry
 ├── TVBrokerSetupView.swift                    # locked banner when unentitled
 └── TVRemoteControlAdapter.swift               # coordinator start gated on .automation
 
-Immich SlideshowUITests/                       # XCUITest: gating UI, seams per contracts/uitest-seams.md
-Immich SlideshowTests/                         # SKTestSession adapter tests (XCTest) + .storekit config
+OwnFrameUITests/                       # XCUITest: gating UI, seams per contracts/uitest-seams.md
+OwnFrameTests/                         # SKTestSession adapter tests (XCTest) + .storekit config
 ```
 
 **Structure Decision**: One new policy package (`PurchaseKit`) holding all purchase/entitlement

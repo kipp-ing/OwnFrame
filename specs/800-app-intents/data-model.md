@@ -75,12 +75,12 @@ The closed error taxonomy; shells map cases 1:1 to localized
 
 | Case | Shell copy (English, FR-300-30) | Trigger |
 |---|---|---|
-| `.notConfigured` | "Set up the frame first — open Photo Frame and add a source." | Registry unconfigured (spec edge: onboarding). |
-| `.frameNotOpen` | "Photo Frame must be open on the frame device for this." | `.notLive` after `awaitReady` timeout (spec edge: backgrounded/killed; FR-800-04). |
+| `.notConfigured` | "Set up the frame first — open OwnFrame and add a source." | Registry unconfigured (spec edge: onboarding). |
+| `.frameNotOpen` | "OwnFrame must be open on the frame device for this." | `.notLive` after `awaitReady` timeout (spec edge: backgrounded/killed; FR-800-04). |
 | `.brightnessOutOfRange(Int)` | "Brightness must be between 0 and 100 percent." | US1 acceptance 4. |
 | `.sourceMissing(label: String)` | "This source no longer exists in the frame's library." | Spec edge: deleted source; state unchanged. |
 
-## App-target shells *(app target, `Immich Slideshow/Intents/`)*
+## App-target shells *(app target, `OwnFrame/Intents/`)*
 
 Thin conformances only — no logic, no state (research R2):
 

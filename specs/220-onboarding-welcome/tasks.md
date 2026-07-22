@@ -40,7 +40,7 @@ riding the same device day as the 900 quickstart and the 800 gates.
 - [X] T001 Confirm the baseline on branch `220-onboarding-welcome` (based on the
       `900-photo-library-source` tip): `swift test` green in `Packages/OnboardingKit`,
       XcodeBuildMCP `build_sim` green, and the reused 900 surfaces present
-      (`Immich Slideshow/Onboarding/PhotoAlbumPickerView.swift`,
+      (`OwnFrame/Onboarding/PhotoAlbumPickerView.swift`,
       `SourceKind.photoLibrary`, `SourceLibraryViewModel.addPhotoLibrarySource`). No
       code change — this pins the pre-feature green so every later red is attributable.
 
@@ -107,15 +107,15 @@ access seeded via `simctl privacy`, tap the iCloud option on the welcome screen,
 an album, reach the running slideshow; relaunch routes straight to the slideshow.
 
 - [X] T008 [US1] Red tests (app-hosted UITest):
-      `Immich SlideshowUITests/WelcomeICloudUITests.swift` — from the welcome screen the
+      `OwnFrameUITests/WelcomeICloudUITests.swift` — from the welcome screen the
       top option is "Use an iCloud album"; tapping it reaches `PhotoAlbumPickerView`
       (Photos access seeded via `simctl privacy`, the 900 `PhotoAlbumPickerUITests`
       pattern); selecting an album reaches the slideshow with no connection/API key.
       Expected red = the app target doesn't compile until T009
 - [X] T009 [US1] Implement (Fable-inline) the iCloud path in the app target:
-      `Immich Slideshow/Onboarding/OnboardingFlowView.swift` handles `.photoLibrarySetup`
+      `OwnFrame/Onboarding/OnboardingFlowView.swift` handles `.photoLibrarySetup`
       → renders the reused `PhotoAlbumPickerView` with a completion that calls
-      `onboarding.finish()` (→ `.done`); `Immich Slideshow/Onboarding/OnboardingChoiceView.swift`
+      `onboarding.finish()` (→ `.done`); `OwnFrame/Onboarding/OnboardingChoiceView.swift`
       gains the iCloud option as the FIRST row → `choosePath(.photoLibrary)`. This
       restores `build_sim` — green T008 (contracts § iCloud step)
 - [X] T010 [US1] **Checkpoint (MVP)**: `swift test` green; `build_sim` green;
@@ -143,21 +143,21 @@ SC-220-07 manual device gate.
       makes NO resolve/network call, and persists nothing (FR-220-04/06). Delegable
       (package host test)
 - [X] T012 [US2] Implement (Fable-inline — camera + simulator) the scan UI:
-      `Immich Slideshow/Onboarding/QRScannerView.swift` (the ONLY `AVFoundation` file —
+      `OwnFrame/Onboarding/QRScannerView.swift` (the ONLY `AVFoundation` file —
       `AVCaptureMetadataOutput` `.qr`, one-shot, conforms `CodeScanning`; camera-auth
       denied/restricted and no-camera → calm one-liner keeping manual entry), and a
-      "Scan QR" affordance in `Immich Slideshow/Onboarding/SharedLinkSetupView.swift`
+      "Scan QR" affordance in `OwnFrame/Onboarding/SharedLinkSetupView.swift`
       wiring the decoded string → `ScannedShareLink.validate` → the existing resolve
       path — green T011 (research R1/R2/R8, contracts § Scan QR)
 - [X] T013 [US2] Add `INFOPLIST_KEY_NSCameraUsageDescription` (English: the camera is
       used only to read a shared-album QR code; no photo is captured or stored) to
-      `Immich Slideshow.xcodeproj/project.pbxproj`, beside the existing
+      `OwnFrame.xcodeproj/project.pbxproj`, beside the existing
       `NSPhotoLibraryUsageDescription` (Fable-inline; pbxproj explicitly IN SCOPE for
       this task only)
 - [X] T014 [US2] **Checkpoint**: `swift test` green; `build_sim` green; `test_sim`
       shows the Scan-QR affordance present and manual link entry still reaching the
       slideshow with no API key; new intent/UI strings staged from
-      `Immich Slideshow/Localizable.xcstrings` (Xcode auto-extraction) with the commit;
+      `OwnFrame/Localizable.xcstrings` (Xcode auto-extraction) with the commit;
       camera end-to-end recorded as the SC-220-07 pending device gate (not sim-claimable)
 
 ---
@@ -172,12 +172,12 @@ shared link, server + key), each with concise helper text, no Back; existing onb
 UITests stay green.
 
 - [X] T015 [US3] Red tests (app-hosted UITest): extend
-      `Immich SlideshowUITests/OnboardingDescriptionsUITests.swift` (and
+      `OwnFrameUITests/OnboardingDescriptionsUITests.swift` (and
       `OnboardingBackUITests.swift`) — the welcome screen shows EXACTLY three options in
       friction order (iCloud, shared link, server + key), each exposing concise helper
       text, and has no Back affordance. Expected red until the copy/order land (T016)
 - [X] T016 [US3] Implement (Fable-inline) the welcoming presentation in
-      `Immich Slideshow/Onboarding/OnboardingChoiceView.swift` — friction-ordered rows,
+      `OwnFrame/Onboarding/OnboardingChoiceView.swift` — friction-ordered rows,
       concise non-technical helper text per option, and light decoration (calm/light,
       constitution VII) — green T015. English-only strings
 - [X] T017 [US3] **Checkpoint**: `test_sim` green (the extended onboarding UITests plus
@@ -238,7 +238,7 @@ UITests stay green.
 Red test task strictly before its implementation task; package before app target;
 functional option (US1) before welcoming polish (US3); checkpoint last. Commit per task
 or logical pair (explicit `git add` paths — new UI strings also touch
-`Immich Slideshow/Localizable.xcstrings` via Xcode auto-extraction; stage it with the
+`OwnFrame/Localizable.xcstrings` via Xcode auto-extraction; stage it with the
 app-target commits).
 
 ---
