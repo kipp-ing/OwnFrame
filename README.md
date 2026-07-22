@@ -1,6 +1,7 @@
-# Photo Frame for Immich & iCloud
+# OwnFrame
 
-Turns an iPad or iPhone into a full-screen **photo frame**. It supports devices down to
+**OwnFrame** turns an iPad or iPhone into a full-screen **photo frame** — your photos, your
+albums, your server if you want one. It supports devices down to
 iOS 17 — a retired or cheap second-hand device makes a perfect frame. Setup really takes
 seconds: pick an iCloud album, scan an Immich share QR code, or connect your Immich account.
 No fiddling
