@@ -135,8 +135,8 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **Original-quality image is slow or fails**: It is handled like any image-load failure and must not blank or freeze the frame.
 - **Duration changed mid-photo**: The new duration applies from the next advance; the current photo is not cut short or frozen.
 - **Order switched mid-show**: The change takes effect without restarting the app or losing the current photo.
-- **Ken Burns with fitted images**: Motion behaves gracefully without jarring jumps or exposed empty background.
-- **Chrome across orientation and fit/fill switches**: Chrome bar insets stay stable in both orientations and when Ken Burns forces fill framing; controls never crowd or clip at the screen edges.
+- **Ken Burns with fitted images**: With fit Fit, motion is a centered zoom (no pan) that keeps the whole photo visible with no exposed background beyond the letterbox and no jarring jump (honors 500, FR-500-20).
+- **Chrome across orientation and fit/fill switches**: Chrome bar insets stay stable in both orientations and across any fit/fill framing; controls never crowd or clip at the screen edges. Ken Burns honors the active fit option (500, FR-500-20) rather than forcing fill.
 - **Bright or near-white photo behind chrome**: Legibility is guaranteed by a fixed contrast backing independent of image content.
 - **Corrupt cached image or settings data**: Bad cache entries are skipped or evicted, and invalid settings fall back to topic 500 defaults without blocking startup.
 
@@ -172,7 +172,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **FR-300-30**: All slideshow UI strings MUST be localizable (string catalog, no hardcoded user-facing strings in views); the app ships English. Additional languages (German first) are deferred — see Roadmap.
 - **FR-300-31**: Slideshow state, timers, image loading, cache, and data access MUST remain testable behind injected protocols, with no real server, clock, cache, or display hardware required for unit tests.
 - **FR-300-32**: The UI MUST never reveal or log API keys, broker credentials, shared-link passwords, or other secrets.
-- **FR-300-33**: Chrome bar insets from the screen edges MUST remain stable across device orientation and MUST NOT shift when the rendered image switches between fit and fill framing (e.g., toggling Ken Burns).
+- **FR-300-33**: Chrome bar insets from the screen edges MUST remain stable across device orientation and MUST NOT shift with the rendered image's framing — whether the photo is fit or fill, and whether Ken Burns is on or off. Ken Burns honors the active fit option (500, FR-500-20) and does not by itself switch fit/fill framing.
 - **FR-300-34**: Chrome controls MUST remain legible against their icon/text regardless of the underlying photo's brightness or color, including near-white or near-black images.
 
 ### Key Entities *(include if feature involves data)*
@@ -235,7 +235,7 @@ Spec Kit feature.
 - **SC-300-10**: The info overlay shows date and location when EXIF exists and nothing when it is absent.
 - **SC-300-11**: Brightness and display options are reachable from chrome; reset is reachable from Settings; all apply through their owning topics.
 - **SC-300-12**: Every user-facing slideshow string resolves through the string catalog (no hardcoded strings in views); non-English device languages fall back to English.
-- **SC-300-13**: Chrome control edge insets are pixel-identical between Ken Burns on and off and stable across portrait/landscape, guarded by an automated UI test.
+- **SC-300-13**: Chrome control edge insets are pixel-identical between Ken Burns on and off (in both Fit and Fill) and stable across portrait/landscape, guarded by an automated UI test.
 
 ## Assumptions
 

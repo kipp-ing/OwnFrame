@@ -96,7 +96,7 @@ disappears; relaunch and verify all choices persist.
 
 - **Duration changed while a photo is mid-display**: The new duration applies from the next advance; the current photo is not cut short or frozen.
 - **Order switched between shuffle and sequential mid-show**: The change takes effect without restarting the slideshow or losing the current photo; the next advance follows the new order.
-- **Ken Burns with Fit**: Ken Burns must behave gracefully with fitted images, without a jarring jump or revealed background.
+- **Ken Burns with Fit**: With fit Fit, Ken Burns keeps the whole photo visible and confines motion to a centered slow zoom (no pan), so the photo stays fitted and no background beyond the letterbox is revealed; it never substitutes Fill framing (FR-500-20).
 - **Original quality fails or is slow**: Failed or slow original loads are handled like existing image-load failures; the frame must not blank or freeze.
 - **Single-image album**: Order and transitions remain stable on the one image, with no crash and no flicker.
 - **Corrupt or missing stored settings**: Unreadable or partial stored values fall back to documented defaults rather than preventing startup.
@@ -132,6 +132,7 @@ disappears; relaunch and verify all choices persist.
 - **FR-500-17**: The clock MUST support three styles: **Digits** (bare rounded numerals on a soft local halo — the default), **Pill** (compact glass capsule), and **Analog** (round glass face with hour and minute hands; shows no date line). The date line, when enabled, applies to Digits and Pill.
 - **FR-500-18**: The clock MUST support six fixed places (top leading / top center / top trailing / bottom leading / bottom center / bottom trailing) plus **Random**. Random selects among the fixed places and relocates only on a photo advance at a slow cadence (on the order of every 5–10 minutes), never while a photo is on screen. The clock and the photo-details caption MUST never overlap: the caption yields its place (on narrow screens by moving up rather than sideways). Legacy four-corner stored values remain valid places.
 - **FR-500-19**: The clock MUST support two sizes. **Room** (default) targets readability from ~1.5 m: time digits with a cap height of at least ~12 mm on iPhone- and iPad-class screens (on the order of 92 pt / 76 pt respectively — per-device constants, since iOS points are near-physical). **Cozy** (~10 mm) suits arm's-reach placement. On tvOS the equivalent sizes target readability at ~3 m.
+- **FR-500-20**: Ken Burns MUST honor the active fit option rather than override it. When fit is **Fill**, Ken Burns pans and zooms as before. When fit is **Fit**, Ken Burns MUST keep the whole photo visible (letterboxed) and confine its motion to a **centered slow zoom with panning suppressed**, so it never reveals background beyond the photo's fitted letterbox and never silently switches to Fill framing. The framing the user chose MUST be the framing that renders; enabling Ken Burns MUST NOT change fit to fill (reconciles 300, FR-300-33).
 
 ### Key Entities *(include if feature involves data)*
 
@@ -158,13 +159,14 @@ disappears; relaunch and verify all choices persist.
 - **SC-500-06**: Settings persistence contains no API key, broker credential, or other secret, and none are written to logs.
 - **SC-500-07**: The clock overlay and the transient chrome are never simultaneously visible: whenever chrome is on screen, the clock is hidden, and it returns after chrome auto-hides.
 - **SC-500-08**: At size Room, the displayed time's digit height meets the ~12 mm floor on iPhone- and iPad-class screens (readable from 1.5 m); the clock and the photo-details caption never visually overlap in any style/place/size combination.
+- **SC-500-09**: With fit Fit and Ken Burns on, the photo renders fitted (letterboxed) with a centered zoom and no visible pan, no frame reveals background beyond the fitted letterbox, and the framing never switches to Fill; with fit Fill and Ken Burns on, motion pans and zooms as before.
 
 ## Assumptions
 
 - ThemeSettings is implemented as a small isolated module or clearly isolated unit consumed by SlideshowKit and app settings UI through dependency injection.
 - The Immich client provides both preview and original-quality image fetches behind the image-source boundary; TLS remains enabled.
 - The exact valid duration range is a plan detail, but the default is 15 seconds and out-of-range values are clamped.
-- If Ken Burns is enabled while fit is Fit, the rendering design must avoid revealing empty background or visibly broken movement.
+- With Ken Burns enabled while fit is Fit, the rendering honors Fit: a centered zoom with panning suppressed keeps the whole photo visible and avoids revealing background beyond the letterbox (FR-500-20); Fill framing is not substituted.
 - This milestone keeps the current single active album source.
 - The clock renderer itself lives with the slideshow view (topic 300 roadmap); this spec owns
   the settings model, defaults, and the behavioral contract above. On tvOS the clock
