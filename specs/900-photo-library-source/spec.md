@@ -14,8 +14,8 @@ is iOS 15 or older).
 suites green. Remaining: the real-device / iOS 27-beta gates (SC-900-01/02/04/07), scheduled on
 the shared device day in `docs/manual-verification.md`. *(Was "Deferred — planned for v1.x";
 status corrected 2026-07-19 during a docs reconciliation.)* Originally specced ahead of build
-because it drives the source-abstraction decision and the app's identity ("Photo Frame for
-Immich & iCloud").
+because it drives the source-abstraction decision and the app's identity (a photo frame for
+Immich and iCloud albums).
 
 **Input**: New module (new source backend → new hundreds-block; the source *library* mechanics
 stay with topic 120). Albums from the device's Apple Photos library — including iCloud Photos
@@ -242,7 +242,7 @@ revoked-while-active → the source errors calmly like a failed Immich source.
 - **Smart albums** (Favorites, Recents) and **Memories-style collections** as pickable sources.
 - **Multi-source pooling** across backends — stays topic 100/120 roadmap; the source protocol
   here is a prerequisite, not the delivery.
-- **Naming/positioning follow-through**: store subtitle becomes "Photo Frame for Immich &
+- **Naming/positioning follow-through**: store subtitle becomes "OwnFrame &
   iCloud" when this ships (listing text: `docs/app-store-listing.md`).
 
 ## Success Criteria *(mandatory)*

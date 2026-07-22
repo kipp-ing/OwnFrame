@@ -24,7 +24,7 @@ private var shareExtensionSource: String {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let file = repoRoot
-            .appendingPathComponent("Immich SlideshowShareExtension")
+            .appendingPathComponent("OwnFrameShareExtension")
             .appendingPathComponent("ShareViewController.swift")
         return try String(contentsOf: file, encoding: .utf8)
     }

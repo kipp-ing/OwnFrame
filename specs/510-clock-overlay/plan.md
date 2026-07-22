@@ -22,7 +22,7 @@ session (components stay portable, no tvOS code here).
 
 **Primary Dependencies**: ThemeKit (settings model + store), SlideshowKit (playback state,
 photo-advance signal for Random), HAControlKit (entity widening), app target
-(`Immich Slideshow/Slideshow/`) for the view; `View+Compat.swift` glass shims
+(`OwnFrame/Slideshow/`) for the view; `View+Compat.swift` glass shims
 
 **Storage**: UserDefaults via `UserDefaultsThemeStore` (non-secret; existing
 `theme.clock.*` keys, two new keys) — no secrets involved
@@ -95,12 +95,12 @@ Packages/HAControlKit/Sources/HAControlKit/
 └── RemoteControlling.swift        # WIDEN: ThemeSettingsSnapshot style/place/size
 Packages/HAControlKit/Tests/...    # WIDEN: discovery + round-trip tests
 
-Immich Slideshow/Slideshow/
+OwnFrame/Slideshow/
 ├── ClockOverlayView.swift         # NEW: ambient layer — digits/pill/analog renderers
 ├── SlideshowView.swift            # TOUCH: ambient layer slot + vanish binding + seams
 ├── SlideshowSettingsView.swift    # TOUCH: live clock rows (replaces placeholder)
 └── SlideshowRemoteControlAdapter.swift  # TOUCH: raw-value mapping for new fields
-Immich SlideshowUITests/
+OwnFrameUITests/
 └── ClockOverlayUITests.swift      # NEW: presence/vanish/return/styles/places/persistence
 ```
 

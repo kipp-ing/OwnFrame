@@ -173,8 +173,8 @@ Apply the mutation test wherever it fits: if the implementation were replaced wi
 stub, would this test go red? If not, REJECT — that is a fact, not a judgement call.
 
 Check the wiring too. When the requirement describes **app** behaviour but the proposed test
-exercises a **component** in isolation, read the production call site in \`Immich Slideshow/\` or
-\`Immich SlideshowTV/\` and confirm the app actually passes what the requirement demands. A
+exercises a **component** in isolation, read the production call site in \`OwnFrame/\` or
+\`OwnFrameTV/\` and confirm the app actually passes what the requirement demands. A
 component test that stays green regardless of what the app hands it does not cover the
 requirement — REJECT, and name the call site. (This is how issue #26 surfaced: a picker honoured
 an \`occupied\` set, its test was green, and the app passed \`occupied: []\`.)
@@ -214,7 +214,7 @@ prove the requirement.
 Second self-check — **component vs app**. These packages are components; the app is what ships.
 When a requirement describes app behaviour but the test exercises a component in isolation, the
 component being correct proves nothing about the app: the wiring may be missing. Record it as a
-gap unless you have checked the production call site in \`Immich Slideshow/\` and it genuinely
+gap unless you have checked the production call site in \`OwnFrame/\` and it genuinely
 passes what the requirement demands. (FR-510-03 is the cautionary case: the picker honoured an
 \`occupied\` set and its test was green, but the app passed \`occupied: []\` — issue #26.)
 
@@ -296,7 +296,7 @@ behaviour ("the clock never lands on the caption's place", "the frame reconnects
 drop") but the test only exercises a **component** in isolation, the component being correct
 proves nothing about the shipping app. Go find the production call site and read it.
 
-Search the app targets — \`Immich Slideshow/\`, \`Immich SlideshowTV/\` — for the type or method
+Search the app targets — \`OwnFrame/\`, \`OwnFrameTV/\` — for the type or method
 under test, and check the call actually passes what the requirement demands. A component test
 that is green regardless of what the app hands it does not cover the requirement: REFUTE it, and
 say so explicitly, naming the call site and what it actually passes.

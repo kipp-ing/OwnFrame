@@ -136,7 +136,7 @@ Packages/HAControlKit/Tests/HAControlKitTests/
 │                                #   reconnect-republish tests
 └── HADiscoveryTests.swift        # + discovery payload snapshot per new entity
 
-Immich Slideshow/Slideshow/
+OwnFrame/Slideshow/
 ├── SlideshowRemoteControlAdapter.swift  # implement SettingsControlling (bridge onto
 │                                #   ThemeSettingsStore, origin-token suppression so its own writes
 │                                #   don't re-trigger onLocalChange) + PhotoReporting (observe

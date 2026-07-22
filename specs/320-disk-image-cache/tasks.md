@@ -26,7 +26,7 @@ explicitly requested control surface.
 
 - Engine: `Packages/SlideshowKit/Sources/SlideshowKit/`
 - Host tests: `Packages/SlideshowKit/Tests/SlideshowKitTests/` (Swift Testing, `swift test`)
-- App target: `Immich Slideshow/` + `Immich SlideshowUITests/` (XcodeBuildMCP only)
+- App target: `OwnFrame/` + `OwnFrameUITests/` (XcodeBuildMCP only)
 
 ---
 
@@ -141,19 +141,19 @@ budget cuts prune immediately; Clear never touches the on-screen photo.
       from network and re-fills the cache (US3-4/5, FR-320-05); no engine change expected —
       fix whatever red reveals
 - [x] T012 [US3] Storage `Section` in
-      `Immich Slideshow/Slideshow/SlideshowSettingsView.swift` — usage label (refreshed on
+      `OwnFrame/Slideshow/SlideshowSettingsView.swift` — usage label (refreshed on
       appear + after Clear), budget `Picker` over `CacheBudget.steps` bound to
       `CacheBudgetStore` and calling `setBudget` (immediate prune, FR-320-04), Clear button
       behind a confirmation dialog invoking both stores' `clear()` (FR-320-05); accessibility
       IDs `settings.storage.usage`/`.budget`/`.clear`; `#Preview` renders the section
       (depends on T006)
-- [x] T013 [US3] App wiring in `Immich Slideshow/Immich_SlideshowApp.swift` — create one
+- [x] T013 [US3] App wiring in `OwnFrame/OwnFrameApp.swift` — create one
       shared `DiskImageCache` (root `Library/Caches/ImageCache/`, budget from
       `UserDefaultsCacheBudgetStore`), one `FileSourceSnapshotStore`
       (`Application Support/SourceSnapshots/`, backup-excluded); pass into `makeSlideshow`
       (both VM params) and `SlideshowSettingsView`; `UITestSupport` gets temp-dir instances
       so the hermetic build exercises the real paths (depends on T008, T010, T012)
-- [x] T014 [US3] Red→Green: `Immich SlideshowUITests/SettingsStorageUITests.swift` — storage
+- [x] T014 [US3] Red→Green: `OwnFrameUITests/SettingsStorageUITests.swift` — storage
       section present with usage label, budget selection persists across relaunch, Clear
       (confirm dialog) resets the usage label (hermetic `--uitest` seams, portrait reset per
       memory `uitest-launch-seams`) (depends on T013)

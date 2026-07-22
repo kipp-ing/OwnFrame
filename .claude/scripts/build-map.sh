@@ -48,7 +48,7 @@ purpose_of() {
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", c)
         if (c == "") continue
         if (c ~ /\.swift$/) continue
-        if (c ~ /^Immich Slideshow/) continue   # Xcode module/target-name line
+        if (c ~ /^OwnFrame/) continue   # Xcode module/target-name line
         if (c ~ /^Created by /) continue         # Xcode author boilerplate
         if (c ~ /^Copyright/) continue
         out = (out == "") ? c : out " " c

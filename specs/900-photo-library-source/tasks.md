@@ -24,7 +24,7 @@ subagents), US1–US3 = slices C/D/E, app-target/UI tasks are Fable-inline.
       products `PhotoSourceKit` + `PhotoSourceTestSupport`, empty source/test targets)
 - [x] T002 [P] Scaffold `Packages/PhotoLibraryKit` (Package.swift: depends on
       `../PhotoSourceKit`, source + test targets)
-- [x] T003 Add both package references to `Immich Slideshow.xcodeproj/project.pbxproj`
+- [x] T003 Add both package references to `OwnFrame.xcodeproj/project.pbxproj`
       (pbxproj explicitly IN SCOPE for this task only) and link products to the app target
 
 ---
@@ -67,9 +67,9 @@ becomes a peer conformer; snapshot wire format preserved (R2).
       `SourceLibraryViewModelTests.swift`, impl in `Sources/OnboardingKit/Source.swift`,
       `SourceLibrary.swift`, `SourceLibraryViewModel.swift` (additive codable, R11)
 - [x] T012 Rewire app target to neutral types (Fable-inline):
-      `Immich Slideshow/Immich_SlideshowApp.swift` (factories build
+      `OwnFrame/OwnFrameApp.swift` (factories build
       `ImmichPhotoSource`-backed provider),
-      `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift` +
+      `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` +
       `AlbumBrowserView.swift` (consume `[SourceCollection]`) — build green; red coverage
       is implicit: the existing app-side suites (adapter tests, HA round-trip) go red
       during the rewiring and gate it
@@ -103,20 +103,20 @@ selected album plays through the unchanged engine, source persists in the 120 li
       `.albumCloudShared` fetch, windowed asset fetch, final-quality image request (R5/R6) —
       Fable-inline (privacy-adjacent thin adapter)
 - [x] T018 [US1] Red UITest: full-access picker flow in
-      `Immich SlideshowUITests/PhotoAlbumPickerUITests.swift` (hermetic `--uitest-photos`
+      `OwnFrameUITests/PhotoAlbumPickerUITests.swift` (hermetic `--uitest-photos`
       seam with in-memory fake gateway: entry point → request → searchable album list →
       select → slideshow)
-- [x] T019 [US1] Implement `Immich Slideshow/Onboarding/PhotoAlbumPickerView.swift`
+- [x] T019 [US1] Implement `OwnFrame/Onboarding/PhotoAlbumPickerView.swift`
       (reuse `AlbumPickerView` 210 pattern) + entry points in `SourceStepView.swift` and
       `SourceLibraryView.swift`; wire the hermetic `--uitest-photos` seam
-      (FakePhotoLibraryGateway injection) in `Immich Slideshow/Immich_SlideshowApp.swift`;
+      (FakePhotoLibraryGateway injection) in `OwnFrame/OwnFrameApp.swift`;
       add `INFOPLIST_KEY_NSPhotoLibraryUsageDescription` to
-      `Immich Slideshow.xcodeproj/project.pbxproj` (pbxproj explicitly IN SCOPE for this
+      `OwnFrame.xcodeproj/project.pbxproj` (pbxproj explicitly IN SCOPE for this
       key only) — green T018
 - [x] T020 [US1] Cross-backend switching: red engine test (backend change → `.rebuild`, no
       leaked timers — SC-900-06 seed) in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowViewModelTests.swift`; wire
-      provider factory by `SourceKind` in `Immich Slideshow/Immich_SlideshowApp.swift`
+      provider factory by `SourceKind` in `OwnFrame/OwnFrameApp.swift`
 - [x] T021 [US1] **Checkpoint**: US1 acceptance 1–5 pass (saved Photos source persists,
       relaunch resumes, app-UI switching works) — `test_sim` whole classes + new UITest
 
@@ -142,7 +142,7 @@ hold, skips accumulate calmly, prefetch flows through the abstraction.
       `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/ChangeObservationTests.swift`
       (change handler fires engine refresh; mid-play vanish → `.notFound` calm — FR-900-09/16)
 - [x] T025 [US2] Implement change-handler wiring (`setChangeHandler` → engine refresh path)
-      + foreground refetch hook in `Immich Slideshow/Immich_SlideshowApp.swift` scenePhase
+      + foreground refetch hook in `OwnFrame/OwnFrameApp.swift` scenePhase
       observer — green T024
 - [x] T026 [US2] **Dual-fake gate (SC-900-03)**: parameterized engine scenario suite in
       `Packages/SlideshowKit/Tests/SlideshowKitTests/DualBackendScenarioTests.swift` running
@@ -168,12 +168,12 @@ states; revoked-while-active errors like a failed Immich source.
       `Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/SelectedPhotosSource.swift`
       (granted-pool enumeration via `fetchGrantedAssets`) — green T027
 - [x] T029 [US3] Red UITests: limited/denied/downgrade surfaces in
-      `Immich SlideshowUITests/PhotoAlbumPickerUITests.swift` (Selected-Photos row +
+      `OwnFrameUITests/PhotoAlbumPickerUITests.swift` (Selected-Photos row +
       manage-selection + honest album note; denied message + Settings path; downgrade →
       calm unavailable with cause copy incl. iOS-27 wording — US3-1/2/4, FR-900-16)
 - [x] T030 [US3] Implement calm-state UI: picker limited/denied variants in
       `PhotoAlbumPickerView.swift`, vanish/downgrade copy in
-      `Immich Slideshow/Slideshow/SlideshowErrorView.swift` — green T029
+      `OwnFrame/Slideshow/SlideshowErrorView.swift` — green T029
 
 ---
 
@@ -181,15 +181,15 @@ states; revoked-while-active errors like a failed Immich source.
 
 - [x] T031 [P] HA parity (FR-900-11/12): Photos sources in the HA source select +
       current-photo metadata (date + coordinates, no placeName — R7) in
-      `Immich Slideshow/Slideshow/SlideshowRemoteControlAdapter.swift`; red round-trip
-      addition in `Immich SlideshowTests/HAControlRoundTripTests.swift`; publish-images
+      `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift`; red round-trip
+      addition in `OwnFrameTests/HAControlRoundTripTests.swift`; publish-images
       opt-in copy covers all sources
 - [x] T032 [P] Info overlay (FR-900-10): verify date-only rendering for Photos assets in
-      `Immich Slideshow/Slideshow/PhotoInfoView.swift` (absent placeName renders nothing —
+      `OwnFrame/Slideshow/PhotoInfoView.swift` (absent placeName renders nothing —
       existing FR-300-24 path; add test/preview case)
 - [x] T033 Quality honesty (FR-900-15): Settings copy notes the shared-album ceiling where
       the quality picker shows for a Photos source, in
-      `Immich Slideshow/Slideshow/SlideshowSettingsView.swift`
+      `OwnFrame/Slideshow/SlideshowSettingsView.swift`
 - [x] T034 [P] Docs: flip 900 status in `docs/spec-overview.md` (Deferred → Active/
       Implemented as reached) and record FR→test traceability in
       `docs/spec-traceability.md` (900 section)

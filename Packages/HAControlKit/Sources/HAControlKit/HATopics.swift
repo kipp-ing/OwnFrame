@@ -2,7 +2,7 @@ import Foundation
 
 public enum HATopics {
     public static func base(deviceID: String) -> String {
-        "immichslideshow/\(deviceID)"
+        "ownframe/\(deviceID)"
     }
 
     public static func availability(deviceID: String) -> String {

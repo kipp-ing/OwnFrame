@@ -30,7 +30,7 @@ tolerance)** and **Phase 7 (cache/rotation fold-in)** complete correctness with 
 - Client: `Packages/ImmichClient/Sources/ImmichClient/` — tests `…/Tests/ImmichClientTests/`
 - Onboarding: `Packages/OnboardingKit/Sources/OnboardingKit/` — tests `…/Tests/OnboardingKitTests/`
 - Engine: `Packages/SlideshowKit/Sources/SlideshowKit/` — tests `…/Tests/SlideshowKitTests/`
-- App target: `Immich Slideshow/` + `Immich SlideshowUITests/` (XcodeBuildMCP only)
+- App target: `OwnFrame/` + `OwnFrameUITests/` (XcodeBuildMCP only)
 
 ---
 
@@ -220,12 +220,12 @@ hold through the v3 fetch, and rotation order is documented, not accidental.
 
 - [x] T021 [P] Privacy/robustness (FR-130-11): grep the 130 diff — the shared-link password
       never appears in a URL/query/log; no secrets; the version string is non-secret.
-- [x] T022 App wiring in `Immich Slideshow/Immich_SlideshowApp.swift` — update the stub
+- [x] T022 App wiring in `OwnFrame/OwnFrameApp.swift` — update the stub
       `serverVersion()` (currently `"1.0.0"`) and the share-link stub to v3 shapes so previews/
       UITests don't trip the new gate; add the calm **"needs Immich v3 or newer (detected vX)"**
       notice to the app's connection/onboarding surface (dead-ends playback) with accessibility
       IDs (depends on T014).
-- [ ] T023 **DEFERRED** — dedicated onboarding too-old UITest (`Immich SlideshowUITests/`, stubbed
+- [ ] T023 **DEFERRED** — dedicated onboarding too-old UITest (`OwnFrameUITests/`, stubbed
       v2 server via `--uitest` seam → upgrade notice, no advance). Logic is covered by unit
       (`submitConnectionBlocksPreV3ServerWithUpgradeNotice`, `connectionSettingsRejectsPreV3Server`)
       + app-integration tests, and the notice renders through existing error surfaces which the
