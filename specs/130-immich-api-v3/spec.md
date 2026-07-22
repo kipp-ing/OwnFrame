@@ -4,8 +4,9 @@
 
 **Created**: 2026-07-10
 
-**Status**: Implemented (2026-07-10) — client (metadata-search pager, shared-link `/me` asset
-listing, password-in-body login), the version gate (onboarding connect + Settings re-connect +
+**Status**: Implemented (2026-07-10; FR-130-12 amended 2026-07-22 to match live 3.0.2, issue
+#31) — client (metadata-search pager for **both** API-key and shared-link sources,
+password-in-body login), the version gate (onboarding connect + Settings re-connect +
 slideshow refresh, terminal/no-retry), and decode tolerance are built and gated: host suites
 (ImmichClient 54, OnboardingKit 129, SlideshowKit 119) + app integration + full sim suite green,
 app scheme builds clean. The dedicated too-old onboarding UITest is deferred (the logic is
@@ -173,13 +174,17 @@ body still yields a usable message everywhere the client reads one.
   with the link identifier as `?key=`/`?slug=`), and MUST NOT send the password as a URL query
   parameter (rejected in v3). Non-password links MUST resolve through the unchanged no-body
   `GET /api/shared-links/me` path.
-- **FR-130-12**: A **shared-link source** MUST list its image assets from the shared-link
-  resolution response (`SharedLinkResponseDto.assets` from `GET /api/shared-links/me` or
-  `POST /api/shared-links/login`), NOT from `GET /api/albums/{id}` (removed in v3) and NOT from
-  `POST /api/search/metadata` (which does not accept the `?key=` shared-link credential). An
-  API-key album source uses the metadata-search pager (FR-130-02); a shared-link source uses its
-  `.assets`. Both MUST surface through the existing `assets(albumID:)` choke point (`[Asset]`), so
-  SlideshowKit callers and the 320 source snapshot stay transparent (route by `config.auth`).
+- **FR-130-12**: A **shared-link source** MUST list its image assets by the same v3
+  metadata-search pager as an API-key album source (`POST /api/search/metadata`, FR-130-02),
+  authenticated by the link credential carried as `?key=` (appended by the client's request
+  builder) instead of the `x-api-key` header, and MUST NOT read them from `GET /api/albums/{id}`
+  (removed in v3). The shared-link resolution response's asset list
+  (`SharedLinkResponseDto.assets` from `GET /api/shared-links/me` or
+  `POST /api/shared-links/login`) is **empty for ALBUM shares on v3** (verified live against
+  3.0.2), so it cannot back the listing — but the share `key` does authorize the metadata search.
+  Both auth kinds MUST surface through the existing `assets(albumID:)` choke point (`[Asset]`), so
+  SlideshowKit callers and the 320 source snapshot stay transparent; the auth difference is
+  confined to the request builder, not a branch in `assets(albumID:)`.
 - **FR-130-04**: The client MUST determine the server's major version from
   `GET /api/server/version` (already available) and classify any server reporting major **< 3**
   as unsupported.
@@ -264,10 +269,12 @@ body still yields a usable message everywhere the client reads one.
   ordering. "Sequential is album order" becomes "Sequential is capture-date order (album's
   `order`, default newest-first)" — a doc/wording tweak (T018), confirmed on M2, not a silent
   behavior change.
-- **The v3 shared-link path is pinned (`research.md`/`contracts/`).** Both
-  `GET /api/shared-links/me` and `POST /api/shared-links/login` survive and return
-  `SharedLinkResponseDto` **including `.assets`** — so a shared-link source reads its assets from
-  the resolution response (FR-130-12). Two items are M2 live-verify (not guessed): whether a
+- **The v3 shared-link path is pinned (`research.md`/`contracts/`, corrected against live
+  3.0.2).** Both `GET /api/shared-links/me` and `POST /api/shared-links/login` survive and return
+  `SharedLinkResponseDto`, but its `.assets` list is **empty for ALBUM shares on v3** — so a
+  shared-link source does NOT read its assets from the resolution response; it pages
+  `POST /api/search/metadata` authenticated by `?key=`, exactly like an API-key album (FR-130-12).
+  The resolution response is still used for the key/album/expiry. Two items are M2 live-verify (not guessed): whether a
   password link's refresh needs the `immich_access_token` cookie or a re-login, and whether
   `GET /api/assets/{id}/thumbnail?key=` still authorizes shared image bytes (the top M2 risk for
   the 320 disk-image path).
