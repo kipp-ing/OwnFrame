@@ -492,6 +492,12 @@ struct OwnFrameApp: App {
             if publishOptions.options.imageEnabled {
                 enabledEntities.insert(.currentPhotoImage)
             }
+            // Battery/charging are device-conditional (FR-710-23): keep them only on a
+            // battery-bearing device. On a batteryless device drop them so no dead diagnostic
+            // is announced; the coordinator also omits them when the source has no battery.
+            if !adapter.hasBattery {
+                enabledEntities.subtract([.battery, .charging])
+            }
 
             return HAControlCoordinator(
                 transport: transport,
@@ -503,6 +509,7 @@ struct OwnFrameApp: App {
                 // rename lands on the next build. Display only — identity is `deviceID` above and
                 // never changes with the name, so renaming cannot orphan an entity.
                 deviceName: frameNameStore.name,
+                battery: adapter,
                 enabledEntities: enabledEntities,
                 mode: mode
             )

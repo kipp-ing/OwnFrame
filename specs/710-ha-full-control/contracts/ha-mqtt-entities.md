@@ -41,8 +41,12 @@ depicted lingers on the broker; both are republished on (re)connect/announce ins
 | `phase`                 | sensor (diagnostic)  | `loading\|playing\|empty\|failed`                                | SlideshowPhase |
 | `photo_count`           | sensor (diagnostic)  | integer                                                          | active album asset count |
 | `version`               | sensor (diagnostic)  | app version string                                               | bundle |
+| `battery`               | sensor (diagnostic)  | integer 0–100, `device_class: battery`, unit `%`                 | UIDevice.batteryLevel |
+| `charging`              | binary_sensor (diag) | `ON`/`OFF`, `device_class: battery_charging` (ON = on power)     | UIDevice.batteryState |
 
 Enabled by default: all except `current_photo_image` (opt-in — FR-710-15, `HAPublishOptions`).
+`battery` and `charging` are published only on battery-bearing devices (absent on Apple TV, which
+has no battery — FR-710-23).
 
 ## 3. `current_photo` payload (research.md §2)
 
@@ -86,6 +90,10 @@ spec.md.
 - image: `content_type: "image/jpeg"`, `image_topic` (not retained).
 - sensor (`current_photo`): `state_topic`, `value_template`, `json_attributes_topic` (same topic).
 - sensor (diagnostics): `state_topic`, `entity_category: "diagnostic"`.
+- sensor (`battery`): `state_topic`, `entity_category: "diagnostic"`, `device_class: "battery"`,
+  `unit_of_measurement: "%"`, `state_class: "measurement"`.
+- binary_sensor (`charging`): `state_topic`, `entity_category: "diagnostic"`,
+  `device_class: "battery_charging"`, `payload_on: "ON"`, `payload_off: "OFF"`.
 
 ## 6. Loop safety (FR-710-12/20)
 

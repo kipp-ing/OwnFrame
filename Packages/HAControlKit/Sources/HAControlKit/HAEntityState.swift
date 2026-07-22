@@ -22,6 +22,8 @@ public enum HAEntity: String, CaseIterable, Sendable {
     case phase
     case photoCount = "photo_count"
     case version
+    case battery
+    case charging
 }
 
 public extension HAEntity {
@@ -35,7 +37,7 @@ public extension HAEntity {
     /// to `nil` (see `HADiscovery`); nothing here is ever driven from HA.
     var isReadOnlySensor: Bool {
         switch self {
-        case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version:
+        case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
             true
         case .playback, .brightness, .album, .order, .duration, .transition, .kenBurns,
              .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate,
@@ -48,6 +50,12 @@ public extension HAEntity {
     /// (plus command handling and App Intents) require the **Automation** unlock — they are
     /// only published/subscribed in `.full` mode (spec 1100 FR-1100-03).
     var isControllable: Bool { !isReadOnlySensor }
+
+    /// The two device-conditional diagnostics: published only on a battery-bearing device
+    /// with a `BatteryReporting` source, omitted entirely otherwise (FR-710-23).
+    var isBatteryEntity: Bool {
+        self == .battery || self == .charging
+    }
 }
 
 public enum PlaybackState: Sendable, Equatable {
