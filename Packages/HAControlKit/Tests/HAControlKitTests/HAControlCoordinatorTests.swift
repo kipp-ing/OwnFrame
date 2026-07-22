@@ -5,6 +5,7 @@ import Testing
 @MainActor
 @Suite
 struct HAControlCoordinatorTests {
+    // @covers FR-700-04, FR-700-10
     @Test
     func startConnectsAnnouncesSubscribesAndEchoesPlaybackState() async throws {
         let transport = FakeMQTTTransport()
@@ -27,6 +28,7 @@ struct HAControlCoordinatorTests {
         await coordinator.stop()
     }
 
+    // @covers FR-700-08, FR-700-09
     @Test
     func playbackCommandsPauseResumeAndEchoActualState() async throws {
         let transport = FakeMQTTTransport()
@@ -48,6 +50,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "ON")
     }
 
+    // @covers FR-700-12
     @Test
     func rapidPlaybackCommandsApplyLatestValidCommandAndEchoActualState() async throws {
         let transport = FakeMQTTTransport()
@@ -65,6 +68,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "OFF")
     }
 
+    // @covers FR-700-11
     @Test
     func invalidPlaybackPayloadDoesNotChangeStateButEchoesCurrentState() async throws {
         let transport = FakeMQTTTransport()
@@ -80,6 +84,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "ON")
     }
 
+    // @covers FR-700-09
     @Test
     func localChangeEchoesActualPlaybackState() async throws {
         let transport = FakeMQTTTransport()
@@ -97,6 +102,7 @@ struct HAControlCoordinatorTests {
         await coordinator.stop()
     }
 
+    // @covers FR-700-05
     @Test
     func reconnectReAnnouncesDiscoveryAndState() async throws {
         let transport = FakeMQTTTransport()
@@ -122,6 +128,7 @@ struct HAControlCoordinatorTests {
         await coordinator.stop()
     }
 
+    // @covers FR-700-13
     @Test
     func brightnessCommandSetsClampedBrightnessAndEchoesAppliedValue() async throws {
         let transport = FakeMQTTTransport()
@@ -142,6 +149,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "0")
     }
 
+    // @covers FR-700-11
     @Test
     func brightnessInvalidPayloadKeepsStateAndEchoesCurrent() async throws {
         let transport = FakeMQTTTransport()
@@ -156,6 +164,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "102") // round(0.4 * 255)
     }
 
+    // @covers FR-700-14
     @Test
     func albumCommandSelectsValidAlbumAndEchoesSelection() async throws {
         let transport = FakeMQTTTransport()
@@ -170,6 +179,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "Urlaub")
     }
 
+    // @covers FR-700-14
     @Test
     func albumCommandIgnoresUnknownAlbumAndEchoesCurrent() async throws {
         let transport = FakeMQTTTransport()
@@ -185,6 +195,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.last?.payload.string == "Wohnzimmer")
     }
 
+    // @covers FR-710-13
     @Test
     func startEchoesAllEnabledEntityStates() async throws {
         let transport = FakeMQTTTransport()
@@ -204,6 +215,7 @@ struct HAControlCoordinatorTests {
         await coordinator.stop()
     }
 
+    // @covers FR-700-03
     @Test
     func startWithoutConfigDoesNotConnectOrPublish() async throws {
         let transport = FakeMQTTTransport()
@@ -222,6 +234,7 @@ struct HAControlCoordinatorTests {
         #expect(transport.published.isEmpty)
     }
 
+    // @covers FR-700-03
     @Test
     func failedConnectLeavesCoordinatorDisconnected() async throws {
         let transport = FakeMQTTTransport()
@@ -316,6 +329,7 @@ private extension Sequence where Element == MQTTMessage {
 
 @MainActor
 extension HAControlCoordinatorTests {
+    // @covers FR-710-09
     @Test
     func settingsOrderValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -330,6 +344,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .order), payload: "sequential", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsOrderInvalidCommandDoesNotApplyAndReEchoesActualState() async throws {
         let transport = FakeMQTTTransport()
@@ -344,6 +359,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .order), payload: "shuffle", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsTransitionValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -358,6 +374,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .transition), payload: "slide", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsFitValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -372,6 +389,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .fit), payload: "fill", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsQualityValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -386,6 +404,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .quality), payload: "original", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockCornerValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -400,6 +419,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner), payload: "topLeading", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockCornerAcceptsNewlyWidenedPlaces() async throws {
         // The two new center places and `random` must apply (widened enum, id kept).
@@ -417,6 +437,7 @@ extension HAControlCoordinatorTests {
         }
     }
 
+    // @covers FR-710-10
     @Test
     func settingsClockCornerUnknownOptionIsIgnoredGracefully() async throws {
         // Retained-state rule: a broker retaining an option outside the enum (e.g. a
@@ -434,6 +455,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner), payload: "bottomTrailing", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockStyleValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -448,6 +470,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockStyle), payload: "analog", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsClockStyleUnknownOptionIsIgnoredGracefully() async throws {
         let transport = FakeMQTTTransport()
@@ -462,6 +485,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockStyle), payload: "digits", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockSizeValidCommandAppliesAndPublishesNewState() async throws {
         let transport = FakeMQTTTransport()
@@ -476,6 +500,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockSize), payload: "cozy", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsClockSizeUnknownOptionIsIgnoredGracefully() async throws {
         let transport = FakeMQTTTransport()
@@ -516,6 +541,7 @@ extension HAControlCoordinatorTests {
         #expect(snapshot == snapshot)
     }
 
+    // @covers FR-710-09
     @Test
     func settingsDurationValidCommandAppliesAndEchoesValue() async throws {
         let transport = FakeMQTTTransport()
@@ -530,6 +556,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "42", retain: true))
     }
 
+    // @covers FR-710-03, FR-710-10
     @Test
     func settingsDurationBelowRangeDoesNotApplyAndReEchoesActual() async throws {
         let transport = FakeMQTTTransport()
@@ -544,6 +571,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "15", retain: true))
     }
 
+    // @covers FR-710-03, FR-710-10
     @Test
     func settingsDurationAboveRangeDoesNotApplyAndReEchoesActual() async throws {
         let transport = FakeMQTTTransport()
@@ -558,6 +586,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "15", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsDurationNonNumericDoesNotApplyAndReEchoesActual() async throws {
         let transport = FakeMQTTTransport()
@@ -572,6 +601,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .duration), payload: "15", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsKenBurnsONAppliesTrueAndPublishesState() async throws {
         let transport = FakeMQTTTransport()
@@ -586,6 +616,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns), payload: "ON", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsKenBurnsOFFAppliesFalseAndPublishesState() async throws {
         let transport = FakeMQTTTransport()
@@ -600,6 +631,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns), payload: "OFF", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsKenBurnsInvalidDoesNotApplyAndReEchoesActual() async throws {
         let transport = FakeMQTTTransport()
@@ -614,6 +646,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .kenBurns), payload: "OFF", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockONAppliesTrueAndPublishesState() async throws {
         let transport = FakeMQTTTransport()
@@ -628,6 +661,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clock), payload: "ON", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockOFFAppliesFalseAndPublishesState() async throws {
         let transport = FakeMQTTTransport()
@@ -642,6 +676,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clock), payload: "OFF", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsClockInvalidDoesNotApplyAndReEchoesActual() async throws {
         let transport = FakeMQTTTransport()
@@ -656,6 +691,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clock), payload: "OFF", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockDateONAppliesTrueAndPublishesState() async throws {
         let transport = FakeMQTTTransport()
@@ -670,6 +706,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockDate), payload: "ON", retain: true))
     }
 
+    // @covers FR-710-09
     @Test
     func settingsClockDateOFFAppliesFalseAndPublishesState() async throws {
         let transport = FakeMQTTTransport()
@@ -684,6 +721,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockDate), payload: "OFF", retain: true))
     }
 
+    // @covers FR-710-10
     @Test
     func settingsClockDateInvalidDoesNotApplyAndReEchoesActual() async throws {
         let transport = FakeMQTTTransport()
@@ -698,6 +736,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .clockDate), payload: "OFF", retain: true))
     }
 
+    // @covers FR-710-11, FR-710-12, FR-710-17
     @Test
     func allSettingsEntitiesValidCommandPublishesStateWithRetainTrue() async throws {
         let transport = FakeMQTTTransport()
@@ -731,6 +770,7 @@ extension HAControlCoordinatorTests {
 
     // MARK: - T011: scoped, coalesced settings echo (SC-710-02)
 
+    // @covers FR-710-12
     @Test
     func localSettingsChangeEchoesOnlyTheChangedEntity() async throws {
         let transport = FakeMQTTTransport()
@@ -754,6 +794,7 @@ extension HAControlCoordinatorTests {
         await coordinator.stop()
     }
 
+    // @covers FR-710-21
     @Test
     func rapidRepeatedLocalChangesOnOneEntityCoalesceToLastWins() async throws {
         let transport = FakeMQTTTransport()
@@ -836,6 +877,7 @@ extension HAControlCoordinatorTests {
         )
     }
 
+    // @covers FR-710-05, FR-710-06, FR-710-11, FR-710-17
     @Test func onPhotoChangePublishesMetadataAndImageWhenPlaying() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting()
@@ -865,6 +907,7 @@ extension HAControlCoordinatorTests {
         #expect(image.payload == Data([0xFF, 0xD8, 0xFF]))
     }
 
+    // @covers FR-710-05
     @Test func onPhotoChangePublishesClearedFormWhenNotPlaying() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting()
@@ -911,6 +954,7 @@ extension HAControlCoordinatorTests {
         #expect(json?["id"] as? String == "asset-2")
     }
 
+    // @covers FR-710-16
     @Test func onPhotoChangePublishesViaDetachedTaskWithoutBlockingCaller() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting()
@@ -930,6 +974,7 @@ extension HAControlCoordinatorTests {
         #expect(!transport.published.isEmpty)
     }
 
+    // @covers FR-710-04
     @Test func nextButtonCommandCallsShowNext() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting()
@@ -941,6 +986,7 @@ extension HAControlCoordinatorTests {
         #expect(reporter.showPreviousCount == 0)
     }
 
+    // @covers FR-710-04
     @Test func previousButtonCommandCallsShowPrevious() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting()
@@ -954,6 +1000,7 @@ extension HAControlCoordinatorTests {
 
     // MARK: - US4 diagnostics + reconnect
 
+    // @covers FR-710-07
     @Test func diagnosticSensorsEchoActualValuesRetained() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting(report: PhotoReport(
@@ -973,6 +1020,7 @@ extension HAControlCoordinatorTests {
         await coordinator.stop()
     }
 
+    // @covers FR-710-07
     @Test func photoChangeReEchoesPhaseAndPhotoCount() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting()
@@ -993,6 +1041,7 @@ extension HAControlCoordinatorTests {
         #expect(transport.published.containsMessage(topic: HATopics.stateTopic(deviceID: "dev1", entity: .photoCount), payload: "7", retain: true))
     }
 
+    // @covers FR-710-13
     @Test func reconnectRepublishesDiagnosticsAndPhotoState() async throws {
         let transport = FakeMQTTTransport()
         let reporter = FakePhotoReporting(report: PhotoReport(

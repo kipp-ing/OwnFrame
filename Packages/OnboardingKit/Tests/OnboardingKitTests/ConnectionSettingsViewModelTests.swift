@@ -4,6 +4,7 @@ import Testing
 import ImmichClient
 import ImmichClientTestSupport
 
+// @covers FR-200-12
 @MainActor @Test func connectionSettingsPrefillsStoredConnectionWithoutExposingStoredKey() {
     let config = CountingConfigStore(configuration: AppConfiguration(
         baseURL: URL(string: "https://photos.example.test")!,
@@ -21,6 +22,7 @@ import ImmichClientTestSupport
     #expect(vm.keyIsSet == true)
 }
 
+// @covers FR-200-14
 @MainActor @Test(arguments: ["", "http://x", "https:///missing-host"])
 func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     let config = CountingConfigStore.seeded()
@@ -40,6 +42,7 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     #expect(keychain.saveCount == 0)
 }
 
+// @covers FR-200-14, FR-200-15
 @MainActor @Test func connectionSettingsDoesNotPersistUnauthorizedConnection() async throws {
     let response = try makeConnectionSettingsResponse(path: "/api/albums", statusCode: 401)
     let config = CountingConfigStore.seeded()
@@ -87,6 +90,7 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     #expect(config.saveCount == 0)
 }
 
+// @covers FR-200-14, FR-200-15
 @MainActor @Test func connectionSettingsDoesNotPersistUnreachableConnection() async {
     let config = CountingConfigStore.seeded()
     let keychain = CountingKeychainStore(apiKey: "stored-key")
@@ -107,6 +111,7 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     #expect(keychain.saveCount == 0)
 }
 
+// @covers FR-200-16
 @MainActor @Test func connectionSettingsPersistsNewURLAndKeyWhenSelectedAlbumStillExists() async throws {
     let response = try makeConnectionSettingsResponse(path: "/api/albums", statusCode: 200)
     let data = Data(#"[{"id":"a1","albumName":"Fam"},{"id":"a2","albumName":"Trips"}]"#.utf8)
@@ -131,6 +136,7 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     #expect(vm.keyIsSet == true)
 }
 
+// @covers FR-200-16
 @MainActor @Test func connectionSettingsDoesNotPersistConfigWhenKeychainSaveFails() async throws {
     let response = try makeConnectionSettingsResponse(path: "/api/albums", statusCode: 200)
     let data = Data(#"[{"id":"a1","albumName":"Fam"}]"#.utf8)
@@ -175,6 +181,7 @@ func connectionSettingsRejectsMalformedURL(rawURL: String) async {
     #expect(keychain.saveCount == 0)
 }
 
+// @covers FR-200-19
 @MainActor @Test func connectionSettingsReturnsAlbumMissingAfterPersistingWhenSelectedAlbumIsAbsent() async throws {
     let response = try makeConnectionSettingsResponse(path: "/api/albums", statusCode: 200)
     let data = Data(#"[{"id":"a2","albumName":"Trips"}]"#.utf8)

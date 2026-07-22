@@ -51,6 +51,7 @@ import ImmichClientTestSupport
 
 // MARK: - T007: the pager follows the nextPage token across pages
 
+// @covers FR-130-02, SC-130-01
 @Test func assetsPageThroughMetadataSearchUntilNextPageIsNil() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/search/metadata"))
@@ -76,6 +77,7 @@ import ImmichClientTestSupport
 // `assets: []` — the assets are NOT embedded. The share `key` DOES authorize
 // `POST /api/search/metadata`, so a shared link pages its album exactly like an API key,
 // only authenticating with the `?key=` query instead of the `x-api-key` header.
+// @covers FR-110-08
 @Test func sharedLinkSourceListsAssetsViaMetadataSearchWithKeyQuery() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/search/metadata"))

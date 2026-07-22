@@ -22,6 +22,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     return InMemorySourceLibraryStore(library: library)
 }
 
+// @covers FR-200-01
 @Test func startupGateReturnsDoneForConnectionAndActiveAlbumSource() {
     let config = InMemoryConfigStore(
         configuration: AppConfiguration(baseURL: url, selectedAlbumID: "a1")
@@ -32,6 +33,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     #expect(gate.initialStep() == .done)
 }
 
+// @covers FR-210-04
 @Test func startupGateReturnsDoneForSharedLinkSourceWithoutAPIKeyOrBaseURL() {
     // A shared link authenticates itself — onboarding is complete with no API key and no
     // separately saved base URL (210, D2).
@@ -53,6 +55,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     #expect(gate.initialStep() == .done)
 }
 
+// @covers FR-200-01, FR-200-02
 @Test func startupGateReturnsConnectionForAlbumSourceWithoutAPIKey() {
     let config = InMemoryConfigStore(
         configuration: AppConfiguration(baseURL: url, selectedAlbumID: "a1")
@@ -63,6 +66,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     #expect(gate.initialStep() == .connection)
 }
 
+// @covers FR-200-01, FR-200-02
 @Test func startupGateReturnsConnectionForAlbumSourceWithoutBaseURL() {
     let config = InMemoryConfigStore()
     let keychain = InMemoryKeychainStore(apiKey: "key")
@@ -71,6 +75,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     #expect(gate.initialStep() == .connection)
 }
 
+// @covers FR-200-02, FR-210-01
 @Test func startupGateReturnsChoiceWhenEmpty() {
     // A blank install opens on the choice screen (shared link vs server), not at the
     // server-connection form (210).
@@ -81,6 +86,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     #expect(gate.initialStep() == .choice)
 }
 
+// @covers FR-200-02
 @Test func startupGateReturnsSourceWhenConnectedButLibraryEmpty() {
     // Connection validated (key + baseURL persisted) but no source added yet → resume at
     // the add-source step rather than dead-ending at the slideshow (120, US2).
@@ -92,6 +98,7 @@ private func photoLibraryLibrary() -> InMemorySourceLibraryStore {
     #expect(gate.initialStep() == .source)
 }
 
+// @covers FR-120-06
 @Test func startupGateMigratesLegacySelectedAlbumIDToDone() {
     // A pre-120 install: baseURL + key + legacy selectedAlbumID, no library yet. The store
     // migrates the album into a one-entry active library on load, so the gate routes to the

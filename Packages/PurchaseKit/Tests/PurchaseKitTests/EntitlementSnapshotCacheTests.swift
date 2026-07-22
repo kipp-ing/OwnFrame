@@ -12,6 +12,7 @@ private let storageKey = "purchase.entitlements.v1"
 
 // MARK: - Round trip
 
+// @covers FR-1100-10
 @Test func snapshotRoundTripsThroughTheInjectedSuite() throws {
     let fixture = DefaultsFixture()
     let savedAt = Date(timeIntervalSince1970: 1_700_000_000)
@@ -47,6 +48,7 @@ private let storageKey = "purchase.entitlements.v1"
 }
 
 /// FR-1100-12: a successful resolve to a smaller set is the one path that may shrink the cache.
+// @covers FR-1100-12
 @Test func savingASmallerSetReplacesThePreviousSnapshot() throws {
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
@@ -98,6 +100,7 @@ private let storageKey = "purchase.entitlements.v1"
 
 // MARK: - The snapshot never expires (FR-1100-10)
 
+// @covers FR-1100-10
 @Test func aDecadeOldSnapshotStillLoadsInFull() throws {
     let fixture = DefaultsFixture()
     let tenYearsAgo = Date().addingTimeInterval(-10 * 365 * 24 * 60 * 60)
@@ -109,6 +112,7 @@ private let storageKey = "purchase.entitlements.v1"
     #expect(loaded.entitlements == EntitlementSet.all)
 }
 
+// @covers FR-1100-10
 @Test func anEpochOldSnapshotStillLoadsInFull() throws {
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
@@ -120,6 +124,7 @@ private let storageKey = "purchase.entitlements.v1"
 }
 
 /// `savedAt` is diagnostic only — a snapshot dated in the future is not rejected either.
+// @covers FR-1100-10
 @Test func aFutureDatedSnapshotStillLoadsInFull() throws {
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)

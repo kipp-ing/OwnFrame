@@ -34,6 +34,7 @@ struct FrameNameStoreTests {
         #expect(store.name == "Photo Frame (Apple TV)")
     }
 
+    // @covers FR-700-22
     @Test("A set name persists and is read back by a new store over the same defaults")
     func persistsAcrossStores() {
         let defaults = makeDefaults()

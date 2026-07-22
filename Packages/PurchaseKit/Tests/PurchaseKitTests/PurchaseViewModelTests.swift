@@ -145,6 +145,7 @@ private extension PurchasePhase {
 // MARK: - Offer computation (FR-1100-04)
 
 @MainActor
+// @covers FR-1100-04
 @Test func owningNothingOffersBothTiersAndTheBundle() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])
@@ -161,6 +162,7 @@ private extension PurchasePhase {
 /// FR-1100-04: a user who owns one tier is offered only the missing tier. Re-selling a bundle
 /// that contains something already paid for is the specific trap this rule forbids.
 @MainActor
+// @covers FR-1100-04
 @Test func owningProOffersOnlyAutomationAndNeverTheBundle() async throws {
     let fixture = UnlockFixture(tier: .automation, owned: [.pro])
     fixture.stocks([.automation])
@@ -175,6 +177,7 @@ private extension PurchasePhase {
 }
 
 @MainActor
+// @covers FR-1100-04
 @Test func owningAutomationOffersOnlyProAndNeverTheBundle() async throws {
     let fixture = UnlockFixture(tier: .pro, owned: [.automation])
     fixture.stocks([.pro])
@@ -191,6 +194,7 @@ private extension PurchasePhase {
 /// Owning the bundle leaves nothing to sell: the screen states what is owned and queries no
 /// products at all.
 @MainActor
+// @covers FR-1100-04
 @Test func owningEverythingShowsTheOwnedStateWithNoProducts() async throws {
     let fixture = UnlockFixture(tier: .pro, owned: [.everything])
 
@@ -204,6 +208,7 @@ private extension PurchasePhase {
 
 /// Both single unlocks together are the same thing as the bundle — nothing left to offer.
 @MainActor
+// @covers FR-1100-04
 @Test func owningBothSingleUnlocksShowsTheOwnedStateWithNoProducts() async throws {
     let fixture = UnlockFixture(tier: .pro, owned: [.pro, .automation])
 
@@ -220,6 +225,7 @@ private extension PurchasePhase {
 /// The unavailable state carries no products whatsoever — not an empty label, not a cached
 /// string, nothing. A placeholder price presented as live would be the bug this test exists for.
 @MainActor
+// @covers FR-1100-16
 @Test func anUnreachableStoreYieldsUnavailableWithNoProductsAtAll() async {
     let fixture = UnlockFixture(tier: .pro)
     fixture.client.failNextProducts()
@@ -239,6 +245,7 @@ private extension PurchasePhase {
 /// updates stream (T029) — the model must not spin, must not optimistically complete, and must
 /// not grant the tier in the meantime.
 @MainActor
+// @covers FR-1100-15
 @Test func aPendingPurchaseIsTerminalForTheSessionAndGrantsNothing() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])
@@ -258,6 +265,7 @@ private extension PurchasePhase {
 
 /// Cancelling drops the user back on the offer, unchanged. No follow-up prompt, no re-attempt.
 @MainActor
+// @covers FR-1100-15
 @Test func aCancelledPurchaseReturnsToReadyWithNoEntitlementChange() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])
@@ -275,6 +283,7 @@ private extension PurchasePhase {
 
 /// A throwing purchase is reported, not swallowed — and it changes nothing.
 @MainActor
+// @covers FR-1100-15
 @Test func aFailedPurchaseSurfacesAMessageAndLeavesEntitlementsUntouched() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])
@@ -297,6 +306,7 @@ private extension PurchasePhase {
 /// resolves *and persists* ownership. `current` is `private(set)`, so a model that shortcut the
 /// store could not move it — asserting the store's state is what proves the production path ran.
 @MainActor
+// @covers FR-1100-10
 @Test func aSuccessfulPurchaseDrivesTheEntitlementThroughTheStoreRefreshPath() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])
@@ -322,6 +332,7 @@ private extension PurchasePhase {
 
 /// Buying the bundle grants both tiers in one transaction.
 @MainActor
+// @covers FR-1100-04
 @Test func buyingTheBundleCompletesWithBothTiers() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])
@@ -340,6 +351,7 @@ private extension PurchasePhase {
 
 /// Restore delegates to the store's platform sync + refresh and reflects whatever came back.
 @MainActor
+// @covers FR-1100-11
 @Test func restoreDelegatesToTheStoreAndReflectsTheRecoveredEntitlements() async throws {
     let fixture = UnlockFixture(tier: .pro)
     fixture.stocks([.pro, .automation, .everything])

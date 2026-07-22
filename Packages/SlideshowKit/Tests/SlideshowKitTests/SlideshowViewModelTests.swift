@@ -5,6 +5,7 @@ import SlideshowKit
 import Testing
 
 @MainActor
+// @covers FR-300-13
 @Test func startShowsFirstImageAssetAndFiltersVideos() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -46,6 +47,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-300-03
 @Test func manualTickAdvancesExactlyOneImageAndWraps() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -75,6 +77,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-300-14
 @Test func slideshowDoesNotAdvanceWithoutTickAndPauseStopsTickerUntilResume() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -139,6 +142,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-03
 @Test func advanceCanBeCalledDirectlyAndWrapsInAlbumOrder() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -165,6 +169,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-06
 @Test func startPrefetchesNextImageWithoutBlockingDisplay() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -187,6 +192,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-06
 @Test func advanceUsesPrefetchedImageWithoutAdditionalPreviewCall() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -213,6 +219,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-07, SC-300-04
 @Test func prefetchWrapsAndRespectsCacheLimitAcrossTicks() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -238,6 +245,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-09
 @Test func startSkipsInitialPreviewErrorsAndShowsFirstLoadableImage() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -257,6 +265,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-09, SC-300-05
 @Test func advanceSkipsPreviewErrorAndShowsNextLoadableImage() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -279,6 +288,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-10, FR-300-13
 @Test func emptyAndVideoOnlyAlbumsEnterEmptyPhase() async {
     let emptySource = StubPhotoSource()
     emptySource.setAssets([], for: "empty")
@@ -297,6 +307,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-10, SC-300-07
 @Test func assetsErrorFailsAndRetryStartsAgainWhenAssetsRecover() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -340,6 +351,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-19
 @Test func showNextStepsForwardAndResetsTicker() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -367,6 +379,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-14, FR-300-18
 @Test func togglePauseStopsTickerAndSurvivesForegroundResume() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -411,6 +424,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 }
 
 @MainActor
+// @covers FR-300-23
 @Test func jumpGoesToRequestedAssetAndIgnoresUnknown() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()

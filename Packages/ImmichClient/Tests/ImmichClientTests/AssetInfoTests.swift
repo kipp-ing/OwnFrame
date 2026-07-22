@@ -3,7 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
-// @covers FR-100-02
+// @covers FR-100-02, SC-100-01
 @Test func assetInfoSendsGetRequestWithAPIKeyHeaderAndReturnsDecodedInfo() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/assets/asset-1"))

@@ -4,6 +4,7 @@ import Testing
 
 @Suite
 struct HATopicsTests {
+    // @covers FR-710-18
     @Test
     func haEntityRawValues() {
         #expect(HAEntity.order.rawValue == "order")
@@ -31,6 +32,7 @@ struct HATopicsTests {
         #expect(HAEntity.allCases.count == 21)
     }
 
+    // @covers FR-710-01, FR-710-08
     @Test
     func discoveryConfigTopicUsesCorrectComponent() {
         // New entities

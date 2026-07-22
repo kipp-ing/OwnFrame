@@ -53,6 +53,7 @@ import ImmichClientTestSupport
     #expect(queryValue("size", in: request.url) == "preview")
 }
 
+// @covers FR-110-08
 @Test func shareKeyAuthAppliesToAlbumsAssetInfoAndOriginalRequests() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
 

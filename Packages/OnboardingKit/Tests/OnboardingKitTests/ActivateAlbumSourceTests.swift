@@ -8,6 +8,7 @@ import Testing
 // new source gets a uniquified label instead of a silent rejection.
 
 @MainActor
+// @covers FR-120-04
 @Test func activateAlbumSourceAddsAndActivatesANewAlbum() {
     let store = InMemorySourceLibraryStore()
     let viewModel = makeActivateViewModel(store: store)

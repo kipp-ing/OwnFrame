@@ -26,7 +26,7 @@ import ImmichClientTestSupport
     #expect(request.httpMethod == "GET")
 }
 
-// @covers FR-100-07
+// @covers FR-100-07, SC-100-04
 @Test func serverVersionMapsURLErrorToUnreachable() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .failure(URLError(.timedOut)))
@@ -38,6 +38,7 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-100-10
 @Test func serverVersionMapsInvalidResponseToInvalidResponse() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let requestURL = try #require(URL(string: "https://photos.example.test/api/server/version"))
@@ -59,6 +60,7 @@ import ImmichClientTestSupport
 
 // MARK: - Version gate (130 — v3 baseline)
 
+// @covers FR-130-04, FR-130-09
 @Test func serverVersionGateClassifiesMajorVersions() {
     #expect(ServerVersionGate.isSupported("3.0.2") == true)
     #expect(ServerVersionGate.isSupported("10.1.0") == true)
@@ -71,6 +73,7 @@ import ImmichClientTestSupport
     #expect(ServerVersionGate.isSupported("") == nil)
 }
 
+// @covers FR-130-04, FR-130-07
 @Test func ensureServerSupportedThrowsServerTooOldForMajorBelowThree() async throws {
     let client = try makeVersionClient(major: 2, minor: 118, patch: 0)
 
@@ -79,12 +82,14 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-130-04
 @Test func ensureServerSupportedPassesForMajorThreePlus() async throws {
     let client = try makeVersionClient(major: 3, minor: 0, patch: 2)
 
     try await client.ensureServerSupported()
 }
 
+// @covers FR-130-09
 @Test func ensureServerSupportedPropagatesUnreachableRatherThanTooOld() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .failure(URLError(.timedOut)))

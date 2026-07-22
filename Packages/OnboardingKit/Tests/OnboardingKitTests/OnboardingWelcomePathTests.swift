@@ -8,6 +8,7 @@ import ImmichClient
 // These tests pin the new `.photoLibrary` routing alongside the existing paths and the
 // `finish()` behavior for a `.photoLibrary` active source (no album config is written).
 
+// @covers FR-220-02
 @MainActor @Test func choosePathRoutesPhotoLibraryToSetup() {
     let vm = makeWelcomePathVM()
     vm.step = .choice
@@ -19,6 +20,7 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
+// @covers FR-210-01
 @MainActor @Test func choosePathStillRoutesSharedLinkToSetup() {
     let vm = makeWelcomePathVM()
     vm.step = .choice
@@ -28,6 +30,7 @@ import ImmichClient
     #expect(vm.step == .sharedLinkSetup)
 }
 
+// @covers FR-210-01, FR-220-07
 @MainActor @Test func choosePathStillRoutesServerToConnection() {
     let vm = makeWelcomePathVM()
     vm.step = .choice
@@ -37,6 +40,7 @@ import ImmichClient
     #expect(vm.step == .connection)
 }
 
+// @covers FR-210-26
 @MainActor @Test func canGoBackIsTrueAtPhotoLibrarySetup() {
     let vm = makeWelcomePathVM()
 
@@ -45,6 +49,7 @@ import ImmichClient
     #expect(vm.canGoBack == true)
 }
 
+// @covers FR-210-26
 @MainActor @Test func backFromPhotoLibrarySetupReturnsToChoice() {
     let vm = makeWelcomePathVM()
     vm.step = .photoLibrarySetup
@@ -54,6 +59,7 @@ import ImmichClient
     #expect(vm.step == .choice)
 }
 
+// @covers FR-220-02
 @MainActor @Test func finishFromPhotoLibraryOnlyPathCompletesWithoutAlbumConfig() {
     // The active source is a device Photos/iCloud album — no Immich connection is
     // involved, so `finish()` must not write an `AppConfiguration` (the `.album` guard

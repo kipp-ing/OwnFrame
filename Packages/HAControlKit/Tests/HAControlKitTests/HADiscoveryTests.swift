@@ -4,6 +4,7 @@ import Testing
 
 @Suite
 struct HADiscoveryTests {
+    // @covers FR-700-06, FR-700-07
     @Test
     func playbackDiscoveryContainsStableTopicsAndDevice() throws {
         let first = HADiscovery.config(for: .playback, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -24,6 +25,7 @@ struct HADiscoveryTests {
         #expect(device["name"] as? String == "Slideshow")
     }
 
+    // @covers FR-700-13
     @Test
     func brightnessDiscoveryIsDimmableLightWithBrightnessTopics() throws {
         let data = HADiscovery.config(for: .brightness, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -48,6 +50,7 @@ struct HADiscoveryTests {
         #expect(device["identifiers"] as? [String] == ["dev1"])
     }
 
+    // @covers FR-700-14
     @Test
     func albumDiscoveryIsSelectWithOptions() throws {
         let options = ["Wohnzimmer", "Urlaub 2026"]
@@ -71,6 +74,7 @@ struct HADiscoveryTests {
         #expect(json["pass"] == nil)
     }
 
+    // @covers FR-710-01, FR-710-02
     @Test
     func orderDiscoveryHasOptionsArray() throws {
         let data = HADiscovery.config(for: .order, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -84,6 +88,7 @@ struct HADiscoveryTests {
         #expect(options == ["shuffle", "sequential"])
     }
 
+    // @covers FR-710-01, FR-710-03
     @Test
     func durationDiscoveryHasMinMaxStepAndUnit() throws {
         let data = HADiscovery.config(for: .duration, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -99,6 +104,7 @@ struct HADiscoveryTests {
         #expect(json["unit_of_measurement"] as? String == "s")
     }
 
+    // @covers FR-710-01, FR-710-02
     @Test
     func transitionDiscoveryHasOptionsArray() throws {
         let data = HADiscovery.config(for: .transition, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -112,6 +118,7 @@ struct HADiscoveryTests {
         #expect(options == ["crossfade", "slide", "dissolve", "none"])
     }
 
+    // @covers FR-710-01
     @Test
     func kenBurnsDiscoveryHasPayloadOnOff() throws {
         let data = HADiscovery.config(for: .kenBurns, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -124,6 +131,7 @@ struct HADiscoveryTests {
         #expect(json["payload_off"] as? String == "OFF")
     }
 
+    // @covers FR-710-01, FR-710-02
     @Test
     func fitDiscoveryHasOptionsArray() throws {
         let data = HADiscovery.config(for: .fit, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -137,6 +145,7 @@ struct HADiscoveryTests {
         #expect(options == ["fit", "fill"])
     }
 
+    // @covers FR-710-01, FR-710-02
     @Test
     func qualityDiscoveryHasOptionsArray() throws {
         let data = HADiscovery.config(for: .quality, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -150,6 +159,7 @@ struct HADiscoveryTests {
         #expect(options == ["preview", "original"])
     }
 
+    // @covers FR-710-01
     @Test
     func clockDiscoveryHasPayloadOnOff() throws {
         let data = HADiscovery.config(for: .clock, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -162,6 +172,7 @@ struct HADiscoveryTests {
         #expect(json["payload_off"] as? String == "OFF")
     }
 
+    // @covers FR-710-01
     @Test
     func clockDateDiscoveryHasPayloadOnOff() throws {
         let data = HADiscovery.config(for: .clockDate, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -174,6 +185,7 @@ struct HADiscoveryTests {
         #expect(json["payload_off"] as? String == "OFF")
     }
 
+    // @covers FR-710-01, FR-710-02, FR-710-18
     @Test
     func clockCornerDiscoveryHasWidenedOptionsAndPlaceName() throws {
         let data = HADiscovery.config(for: .clockCorner, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -192,6 +204,7 @@ struct HADiscoveryTests {
         #expect(options == ClockCornerSetting.allCases.map(\.rawValue))
     }
 
+    // @covers FR-710-01, FR-710-02
     @Test
     func clockStyleDiscoveryHasOptionsArray() throws {
         let data = HADiscovery.config(for: .clockStyle, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -207,6 +220,7 @@ struct HADiscoveryTests {
         #expect(options == ClockStyleSetting.allCases.map(\.rawValue))
     }
 
+    // @covers FR-710-01, FR-710-02
     @Test
     func clockSizeDiscoveryHasOptionsArray() throws {
         let data = HADiscovery.config(for: .clockSize, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -226,6 +240,7 @@ struct HADiscoveryTests {
         try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
+    // @covers FR-710-06
     @Test
     func currentPhotoDiscoveryHasNoCommandTopicWithValueTemplate() throws {
         let data = HADiscovery.config(for: .currentPhoto, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -246,6 +261,7 @@ struct HADiscoveryTests {
         #expect(device["name"] as? String == "Slideshow")
     }
 
+    // @covers FR-710-05
     @Test
     func currentPhotoImageDiscoveryHasNoCommandOrStateTopicWithImageTopic() throws {
         let data = HADiscovery.config(for: .currentPhotoImage, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -266,6 +282,7 @@ struct HADiscoveryTests {
         #expect(device["name"] as? String == "Slideshow")
     }
 
+    // @covers FR-710-04
     @Test
     func nextButtonDiscoveryHasPayloadPressAndNoStateTopic() throws {
         let data = HADiscovery.config(for: .next, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -277,6 +294,7 @@ struct HADiscoveryTests {
         #expect(json["name"] as? String == "Slideshow Next")
     }
 
+    // @covers FR-710-04
     @Test
     func previousButtonDiscoveryHasPayloadPressAndNoStateTopic() throws {
         let data = HADiscovery.config(for: .previous, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
@@ -288,6 +306,7 @@ struct HADiscoveryTests {
         #expect(json["name"] as? String == "Slideshow Previous")
     }
 
+    // @covers FR-710-07
     @Test
     func diagnosticSensorsAreReadOnlyAndDiagnosticCategory() throws {
         for entity in [HAEntity.phase, .photoCount, .version] {

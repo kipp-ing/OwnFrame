@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardingKit
 
+// @covers FR-120-01, FR-120-11
 @Test func sourceLibraryFirstAddBecomesActive() {
     var library = SourceLibrary()
     let source = Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1"))
@@ -22,6 +23,7 @@ import Testing
     #expect(library.sources.map(\.id) == ["source-1"])
 }
 
+// @covers FR-120-04, FR-120-11
 @Test func sourceLibraryRemoveActivePromotesFirstRemainingSource() {
     var library = SourceLibrary()
     library.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -34,6 +36,7 @@ import Testing
     #expect(library.activeID == "source-1")
 }
 
+// @covers FR-120-04, FR-120-11
 @Test func sourceLibraryRemoveActivePromotesNextRemainingSourceWhenAvailable() {
     var library = SourceLibrary()
     library.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -47,6 +50,7 @@ import Testing
     #expect(library.activeID == "source-3")
 }
 
+// @covers FR-120-04
 @Test func sourceLibraryRemoveLastActiveClearsActiveID() {
     var library = SourceLibrary()
     library.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -57,6 +61,7 @@ import Testing
     #expect(library.activeID == nil)
 }
 
+// @covers FR-120-11
 @Test func sourceLibraryDecodingRestoresActiveInvariant() throws {
     let json = """
     {
@@ -72,6 +77,7 @@ import Testing
     #expect(library.activeID == "source-1")
 }
 
+// @covers FR-120-04
 @Test func sourceLibraryMovesSourcesWithoutChangingActive() {
     var library = SourceLibrary()
     library.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -85,6 +91,7 @@ import Testing
     #expect(library.activeID == "source-2")
 }
 
+// @covers FR-120-04
 @Test func sourceLibraryRenameEnforcesUniqueNonEmptyLabel() {
     var library = SourceLibrary()
     library.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -154,6 +161,7 @@ import Testing
 
 // MARK: - Photo library source kind (900, FR-900-02 / R11)
 
+// @covers FR-120-02
 @Test func sourceKindPhotoLibraryCodableRoundTripsAlongsideExistingKinds() throws {
     let source = Source(id: "source-1", label: "Selected Photos", kind: .photoLibrary(collectionID: "selected-photos"))
 
@@ -168,6 +176,7 @@ import Testing
     #expect(json.contains("\"collectionID\""))
 }
 
+// @covers FR-120-02
 @Test func sourceLibraryDecodesPreExistingKindsAfterPhotoLibraryAddition() throws {
     // A library persisted before the photoLibrary case existed (album + shared link only, in
     // the exact stored format) MUST still decode unchanged — the new case is additive.

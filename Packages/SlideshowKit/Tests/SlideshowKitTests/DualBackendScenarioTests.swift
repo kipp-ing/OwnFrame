@@ -92,6 +92,7 @@ struct DualBackendScenarioTests {
 
     // start → plays the first still image, non-images filtered out.
     @MainActor
+    // @covers FR-300-13
     @Test(arguments: ScenarioBackend.allCases)
     func startPlaysFirstImageAndFiltersNonImages(_ backend: ScenarioBackend) async {
         let b = makeBackend(backend)
@@ -131,6 +132,7 @@ struct DualBackendScenarioTests {
     // A failing image load is skipped and the rotation continues to the next loadable photo —
     // no blank, no error surface (FR-300-09 / FR-900-06).
     @MainActor
+    // @covers FR-300-09
     @Test(arguments: ScenarioBackend.allCases)
     func failingImageLoadIsSkippedAndRotationContinues(_ backend: ScenarioBackend) async {
         let b = makeBackend(backend)
