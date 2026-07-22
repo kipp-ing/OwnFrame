@@ -42,8 +42,13 @@ host can't help: the **real `KeychainAPIKeyStore`** round-trip, the reset flow
 Run the whole simulator suite:
 
 ```text
-XcodeBuildMCP → test_sim   (scheme "OwnFrame", iPad Pro 11" M5, preferXcodebuild: true)
+XcodeBuildMCP → test_sim   (scheme "OwnFrame", iPad Pro 11" on iOS 18.6, preferXcodebuild: true)
 ```
+
+**Pick the runtime deliberately — not every ≥17 destination works.** The iOS **26.4**
+simulator serves **0 StoreKit products**, which fails all 7 `StoreKitClientTests` (see
+"`SKTestSession` serves 0 products" below). Run on iOS **18.6** or **26.5** (or a device);
+avoid 26.4 — which is what an unpinned "iPad Pro 11" M5" currently boots to.
 
 ## Layer 3 — UI tests (hermetic XCUITest)
 
@@ -231,9 +236,19 @@ run for real under plain `xcodebuild test`, on the simulator **and** on both dev
   cases then block forever waiting for a tap no headless run will make — presenting as a hang,
   not a failure. Configure the session **after** resetting it.
 
-Run them anywhere: `-only-testing:"OwnFrameTests/StoreKitClientTests"`. Verified
-2026-07-21 on iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1) — 7/7 each. Always pass
-`-test-timeouts-enabled YES` so a future dialog regression fails instead of hanging the run.
+Run them anywhere **except one runtime**: `-only-testing:"OwnFrameTests/StoreKitClientTests"`.
+Verified 7/7 on iOS 18.6 sim, iPad Pro 11" M4 (18.6), Framepad (17.7.10) and FramePhone
+(26.0.1). Always pass `-test-timeouts-enabled YES` so a future dialog regression fails instead
+of hanging the run.
+
+> **The iOS 26.4 simulator serves 0 products (found 2026-07-22).** On the **26.4** runtime —
+> iPhone **and** iPad Pro 11" M5, so it is the runtime, not the device — `SKTestSession` loads
+> the fixture (the `contentsOf:` unwrap succeeds) yet `Product.products(for:)` returns **0 of 3**,
+> failing all 7 cases with `productUnavailable`. This is **neither** of the two setup bugs above
+> (those are fixed) **nor** a code regression: the identical `main` build is 7/7 on iOS 18.6,
+> on the Framepad (17.7.10), and per the line above on 26.0.1 — so 26.4 is a per-build Apple
+> simulator-runtime defect. Run StoreKit tests (and the full suite) on **18.6 / 26.5 / a device**
+> rather than 26.4 — switch runtimes; re-running the same 26.4 sim won't help.
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
   access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
   transition moves monotonically between the two photos' YAVG levels, a dip below both is
@@ -271,8 +286,10 @@ Run them anywhere: `-only-testing:"OwnFrameTests/StoreKitClientTests"`. Verified
 ### Environment
 
 - **Any runtime ≥ iOS 17 is a valid destination** since the floor was lowered (verified
-  17.5 / 18.6 / 26.x). Pin **`simulatorId` only** — when session defaults carry both
-  `simulatorName` and `simulatorId`, name resolution wins and may pick an ineligible runtime.
+  17.5 / 18.6 / 26.0 / 26.5) — **except iOS 26.4, on which `SKTestSession` serves 0 products**
+  and all 7 `StoreKitClientTests` fail (see that section). Pin **`simulatorId` only** — when
+  session defaults carry both `simulatorName` and `simulatorId`, name resolution wins and may
+  pick an ineligible runtime (e.g. booting "iPad Pro 11" M5" onto the broken 26.4).
 - **New `.swift` files need no `project.pbxproj` edit** — the project uses
   `PBXFileSystemSynchronizedRootGroup`, so files dropped into a synced folder are
   auto-included. SourceKit "No such module" diagnostics in the editor are noise; the build
@@ -305,7 +322,8 @@ Verified against **Immich 2.7.5** (2026-06-18): `serverVersion()` → `"2.7.5"`,
 ## Environment / tooling
 
 - **XcodeBuildMCP** drives builds/tests — do not parse raw `xcodebuild`. Session
-  defaults: scheme **"OwnFrame"**, simulator **iPad Pro 11" (M5)**,
+  defaults: scheme **"OwnFrame"**, simulator an **iPad Pro 11" on iOS 18.6 or 26.5**
+  (**not** the M5's default 26.4 runtime — it fails every StoreKit test, see above),
   `preferXcodebuild: true` (the incremental builder chokes on project changes).
 - **No `axe`/`idb`** UI-automation backend is installed, so XcodeBuildMCP can only
   *observe* the simulator (`snapshot_ui`/`screenshot`), not tap/type. This is why
