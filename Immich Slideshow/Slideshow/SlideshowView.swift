@@ -90,7 +90,9 @@ struct SlideshowView: View {
     // 510: the clock overlay's Random place picker. Seeded deterministically under
     // `--uitest-clock-seed=<n>` for stable UI tests; otherwise from the system generator.
     // It relocates at most once per its 6-min cadence, only on a photo-advance boundary.
-    @State private var randomPicker = RandomPlacePicker(rng: SplitMix64(seed: SlideshowView.clockSeed))
+    @State private var clockRelocation = ClockRelocation(
+        picker: RandomPlacePicker(rng: SplitMix64(seed: SlideshowView.clockSeed))
+    )
     @State private var clockEpoch = ContinuousClock().now
     @State private var resolvedRandomPlace: ClockPlace = .bottomTrailing
     @State private var randomResolved = false
@@ -515,12 +517,14 @@ struct SlideshowView: View {
     }
 
     /// Relocate a Random clock, but only on a photo-advance and at most once per the
-    /// picker's cadence; a fixed place is a no-op (FR-510-03).
+    /// picker's cadence; a fixed place is a no-op (FR-510-03). The caption exclusion
+    /// follows `showInfo`: while details are enabled, the caption will occupy its place
+    /// whenever the chrome is revealed, so the clock must not sit there (issue #26).
     private func relocateRandomClockIfNeeded() {
         guard themeStore.settings.clock.isOn, themeStore.settings.clock.place == .random else { return }
         let now = ContinuousClock().now - clockEpoch
         let current: ClockPlace? = randomResolved ? resolvedRandomPlace : nil
-        resolvedRandomPlace = randomPicker.place(now: now, current: current, occupied: [])
+        resolvedRandomPlace = clockRelocation.place(now: now, current: current, detailsEnabled: showInfo)
         randomResolved = true
     }
 

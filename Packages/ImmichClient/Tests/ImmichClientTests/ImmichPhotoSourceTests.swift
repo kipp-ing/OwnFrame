@@ -59,11 +59,12 @@ import PhotoSourceKit
     ])
 }
 
+// @covers FR-100-04
 @Test func assetsMapsImmichAssetsWithMediaKindPassthrough() async throws {
     // Immich `type` string flows through `MediaKind(rawValue:) ?? .other`: IMAGE/VIDEO map
     // directly, an unknown string (AUDIO) degrades to `.other`.
     let json = #"{"assets":{"items":[{"id":"a1","type":"IMAGE"},{"id":"v1","type":"VIDEO"},{"id":"x1","type":"AUDIO"}],"nextPage":null}}"#
-    let (source, _) = try makeSource(data: Data(json.utf8), statusCode: 200)
+    let (source, transport) = try makeSource(data: Data(json.utf8), statusCode: 200)
 
     let assets = try await source.assets(in: "album-1")
 
@@ -72,6 +73,15 @@ import PhotoSourceKit
         SourceAsset(id: "v1", kind: .video),
         SourceAsset(id: "x1", kind: .other),
     ])
+
+    // The engine consumes this surface with the active album id (SlideshowViewModel calls
+    // `source.assets(in:)`), so the id must reach the transport as the album filter —
+    // dropping the forwarding kept every test green while the app paged the wrong album
+    // (issue #30).
+    let request = try #require(await transport.recordedRequests.only)
+    let body = try #require(request.httpBody)
+    let object = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect(object["albumIds"] as? [String] == ["album-1"])
 }
 
 // @covers FR-100-14
