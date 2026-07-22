@@ -4,6 +4,14 @@ Written 2026-07-21 for a session starting with none of the preceding context. Re
 [traceability.md](traceability.md) for the method and [testing.md](testing.md) for the traps;
 this file is only the current state and the next moves.
 
+> **Executed 2026-07-22 (PR #34).** All seven entries ran; traceable 38% → 57%, `@covers`
+> 65 → 196; 24 of 448 verdicts refuted and stripped; the audit stage fired for the first time
+> (8 rulings, 4 upheld additions adopted). Findings filed as issues #28–#33 — six more of the
+> #26 shape. The per-requirement gap backlog lives in the seven commit messages on that PR.
+> What remains from this file: the "Do not do these unattended" list below (#21, #22, #26,
+> test repair — now joined by #28–#33) and the write-a-test gap backlog. The pipeline itself
+> is done; do not re-run it wholesale.
+
 ## Where things stand
 
 CI is **green on `main`** for the first time in months (#20 closed 2026-07-21) — it was pinned to

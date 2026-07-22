@@ -28,6 +28,7 @@ private func seconds(_ duration: Duration) -> Double {
 @Suite("RetryPolicy")
 struct RetryPolicyTests {
     // FR-310-02: 1 s initial, ×2 per attempt, capped at 300 s, ±20 % jitter.
+    // @covers FR-310-02, SC-310-04
     @Test func transientDelaysFollowTheDoublingCurveWithinJitterBounds() {
         var policy = RetryPolicy(rng: SeededRandomNumberGenerator(seed: 7))
 
@@ -41,6 +42,7 @@ struct RetryPolicyTests {
 
     // FR-310-02: the curve saturates at the cap and stays there — deep attempt
     // counts never overflow past it.
+    // @covers FR-310-02
     @Test func delaysSaturateAtTheCap() {
         var policy = RetryPolicy(rng: SeededRandomNumberGenerator(seed: 11))
 
@@ -53,6 +55,7 @@ struct RetryPolicyTests {
     }
 
     // FR-310-02: reset returns the sequence to the initial delay.
+    // @covers FR-310-02
     @Test func resetReturnsToTheInitialDelay() {
         var policy = RetryPolicy(rng: SeededRandomNumberGenerator(seed: 3))
         for _ in 1...5 {
@@ -69,6 +72,7 @@ struct RetryPolicyTests {
     // (The four Immich auth conditions that used to be enumerated here all collapse to
     // the single neutral `.authentication`; the ImmichError→SourceFailure split now lives
     // in ImmichPhotoSourceTests.)
+    // @covers FR-310-05
     @Test func authenticationFailuresRetryAtTheCapFromTheFirstAttempt() {
         var policy = RetryPolicy(rng: SeededRandomNumberGenerator(seed: 5))
 
@@ -79,6 +83,7 @@ struct RetryPolicyTests {
 
     // Retry-storm edge case: jitter is actually applied — repeated same-nominal
     // delays are not all identical.
+    // @covers FR-310-02
     @Test func jitterVariesTheDelays() {
         var policy = RetryPolicy(rng: SeededRandomNumberGenerator(seed: 42))
 

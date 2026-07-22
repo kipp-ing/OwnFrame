@@ -3,6 +3,7 @@ import Testing
 @testable import ImmichClient
 import ImmichClientTestSupport
 
+// @covers FR-130-03, SC-130-02
 @Test func resolverLogsInWithPasswordInBodyNotQueryAndReturnsResolution() async throws {
     // v3 (130): a password-protected link authenticates via POST /api/shared-links/login with
     // the password in the request BODY — never a `?password=` query (rejected in v3). The `key=`
@@ -43,6 +44,7 @@ import ImmichClientTestSupport
 // FR-210-06/07 (Finding 1): an "Invalid share key/slug" 401 means the identifier was not
 // found — NOT that a password is required. A non-protected `/share/<key>` link must never
 // prompt for a password.
+// @covers FR-110-05
 @Test func resolverMapsInvalidShareKeyOrSlug401ToInvalidShareLinkNotPasswordRequired() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(sequence: [
@@ -58,6 +60,7 @@ import ImmichClientTestSupport
 
 // A custom `/s/<slug>` link: the key attempt 401s "Invalid share key"; the resolver falls
 // back to `slug=` and resolves.
+// @covers FR-130-03
 @Test func resolverFallsBackToSlugWhenKeyIsInvalid() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let okBody = try #require("""
@@ -83,6 +86,7 @@ import ImmichClientTestSupport
 
 // A genuine password challenge (401 whose message is not an invalid-identifier message) is
 // still classified as password-required, regardless of the exact server wording.
+// @covers FR-110-05
 @Test func resolverMapsPasswordChallenge401ToPasswordRequired() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .success((errorBody("Invalid password"), httpResponse(url: baseURL, statusCode: 401))))
@@ -93,22 +97,27 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-110-05
 @Test func resolverMapsMissingPasswordUnauthorizedToPasswordRequired() async throws {
     try await expectResolverError(statusCode: 401, password: nil, expectedError: .passwordRequired)
 }
 
+// @covers FR-110-05
 @Test func resolverMapsWrongPasswordUnauthorizedToWrongPassword() async throws {
     try await expectResolverError(statusCode: 401, password: "wrong", expectedError: .wrongPassword)
 }
 
+// @covers FR-110-05
 @Test func resolverMapsNotFoundToInvalidShareLink() async throws {
     try await expectResolverError(statusCode: 404, password: nil, expectedError: .invalidShareLink)
 }
 
+// @covers FR-110-05
 @Test func resolverMapsServerSignalledExpiryToShareLinkExpired() async throws {
     try await expectResolverError(statusCode: 410, password: nil, expectedError: .shareLinkExpired)
 }
 
+// @covers FR-110-05
 @Test func resolverMapsPastExpiresAtToShareLinkExpired() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let responseData = try #require("""
@@ -128,6 +137,7 @@ import ImmichClientTestSupport
     }
 }
 
+// @covers FR-110-05
 @Test func resolverMapsTransportFailureToUnreachable() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     let transport = MockTransport(result: .failure(URLError(.timedOut)))

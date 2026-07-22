@@ -4,6 +4,7 @@ import Testing
 
 @Suite
 struct HAEntityDefaultsTests {
+    // @covers FR-710-15
     @Test
     func defaultEnabledIsEverythingExceptTheOptInImage() {
         // Contract (specs/710-ha-full-control/contracts/ha-mqtt-entities.md §2):

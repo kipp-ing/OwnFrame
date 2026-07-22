@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import ImmichClient
 
+// @covers FR-100-09
 @Test func albumDecodesAssetCountAndDateRange() throws {
     let json = """
     [

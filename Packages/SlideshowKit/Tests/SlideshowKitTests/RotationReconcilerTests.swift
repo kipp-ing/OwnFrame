@@ -48,6 +48,7 @@ struct RotationReconcilerTests {
 
     // MARK: Invariant 2 — identical lists are a strict no-op
 
+    // @covers FR-310-07
     @Test(arguments: [PlayOrder.sequential, PlayOrder.shuffle])
     func identicalListsReturnInputsUnchanged(order: PlayOrder) {
         var rng = SeededRandomNumberGenerator(seed: 2)
@@ -66,6 +67,7 @@ struct RotationReconcilerTests {
 
     // MARK: Invariant 3 — sequential: identity order, cursor anchored
 
+    // @covers FR-310-08
     @Test func sequentialAdditionAppearsAtItsAlbumPosition() {
         var rng = SeededRandomNumberGenerator(seed: 3)
         let old = assets("a", "c")
@@ -114,6 +116,7 @@ struct RotationReconcilerTests {
 
     // MARK: Invariant 4 — shuffle: cycle preserved, additions in the remainder only
 
+    // @covers FR-310-08
     @Test func shuffleSurvivorsKeepTheirRelativeOrder() {
         var rng = SeededRandomNumberGenerator(seed: 6)
         let old = assets("a", "b", "c", "d", "e")
@@ -131,6 +134,7 @@ struct RotationReconcilerTests {
         #expect(result.cursor == 2)   // still on e
     }
 
+    // @covers FR-310-08
     @Test func shuffleAdditionsJoinOnlyTheUnplayedRemainder() {
         var rng = SeededRandomNumberGenerator(seed: 7)
         let old = assets("a", "b", "c", "d")
@@ -177,6 +181,7 @@ struct RotationReconcilerTests {
 
     // MARK: Invariant 5/6 — removed current photo
 
+    // @covers FR-310-08
     @Test func removedCurrentLandsTheCursorBeforeItsSuccessor() {
         var rng = SeededRandomNumberGenerator(seed: 9)
         let old = assets("a", "b", "c", "d")
@@ -196,6 +201,7 @@ struct RotationReconcilerTests {
         #expect(new[next].id == "c")
     }
 
+    // @covers FR-310-08
     @Test func removedCurrentInShuffleShowsItsCycleSuccessorNext() {
         var rng = SeededRandomNumberGenerator(seed: 10)
         let old = assets("a", "b", "c", "d")

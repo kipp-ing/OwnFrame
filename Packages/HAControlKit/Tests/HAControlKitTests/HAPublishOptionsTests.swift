@@ -6,6 +6,7 @@ import Testing
 @MainActor
 struct HAPublishOptionsTests {
     
+    // @covers FR-710-15
     @Test
     func hAPublishOptionsDefaults() {
         let options = HAPublishOptions()
@@ -46,6 +47,7 @@ struct HAPublishOptionsTests {
         #expect(readOptions.byteCap == 200_000)
     }
     
+    // @covers FR-710-15
     @Test
     func userDefaultsHAPublishOptionsStoreFreshReturnsDefaults() {
         let suiteName = "com.test.HAPublishOptionsDefaultsTest"

@@ -54,7 +54,7 @@ struct DiskImageCacheTests {
         }
     }
 
-    // @covers FR-320-03, SC-320-03
+    // @covers FR-320-03, SC-320-03, FR-320-12
     @Test func fillingPastBudgetEvictsLeastRecentlyStampedFirst() async throws {
         let root = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

@@ -15,6 +15,7 @@ struct FrameIdentityTests {
         #expect(HATopics.base(deviceID: appleTV.deviceID) == "immichslideshow/ABC-appletv")
     }
 
+    // @covers FR-700-06, FR-700-22
     @Test
     func distinctIdentitiesProduceDifferentDiscoveryUniqueIDAndIdentifiers() throws {
         let ipad = FrameIdentity(deviceID: "ABC", deviceName: "Photo Frame")

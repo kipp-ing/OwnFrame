@@ -173,6 +173,7 @@ final class StoreKitClientTests: XCTestCase {
 
     // MARK: - 6. An interrupted purchase is owned on the next launch (FR-1100-15)
 
+    // @covers FR-1100-15
     func test_interruptedPurchase_isOwnedOnNextLaunch() async throws {
         // Simulate a purchase that completed at the store but whose app-side finish never ran
         // (crash / kill mid-flight): buy directly and DO NOT finish the transaction.
@@ -193,6 +194,7 @@ final class StoreKitClientTests: XCTestCase {
 
     // MARK: - 7. Only verified unlocks surface — never tips, never unverified
 
+    // @covers FR-1100-08
     func test_ownedTransactions_surfacesUnlocksOnly_neverTips() async throws {
         let client = StoreKitClient()
 

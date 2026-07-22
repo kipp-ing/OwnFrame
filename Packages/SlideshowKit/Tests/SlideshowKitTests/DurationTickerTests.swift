@@ -11,6 +11,7 @@ import Testing
 // on the next cycle without restarting the show (SC-001, review R1).
 
 @MainActor
+// @covers FR-300-03, FR-300-04
 @Test func tickerWaitsCurrentDurationAndReArmsWhenDurationChangesMidShow() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()

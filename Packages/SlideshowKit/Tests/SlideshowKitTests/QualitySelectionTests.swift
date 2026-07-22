@@ -7,6 +7,7 @@ import ThemeKit
 import ThemeKitTestSupport
 
 @MainActor
+// @covers FR-300-04
 @Test func originalQualityLoadsOriginalBytesWithoutPreviewFetch() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -29,6 +30,7 @@ import ThemeKitTestSupport
 }
 
 @MainActor
+// @covers FR-300-04
 @Test func previewQualityLoadsPreviewBytesWithoutOriginalFetch() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()
@@ -84,6 +86,7 @@ import ThemeKitTestSupport
 }
 
 @MainActor
+// @covers FR-300-04
 @Test func qualityChangeAppliesToNextLoadedImageWithoutRestart() async {
     let source = StubPhotoSource()
     let ticker = ManualTicker()

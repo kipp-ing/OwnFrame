@@ -16,6 +16,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-120-04
 @Test func sourceLibraryViewModelAddAlbumSourcePersistsAndActivatesFirst() {
     let store = InMemorySourceLibraryStore()
     let viewModel = makeViewModel(store: store)
@@ -29,6 +30,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-120-04, FR-220-10
 @Test func sourceLibraryViewModelAddPhotoLibrarySourcePersistsAndActivatesFirst() {
     let store = InMemorySourceLibraryStore()
     let viewModel = makeViewModel(store: store)
@@ -43,6 +45,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-220-10
 @Test func sourceLibraryViewModelListsAndActivatesPhotoLibrarySourceLikeAnyOther() {
     var seeded = SourceLibrary()
     seeded.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -80,6 +83,7 @@ import Testing
 // The shared-link add path is the two-phase resolve flow (210, US4) — see the
 // "Two-phase resolve" section below. Removing such a source must delete its secret.
 @MainActor
+// @covers FR-120-04
 @Test func sourceLibraryViewModelRemoveSharedLinkDeletesPassword() async {
     let store = InMemorySourceLibraryStore()
     let secretStore = InMemorySharedLinkSecretStore()
@@ -97,6 +101,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-120-04
 @Test func sourceLibraryViewModelRenameAndMovePersist() {
     let store = InMemorySourceLibraryStore()
     let viewModel = makeViewModel(store: store)
@@ -110,6 +115,7 @@ import Testing
 }
 
 @MainActor
+// @covers FR-120-04
 @Test func sourceLibraryViewModelSetActiveDelegatesAndReflectsReload() {
     var seeded = SourceLibrary()
     seeded.add(Source(id: "source-1", label: "Family", kind: .album(albumID: "album-1")))
@@ -151,6 +157,7 @@ private let geoURL = "https://bilder.kippings.de/s/geo2026"
 private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 
 @MainActor
+// @covers FR-210-06, FR-210-08, FR-120-09
 @Test func resolveSharedLinkWithoutPasswordPersistsAndResolves() async {
     let store = InMemorySourceLibraryStore()
     let secretStore = InMemorySharedLinkSecretStore()
@@ -166,6 +173,7 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 }
 
 @MainActor
+// @covers FR-210-06, FR-210-08, FR-120-09
 @Test func resolveSharedLinkRequiringPasswordAsksAndPersistsNothing() async {
     let store = InMemorySourceLibraryStore()
     let vm = makeViewModel(store: store, resolver: PasswordGatedResolver(correctPassword: "pw"))
@@ -178,6 +186,7 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 }
 
 @MainActor
+// @covers FR-210-08
 @Test func confirmSharedLinkPasswordPersistsSourceAndStoresSecret() async {
     let store = InMemorySourceLibraryStore()
     let secretStore = InMemorySharedLinkSecretStore()
@@ -193,6 +202,7 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 }
 
 @MainActor
+// @covers FR-210-08, FR-120-09
 @Test func confirmSharedLinkWrongPasswordErrorsAndPersistsNothing() async {
     let store = InMemorySourceLibraryStore()
     let secretStore = InMemorySharedLinkSecretStore()
@@ -207,6 +217,7 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 }
 
 @MainActor
+// @covers FR-210-09, FR-210-17
 @Test func resolveSharedLinkMalformedURLErrorsWithoutNetwork() async {
     let resolver = PasswordGatedResolver(correctPassword: nil)
     let vm = makeViewModel(resolver: resolver)
@@ -219,6 +230,7 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 }
 
 @MainActor
+// @covers FR-210-08, FR-120-09, FR-210-17
 @Test func resolveSharedLinkSurfacesResolverErrorAndPersistsNothing() async {
     let store = InMemorySourceLibraryStore()
     let vm = makeViewModel(store: store, resolver: StubResolver(result: .failure(ImmichError.invalidShareLink)))
@@ -242,6 +254,7 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
 }
 
 @MainActor
+// @covers FR-210-16
 @Test func resolveSharedLinkDedupsByBaseURLAndSlug() async {
     let store = InMemorySourceLibraryStore()
     let vm = makeViewModel(store: store, resolver: PasswordGatedResolver(correctPassword: nil))
