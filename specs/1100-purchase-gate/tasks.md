@@ -12,6 +12,18 @@ House rules apply throughout: Swift Testing on host where possible, XCTest only 
 StoreKitTest/XCUITest; new app-target files need no pbxproj edit (synchronized groups); the
 full XCUITest suite runs before merge.
 
+> **Amendment 2026-07-23 (single unlock) — read before the task list.** The two paid tiers
+> (**Pro** = ambience, **Automation** = remote control) and the optional everything-bundle were
+> **consolidated into one** one-time purchase, the **Supporter Unlock**, which grants every gated
+> capability at once (spec.md FR-1100-02/04, amended 2026-07-22). The task list below is a
+> **historical record** and is not renumbered: wherever a task says `.pro`, `.automation`,
+> "everything", "bundle", or names a tier, the shipped model has one entitlement — `.supporter`
+> (== `EntitlementSet.all`) — and one unlock product (`ing.kipp.Immich-Slideshow.unlock.supporter`)
+> plus the tips. The gated *capabilities* those tasks describe are unchanged; they are now all
+> granted by the single product. Forward-looking counts have been corrected in place (T003, the
+> T042 ASC-day) so they do not mislead; test-description tasks keep their original wording as the
+> record of what was built.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 ---
@@ -28,8 +40,10 @@ full XCUITest suite runs before merge.
       gem script pattern from 1000 (pbxproj explicitly in scope); verify both schemes build via
       XcodeBuildMCP.
 - [x] T003 [P] Add StoreKit test configuration `OwnFrameTests/Configuration.storekit`
-      defining the six products with the exact ids from data-model.md (3 non-consumables with
-      Family Sharing, 3 consumable tips), wired into the iOS test scheme.
+      defining the products with the exact ids from data-model.md (1 non-consumable Supporter
+      Unlock with Family Sharing + 3 consumable tips — the four products the single-unlock model
+      ships; originally scoped as six under the pro/automation/everything split), wired into the
+      iOS test scheme.
 
 **Checkpoint**: both apps build with an empty PurchaseKit linked; `.storekit` file loads in the
 test scheme.
@@ -456,9 +470,11 @@ T030 folds into T042 any more.** Details in `docs/testing.md`; issue #16 closed.
 (`docs/spec-overview.md`, CLAUDE.md, quickstart §5 ↔ manual-verification §D).
 
 Remaining: **T042** only — the manual ASC/device day (blocked on Jan's ASC access): create the
-IAPs, run the sandbox purchase/restore/Family-Sharing/universal-purchase checks, and the release
-sequencing guard (v1.0 b8 stays unreleased; v1.1 gated build is the first public release,
-FR-1100-17). See `docs/manual-verification.md` §D + quickstart §5. *(The Xcode-IDE/device
+IAPs (the single **Supporter Unlock** non-consumable + the tips — one functional unlock, not the
+former pro/automation/everything trio), run the sandbox purchase/restore/Family-Sharing/
+universal-purchase checks, and the release sequencing guard (v1.0 b8 stays unreleased; v1.1 gated
+build is the first public release, FR-1100-17). See `docs/manual-verification.md` §D +
+quickstart §5. *(The Xcode-IDE/device
 StoreKitTest run was removed from this list on 2026-07-21 — it runs headlessly now; see T030.)*
 
 - **T039 copy audit — PASS.** `grep -rin "lifetime"` over PurchaseKit UI, Localizable.xcstrings,

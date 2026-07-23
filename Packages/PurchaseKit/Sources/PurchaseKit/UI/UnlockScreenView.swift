@@ -3,11 +3,11 @@ import SwiftUI
 // Shipping UI — deliberately NOT `#if DEBUG` (unlike StubStoreClient.swift / UITestSeams.swift
 // in this package). This is the screen a paying user actually reads.
 
-/// The single screen that answers "what do I get" and "how do I get it" for one tier
+/// The single screen that answers "what do I get" and "how do I get it" for the Supporter Unlock
 /// (FR-1100-09, contracts/purchasekit-api.md §Locked-row / unlock-screen UI contract).
 ///
-/// Sections, in the contract's order: what-you-get list (with the Ken Burns demo slot on the Pro
-/// screen) → price + purchase button, or the unavailable notice → Restore Purchases.
+/// Sections, in the contract's order: what-you-get list (with the Ken Burns motion demo slot) →
+/// price + purchase button, or the unavailable notice → Restore Purchases.
 ///
 /// Three things this view will not do:
 /// - **Present itself.** It is a sheet body with no presentation state of its own; a locked row,
@@ -85,7 +85,7 @@ public struct UnlockScreenView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Unlock \(tier.displayName)")
+                Text("The Supporter Unlock")
                     .font(.largeTitle.weight(.semibold))
                 Text(tier.unlockTagline)
                     .font(.subheadline)
@@ -140,13 +140,12 @@ public struct UnlockScreenView: View {
                 .accessibilityElement(children: .combine)
             }
 
-            if tier == .pro {
-                kenBurnsDemo
-            }
+            // Ken Burns is the unlock's most demoable asset, so the one screen always shows it.
+            kenBurnsDemo
         }
     }
 
-    /// The Pro screen's motion sample slot.
+    /// The unlock screen's motion sample slot.
     ///
     /// A neutral, bundled placeholder for now: FR-1100-09 asks for a *live* demo where the
     /// feature is visual, and a looping sample lands with the demo work. It deliberately does not
@@ -441,8 +440,8 @@ public struct UnlockScreenView: View {
 
 // MARK: - Presentation copy
 //
-// Marketing wording for tiers and products lives beside the screen that says it, not in the
-// model: an `Entitlement` is a capability, and a `ProductID` is an App Store Connect identifier.
+// Marketing wording for the unlock and its product lives beside the screen that says it, not in
+// the model: an `Entitlement` is a capability, and a `ProductID` is an App Store Connect identifier.
 // English only — the repo ships English-only by design (CLAUDE.md).
 
 private struct UnlockBenefit {
@@ -455,16 +454,14 @@ private extension Entitlement {
 
     var unlockTagline: String {
         switch self {
-        case .pro:
-            "Give the frame its ambience."
-        case .automation:
-            "Let the rest of your home drive the frame."
+        case .supporter:
+            "The ambience touches and full Home Assistant control, in one purchase."
         }
     }
 
     var benefits: [UnlockBenefit] {
         switch self {
-        case .pro:
+        case .supporter:
             [
                 UnlockBenefit(
                     title: "Ken Burns motion",
@@ -476,9 +473,6 @@ private extension Entitlement {
                     detail: "A quiet clock on the frame, in your 12- or 24-hour format.",
                     symbol: "clock"
                 ),
-            ]
-        case .automation:
-            [
                 UnlockBenefit(
                     title: "Home Assistant control",
                     detail: "Brightness, album, and pause or play over MQTT, with discovery "
@@ -501,9 +495,7 @@ private extension ProductID {
     /// raw ASC identifier, which is a bundle-prefixed string no test should have to spell.
     var uiSlug: String {
         switch self {
-        case .pro: "pro"
-        case .automation: "automation"
-        case .everything: "everything"
+        case .supporter: "supporter"
         case .tipSmall: "tip.small"
         case .tipMedium: "tip.medium"
         case .tipLarge: "tip.large"
@@ -514,32 +506,30 @@ private extension ProductID {
     /// says what the purchase covers.
     var offerBlurb: String? {
         switch self {
-        case .pro: "Ken Burns motion and the clock overlay."
-        case .automation: "Home Assistant control and Shortcuts."
-        case .everything: "Both unlocks together, in one purchase."
+        case .supporter: "Ken Burns, the clock overlay, and full Home Assistant control."
         case .tipSmall, .tipMedium, .tipLarge: nil
         }
     }
 }
 
 #if DEBUG
-#Preview("Pro unlock") {
-    let defaults = UserDefaults(suiteName: "preview.unlock.pro") ?? .standard
+#Preview("Supporter unlock") {
+    let defaults = UserDefaults(suiteName: "preview.unlock.supporter") ?? .standard
     let store = EntitlementStore(
         client: StubStoreClient(),
         cache: EntitlementSnapshotCache(defaults: defaults)
     )
-    return UnlockScreenView(tier: .pro) {}
+    return UnlockScreenView(tier: .supporter) {}
         .environment(store)
 }
 
-#Preview("Automation unlock, store unreachable") {
-    let defaults = UserDefaults(suiteName: "preview.unlock.automation") ?? .standard
+#Preview("Supporter unlock, store unreachable") {
+    let defaults = UserDefaults(suiteName: "preview.unlock.supporter.unavailable") ?? .standard
     let store = EntitlementStore(
         client: StubStoreClient(behavior: .unavailable),
         cache: EntitlementSnapshotCache(defaults: defaults)
     )
-    return UnlockScreenView(tier: .automation) {}
+    return UnlockScreenView(tier: .supporter) {}
         .environment(store)
 }
 #endif

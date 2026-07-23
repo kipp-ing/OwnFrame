@@ -54,6 +54,45 @@ struct EntitlementOverrideSeamTests {
         )
     }
 
+    // With a single unlock, `all` and `supporter` are two spellings of the same request: both
+    // grant the whole entitlement set. Either word is a valid granting override.
+    @Test("`all` and `supporter` are equivalent granting words")
+    func allAndSupporterAreEquivalentGrantingWords() {
+        #expect(
+            PurchaseUITestSeams.entitlements(arguments: ["--uitest-entitlements=supporter"])
+                == EntitlementSet.all
+        )
+        #expect(
+            PurchaseUITestSeams.entitlements(arguments: ["--uitest-entitlements=all"])
+                == PurchaseUITestSeams.entitlements(arguments: ["--uitest-entitlements=supporter"])
+        )
+        #expect(
+            PurchaseUITestSeams.hasEntitlementOverride(
+                arguments: ["/path/to/app", "--uitest-entitlements=supporter"]
+            ) == true
+        )
+    }
+
+    // The retired tier words are no longer recognised: `pro`/`automation` grant nothing now, just
+    // like `none` or any typo. The flag is still an *override* (it was explicitly asked for), it
+    // simply resolves to the free tier — the same fail-toward-free behaviour as an unknown word.
+    @Test("The removed tier words grant nothing but still count as an override")
+    func removedTierWordsGrantNothingButAreStillAnOverride() {
+        #expect(PurchaseUITestSeams.entitlements(arguments: ["--uitest-entitlements=pro"]) == .none)
+        #expect(
+            PurchaseUITestSeams.entitlements(arguments: ["--uitest-entitlements=automation"]) == .none
+        )
+        #expect(
+            PurchaseUITestSeams.entitlements(arguments: ["--uitest-entitlements=pro,automation"])
+                == .none
+        )
+        #expect(
+            PurchaseUITestSeams.hasEntitlementOverride(
+                arguments: ["/path/to/app", "--uitest-entitlements=pro"]
+            ) == true
+        )
+    }
+
     // A bare `--uitest-entitlements` with no `=` is a typo, not a request. Treating it as an
     // override would silently swap a real frame's StoreKit store for a stub granting nothing —
     // the failure mode being avoided is a *false* gate, so this fails closed toward production.

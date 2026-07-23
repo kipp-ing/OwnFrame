@@ -13,7 +13,7 @@ import Foundation
 public enum PurchaseUITestSeams {
 
     /// Entitlements requested by `--uitest-entitlements=<list>`, comma-separated over
-    /// `none`/`pro`/`automation`/`all`.
+    /// `none`/`supporter`/`all` (`supporter` and `all` are equivalent — there is one unlock).
     ///
     /// An absent flag yields the free tier — deliberately identical to `none`, so the
     /// default hermetic launch exercises the ungated frame. Unrecognised words are ignored
@@ -32,9 +32,7 @@ public enum PurchaseUITestSeams {
         let words = arg.dropFirst("--uitest-entitlements=".count).split(separator: ",")
         return words.reduce(into: EntitlementSet.none) { set, word in
             switch word {
-            case "all": set = EntitlementSet.all
-            case "pro": set.insert(.pro)
-            case "automation": set.insert(.automation)
+            case "all", "supporter": set = EntitlementSet.all
             default: break // includes "none"
             }
         }

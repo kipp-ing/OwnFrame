@@ -99,7 +99,7 @@ private func launchStore(
     let launched = launchStore(seededWith: EntitlementSet.all, defaults: defaults)
 
     // The gate as the slideshow actually latches it at start-up.
-    let gate = AmbienceGate(entitled: launched.store.current.contains(.pro))
+    let gate = AmbienceGate(entitled: launched.store.current.contains(.supporter))
 
     #expect(gate.effectiveKenBurns(setting: true))
     #expect(gate.effectiveClock(setting: true))
@@ -109,16 +109,16 @@ private func launchStore(
     launched.client.release()
 }
 
-/// The automation half of the same pass: the HA coordinator gate reads true offline, so an
+/// The automation half of the same pass: the Supporter Unlock now also opens the HA coordinator
+/// gate — the two capabilities collapsed into one purchase — so it reads true offline, and an
 /// unattended frame stays remotely controllable after a power cut.
 @MainActor
 // @covers FR-1100-10
-@Test func theAutomationGateIsOpenOnTheFirstPassWithADeadStore() {
+@Test func theAutomationGateIsAlsoOpenOnTheFirstPassWithADeadStore() {
     let defaults = DefaultsFixture()
-    let launched = launchStore(seededWith: [.automation], defaults: defaults)
+    let launched = launchStore(seededWith: [.supporter], defaults: defaults)
 
-    #expect(launched.store.current.contains(.automation))
-    #expect(!launched.store.current.contains(.pro))
+    #expect(launched.store.current.contains(.supporter))
     #expect(launched.client.callCount == 0)
 
     launched.client.release()
@@ -136,7 +136,7 @@ private func launchStore(
         defaults: defaults
     )
 
-    let gate = AmbienceGate(entitled: launched.store.current.contains(.pro))
+    let gate = AmbienceGate(entitled: launched.store.current.contains(.supporter))
 
     #expect(gate.effectiveKenBurns(setting: true))
     #expect(launched.store.current == EntitlementSet.all)

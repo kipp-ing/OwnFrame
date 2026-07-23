@@ -43,9 +43,9 @@ public enum PurchasePhase: Sendable {
 ///    screen immediately and see `.loading`. Everything happens in ``load()``, which the view
 ///    calls once it is on screen. PurchaseKit never auto-presents and never auto-purchases
 ///    (SC-1100-02).
-/// 2. **The offer derives from what is owned, not from which screen is open.** `tier` names the
-///    screen and drives its copy; it plays no part in computing the offer. A user who owns
-///    nothing sees the same three products whichever locked row brought them here (FR-1100-04).
+/// 2. **The offer derives from what is owned, not from which screen is open.** A user who owns
+///    nothing is offered the single Supporter Unlock whichever locked row brought them here;
+///    once it is owned there is nothing left to offer (FR-1100-04).
 /// 3. **Entitlements only ever change through ``EntitlementStore``.** A completed purchase is
 ///    re-resolved via `refresh()` rather than inferred from the outcome, so the granted set and
 ///    the persisted snapshot come from the same verified query production uses (FR-1100-10).
@@ -82,10 +82,10 @@ public final class PurchaseViewModel {
 
     /// Resolves what to offer and fetches exactly those products.
     ///
-    /// The id list is computed *before* the query, so a user with nothing left to buy costs zero
-    /// store calls, and a part-owner never even asks the store about the bundle. Fetching the
-    /// whole catalogue and filtering afterwards would leak the excluded products' prices into
-    /// memory and put the "never re-sell what is already owned" rule in the view instead of here.
+    /// The id list is computed *before* the query, so a user who already owns the unlock costs
+    /// zero store calls. Fetching the whole catalogue and filtering afterwards would leak the
+    /// excluded products' prices into memory and put the "never re-sell what is already owned"
+    /// rule in the view instead of here.
     public func load() async {
         phase = .loading
         offered = []
@@ -178,17 +178,13 @@ public final class PurchaseViewModel {
 
     /// The unlocks still worth selling, in catalogue order.
     ///
-    /// Two exclusions, both consequences of FR-1100-04:
-    /// - a product whose grants the user already holds in full has nothing to add;
-    /// - a product that *overlaps* what is owned would re-sell something already paid for. That
-    ///   only ever bites the everything-bundle, which is why a part-owner is offered the missing
-    ///   single unlock at its normal price and never the bundle.
+    /// With a single functional unlock this reduces to "offer the Supporter Unlock unless it is
+    /// already owned" (FR-1100-04). The set-based form is kept so the "never re-sell what is
+    /// already owned" rule lives in exactly one place.
     private func offerableProductIDs() -> [ProductID] {
         let owned = store.current
         return ProductCatalog.unlocks.filter { id in
-            let grants = ProductCatalog.grants(id)
-            guard !grants.isSubset(of: owned) else { return false }
-            return grants.isDisjoint(with: owned)
+            !ProductCatalog.grants(id).isSubset(of: owned)
         }
     }
 

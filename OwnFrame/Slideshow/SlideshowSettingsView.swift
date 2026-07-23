@@ -171,8 +171,8 @@ struct SlideshowSettingsView: View {
                         Label("Ken Burns", systemImage: "camera.viewfinder")
                     }
                     .accessibilityIdentifier("settings.kenBurns")
-                    .lockedRow(if: !isProEntitled, requires: .pro,
-                               identifier: "settings.row.kenburns.locked") { unlockTier = .pro }
+                    .lockedRow(if: !isUnlocked, requires: .supporter,
+                               identifier: "settings.row.kenburns.locked") { unlockTier = .supporter }
 
                     Picker(selection: $themeStore.settings.fit) {
                         Text("Fit").tag(ImageFit.fit)
@@ -194,13 +194,13 @@ struct SlideshowSettingsView: View {
                         Label("Clock", systemImage: "clock")
                     }
                     .accessibilityIdentifier("settings.clock")
-                    .lockedRow(if: !isProEntitled, requires: .pro,
-                               identifier: "settings.row.clock.locked") { unlockTier = .pro }
+                    .lockedRow(if: !isUnlocked, requires: .supporter,
+                               identifier: "settings.row.clock.locked") { unlockTier = .supporter }
 
                     // The clock's detail rows stay hidden while locked: the stored value is
                     // preserved (FR-1100-14), but offering style/place pickers for something
                     // that cannot render would be noise.
-                    if themeStore.settings.clock.isOn, isProEntitled {
+                    if themeStore.settings.clock.isOn, isUnlocked {
                         Picker(selection: $themeStore.settings.clock.style) {
                             Text("Digits").tag(ClockStyle.digits)
                             Text("Pill").tag(ClockStyle.pill)
@@ -300,14 +300,14 @@ struct SlideshowSettingsView: View {
 
                 // 1100 (amended 2026-07-20): telemetry is free (FR-1100-03a). The broker
                 // connection editor is available to everyone, so a free frame can report its status
-                // to Home Assistant; only *control* needs Automation.
+                // to Home Assistant; only *control* needs the Supporter Unlock.
                 //
                 // The two entitlement paths render the editor differently ON PURPOSE. An always-
                 // present inline `DisclosureGroup` starves a sibling Section's async `.task` (the
                 // Storage "Used" label never settled — caught by SettingsStorageUITests), so the
                 // free path shows the editor inline (no DisclosureGroup) under a control-locked
                 // banner, while the entitled path keeps the collapsible group it always had.
-                if isAutomationEntitled {
+                if isUnlocked {
                     Section {
                         DisclosureGroup(isExpanded: $mqttExpanded) {
                             BrokerSettingsSection(viewModel: brokerViewModel, publishOptions: publishOptions, frameNames: frameNames)
@@ -322,15 +322,15 @@ struct SlideshowSettingsView: View {
                     }
                 } else {
                     Section {
-                        LockedRow(requires: .automation,
+                        LockedRow(requires: .supporter,
                                   identifier: "settings.row.broker.locked",
-                                  action: { unlockTier = .automation }) {
+                                  action: { unlockTier = .supporter }) {
                             Label("Remote control", systemImage: "slider.horizontal.3")
                         }
                     } header: {
                         Text("Home Assistant")
                     } footer: {
-                        Text("Remote control from Home Assistant and Shortcuts needs the Automation unlock.")
+                        Text("Remote control from Home Assistant and Shortcuts needs the Supporter Unlock.")
                     }
 
                     Section {
@@ -499,12 +499,8 @@ struct SlideshowSettingsView: View {
 
     // MARK: - Entitlement gates (1100)
 
-    private var isProEntitled: Bool {
-        entitlements?.current.contains(.pro) ?? false
-    }
-
-    private var isAutomationEntitled: Bool {
-        entitlements?.current.contains(.automation) ?? false
+    private var isUnlocked: Bool {
+        entitlements?.current.contains(.supporter) ?? false
     }
 
     private static func durationLabel(_ duration: Duration) -> String {

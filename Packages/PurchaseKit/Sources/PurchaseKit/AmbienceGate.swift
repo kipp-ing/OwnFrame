@@ -1,4 +1,4 @@
-/// The `.pro` ambience latch: what Ken Burns motion and the clock overlay should *actually*
+/// The ambience latch: what Ken Burns motion and the clock overlay should *actually*
 /// do right now (spec 1100, data-model.md §Gated feature mapping).
 ///
 /// The gate exists to make entitlement changes **boundary-aligned** rather than instantaneous.
@@ -16,8 +16,9 @@
 /// reporting the stored values while an unentitled frame renders them off — data and rendering
 /// are allowed to disagree.
 ///
-/// Both features sit in the same tier, so the two accessors are the same truth table today.
-/// Splitting them across tiers later is a deliberate change, not an accident.
+/// Both features are granted by the single Supporter Unlock, so the two accessors are the same
+/// truth table. They stay as two accessors so a future split would be a deliberate change here,
+/// not a scattered one.
 public struct AmbienceGate: Equatable, Sendable {
 
     /// The last latched entitlement. Not the live one — that is the whole point.
@@ -38,7 +39,7 @@ public struct AmbienceGate: Equatable, Sendable {
 
     /// Whether Ken Burns motion should run, given the user's stored setting.
     ///
-    /// The gate only ever subtracts: owning `.pro` never switches on motion the user turned off.
+    /// The gate only ever subtracts: being entitled never switches on motion the user turned off.
     public func effectiveKenBurns(setting: Bool) -> Bool {
         setting && latchedEntitled
     }

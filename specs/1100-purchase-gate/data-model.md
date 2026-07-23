@@ -5,35 +5,38 @@ access levels and conformances are implementation detail.
 
 ## Entitlement
 
+> **Amended 2026-07-23 (single unlock).** The two tiers (`.pro`, `.automation`) and the
+> everything-bundle were collapsed into one purchase, the **Supporter Unlock**, which grants
+> every gated capability at once (spec.md FR-1100-02/04, amended 2026-07-22). The entitlement
+> enum now holds one case; there is no bundle and no partial ownership.
+
 ```
-Entitlement: enum { pro, automation }        // CaseIterable, Sendable, Codable
-EntitlementSet: Set<Entitlement>             // convenience: .none, .all, contains(_:)
+Entitlement: enum { supporter }              // CaseIterable, Sendable, Codable, RawRepresentable<String>
+EntitlementSet: Set<Entitlement>             // convenience: .none, .all == [.supporter], contains(_:)
 ```
 
-- Derived, never stored per-feature: a feature asks `contains(.pro)` etc.
-- The everything-bundle is **not** an entitlement — it is a product that *grants* `.all`
-  (resolver rule, see below). Keeps the entitlement space closed under future tiers.
+- Derived, never stored per-feature: every gated feature asks `contains(.supporter)` at its
+  point of effect.
+- There is exactly one entitlement, granted by the single Supporter Unlock product. No tiers,
+  no bundle — `EntitlementSet.all == [.supporter]` (FR-1100-02/04).
 
 ## ProductID / ProductCatalog
 
 ```
 ProductID: enum, RawRepresentable<String> {
-  pro        = "ing.kipp.Immich-Slideshow.unlock.pro"
-  automation = "ing.kipp.Immich-Slideshow.unlock.automation"
-  everything = "ing.kipp.Immich-Slideshow.unlock.everything"
+  supporter  = "ing.kipp.Immich-Slideshow.unlock.supporter"
   tipSmall   = "ing.kipp.Immich-Slideshow.tip.small"
   tipMedium  = "ing.kipp.Immich-Slideshow.tip.medium"
   tipLarge   = "ing.kipp.Immich-Slideshow.tip.large"
 }
 ProductCatalog:
-  unlocks: [pro, automation, everything]
+  unlocks: [supporter]
   tips:    [tipSmall, tipMedium, tipLarge]
-  grants(_ id: ProductID) -> EntitlementSet   // pro→{pro}, automation→{automation},
-                                              // everything→{pro, automation}, tips→{}
+  grants(_ id: ProductID) -> EntitlementSet   // supporter→{supporter} (== .all), tips→{}
 ```
 
-- Single source of truth for id strings and tier mapping; ASC must be configured to match
-  (checklist). Validation rule: unknown ids resolve to `{}` and are ignored, never fatal
+- Single source of truth for id strings and the entitlement mapping; ASC must be configured to
+  match (checklist). Validation rule: unknown ids resolve to `{}` and are ignored, never fatal
   (forward compatibility with future SKUs).
 
 ## OwnedTransaction (adapter output)
@@ -101,8 +104,9 @@ DisplayProduct: { id: ProductID, displayName, displayPrice }             // loca
 ```
 
 Rules (each is a test):
-- Offer computation (FR-1100-04): owns none → [pro, automation, everything]; owns exactly one
-  unlock → [the missing one]; owns all → screen shows "owned" state, no products.
+- Offer computation (FR-1100-04): owns nothing → [supporter]; owns the Supporter Unlock →
+  screen shows the "owned" state, no products. There is exactly one product, so partial
+  ownership cannot occur and the screen never presents a choice between products.
 - `unavailable` shows no prices and no placeholder values (FR-1100-16).
 - `pending` is terminal for the session; entitlement arrives later via the updates stream.
 - **Cancel** returns to `ready` — the user chose to stop, so there is nothing to explain
@@ -115,12 +119,12 @@ Rules (each is a test):
 
 ## Gated feature mapping (app targets, not persisted)
 
-| Feature | Tier | Point of effect |
+| Feature | Requires | Point of effect |
 |---|---|---|
-| Ken Burns motion | `.pro` | `SlideshowView` / `TVSlideshowView` — `effectiveKenBurns` |
-| Clock overlay | `.pro` | `SlideshowView` clock branch (`ClockOverlayView` participation) |
-| HA/MQTT remote control | `.automation` | coordinator start in `SlideshowRemoteControlAdapter` / `TVRemoteControlAdapter` |
-| App Intents | `.automation` | each intent `perform()` guard |
+| Ken Burns motion | `.supporter` | `SlideshowView` / `TVSlideshowView` — `effectiveKenBurns` |
+| Clock overlay | `.supporter` | `SlideshowView` clock branch (`ClockOverlayView` participation) |
+| HA/MQTT remote control | `.supporter` | coordinator start in `SlideshowRemoteControlAdapter` / `TVRemoteControlAdapter` |
+| App Intents | `.supporter` | each intent `perform()` guard |
 
 Invariants:
 - `ThemeSettings`, `ClockSettings`, broker config, and keychain items are **never** read,
