@@ -1323,7 +1323,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reihenfolge und Dauer wirken sofort. Fotos aus geteilten iCloud-Alben sind von iOS auf etwa 2048 px begrenzt — der Rahmen zeigt immer das Beste, was deine Mediathek bietet, und Qualität hat oberhalb dieser Grenze keine Wirkung."
+            "value" : "Reihenfolge und Dauer wirken sofort. Fotos aus geteilten iCloud-Alben sind von iOS auf etwa 2048 px begrenzt — die App zeigt immer das Beste, was deine Mediathek bietet, und Qualität hat oberhalb dieser Grenze keine Wirkung."
           }
         }
       }
@@ -2324,7 +2324,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Rahmen kann deine Fotos nicht sehen. Erlaube in den Einstellungen den Fotozugriff, um Alben aus deiner Fotos-Mediathek abzuspielen — andere Quellen funktionieren weiter."
+            "value" : "Die App kann deine Fotos nicht sehen. Erlaube in den Einstellungen den Fotozugriff, um Alben aus deiner Fotos-Mediathek abzuspielen — andere Quellen funktionieren weiter."
           }
         }
       }
@@ -2533,7 +2533,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wohin dein Geld fließt: Die Freischaltungen decken die laufenden Kosten des Projekts — Entwicklerkonto, KI-Tools, Testgeräte — und alles darüber hinaus geht zurück an Open-Source-Projekte, die der Gemeinschaft dienen. Der kostenlose Rahmen bleibt für immer voll funktionsfähig."
+            "value" : "Wohin dein Geld fließt: Die Freischaltungen decken die laufenden Kosten des Projekts — Entwicklerkonto, KI-Tools, Testgeräte — und alles darüber hinaus geht zurück an Open-Source-Projekte, die der Gemeinschaft dienen. Die kostenlose App bleibt für immer voll funktionsfähig."
           }
         }
       }
