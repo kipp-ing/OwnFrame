@@ -33,8 +33,9 @@ struct TVSettingsView: View {
     @State private var showBrokerSetup = false
     @State private var isRestoring = false
 
-    private var isProEntitled: Bool { entitlements?.current.contains(.pro) ?? false }
-    private var isAutomationEntitled: Bool { entitlements?.current.contains(.automation) ?? false }
+    /// One unlock now grants every gated capability, so ambience and remote control read the
+    /// same entitlement. Fail-closed: an absent store reads as unentitled.
+    private var isUnlocked: Bool { entitlements?.current.contains(.supporter) ?? false }
 
     var body: some View {
         ZStack {
@@ -66,16 +67,15 @@ struct TVSettingsView: View {
         }
         #if DEBUG
         // Screenshot/verification seam (DEBUG only): auto-open a sub-screen so XcodeBuildMCP can
-        // capture it without tvOS navigation tools. `--uitest-tv-present=<unlock-pro|
-        // unlock-automation|tip|broker-setup>`.
+        // capture it without tvOS navigation tools. `--uitest-tv-present=<unlock-supporter|tip|
+        // broker-setup>`.
         .onAppear {
             guard let arg = ProcessInfo.processInfo.arguments
                 .first(where: { $0.hasPrefix("--uitest-tv-present=") })?
                 .dropFirst("--uitest-tv-present=".count)
             else { return }
             switch arg {
-            case "unlock-pro": unlockTier = .pro
-            case "unlock-automation": unlockTier = .automation
+            case "unlock-supporter": unlockTier = .supporter
             case "tip": showTipJar = true
             case "broker-setup": showBrokerSetup = true
             default: break
@@ -84,11 +84,11 @@ struct TVSettingsView: View {
         #endif
     }
 
-    // MARK: - Ambience (Pro)
+    // MARK: - Ambience
 
     @ViewBuilder
     private var ambienceRow: some View {
-        if isProEntitled {
+        if isUnlocked {
             // Owned: nothing to configure on tvOS (Ken Burns just plays; there is no tvOS clock
             // yet — a known 1000 leftover). Confirm it, so an all-unlocked frame shows no locked
             // rows at all (mirrors the iOS "no locked rows when everything is unlocked" check).
@@ -97,8 +97,8 @@ struct TVSettingsView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("tv.settings.row.pro.unlocked")
         } else {
-            LockedRow(requires: .pro, identifier: "settings.row.kenburns.locked") {
-                unlockTier = .pro
+            LockedRow(requires: .supporter, identifier: "settings.row.kenburns.locked") {
+                unlockTier = .supporter
             } content: {
                 Label {
                     VStack(alignment: .leading, spacing: 4) {
@@ -113,18 +113,18 @@ struct TVSettingsView: View {
         }
     }
 
-    // MARK: - Home Assistant (Automation)
+    // MARK: - Home Assistant
 
     @ViewBuilder
     private var homeAssistantRow: some View {
         // 1100 (amended 2026-07-20): telemetry is free (FR-1100-03a). The broker setup is
         // available to everyone so a free Apple TV frame can report its status to Home Assistant.
-        // Only *control* needs Automation — when unentitled a control-locked banner above the
-        // setup row opens the unlock screen directly; buying Automation adds control with zero
+        // Only *control* needs the Supporter Unlock — when unentitled a control-locked banner above
+        // the setup row opens the unlock screen directly; buying it adds control with zero
         // re-entry (FR-1100-14).
-        if !isAutomationEntitled {
-            LockedRow(requires: .automation, identifier: "settings.row.broker.locked") {
-                unlockTier = .automation
+        if !isUnlocked {
+            LockedRow(requires: .supporter, identifier: "settings.row.broker.locked") {
+                unlockTier = .supporter
             } content: {
                 Label {
                     VStack(alignment: .leading, spacing: 4) {
@@ -141,7 +141,7 @@ struct TVSettingsView: View {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Home Assistant (MQTT)").font(.title3.weight(.medium))
-                    if !isAutomationEntitled {
+                    if !isUnlocked {
                         Text("Connect a broker so Home Assistant can see this frame.")
                             .font(.callout).foregroundStyle(.secondary)
                     }
@@ -195,7 +195,7 @@ struct TVSettingsView: View {
                 .foregroundStyle(.secondary)
 
             // Transparency statement (docs/where-the-money-goes.md) — calm, never a nag (FR-1100-09).
-            Text("Where your money goes: the unlocks cover the project's running costs — "
+            Text("Where your money goes: the Supporter Unlock covers the project's running costs — "
                  + "developer account, AI tools, test hardware — and everything beyond that goes "
                  + "back to open-source projects that serve the community. The free frame stays "
                  + "whole, forever.")
@@ -209,4 +209,4 @@ struct TVSettingsView: View {
 // (US5 amended 2026-07-20) The old `TVLockedBrokerView` masked-config screen is gone: telemetry
 // is free, so an unentitled Apple TV frame publishes read-only sensors and its broker setup is
 // reachable live. Only *control* is gated, surfaced by the "Remote control" locked banner in
-// `homeAssistantRow`, which opens the Automation unlock screen directly.
+// `homeAssistantRow`, which opens the Supporter Unlock screen directly.

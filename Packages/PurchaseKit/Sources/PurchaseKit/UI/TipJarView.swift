@@ -321,9 +321,7 @@ private extension ProductID {
         case .tipMedium: "tip.medium"
         case .tipLarge: "tip.large"
         // Non-tips never reach a tip row, but the slug stays total rather than force-unwrapping.
-        case .pro: "pro"
-        case .automation: "automation"
-        case .everything: "everything"
+        case .supporter: "supporter"
         }
     }
 }

@@ -11,74 +11,73 @@ import Testing
 
 // MARK: - Entitlement / EntitlementSet basics
 
-@Test func entitlementHasExactlyTheTwoPaidTiers() {
-    #expect(Entitlement.allCases.count == 2)
-    #expect(Set(Entitlement.allCases) == [.pro, .automation])
+@Test func entitlementHasExactlyTheSingleSupporterUnlock() {
+    #expect(Entitlement.allCases.count == 1)
+    #expect(Set(Entitlement.allCases) == [.supporter])
 }
 
 @Test func entitlementRoundTripsThroughCodable() throws {
-    let encoded = try JSONEncoder().encode([Entitlement.pro, Entitlement.automation])
+    let encoded = try JSONEncoder().encode([Entitlement.supporter])
     let decoded = try JSONDecoder().decode([Entitlement].self, from: encoded)
 
-    #expect(decoded == [.pro, .automation])
+    #expect(decoded == [.supporter])
 }
 
 @Test func entitlementSetNoneIsEmpty() {
     let none = EntitlementSet.none
 
     #expect(none.isEmpty)
-    #expect(none.contains(.pro) == false)
-    #expect(none.contains(.automation) == false)
+    #expect(none.contains(.supporter) == false)
 }
 
-@Test func entitlementSetAllContainsEveryTier() {
+@Test func entitlementSetAllContainsTheSupporterUnlock() {
     let all = EntitlementSet.all
 
-    #expect(all.count == 2)
-    #expect(all.contains(.pro))
-    #expect(all.contains(.automation))
+    #expect(all.count == 1)
+    #expect(all.contains(.supporter))
     #expect(all == Set(Entitlement.allCases))
 }
 
-@Test func entitlementSetContainsDiscriminatesBetweenTiers() {
-    let proOnly: EntitlementSet = [.pro]
+/// With a single functional unlock, `.all` and `[.supporter]` are the same set — the whole point
+/// of the collapse. Membership still reads correctly on both ends.
+@Test func entitlementSetContainsReflectsMembership() {
+    let owned: EntitlementSet = [.supporter]
 
-    #expect(proOnly.contains(.pro))
-    #expect(proOnly.contains(.automation) == false)
+    #expect(owned.contains(.supporter))
+    #expect(EntitlementSet.none.contains(.supporter) == false)
+    #expect(EntitlementSet.all == [.supporter])
 }
 
 // MARK: - Product identifiers (must match App Store Connect exactly)
 
 @Test func productIdentifierRawValuesMatchAppStoreConnect() {
-    #expect(ProductID.pro.rawValue == "ing.kipp.Immich-Slideshow.unlock.pro")
-    #expect(ProductID.automation.rawValue == "ing.kipp.Immich-Slideshow.unlock.automation")
-    #expect(ProductID.everything.rawValue == "ing.kipp.Immich-Slideshow.unlock.everything")
+    #expect(ProductID.supporter.rawValue == "ing.kipp.Immich-Slideshow.unlock.supporter")
     #expect(ProductID.tipSmall.rawValue == "ing.kipp.Immich-Slideshow.tip.small")
     #expect(ProductID.tipMedium.rawValue == "ing.kipp.Immich-Slideshow.tip.medium")
     #expect(ProductID.tipLarge.rawValue == "ing.kipp.Immich-Slideshow.tip.large")
 }
 
 @Test func productIdentifierIsConstructibleFromItsRawValue() {
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.pro") == .pro)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.automation") == .automation)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.everything") == .everything)
+    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.supporter") == .supporter)
     #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.tip.small") == .tipSmall)
     #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.tip.medium") == .tipMedium)
     #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.tip.large") == .tipLarge)
 }
 
-/// Forward compatibility: a future SKU is simply not in the catalog — never fatal.
+/// Forward compatibility: a future SKU is simply not in the catalog — never fatal. The retired
+/// `.pro`/`.automation`/`.everything` ids are now just such unknowns.
 @Test func unknownProductIdentifiersAreNotInTheCatalog() {
     #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.future") == nil)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.PRO") == nil)
-    #expect(ProductID(rawValue: "com.example.other.unlock.pro") == nil)
+    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.SUPPORTER") == nil)
+    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.pro") == nil)
+    #expect(ProductID(rawValue: "com.example.other.unlock.supporter") == nil)
     #expect(ProductID(rawValue: "") == nil)
 }
 
 // MARK: - Catalog buckets
 
-@Test func catalogListsTheThreeUnlocksInOfferOrder() {
-    #expect(ProductCatalog.unlocks == [.pro, .automation, .everything])
+@Test func catalogListsTheSingleUnlock() {
+    #expect(ProductCatalog.unlocks == [.supporter])
 }
 
 @Test func catalogListsTheThreeTipsInAscendingOrder() {
@@ -95,20 +94,12 @@ import Testing
 
 // MARK: - grants(_:) tier mapping
 
-@Test func proGrantsOnlyTheProTier() {
-    #expect(ProductCatalog.grants(.pro) == [.pro])
-}
-
-@Test func automationGrantsOnlyTheAutomationTier() {
-    #expect(ProductCatalog.grants(.automation) == [.automation])
-}
-
-/// The everything-bundle is a *product* that grants both tiers — it is never an entitlement of
-/// its own (data-model.md §Entitlement).
+/// The one unlock grants the whole entitlement set — there are no tiers and no bundle, so owning
+/// the Supporter Unlock is owning everything gated (data-model.md §Entitlement).
 // @covers FR-1100-04
-@Test func everythingBundleGrantsBothTiers() {
-    #expect(ProductCatalog.grants(.everything) == [.pro, .automation])
-    #expect(ProductCatalog.grants(.everything) == EntitlementSet.all)
+@Test func supporterGrantsTheFullEntitlementSet() {
+    #expect(ProductCatalog.grants(.supporter) == [.supporter])
+    #expect(ProductCatalog.grants(.supporter) == EntitlementSet.all)
 }
 
 /// FR-1100-08: tips are pure goodwill and never unlock anything.

@@ -185,8 +185,8 @@ final class DeviceRigConfigUITests: XCTestCase {
     }
 
     /// Fills the broker editor. Reachable while unentitled by design: the 1100 amendment made HA
-    /// telemetry free, so the editor is live and only *control* sits behind the Automation
-    /// unlock (the old fully-masked LockedBrokerView was deleted).
+    /// telemetry free, so the editor is live and only *control* sits behind the Supporter
+    /// Unlock (the old fully-masked LockedBrokerView was deleted).
     @MainActor
     private func configureBroker(_ app: XCUIApplication) throws {
         let password = try XCTUnwrap(

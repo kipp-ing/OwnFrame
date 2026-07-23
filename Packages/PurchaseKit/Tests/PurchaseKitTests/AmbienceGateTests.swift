@@ -1,7 +1,7 @@
 import Testing
 @testable import PurchaseKit
 
-// T015 — RED tests for `AmbienceGate`, the per-photo latch that gates the two `.pro` ambience
+// T015 — RED tests for `AmbienceGate`, the per-photo latch that gates the two Supporter ambience
 // features (data-model.md §Gated feature mapping: Ken Burns motion, clock overlay).
 //
 // The type is a pure value — no SwiftUI, no I/O, no clock — so the boundary rule of FR-1100-12
@@ -29,8 +29,8 @@ import Testing
     #expect(gate.effectiveClock(setting: true) == false)
 }
 
-/// The gate only ever subtracts. Owning `.pro` must never switch on a feature the user has
-/// deliberately turned off.
+/// The gate only ever subtracts. Owning the Supporter Unlock must never switch on a feature the
+/// user has deliberately turned off.
 @Test func entitledGateNeverTurnsOnADisabledSetting() {
     let gate = AmbienceGate(entitled: true)
 
@@ -132,8 +132,8 @@ import Testing
 
 // MARK: - Both features sit in the same tier
 
-/// Ken Burns and the clock are both `.pro`, so the two accessors are the same truth table.
-/// A future tier split would have to break this test deliberately.
+/// Ken Burns and the clock are both Supporter features, so the two accessors are the same truth
+/// table. A future tier split would have to break this test deliberately.
 @Test func kenBurnsAndClockAgreeForEveryInputCombination() {
     for latched in [true, false] {
         let gate = AmbienceGate(entitled: latched)

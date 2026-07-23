@@ -93,9 +93,7 @@ public final class StubStoreClient: StoreClient, @unchecked Sendable {
 private extension ProductID {
     var stubDisplayName: String {
         switch self {
-        case .pro: "Pro"
-        case .automation: "Automation"
-        case .everything: "Everything"
+        case .supporter: "Supporter"
         case .tipSmall: "Small Tip"
         case .tipMedium: "Medium Tip"
         case .tipLarge: "Large Tip"

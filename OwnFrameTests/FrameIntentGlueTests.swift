@@ -203,12 +203,12 @@ struct FrameIntentGlueTests {
             registry = try #require(FrameIntentContext.registry)
             previousConfigured = registry.isConfigured
             previousSourceOptions = registry.sourceOptions
-            // 1100: App Intents are the Automation tier, so every `perform()` now guards on
-            // `.automation`. These tests are about intent *glue*, not the gate, so seed the
+            // 1100: App Intents need the Supporter Unlock, so every `perform()` now guards on
+            // `.supporter`. These tests are about intent *glue*, not the gate, so seed the
             // entitlement and let PurchaseGateIntentTests own the locked behaviour. Without
             // this the suite would run against the ambient app value and fail as locked.
             previousEntitlements = FrameIntentContext.entitlements
-            FrameIntentContext.entitlements = { [.automation] }
+            FrameIntentContext.entitlements = { [.supporter] }
             surface = RecordingControlSurface()
             registry.isConfigured = configured
             if let sources {

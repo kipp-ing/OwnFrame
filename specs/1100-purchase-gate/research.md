@@ -1,5 +1,14 @@
 # Phase 0 Research — Purchase Gate & One-Time Unlocks (1100)
 
+> **Superseded in part, 2026-07-23 — historical record.** The two-tier recommendation this
+> document explores (R2's Pro / Automation / everything-bundle topology, and the tier-shaped
+> reasoning in R5/R7/R8) was **superseded on 2026-07-22 by a single "Supporter Unlock"** that
+> grants every gated capability at once (see spec.md FR-1100-02/04). The single-product decision
+> was taken for lower friction on a niche self-hosted audience and to delete the whole class of
+> bundle-vs-single-unlock edge cases. This file is left as the record of the original Phase 0
+> analysis; the technology decisions (StoreKit 2, offline cache, point-of-effect gating) are
+> unchanged. Read every "Pro"/"Automation"/"bundle" below as "the Supporter Unlock".
+
 No open NEEDS CLARIFICATION markers existed in the spec; this document records the technology
 and design decisions with rationale and rejected alternatives.
 

@@ -2,13 +2,13 @@
 //  PurchaseGateIntentTests.swift
 //  OwnFrameTests
 //
-//  1100 (T019) RED: the `.automation` guard on every App Intent
+//  1100 (T019) RED: the Supporter-Unlock guard on every App Intent
 //  (data-model.md §Gated feature mapping — "each intent `perform()` guard").
 //
 //  Two rules are pinned here.
 //
-//  1. Every remote-control intent's `perform()` throws without `.automation`, with
-//     the localized `unlock.required.automation` copy. The guard sits BEFORE the
+//  1. Every remote-control intent's `perform()` throws without the Supporter Unlock, with
+//     the localized `unlock.required.supporter` copy. The guard sits BEFORE the
 //     registry resolution and before any verb reaches the control surface, so a
 //     locked intent is inert — it must never move the frame and then complain.
 //
@@ -16,7 +16,7 @@
 //     an owner already built and make the capability undiscoverable; the intended
 //     behaviour is a discoverable intent that fails with a readable unlock message.
 //     `GetFrameStateIntent` is included: reading the frame's state remotely is the
-//     same Automation capability as driving it.
+//     same Supporter-Unlock capability as driving it.
 //
 
 import AppIntents
@@ -33,71 +33,71 @@ struct PurchaseGateIntentTests {
 
     // MARK: - The locked copy
 
-    /// The exact user-facing string behind `unlock.required.automation`.
-    static let automationLockedCopy = "Remote control requires the Automation unlock."
+    /// The exact user-facing string behind `unlock.required.supporter`.
+    static let supporterRequiredCopy = "Remote control requires the Supporter Unlock."
 
-    @Test func automationLockedErrorCarriesTheContractCopy() {
+    @Test func supporterRequiredErrorCarriesTheContractCopy() {
         #expect(
-            String(localized: FrameIntentError.automationLocked.localizedStringResource)
-                == Self.automationLockedCopy
+            String(localized: FrameIntentError.supporterRequired.localizedStringResource)
+                == Self.supporterRequiredCopy
         )
     }
 
     // MARK: - Every control intent is guarded
 
-    @Test func pauseIntentThrowsWithoutAutomation() async throws {
+    @Test func pauseIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await PauseSlideshowIntent().perform()
         }
         #expect(fixture.surface.calls.isEmpty)
     }
 
-    @Test func resumeIntentThrowsWithoutAutomation() async throws {
+    @Test func resumeIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await ResumeSlideshowIntent().perform()
         }
         #expect(fixture.surface.calls.isEmpty)
     }
 
-    @Test func nextPhotoIntentThrowsWithoutAutomation() async throws {
+    @Test func nextPhotoIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await NextPhotoIntent().perform()
         }
         #expect(fixture.surface.calls.isEmpty)
     }
 
-    @Test func previousPhotoIntentThrowsWithoutAutomation() async throws {
+    @Test func previousPhotoIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await PreviousPhotoIntent().perform()
         }
         #expect(fixture.surface.calls.isEmpty)
     }
 
-    @Test func setBrightnessIntentThrowsWithoutAutomation() async throws {
+    @Test func setBrightnessIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
         defer { fixture.restore() }
 
         let intent = SetBrightnessIntent()
         intent.brightness = 40
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await intent.perform()
         }
         #expect(fixture.surface.calls.isEmpty)
     }
 
-    @Test func selectSourceIntentThrowsWithoutAutomation() async throws {
+    @Test func selectSourceIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(
             entitlements: EntitlementSet.none,
             sources: [SourceOption(id: "s1", label: "Iceland 2021")]
@@ -106,17 +106,17 @@ struct PurchaseGateIntentTests {
 
         let intent = SelectSourceIntent()
         intent.source = SourceEntity(id: "s1", label: "Iceland 2021")
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await intent.perform()
         }
         #expect(fixture.surface.calls.isEmpty)
     }
 
-    @Test func getFrameStateIntentThrowsWithoutAutomation() async throws {
+    @Test func getFrameStateIntentThrowsWithoutSupporterUnlock() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await GetFrameStateIntent().perform()
         }
     }
@@ -124,30 +124,40 @@ struct PurchaseGateIntentTests {
     /// The guard must precede the registry resolution: an unentitled *and*
     /// unconfigured frame reports the unlock, not the setup copy. Otherwise the
     /// owner is sent to fix a frame that was never the problem.
-    @Test func automationGuardPrecedesTheNotConfiguredCheck() async throws {
+    @Test func supporterGuardPrecedesTheNotConfiguredCheck() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.none, configured: false)
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
+        await #expect(throws: FrameIntentError.supporterRequired) {
             _ = try await PauseSlideshowIntent().perform()
         }
     }
 
-    /// Pro is the ambience tier — it buys no remote control.
-    @Test func proAloneDoesNotSatisfyTheIntentGuard() async throws {
-        let fixture = try IntentGateFixture(entitlements: [.pro])
+    /// There is exactly one functional entitlement now: without the Supporter Unlock an intent
+    /// is locked, and owning it drives the intent. No partial tier exists that could satisfy the
+    /// guard while leaving control locked.
+    @Test func supporterUnlockIsTheSoleGate() async throws {
+        do {
+            let fixture = try IntentGateFixture(entitlements: EntitlementSet.none)
+            defer { fixture.restore() }
+
+            await #expect(throws: FrameIntentError.supporterRequired) {
+                _ = try await PauseSlideshowIntent().perform()
+            }
+            #expect(fixture.surface.calls.isEmpty)
+        }
+
+        let fixture = try IntentGateFixture(entitlements: [.supporter])
         defer { fixture.restore() }
 
-        await #expect(throws: FrameIntentError.automationLocked) {
-            _ = try await PauseSlideshowIntent().perform()
-        }
-        #expect(fixture.surface.calls.isEmpty)
+        _ = try await PauseSlideshowIntent().perform()
+        #expect(fixture.surface.calls == [.pause])
     }
 
     // MARK: - Entitled behaviour is exactly the pre-gate behaviour
 
-    @Test func automationOwnerDrivesEveryIntentUnchanged() async throws {
-        let fixture = try IntentGateFixture(entitlements: [.automation])
+    @Test func supporterOwnerDrivesEveryIntentUnchanged() async throws {
+        let fixture = try IntentGateFixture(entitlements: [.supporter])
         defer { fixture.restore() }
 
         _ = try await PauseSlideshowIntent().perform()
@@ -158,7 +168,8 @@ struct PurchaseGateIntentTests {
         #expect(fixture.surface.calls == [.pause, .resume, .showNext, .showPrevious])
     }
 
-    @Test func everythingBundleOwnerDrivesTheIntents() async throws {
+    /// The full `EntitlementSet.all` convenience grant (== `[.supporter]`) drives the intents.
+    @Test func fullEntitlementSetDrivesTheIntents() async throws {
         let fixture = try IntentGateFixture(entitlements: EntitlementSet.all)
         defer { fixture.restore() }
 

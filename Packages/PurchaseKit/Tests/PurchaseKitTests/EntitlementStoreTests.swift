@@ -60,21 +60,20 @@ private final class StoreFixture {
 @MainActor
 // @covers FR-1100-10
 @Test func currentIsSeededFromTheCacheAtInitWithoutTouchingTheClient() {
-    let fixture = StoreFixture(seed: [.pro])
+    let fixture = StoreFixture(seed: [.supporter])
 
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
     #expect(fixture.client.totalCallCount == 0)
     #expect(fixture.client.callLog.isEmpty)
 }
 
 @MainActor
 // @covers FR-1100-10
-@Test func bothTiersAreSeededFromTheCacheAtInit() {
+@Test func theEntitlementIsSeededFromTheCacheAtInit() {
     let fixture = StoreFixture(seed: EntitlementSet.all)
 
     #expect(fixture.store.current == EntitlementSet.all)
-    #expect(fixture.store.current.contains(.pro))
-    #expect(fixture.store.current.contains(.automation))
+    #expect(fixture.store.current.contains(.supporter))
     #expect(fixture.client.totalCallCount == 0)
 }
 
@@ -116,19 +115,19 @@ private final class StoreFixture {
 @MainActor
 @Test func successfulRefreshAppliesTheResolvedEntitlements() async {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.pro)
+    fixture.client.enqueueOwned(.supporter)
 
     await fixture.store.refresh()
 
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
     #expect(fixture.client.ownedTransactionsCallCount == 1)
 }
 
 @MainActor
 // @covers FR-1100-04
-@Test func successfulRefreshResolvesTheBundleIntoBothTiers() async {
+@Test func successfulRefreshResolvesTheSupporterUnlockIntoTheFullSet() async {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.everything)
+    fixture.client.enqueueOwned(.supporter)
 
     await fixture.store.refresh()
 
@@ -139,12 +138,12 @@ private final class StoreFixture {
 // @covers FR-1100-10
 @Test func successfulRefreshPersistsTheResolvedEntitlements() async throws {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.automation)
+    fixture.client.enqueueOwned(.supporter)
 
     await fixture.store.refresh()
 
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == [.automation])
+    #expect(persisted.entitlements == [.supporter])
     #expect(fixture.store.current == persisted.entitlements)
 }
 
@@ -154,7 +153,7 @@ private final class StoreFixture {
 // @covers FR-1100-10
 @Test func entitlementsPersistedByRefreshSeedTheNextLaunch() async {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.everything)
+    fixture.client.enqueueOwned(.supporter)
     await fixture.store.refresh()
 
     let relaunched = fixture.relaunch()
@@ -163,20 +162,22 @@ private final class StoreFixture {
     #expect(relaunched.client.totalCallCount == 0)
 }
 
-/// FR-1100-08: a tip purchase resolves to no entitlement at all.
+/// FR-1100-08: a tip purchase resolves to no entitlement, and a revoked unlock contributes
+/// nothing, while a live unlock still grants — the tip and the refunded transaction are both
+/// ignored, the surviving one is honoured.
 @MainActor
 // @covers FR-1100-08, FR-1100-12
 @Test func refreshIgnoresTipsAndRevokedTransactions() async {
     let fixture = StoreFixture()
     fixture.client.enqueueOwnedTransactions([
         OwnedTransaction(productID: ProductID.tipLarge.rawValue, isRevoked: false),
-        OwnedTransaction(productID: ProductID.pro.rawValue, isRevoked: true),
-        OwnedTransaction(productID: ProductID.automation.rawValue, isRevoked: false),
+        OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: true),
+        OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: false),
     ])
 
     await fixture.store.refresh()
 
-    #expect(fixture.store.current == [.automation])
+    #expect(fixture.store.current == [.supporter])
 }
 
 // MARK: - restore(): platform sync, then refresh
@@ -185,7 +186,7 @@ private final class StoreFixture {
 // @covers FR-1100-11
 @Test func restoreCallsTheClientRestoreAndThenRefreshes() async throws {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.everything)
+    fixture.client.enqueueOwned(.supporter)
 
     try await fixture.store.restore()
 
@@ -197,13 +198,13 @@ private final class StoreFixture {
 // @covers FR-1100-10, FR-1100-11
 @Test func restorePersistsTheRepopulatedEntitlements() async throws {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.pro)
+    fixture.client.enqueueOwned(.supporter)
 
     try await fixture.store.restore()
 
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == [.pro])
-    #expect(fixture.store.current == [.pro])
+    #expect(persisted.entitlements == [.supporter])
+    #expect(fixture.store.current == [.supporter])
 }
 
 /// FR-1100-11: restore is idempotent — running it twice ends in the same state.
@@ -211,13 +212,13 @@ private final class StoreFixture {
 // @covers FR-1100-11
 @Test func restoreIsIdempotent() async throws {
     let fixture = StoreFixture()
-    fixture.client.enqueueOwned(.pro)
-    fixture.client.enqueueOwned(.pro)
+    fixture.client.enqueueOwned(.supporter)
+    fixture.client.enqueueOwned(.supporter)
 
     try await fixture.store.restore()
     try await fixture.store.restore()
 
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
     #expect(fixture.client.restoreCallCount == 2)
     #expect(fixture.client.ownedTransactionsCallCount == 2)
 }
@@ -225,7 +226,7 @@ private final class StoreFixture {
 @MainActor
 // @covers FR-1100-10
 @Test func restoreRethrowsAPlatformSyncFailureWithoutRefreshing() async {
-    let fixture = StoreFixture(seed: [.pro])
+    let fixture = StoreFixture(seed: [.supporter])
     fixture.client.failNextRestore()
 
     await #expect(throws: StoreClientFake.Failure.self) {
@@ -234,7 +235,7 @@ private final class StoreFixture {
 
     #expect(fixture.client.callLog == [.restore])
     #expect(fixture.client.ownedTransactionsCallCount == 0)
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
 }
 
 // ===========================================================================================
@@ -302,8 +303,7 @@ private func waitFor(
     }
 
     #expect(fixture.client.ownedTransactionsCallCount == 25)
-    #expect(fixture.store.current.contains(.pro))
-    #expect(fixture.store.current.contains(.automation))
+    #expect(fixture.store.current.contains(.supporter))
 }
 
 /// The full unattended scenario: an ancient snapshot, a store that never answers, repeated
@@ -329,28 +329,30 @@ private func waitFor(
 
 /// Without this test, "never shrink on failure" could be satisfied by never shrinking at all —
 /// which would silently break revocation. A *store-confirmed* smaller set must take effect and
-/// must be persisted, so the relock survives a relaunch instead of flapping back.
+/// must be persisted, so the relock survives a relaunch instead of flapping back. With a single
+/// unlock the only smaller set is empty, reached here by a successful resolve that reports nothing
+/// owned (distinct from the revocation path below).
 @MainActor
 // @covers FR-1100-12
 @Test func aSuccessfulResolveToASmallerSetShrinksAndPersists() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
-    fixture.client.enqueueOwned(.pro)
+    fixture.client.enqueueOwnedTransactions([])
 
     await fixture.store.refresh()
 
-    #expect(fixture.store.current == [.pro])
-    #expect(!fixture.store.current.contains(.automation))
+    #expect(fixture.store.current == EntitlementSet.none)
+    #expect(!fixture.store.current.contains(.supporter))
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == [.pro])
+    #expect(persisted.entitlements == EntitlementSet.none)
 }
 
-/// A refund of everything: the set empties, and it empties in the cache too.
+/// A refund of the unlock: the set empties, and it empties in the cache too.
 @MainActor
 // @covers FR-1100-12
 @Test func aFullRevocationClearsTheEntitlementsAndTheSnapshot() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.client.enqueueOwnedTransactions([
-        OwnedTransaction(productID: ProductID.everything.rawValue, isRevoked: true)
+        OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: true)
     ])
 
     await fixture.store.refresh()
@@ -360,17 +362,19 @@ private func waitFor(
     #expect(persisted.entitlements == EntitlementSet.none)
 }
 
-/// The shrink is durable: a relaunch must not resurrect the refunded tier from a stale cache.
+/// The shrink is durable: a relaunch must not resurrect the refunded unlock from a stale cache.
 @MainActor
 // @covers FR-1100-12
-@Test func aRevokedTierDoesNotComeBackOnTheNextLaunch() async {
+@Test func aRevokedUnlockDoesNotComeBackOnTheNextLaunch() async {
     let fixture = StoreFixture(seed: EntitlementSet.all)
-    fixture.client.enqueueOwned(.automation)
+    fixture.client.enqueueOwnedTransactions([
+        OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: true)
+    ])
     await fixture.store.refresh()
 
     let relaunched = fixture.relaunch()
 
-    #expect(relaunched.store.current == [.automation])
+    #expect(relaunched.store.current == EntitlementSet.none)
     #expect(relaunched.client.totalCallCount == 0)
 }
 
@@ -383,14 +387,14 @@ private func waitFor(
 @Test func anUpdateEventReResolvesAndPersistsTheNewEntitlements() async throws {
     let fixture = StoreFixture()
     fixture.store.listenForUpdates()
-    fixture.client.enqueueOwned(.pro)
+    fixture.client.enqueueOwned(.supporter)
 
     fixture.client.emitUpdate()
 
-    await waitFor("the update event to be re-resolved") { fixture.store.current == [.pro] }
-    #expect(fixture.store.current == [.pro])
+    await waitFor("the update event to be re-resolved") { fixture.store.current == [.supporter] }
+    #expect(fixture.store.current == [.supporter])
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == [.pro])
+    #expect(persisted.entitlements == [.supporter])
     fixture.client.finishUpdates()
 }
 
@@ -403,7 +407,7 @@ private func waitFor(
     let fixture = StoreFixture()
     fixture.store.listenForUpdates()
     fixture.client.enqueueOwnedTransactions([])
-    fixture.client.enqueueOwned(.pro)
+    fixture.client.enqueueOwned(.supporter)
 
     fixture.client.emitUpdate()
     await waitFor("the deferred purchase to resolve to nothing") {
@@ -413,9 +417,9 @@ private func waitFor(
 
     fixture.client.emitUpdate()
 
-    await waitFor("the approval to be re-resolved") { fixture.store.current == [.pro] }
+    await waitFor("the approval to be re-resolved") { fixture.store.current == [.supporter] }
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == [.pro])
+    #expect(persisted.entitlements == [.supporter])
     fixture.client.finishUpdates()
 }
 
@@ -449,16 +453,15 @@ private func waitFor(
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.store.listenForUpdates()
     fixture.client.enqueueOwnedTransactions([
-        OwnedTransaction(productID: ProductID.pro.rawValue, isRevoked: true),
-        OwnedTransaction(productID: ProductID.automation.rawValue, isRevoked: false),
+        OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: true),
     ])
 
     fixture.client.emitUpdate()
 
     await waitFor("the pushed revocation to be applied") {
-        fixture.store.current == [.automation]
+        fixture.store.current == EntitlementSet.none
     }
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == [.automation])
+    #expect(persisted.entitlements == EntitlementSet.none)
     fixture.client.finishUpdates()
 }

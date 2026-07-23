@@ -24,11 +24,11 @@ final class ClockOverlayUITests: XCTestCase {
     @MainActor
     private func launchIntoSlideshow(extraArgs: [String] = [], expectImage: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
-        // 1100: the clock overlay is a `.pro` feature, so these 510 tests seed the
+        // 1100: the clock overlay is a Supporter Unlock feature, so these 510 tests seed the
         // entitlement. They are about clock BEHAVIOUR; the locked-clock case belongs to
         // PurchaseGateUITests. The seam default stays `none` on purpose, so a launch that
         // forgets this exercises the free frame rather than silently testing entitled.
-        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-entitlements=pro"] + extraArgs
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-entitlements=supporter"] + extraArgs
         app.launch()
         if expectImage {
             XCTAssertTrue(image(app).waitForExistence(timeout: 5), "slideshow should be running")
@@ -160,7 +160,7 @@ final class ClockOverlayUITests: XCTestCase {
         // hidden the overlay reflects it, and the store persists it.
         let app = XCUIApplication()
         app.launchArguments = [
-            "--uitest", "--uitest-slideshow", "--uitest-entitlements=pro",
+            "--uitest", "--uitest-slideshow", "--uitest-entitlements=supporter",
             "--uitest-reset-theme", "--uitest-clock-style=analog"
         ]
         app.launch()
@@ -173,7 +173,7 @@ final class ClockOverlayUITests: XCTestCase {
         // launch — this test is about the THEME store persisting, not the entitlement.
         app.terminate()
         let relaunch = XCUIApplication()
-        relaunch.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-entitlements=pro"]
+        relaunch.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-entitlements=supporter"]
         relaunch.launch()
         let persisted = relaunch.descendants(matching: .any).matching(identifier: "slideshow.clock").firstMatch
         XCTAssertTrue(persisted.waitForExistence(timeout: 5), "clock persisted on across relaunch")
@@ -187,7 +187,7 @@ final class ClockOverlayUITests: XCTestCase {
         // Clock on with non-default style/place via seams; Settings open, chrome pinned.
         let app = XCUIApplication()
         app.launchArguments = [
-            "--uitest", "--uitest-slideshow", "--uitest-entitlements=pro",
+            "--uitest", "--uitest-slideshow", "--uitest-entitlements=supporter",
             "--uitest-chrome", "--uitest-settings",
             "--uitest-reset-theme", "--uitest-clock-style=analog", "--uitest-clock-place=topCenter"
         ]

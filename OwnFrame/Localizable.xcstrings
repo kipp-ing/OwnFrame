@@ -495,7 +495,7 @@
     "Remote control" : {
 
     },
-    "Remote control from Home Assistant and Shortcuts needs the Automation unlock." : {
+    "Remote control from Home Assistant and Shortcuts needs the Supporter Unlock." : {
 
     },
     "Remove" : {
@@ -706,14 +706,14 @@
     "Type" : {
 
     },
-    "unlock.required.automation" : {
-      "comment" : "Error shown when an App Intent (Shortcuts / Siri) is run on a frame that does not own the Automation unlock.",
+    "unlock.required.supporter" : {
+      "comment" : "Error shown when an App Intent (Shortcuts / Siri) is run on a frame that does not own the Supporter Unlock.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remote control requires the Automation unlock."
+            "value" : "Remote control requires the Supporter Unlock."
           }
         }
       }

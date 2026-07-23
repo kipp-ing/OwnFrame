@@ -6,9 +6,9 @@ import Testing
 // contracts/purchasekit-api.md §StoreClient).
 //
 // Covered here:
-//   * offer computation (FR-1100-04) — owns none → both tiers + the bundle; owns exactly one
-//     unlock → only the missing single unlock, never the bundle; owns everything → an owned
-//     state with nothing on sale.
+//   * offer computation (FR-1100-04) — owns none → the single Supporter Unlock; owns it already
+//     → an owned state with nothing left on sale. There is no bundle and no partial ownership, so
+//     "owns one tier, offered the other" cannot occur.
 //   * `unavailable` (FR-1100-16) — a throwing `products(for:)` produces a state that carries no
 //     products at all, so there is no surface a placeholder price could live on.
 //   * purchase edge states (FR-1100-15) — `.pending` is terminal for the session, `.cancelled`
@@ -38,7 +38,7 @@ private final class UnlockFixture {
     let model: PurchaseViewModel
 
     /// - Parameters:
-    ///   - tier: the tier whose unlock screen is being shown.
+    ///   - tier: the tier whose unlock screen is being shown (always `.supporter` now).
     ///   - owned: products the user already owns, before this screen is opened.
     init(tier: Entitlement, owned: [ProductID] = []) {
         let defaults = DefaultsFixture()
@@ -136,7 +136,7 @@ private extension PurchasePhase {
 /// Construction is inert: the screen renders `loading` and no store traffic has happened yet.
 @MainActor
 @Test func theUnlockScreenStartsLoadingWithoutTouchingTheStore() {
-    let fixture = UnlockFixture(tier: .pro)
+    let fixture = UnlockFixture(tier: .supporter)
 
     #expect(fixture.model.phase.isLoading)
     #expect(fixture.client.totalCallCount == 0)
@@ -144,78 +144,35 @@ private extension PurchasePhase {
 
 // MARK: - Offer computation (FR-1100-04)
 
+/// Owning nothing offers exactly the one Supporter Unlock, whichever locked row opened the screen.
 @MainActor
 // @covers FR-1100-04
-@Test func owningNothingOffersBothTiersAndTheBundle() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
+@Test func owningNothingOffersTheSupporterUnlock() async throws {
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
 
     await fixture.model.load()
 
-    #expect(fixture.client.requestedProductIDs == [[.pro, .automation, .everything]])
+    #expect(fixture.client.requestedProductIDs == [[.supporter]])
     let products = try #require(fixture.model.phase.readyProducts)
-    #expect(products.map(\.id) == [.pro, .automation, .everything])
+    #expect(products.map(\.id) == [.supporter])
     // A price must exist for every offer; its value is App Store Connect's business.
     #expect(products.allSatisfy { !$0.displayPrice.isEmpty })
 }
 
-/// FR-1100-04: a user who owns one tier is offered only the missing tier. Re-selling a bundle
-/// that contains something already paid for is the specific trap this rule forbids.
+/// Owning the Supporter Unlock leaves nothing to sell: the screen states what is owned and queries
+/// no products at all. This is the whole "never re-sell what is already owned" rule now that there
+/// is a single unlock and no bundle (FR-1100-04).
 @MainActor
 // @covers FR-1100-04
-@Test func owningProOffersOnlyAutomationAndNeverTheBundle() async throws {
-    let fixture = UnlockFixture(tier: .automation, owned: [.pro])
-    fixture.stocks([.automation])
-
-    await fixture.model.load()
-
-    #expect(fixture.client.requestedProductIDs == [[.automation]])
-    let products = try #require(fixture.model.phase.readyProducts)
-    #expect(products.map(\.id) == [.automation])
-    #expect(!products.contains { $0.id == .everything })
-    #expect(!fixture.client.requestedProductIDs.flatMap { $0 }.contains(.everything))
-}
-
-@MainActor
-// @covers FR-1100-04
-@Test func owningAutomationOffersOnlyProAndNeverTheBundle() async throws {
-    let fixture = UnlockFixture(tier: .pro, owned: [.automation])
-    fixture.stocks([.pro])
-
-    await fixture.model.load()
-
-    #expect(fixture.client.requestedProductIDs == [[.pro]])
-    let products = try #require(fixture.model.phase.readyProducts)
-    #expect(products.map(\.id) == [.pro])
-    #expect(!products.contains { $0.id == .everything })
-    #expect(!fixture.client.requestedProductIDs.flatMap { $0 }.contains(.everything))
-}
-
-/// Owning the bundle leaves nothing to sell: the screen states what is owned and queries no
-/// products at all.
-@MainActor
-// @covers FR-1100-04
-@Test func owningEverythingShowsTheOwnedStateWithNoProducts() async throws {
-    let fixture = UnlockFixture(tier: .pro, owned: [.everything])
+@Test func owningTheSupporterUnlockShowsTheOwnedStateWithNoProducts() async throws {
+    let fixture = UnlockFixture(tier: .supporter, owned: [.supporter])
 
     await fixture.model.load()
 
     let owned = try #require(fixture.model.phase.completedEntitlements)
     #expect(owned == EntitlementSet.all)
-    #expect(fixture.model.phase.readyProducts == nil)
-    #expect(fixture.client.productsCallCount == 0)
-}
-
-/// Both single unlocks together are the same thing as the bundle — nothing left to offer.
-@MainActor
-// @covers FR-1100-04
-@Test func owningBothSingleUnlocksShowsTheOwnedStateWithNoProducts() async throws {
-    let fixture = UnlockFixture(tier: .pro, owned: [.pro, .automation])
-
-    await fixture.model.load()
-
-    let owned = try #require(fixture.model.phase.completedEntitlements)
-    #expect(owned == EntitlementSet.all)
+    #expect(owned == [.supporter])
     #expect(fixture.model.phase.readyProducts == nil)
     #expect(fixture.client.productsCallCount == 0)
 }
@@ -227,7 +184,7 @@ private extension PurchasePhase {
 @MainActor
 // @covers FR-1100-16
 @Test func anUnreachableStoreYieldsUnavailableWithNoProductsAtAll() async {
-    let fixture = UnlockFixture(tier: .pro)
+    let fixture = UnlockFixture(tier: .supporter)
     fixture.client.failNextProducts()
 
     await fixture.model.load()
@@ -243,21 +200,21 @@ private extension PurchasePhase {
 
 /// Ask to Buy: `.pending` ends the session's purchase attempt. Approval arrives later over the
 /// updates stream (T029) — the model must not spin, must not optimistically complete, and must
-/// not grant the tier in the meantime.
+/// not grant the unlock in the meantime.
 @MainActor
 // @covers FR-1100-15
 @Test func aPendingPurchaseIsTerminalForTheSessionAndGrantsNothing() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
     await fixture.model.load()
     fixture.client.enqueuePurchase(.pending)
     // The fake's standing answer is `.success`, so a silent retry would visibly complete here.
     fixture.client.setDefaultPurchase(.success(.success))
     fixture.client.resetCallLog()
 
-    await fixture.model.buy(.pro)
+    await fixture.model.buy(.supporter)
 
-    #expect(fixture.model.phase.pendingProductID == .pro)
+    #expect(fixture.model.phase.pendingProductID == .supporter)
     #expect(fixture.model.phase.completedEntitlements == nil)
     #expect(fixture.client.purchaseCallCount == 1)
     #expect(fixture.store.current == EntitlementSet.none)
@@ -267,16 +224,16 @@ private extension PurchasePhase {
 @MainActor
 // @covers FR-1100-15
 @Test func aCancelledPurchaseReturnsToReadyWithNoEntitlementChange() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
     await fixture.model.load()
     fixture.client.enqueuePurchase(.cancelled)
     fixture.client.resetCallLog()
 
-    await fixture.model.buy(.pro)
+    await fixture.model.buy(.supporter)
 
     let products = try #require(fixture.model.phase.readyProducts)
-    #expect(products.map(\.id) == [.pro, .automation, .everything])
+    #expect(products.map(\.id) == [.supporter])
     #expect(fixture.client.purchaseCallCount == 1)
     #expect(fixture.store.current == EntitlementSet.none)
 }
@@ -285,13 +242,13 @@ private extension PurchasePhase {
 @MainActor
 // @covers FR-1100-15
 @Test func aFailedPurchaseSurfacesAMessageAndLeavesEntitlementsUntouched() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
     await fixture.model.load()
     fixture.client.failNextPurchase()
     fixture.client.resetCallLog()
 
-    await fixture.model.buy(.pro)
+    await fixture.model.buy(.supporter)
 
     let message = try #require(fixture.model.phase.failureMessage)
     #expect(!message.isEmpty)
@@ -305,46 +262,32 @@ private extension PurchasePhase {
 /// The purchase must land through `EntitlementStore.refresh()`, which is the only path that
 /// resolves *and persists* ownership. `current` is `private(set)`, so a model that shortcut the
 /// store could not move it — asserting the store's state is what proves the production path ran.
+/// One purchase grants the whole entitlement set (`[.supporter] == .all`): there is no bundle to
+/// buy separately.
 @MainActor
-// @covers FR-1100-10
+// @covers FR-1100-04, FR-1100-10
 @Test func aSuccessfulPurchaseDrivesTheEntitlementThroughTheStoreRefreshPath() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
     await fixture.model.load()
     fixture.client.enqueuePurchase(.success)
-    fixture.storeNowReportsOwned(.pro)
+    fixture.storeNowReportsOwned(.supporter)
     fixture.client.resetCallLog()
 
-    await fixture.model.buy(.pro)
+    await fixture.model.buy(.supporter)
 
-    #expect(fixture.store.current == [.pro])
-    #expect(fixture.client.purchasedProductIDs == [.pro])
+    #expect(fixture.store.current == [.supporter])
+    #expect(fixture.store.current == EntitlementSet.all)
+    #expect(fixture.client.purchasedProductIDs == [.supporter])
     // Ownership is re-resolved from the store after the purchase, not assumed from the outcome.
     #expect(fixture.client.callLog.last == .ownedTransactions)
 
     let completed = try #require(fixture.model.phase.completedEntitlements)
-    #expect(completed == [.pro])
+    #expect(completed == EntitlementSet.all)
 
     // FR-1100-10: the resolved set is persisted, so the next launch starts entitled offline.
     let persisted = try #require(EntitlementSnapshotCache(defaults: fixture.defaults.defaults).load())
-    #expect(persisted.entitlements == [.pro])
-}
-
-/// Buying the bundle grants both tiers in one transaction.
-@MainActor
-// @covers FR-1100-04
-@Test func buyingTheBundleCompletesWithBothTiers() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
-    await fixture.model.load()
-    fixture.client.enqueuePurchase(.success)
-    fixture.storeNowReportsOwned(.everything)
-
-    await fixture.model.buy(.everything)
-
-    #expect(fixture.store.current == EntitlementSet.all)
-    let completed = try #require(fixture.model.phase.completedEntitlements)
-    #expect(completed == EntitlementSet.all)
+    #expect(persisted.entitlements == [.supporter])
 }
 
 // MARK: - Restore (FR-1100-11)
@@ -353,10 +296,10 @@ private extension PurchasePhase {
 @MainActor
 // @covers FR-1100-11
 @Test func restoreDelegatesToTheStoreAndReflectsTheRecoveredEntitlements() async throws {
-    let fixture = UnlockFixture(tier: .pro)
-    fixture.stocks([.pro, .automation, .everything])
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
     await fixture.model.load()
-    fixture.storeNowReportsOwned(.everything)
+    fixture.storeNowReportsOwned(.supporter)
     fixture.client.resetCallLog()
 
     await fixture.model.restore()
