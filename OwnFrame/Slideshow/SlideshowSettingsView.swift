@@ -242,10 +242,7 @@ struct SlideshowSettingsView: View {
                     if isPhotoLibrarySource {
                         // FR-900-15: never imply better quality exists — iOS caps legacy
                         // iCloud Shared Album photos; the frame shows the source's best.
-                        Text("Order and duration take effect immediately. Photos from iCloud "
-                             + "Shared Albums are capped by iOS at roughly 2048 px — the frame "
-                             + "always shows the best your library provides, and Quality has "
-                             + "no effect above that ceiling.")
+                        Text("Order and duration take effect immediately. Photos from iCloud Shared Albums are capped by iOS at roughly 2048 px — the frame always shows the best your library provides, and Quality has no effect above that ceiling.")
                             .accessibilityIdentifier("settings.quality.ceilingNote")
                     } else {
                         Text("Order and duration take effect immediately. More options to follow.")
@@ -509,9 +506,9 @@ struct SlideshowSettingsView: View {
         // value from Home Assistant that isn't a whole minute stays in seconds so it
         // isn't rounded misleadingly (e.g. 90 s → "90 s", not "1 min").
         if seconds >= 60, seconds % 60 == 0 {
-            return "\(seconds / 60) min"
+            return String(localized: "\(seconds / 60) min")
         }
-        return "\(seconds) s"
+        return String(localized: "\(seconds) s")
     }
 
     /// Decimal byte label ("500 MB", "1 GB") matching CacheBudget's decimal

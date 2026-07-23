@@ -106,7 +106,7 @@ public struct LockedRow<Content: View>: View {
         // as a button, so state the trait explicitly and drop the switch semantics.
         .accessibilityAddTraits(.isButton)
         .accessibilityRemoveTraits(.isToggle)
-        .accessibilityHint("Opens the \(tier.displayName) unlock screen.")
+        .accessibilityHint(Text("Opens the \(tier.displayName) unlock screen.", bundle: .module))
         .accessibilityIdentifier(identifier)
     }
 
@@ -128,7 +128,7 @@ public struct LockedRow<Content: View>: View {
             .padding(.vertical, 4)
             .background(Capsule().fill(.quaternary))
             // Read as one phrase; `.combine` above appends this to the wrapped row's own label.
-            .accessibilityLabel("\(tier.displayName), locked")
+            .accessibilityLabel(Text("\(tier.displayName), locked", bundle: .module))
     }
 }
 

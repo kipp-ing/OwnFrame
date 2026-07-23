@@ -107,13 +107,13 @@ struct TVBrokerSetupView: View {
     private nonisolated static func message(for error: BrokerValidationError) -> String {
         switch error {
         case .emptyHost:
-            "Please enter a broker host."
+            String(localized: "Please enter a broker host.")
         case .invalidPort:
-            "Please enter a port between 1 and 65535."
+            String(localized: "Please enter a port between 1 and 65535.")
         case .emptyUsername:
-            "Please enter a username."
+            String(localized: "Please enter a username.")
         case .emptyPassword:
-            "Please enter a password."
+            String(localized: "Please enter a password.")
         }
     }
 }

@@ -85,7 +85,7 @@ public struct UnlockScreenView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("The Supporter Unlock")
+                Text("The Supporter Unlock", bundle: .module)
                     .font(.largeTitle.weight(.semibold))
                 Text(tier.unlockTagline)
                     .font(.subheadline)
@@ -107,12 +107,12 @@ public struct UnlockScreenView: View {
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Close")
+        .accessibilityLabel(Text("Close", bundle: .module))
         .accessibilityIdentifier("unlock.close")
         #else
         // tvOS has no swipe-to-dismiss gesture and no close affordance of its own, so the
         // control has to be a real, focusable button.
-        Button("Close", action: onClose)
+        Button(action: onClose) { Text("Close", bundle: .module) }
             .accessibilityIdentifier("unlock.close")
         #endif
     }
@@ -121,7 +121,7 @@ public struct UnlockScreenView: View {
 
     private var whatYouGet: some View {
         VStack(alignment: .leading, spacing: Layout.rowSpacing) {
-            Text("What you get")
+            Text("What you get", bundle: .module)
                 .font(.headline)
 
             ForEach(tier.benefits, id: \.title) { benefit in
@@ -166,7 +166,7 @@ public struct UnlockScreenView: View {
             VStack(spacing: 8) {
                 Image(systemName: "camera.viewfinder")
                     .font(.system(size: Layout.demoGlyphSize, weight: .light))
-                Text("A slow drift and scale across every photo")
+                Text("A slow drift and scale across every photo", bundle: .module)
                     .font(.footnote)
                     .multilineTextAlignment(.center)
             }
@@ -176,7 +176,7 @@ public struct UnlockScreenView: View {
         .frame(height: Layout.demoHeight)
         .frame(maxWidth: .infinity)
         .accessibilityElement()
-        .accessibilityLabel("Ken Burns motion sample")
+        .accessibilityLabel(Text("Ken Burns motion sample", bundle: .module))
         .accessibilityIdentifier("unlock.demo.kenburns")
     }
 
@@ -202,14 +202,13 @@ public struct UnlockScreenView: View {
                 notice(
                     identifier: "unlock.pending",
                     symbol: "hourglass",
-                    title: "Waiting for approval",
+                    title: String(localized: "Waiting for approval", bundle: .module),
                     // Terminal for this session: no retry button, because the approval arrives on
                     // its own and a second tap would risk a second charge (FR-1100-15).
-                    message: """
-                        \(displayName(of: id, using: model)) was sent for approval. \
-                        The unlock switches on by itself once it is approved — there is nothing \
-                        else to do here.
-                        """
+                    message: String(
+                        localized: "\(displayName(of: id, using: model)) was sent for approval. The unlock switches on by itself once it is approved — there is nothing else to do here.",
+                        bundle: .module
+                    )
                 )
 
             case .completed(let owned):
@@ -223,7 +222,7 @@ public struct UnlockScreenView: View {
                     notice(
                         identifier: "unlock.failed",
                         symbol: "exclamationmark.triangle",
-                        title: "Purchase not completed",
+                        title: String(localized: "Purchase not completed", bundle: .module),
                         message: message
                     )
                     // Back on the offer, with no prompt and nothing re-attempted for the user.
@@ -286,13 +285,13 @@ public struct UnlockScreenView: View {
                 if busy == product.id {
                     ProgressView()
                 } else {
-                    Text("Unlock")
+                    Text("Unlock", bundle: .module)
                 }
             }
             .buttonStyle(.borderedProminent)
             // Any purchase in flight locks every row: one tap, one charge.
             .disabled(busy != nil)
-            .accessibilityLabel("Unlock \(product.displayName), \(product.displayPrice)")
+            .accessibilityLabel(Text("Unlock \(product.displayName), \(product.displayPrice)", bundle: .module))
             .accessibilityIdentifier("unlock.buy.\(product.id.uiSlug)")
         }
         .padding(Layout.rowPadding)
@@ -311,16 +310,18 @@ public struct UnlockScreenView: View {
             notice(
                 identifier: "unlock.unavailable",
                 symbol: "wifi.exclamationmark",
-                title: "The App Store is unreachable",
-                message: """
-                    Prices and purchases need a connection to the App Store. Everything you \
-                    already own keeps working, online or not.
-                    """
+                title: String(localized: "The App Store is unreachable", bundle: .module),
+                message: String(
+                    localized: "Prices and purchases need a connection to the App Store. Everything you already own keeps working, online or not.",
+                    bundle: .module
+                )
             )
 
             if let model {
-                Button("Try Again") {
+                Button {
                     Task { await model.load() }
+                } label: {
+                    Text("Try Again", bundle: .module)
                 }
                 .accessibilityIdentifier("unlock.retry")
             }
@@ -332,13 +333,15 @@ public struct UnlockScreenView: View {
             notice(
                 identifier: "unlock.completed",
                 symbol: "checkmark.seal",
-                title: owned.isEmpty ? "Thank you" : "Unlocked",
+                title: owned.isEmpty
+                    ? String(localized: "Thank you", bundle: .module)
+                    : String(localized: "Unlocked", bundle: .module),
                 message: owned.isEmpty
-                    ? "Your purchase went through. It may take a moment to appear."
-                    : "\(ownedList(owned)) — yours, on every device signed in to your Apple Account."
+                    ? String(localized: "Your purchase went through. It may take a moment to appear.", bundle: .module)
+                    : String(localized: "\(ownedList(owned)) — yours, on every device signed in to your Apple Account.", bundle: .module)
             )
 
-            Button("Done", action: onClose)
+            Button(action: onClose) { Text("Done", bundle: .module) }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("unlock.done")
         }
@@ -379,12 +382,14 @@ public struct UnlockScreenView: View {
     /// Present on every unlock screen, in every phase — including `unavailable`, where a user who
     /// already paid needs it most.
     private var restoreSection: some View {
-        Button("Restore Purchases") {
+        Button {
             guard let model else { return }
             Task { await model.restore() }
+        } label: {
+            Text("Restore Purchases", bundle: .module)
         }
         .disabled(model == nil)
-        .accessibilityHint("Recovers unlocks you already bought with this Apple Account.")
+        .accessibilityHint(Text("Recovers unlocks you already bought with this Apple Account.", bundle: .module))
         .accessibilityIdentifier("unlock.restore")
     }
 
@@ -394,8 +399,8 @@ public struct UnlockScreenView: View {
     /// outright, and nothing here may imply a recurring charge or an expiring unlock.
     private var fineprint: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Each unlock is a one-time purchase. No subscription, no recurring charge.")
-            Text("Shared with your family and included on iPad, iPhone, and Apple TV.")
+            Text("Each unlock is a one-time purchase. No subscription, no recurring charge.", bundle: .module)
+            Text("Shared with your family and included on iPad, iPhone, and Apple TV.", bundle: .module)
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
@@ -405,7 +410,8 @@ public struct UnlockScreenView: View {
     // MARK: - Copy helpers
 
     private func displayName(of id: ProductID, using model: PurchaseViewModel) -> String {
-        model.offeredProducts.first { $0.id == id }?.displayName ?? "Your purchase"
+        model.offeredProducts.first { $0.id == id }?.displayName
+            ?? String(localized: "Your purchase", bundle: .module)
     }
 
     private func ownedList(_ owned: EntitlementSet) -> String {
@@ -455,7 +461,8 @@ private extension Entitlement {
     var unlockTagline: String {
         switch self {
         case .supporter:
-            "The ambience touches and full Home Assistant control, in one purchase."
+            String(localized: "The ambience touches and full Home Assistant control, in one purchase.",
+                   bundle: .module)
         }
     }
 
@@ -464,24 +471,23 @@ private extension Entitlement {
         case .supporter:
             [
                 UnlockBenefit(
-                    title: "Ken Burns motion",
-                    detail: "Photos drift and scale slowly instead of sitting still.",
+                    title: String(localized: "Ken Burns motion", bundle: .module),
+                    detail: String(localized: "Photos drift and scale slowly instead of sitting still.", bundle: .module),
                     symbol: "camera.viewfinder"
                 ),
                 UnlockBenefit(
-                    title: "Clock overlay",
-                    detail: "A quiet clock on the frame, in your 12- or 24-hour format.",
+                    title: String(localized: "Clock overlay", bundle: .module),
+                    detail: String(localized: "A quiet clock on the frame, in your 12- or 24-hour format.", bundle: .module),
                     symbol: "clock"
                 ),
                 UnlockBenefit(
-                    title: "Home Assistant control",
-                    detail: "Brightness, album, and pause or play over MQTT, with discovery "
-                        + "and availability built in.",
+                    title: String(localized: "Home Assistant control", bundle: .module),
+                    detail: String(localized: "Brightness, album, and pause or play over MQTT, with discovery and availability built in.", bundle: .module),
                     symbol: "house"
                 ),
                 UnlockBenefit(
-                    title: "Shortcuts and Siri",
-                    detail: "App Intents so your automations and your voice can drive the frame.",
+                    title: String(localized: "Shortcuts and Siri", bundle: .module),
+                    detail: String(localized: "App Intents so your automations and your voice can drive the frame.", bundle: .module),
                     symbol: "sparkles"
                 ),
             ]
@@ -506,7 +512,8 @@ private extension ProductID {
     /// says what the purchase covers.
     var offerBlurb: String? {
         switch self {
-        case .supporter: "Ken Burns, the clock overlay, and full Home Assistant control."
+        case .supporter:
+            String(localized: "Ken Burns, the clock overlay, and full Home Assistant control.", bundle: .module)
         case .tipSmall, .tipMedium, .tipLarge: nil
         }
     }

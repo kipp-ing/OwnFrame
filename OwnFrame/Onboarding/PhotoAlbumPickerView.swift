@@ -117,7 +117,7 @@ struct PhotoAlbumPickerView: View {
 
     @ViewBuilder
     private func limitedContent(_ pool: SourceCollection?) -> some View {
-        let label = pool?.title ?? "Selected Photos"
+        let label = pool?.title ?? String(localized: "Selected Photos")
         let isAdded = sourceLibrary.sources.contains { $0.label == label }
         List {
             Section {
@@ -155,8 +155,7 @@ struct PhotoAlbumPickerView: View {
             } footer: {
                 // The honest note (US3-2): never render an empty album list as if the user
                 // had no albums — say why they are missing.
-                Text("Photo access is limited to selected photos. Albums — including iCloud "
-                     + "Shared Albums — need full photo access, which you can grant in Settings.")
+                Text("Photo access is limited to selected photos. Albums — including iCloud Shared Albums — need full photo access, which you can grant in Settings.")
                     .accessibilityIdentifier("\(idPrefix).limitedNote")
             }
         }
@@ -170,8 +169,7 @@ struct PhotoAlbumPickerView: View {
             ContentUnavailableView {
                 Label("No photo access", systemImage: "photo.on.rectangle.angled")
             } description: {
-                Text("The frame can't see your photos. Allow photo access in Settings to "
-                     + "play albums from your Photos library — other sources keep working.")
+                Text("The frame can't see your photos. Allow photo access in Settings to play albums from your Photos library — other sources keep working.")
                     .accessibilityIdentifier("\(idPrefix).denied")
             }
             Button("Open Settings") {
