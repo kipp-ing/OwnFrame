@@ -225,8 +225,7 @@ public struct TipJarView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Thank you")
                         .font(.headline)
-                    Text("That genuinely helps, and it means a lot. Nothing about the app changed "
-                        + "— you already had everything.")
+                    Text("That genuinely helps, and it means a lot. Nothing about the app changed.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
