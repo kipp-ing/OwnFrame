@@ -4,15 +4,27 @@
 
 **Created**: 2026-07-19
 
-**Status**: Draft — amended 2026-07-19: **Ken Burns motion + clock overlay form the Pro launch
-composition** (decided with Jan; possible because no version was ever publicly released, so the
-never-claw-back rule does not yet bind anything). Locked-row presentation refined the same day:
-dimmed is fine, but locked rows must carry a lock/tier badge and stay tappable. Amended
+**Status**: Draft — amended 2026-07-19: **Ken Burns motion + clock overlay form the ambience
+launch composition** (decided with Jan; possible because no version was ever publicly released,
+so the never-claw-back rule does not yet bind anything). Locked-row presentation refined the same
+day: dimmed is fine, but locked rows must carry a lock badge and stay tappable. Amended
 2026-07-20: **Home Assistant telemetry is free, only *control* is gated** — an unentitled frame
 with a broker configured connects and publishes read-only sensor entities so HA can see it,
-while controllable entities + command handling + App Intents stay behind the Automation unlock
+while controllable entities + command handling + App Intents stay behind the unlock
 (FR-1100-03 / FR-1100-03a; US5 and SC-1100-06 restated accordingly). This widens the free tier
 and never claws anything back.
+
+**Amended 2026-07-22 (single unlock):** the two separate paid tiers (**Pro** = ambience, and
+**Automation** = remote control) and the optional **everything-bundle** are **collapsed into one
+one-time purchase, the "Supporter Unlock"**, which grants *every* gated capability at once — Ken
+Burns motion, the clock overlay, and full Home Assistant remote control plus Shortcuts/App
+Intents. Rationale: for a niche self-hosted audience a single "support the project, unlock
+everything" purchase is a cleaner, lower-friction story than a tier ladder; it removes the thin
+standalone ambience tier and deletes the whole class of bundle-vs-single-unlock overlap edge
+cases. The **free tier is unchanged** (all sources + full core playback + read-only HA
+telemetry), so nothing is clawed back. Throughout this spec, wherever an earlier amendment said
+"Pro", "Automation", or "bundle", read "the Supporter Unlock"; the gated *capabilities* those
+tiers used to name are unchanged, they are simply all granted by the one product.
 
 **Input**: User description: "Monetization / purchase gate (one-time In-App Purchases). Free
 tier keeps the full adoption funnel: all photo sources and clean core playback with all
@@ -64,27 +76,30 @@ capability works.
 
 ---
 
-### User Story 2 - Unlock a paid tier (Priority: P1)
+### User Story 2 - Unlock the paid features (Priority: P1)
 
-A user who wants remote control (or the ambience pack) taps the locked feature, sees a single
-clear unlock screen with the one-time price, buys, and the feature activates immediately —
-no restart, no re-onboarding.
+A user who wants remote control or the ambience features taps any locked feature, sees a single
+clear unlock screen with the one-time price, buys the **Supporter Unlock**, and *every* gated
+feature activates immediately — no restart, no re-onboarding. There is one unlock, so there is
+never a "which tier do I need" decision.
 
 **Why this priority**: This is the revenue path; it must work end to end before the gated
 build can be the first public release (the sequencing constraint below makes the gate itself
 release-blocking).
 
-**Independent Test**: In a sandbox store environment, purchase each product (Pro, Automation,
-bundle) from the unlock screens — reached via a locked row or the settings Unlocks section —
-and verify immediate activation without app restart.
+**Independent Test**: In a sandbox store environment, purchase the single Supporter Unlock from
+an unlock screen — reached via any locked row or the settings Unlocks section — and verify that
+all gated features (ambience *and* remote control) activate immediately without app restart.
 
 **Acceptance Scenarios**:
 
-1. **Given** a free user on a locked feature's unlock screen, **When** they complete the
-   purchase, **Then** the feature becomes usable immediately (no restart) and the locked
-   labels for that tier disappear everywhere in the app.
-2. **Given** a user who owns one tier, **When** they view the other tier's unlock screen,
-   **Then** owned content is shown as owned and only the missing unlock is offered.
+1. **Given** a free user on the unlock screen (reached from any locked feature), **When** they
+   complete the purchase, **Then** every gated feature becomes usable immediately (no restart)
+   and all locked labels disappear everywhere in the app at once — ambience and automation
+   alike.
+2. **Given** a user who already owns the Supporter Unlock, **When** they reach any locked-feature
+   entry point, **Then** the feature is simply available (no locked state, no purchase screen);
+   the unlock screen is only ever reachable while unowned.
 3. **Given** a purchase that fails or is cancelled, **When** the user returns to the app,
    **Then** the app remains fully functional in its free state with no nagging follow-up
    prompt.
@@ -153,12 +168,12 @@ Apple TV under the shared app identity.
 
 ### User Story 5 - Pre-gate configuration degrades gracefully (Priority: P2)
 
-A device that configured Automation features before the gate existed (internal/TestFlight
-builds with a working broker connection) updates to the gated build without owning
-Automation. Remote *control* stops working, but the frame does not go dark: it keeps
+A device that configured remote-control features before the gate existed (internal/TestFlight
+builds with a working broker connection) updates to the gated build without owning the
+Supporter Unlock. Remote *control* stops working, but the frame does not go dark: it keeps
 reporting its status to Home Assistant (free telemetry, FR-1100-03a), broker settings and
 credentials stay stored, the settings UI shows the control features as clearly locked, and
-purchasing re-enables control with zero reconfiguration.
+purchasing the Supporter Unlock re-enables control with zero reconfiguration.
 
 **Why this priority**: Only internal devices are in this state (nothing ungated was ever
 publicly released), but silent data loss or a confusing half-broken state on Jan's own
@@ -168,12 +183,12 @@ elsewhere.
 **Independent Test**: On a device with a configured, verified broker connection, install the
 gated build unentitled; verify the frame connects and publishes read-only sensor entities but
 publishes no controllable entity and acts on no HA command; settings persist; the UI explains
-the locked control state; purchase Automation and verify the controllable entities appear and
-control resumes with the stored configuration.
+the locked control state; purchase the Supporter Unlock and verify the controllable entities
+appear and control resumes with the stored configuration.
 
 **Acceptance Scenarios**:
 
-1. **Given** stored broker configuration and no Automation entitlement, **When** the gated
+1. **Given** stored broker configuration and no Supporter Unlock, **When** the gated
    build launches, **Then** the app connects to the broker and publishes read-only telemetry
    only (availability + sensor entities, no controllable entity, no command-topic
    subscription), and all stored broker settings and credentials remain intact.
@@ -181,12 +196,12 @@ control resumes with the stored configuration.
    **Then** the broker connection settings are live (secrets masked as usual) and the *control*
    features carry a clear locked banner and one-time unlock offer — not an empty, reset, or
    fully-masked screen.
-3. **Given** the same state, **When** the user purchases Automation, **Then** the controllable
-   entities are published and remote control resumes with the previously stored configuration,
-   with no re-entry of any value.
-4. **Given** configured Shortcuts/App Intents and no Automation entitlement, **When** an
-   intent runs, **Then** it fails with a clear "requires the Automation unlock" message
-   rather than failing silently or crashing the shortcut.
+3. **Given** the same state, **When** the user purchases the Supporter Unlock, **Then** the
+   controllable entities are published and remote control resumes with the previously stored
+   configuration, with no re-entry of any value.
+4. **Given** configured Shortcuts/App Intents and no Supporter Unlock, **When** an intent runs,
+   **Then** it fails with a clear "requires the Supporter Unlock" message rather than failing
+   silently or crashing the shortcut.
 
 ---
 
@@ -219,10 +234,9 @@ never prompts for tips on its own.
 - **Revocation learned while a gated feature is mid-use**: relock takes effect at the next
   natural boundary (e.g. next app foreground or settings visit), never by yanking UI out from
   under a running slideshow.
-- **Bundle vs. single-unlock overlap**: the everything-bundle is offered only while the user
-  owns neither single unlock; a user owning one tier is offered only the missing tier (the
-  store cannot discount a one-time product dynamically, and charging twice for owned content
-  is a dark pattern).
+- **No partial ownership**: there is exactly one functional unlock, so "owns one tier but not
+  the other" cannot occur. The unlock screen only ever shows owned or not-owned; there is never
+  a second product to up-sell, and the app never charges twice for owned content.
 - **Clock in time-limited states**: no purchase state in this app is time-based — there are
   no trials, no expiry, no countdowns; any UI implying urgency is a spec violation.
 - **Entitlement state vs. config sync**: device-to-device config sync (KVS/CloudKit) must
@@ -249,21 +263,24 @@ never prompts for tips on its own.
   (auto-retry, periodic refresh) — with no purchase, account, or trial, on every supported
   platform (iPad, iPhone, Apple TV). A free frame must look finished, not crippled: the calm
   default experience (constitution VII — effects off by default) is identical free and paid.
-- **FR-1100-02**: The **Pro** unlock (working name; ambience pack) MUST be composed
-  exclusively of features that have never shipped in a publicly released version. **Launch
-  composition: Ken Burns motion and clock overlay rendering** (both implemented, neither ever
-  publicly released — FR-1100-17 keeps that true). Future candidates joining the same
-  purchase at no extra charge: weather overlay, sleep/wake scheduling, premium transitions,
-  burn-in protection, video playback, multi-source pooling. Tier membership of each future
-  feature is decided in that feature's own spec, bound by FR-1100-13.
-- **FR-1100-03**: The **Automation** unlock MUST gate *remote control* — the controllable
+- **FR-1100-02**: There MUST be exactly one functional unlock — the **Supporter Unlock** — a
+  single one-time purchase that grants *every* gated capability at once: the ambience features
+  (**Ken Burns motion and clock overlay rendering**) and remote control (FR-1100-03). Every
+  gated capability MUST be composed exclusively of features that have never shipped in a
+  publicly released version (both ambience features are implemented but never publicly released
+  — FR-1100-17 keeps that true). Future gated features — e.g. weather overlay, sleep/wake
+  scheduling, premium transitions, burn-in protection, video playback, multi-source pooling —
+  join the same single Supporter Unlock at no extra charge; each future feature's own spec
+  confirms it is gated, bound by FR-1100-13. There are no separate tiers and no bundle (see
+  FR-1100-04).
+- **FR-1100-03**: *Remote control* MUST be gated behind the Supporter Unlock — the controllable
   Home Assistant entities (brightness/light, album select, playback switch, the settings
   controls, and the next/previous buttons — everything carrying a `command_topic`), the act of
-  subscribing to and handling any HA command, and Shortcuts/App Intents (topic 800). When
-  unentitled, the app MUST NOT publish any controllable entity, MUST NOT subscribe to or act on
-  any HA command, and intents MUST fail with an explicit "requires the Automation unlock" error.
-  Remote *control* is the gated capability; the broker connection itself is not (see
-  FR-1100-03a).
+  subscribing to and handling any HA command, and Shortcuts/App Intents (topic 800). When the
+  Supporter Unlock is not owned, the app MUST NOT publish any controllable entity, MUST NOT
+  subscribe to or act on any HA command, and intents MUST fail with an explicit "requires the
+  Supporter Unlock" error. Remote *control* is the gated capability; the broker connection
+  itself is not (see FR-1100-03a).
 - **FR-1100-03a** *(free telemetry)*: Publishing read-only status to Home Assistant is part of
   the **free** tier. With a broker configured, an unentitled frame MUST connect to the broker
   and publish, via HA MQTT discovery, availability (LWT) and the read-only sensor entities only
@@ -281,9 +298,11 @@ never prompts for tips on its own.
   the keychain), and TLS are free-tier capabilities; only *control* is gated. Making telemetry
   free never conflicts with FR-1100-13 — it widens the free tier, it does not claw anything
   back.
-- **FR-1100-04**: An optional **everything-bundle** product MAY unlock both tiers in one
-  purchase. It is offered only while the user owns neither single unlock; a user owning one
-  tier is offered only the missing tier at its normal price.
+- **FR-1100-04** *(one product, no tiers)*: There MUST be exactly one functional unlock
+  product; there are no separate paid tiers and no bundle. A user either owns the Supporter
+  Unlock or does not, so partial ownership cannot occur and the unlock screen only ever presents
+  an owned or a not-owned state — never a choice between products. (This supersedes the earlier
+  Pro / Automation / everything-bundle split, 2026-07-22.)
 
 **Purchase model constraints**
 
@@ -329,12 +348,12 @@ never prompts for tips on its own.
 - **FR-1100-14** *(graceful degrade, no data loss)*: When a device holds configuration for a
   gated capability but no entitlement (pre-gate internal builds, revocation, Family Sharing
   departure), that configuration — including secrets in the keychain — MUST be preserved
-  untouched (never reset or deleted). For **Automation** the gated capability is *control*: an
-  unentitled device with a stored broker keeps its broker connection settings live, keeps
+  untouched (never reset or deleted). For **remote control** the gated capability is *control*:
+  an unentitled device with a stored broker keeps its broker connection settings live, keeps
   reading its stored broker credential to publish free telemetry (FR-1100-03a), and shows a
   locked banner + one-time unlock offer on the *control* surface only — not an empty, reset, or
-  fully-masked screen. Purchasing the tier MUST re-enable control with the stored configuration
-  and zero re-entry. (App Intents hold no per-user config; they simply fail locked per
+  fully-masked screen. Purchasing the Supporter Unlock MUST re-enable control with the stored
+  configuration and zero re-entry. (App Intents hold no per-user config; they simply fail locked per
   FR-1100-03.)
 - **FR-1100-15**: Purchase edge states MUST be handled without data loss or double charging:
   pending/deferred approval flows activate the entitlement when approval arrives;
@@ -354,12 +373,12 @@ never prompts for tips on its own.
 
 ### Key Entities
 
-- **Unlock product**: a one-time purchasable item — Pro, Automation, everything-bundle, and
-  tip(s). Functional unlocks are permanent and family-shareable; tips are one-off and grant
-  nothing.
-- **Entitlement**: the derived per-device ownership state (Pro yes/no, Automation yes/no);
-  the bundle grants both. Sourced from the device's store account only; cached locally for
-  offline operation (FR-1100-10).
+- **Unlock product**: the one-time purchasable items — the **Supporter Unlock** (the single
+  functional unlock) and the tip(s). The Supporter Unlock is permanent and family-shareable;
+  tips are one-off and grant nothing.
+- **Entitlement**: the derived per-device ownership state — a single flag, supporter-unlocked
+  yes/no, that grants every gated capability. Sourced from the device's store account only;
+  cached locally for offline operation (FR-1100-10).
 - **Locked-feature surface**: the visible locked representation of a gated feature plus its
   unlock screen (tier contents, one-time price, purchase, restore).
 - **Pre-gate configuration**: stored settings/credentials for a gated feature on an
@@ -374,8 +393,8 @@ never prompts for tips on its own.
   slideshow with **zero** purchase-related UI shown.
 - **SC-1100-02**: Over ≥ 4 hours of continuous free-tier playback, zero purchase-related UI
   appears without explicit user action.
-- **SC-1100-03**: Completing a purchase activates the tier's features in under 10 seconds
-  with no app restart; the locked labels for that tier disappear app-wide.
+- **SC-1100-03**: Completing the Supporter Unlock purchase activates every gated feature in
+  under 10 seconds with no app restart; all locked labels disappear app-wide.
 - **SC-1100-04**: With entitlements active and the network disconnected, a 24-hour soak
   including at least 3 app relaunches and 1 device restart shows all owned features active
   the entire time (may piggyback on the existing 24 h device soak).
@@ -402,18 +421,18 @@ never prompts for tips on its own.
   remote control, App Intents, the clock overlay renderer, **and Ken Burns motion** — are
   eligible for gating: the never-claw-back rule binds from the first *public* release onward.
   Gating Ken Burns was decided deliberately (2026-07-19): it is opt-in seasoning per
-  constitution VII (the default frame never shows it), it gives the Pro pack real day-one
-  content alongside the clock, and it is the app's most demoable premium asset. The free tier
-  keeps all basic transitions so a free frame still looks polished.
+  constitution VII (the default frame never shows it), it gives the Supporter Unlock real
+  day-one content alongside the clock, and it is the app's most demoable premium asset. The
+  free tier keeps all basic transitions so a free frame still looks polished.
 - **Price points are out of scope by design** and are configured in App Store Connect at
   submission time; this public repository records no prices.
-- **Tier composition is a living boundary**: the FR-1100-02 candidate list is the current
-  plan, not a commitment; each future feature's spec assigns its tier, constrained by
-  FR-1100-13 and the "never shipped free publicly" rule.
-- **The Pro features themselves are separate specs** (weather, scheduling, video, burn-in
+- **The gated set is a living boundary**: the FR-1100-02 candidate list is the current
+  plan, not a commitment; each future feature's spec confirms whether it is gated behind the
+  single Supporter Unlock, constrained by FR-1100-13 and the "never shipped free publicly" rule.
+- **The gated features themselves are separate specs** (weather, scheduling, video, burn-in
   protection, etc. — e.g. reserved topic 730 for scheduling); this spec covers only the gate,
-  the tiers, and the purchase/entitlement behaviour. Where a launch-composition feature is
-  already implemented (clock overlay 510, Ken Burns motion), wiring it behind the gate is in
+  the single unlock, and the purchase/entitlement behaviour. Where a launch-composition feature
+  is already implemented (clock overlay 510, Ken Burns motion), wiring it behind the gate is in
   scope here.
 - **Tips are consumable-style products** with no entitlement effect; one or a small set of
   fixed tip sizes.

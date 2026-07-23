@@ -5,15 +5,14 @@ import SwiftUI
 
 extension Entitlement {
 
-    /// The user-facing tier name, as it appears on locked badges and unlock screens.
+    /// The user-facing unlock name, as it appears on locked badges and unlock screens.
     ///
     /// Presentation only, which is why it lives beside the view rather than in the model: the
     /// entitlement itself is a capability, not a marketing name. Not localized — the repo ships
     /// English-only by design (CLAUDE.md).
     public var displayName: String {
         switch self {
-        case .pro: "Pro"
-        case .automation: "Automation"
+        case .supporter: "Supporter"
         }
     }
 }
@@ -24,14 +23,14 @@ extension Entitlement {
 /// The dimmed-but-tappable rule is the whole point. A plainly disabled iOS control reads as
 /// "broken" and is never tapped, so the user never discovers what the feature is or how to get
 /// it. Hence: reduced opacity to de-emphasize, a lock glyph + tier badge to explain *why* it is
-/// de-emphasized, and a live tap target that opens the tier's unlock screen.
+/// de-emphasized, and a live tap target that opens the unlock screen.
 ///
 /// This view never presents anything itself. It calls `action`, and the call site decides —
 /// PurchaseKit must not auto-present purchase UI (SC-1100-02).
 ///
 /// ```swift
-/// LockedRow(requires: .pro, identifier: "settings.row.kenburns.locked") {
-///     showProUnlock = true
+/// LockedRow(requires: .supporter, identifier: "settings.row.kenburns.locked") {
+///     showUnlock = true
 /// } content: {
 ///     Toggle(isOn: $themeStore.settings.kenBurns) {
 ///         Label("Ken Burns", systemImage: "camera.viewfinder")
@@ -107,7 +106,7 @@ public struct LockedRow<Content: View>: View {
         // as a button, so state the trait explicitly and drop the switch semantics.
         .accessibilityAddTraits(.isButton)
         .accessibilityRemoveTraits(.isToggle)
-        .accessibilityHint("Opens the \(tier.displayName) unlock screen.")
+        .accessibilityHint(Text("Opens the \(tier.displayName) unlock screen.", bundle: .module))
         .accessibilityIdentifier(identifier)
     }
 
@@ -129,7 +128,7 @@ public struct LockedRow<Content: View>: View {
             .padding(.vertical, 4)
             .background(Capsule().fill(.quaternary))
             // Read as one phrase; `.combine` above appends this to the wrapped row's own label.
-            .accessibilityLabel("\(tier.displayName), locked")
+            .accessibilityLabel(Text("\(tier.displayName), locked", bundle: .module))
     }
 }
 
@@ -143,8 +142,8 @@ extension View {
     /// Toggle(isOn: $themeStore.settings.kenBurns) {
     ///     Label("Ken Burns", systemImage: "camera.viewfinder")
     /// }
-    /// .lockedRow(if: !entitlements.contains(.pro), requires: .pro,
-    ///            identifier: "settings.row.kenburns.locked") { showProUnlock = true }
+    /// .lockedRow(if: !entitlements.contains(.supporter), requires: .supporter,
+    ///            identifier: "settings.row.kenburns.locked") { showUnlock = true }
     /// ```
     @ViewBuilder
     public func lockedRow(
@@ -165,7 +164,7 @@ extension View {
     Form {
         Section("Ambience") {
             LockedRow(
-                requires: .pro,
+                requires: .supporter,
                 identifier: "settings.row.kenburns.locked",
                 action: {}
             ) {
@@ -175,7 +174,7 @@ extension View {
             }
 
             LockedRow(
-                requires: .pro,
+                requires: .supporter,
                 identifier: "settings.row.clock.locked",
                 action: {}
             ) {
@@ -187,7 +186,7 @@ extension View {
 
         Section("Remote control") {
             LockedRow(
-                requires: .automation,
+                requires: .supporter,
                 identifier: "settings.row.broker.locked",
                 action: {}
             ) {
@@ -203,7 +202,7 @@ extension View {
             }
             .lockedRow(
                 if: false,
-                requires: .pro,
+                requires: .supporter,
                 identifier: "settings.row.kenburns.locked",
                 action: {}
             )

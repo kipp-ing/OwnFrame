@@ -152,8 +152,8 @@ struct EntitlementLeakGuardTests {
         let hostile = Data(
             """
             {"schema":1,"brokerHost":"broker.local","brokerPort":8883,\
-            "entitlements":["pro","automation"],"isPro":true,"unlocked":true,\
-            "purchase":{"productID":"ing.kipp.Immich-Slideshow.unlock.everything","owned":true},\
+            "entitlements":["supporter"],"isSupporter":true,"unlocked":true,\
+            "purchase":{"productID":"ing.kipp.Immich-Slideshow.unlock.supporter","owned":true},\
             "storeKitTransactions":[{"receipt":"forged"}]}
             """.utf8
         )
@@ -183,9 +183,9 @@ struct EntitlementLeakGuardTests {
             "cfg.brokerHost": .string("broker.local"),
         ]
         var hostile = clean
-        hostile["cfg.entitlements"] = .string("pro,automation")
-        hostile["cfg.unlock.pro"] = .int64(1)
-        hostile["ing.kipp.Immich-Slideshow.unlock.everything"] = .int64(1)
+        hostile["cfg.entitlements"] = .string("supporter")
+        hostile["cfg.unlock.pro"] = .int64(1)  // superseded product id — still an attack shape
+        hostile["ing.kipp.Immich-Slideshow.unlock.supporter"] = .int64(1)
 
         let decodedClean = SyncedConfigKVSCodec.decode(clean)
         let decodedHostile = SyncedConfigKVSCodec.decode(hostile)
@@ -203,7 +203,7 @@ struct EntitlementLeakGuardTests {
     /// never become an entitlement, because the consumer has no entitlement sink to route it to.
     @Test
     func entitlementShapedSharedLinkKeyStaysInertData() async {
-        let hostileKey = "ing.kipp.Immich-Slideshow.unlock.everything"
+        let hostileKey = "ing.kipp.Immich-Slideshow.unlock.supporter"
         let secretStore = InMemorySecretSyncStore(
             stored: SyncedSecret(
                 immichApiKey: "immich-api-key-value",
@@ -259,9 +259,11 @@ struct EntitlementLeakGuardTests {
         let leaks = [
             "entitlements", "entitlementSet", "purchase", "purchaseState", "purchased",
             "unlock", "unlockedTiers", "isPro", "proTier", "automation", "automationUnlocked",
+            // The current unlock's vocabulary — caught by the "supporter" term, not only by "unlock".
+            "isSupporter", "supporterTier", "supporterUnlocked",
             "storeKit", "storekitTransactions", "transaction", "receipt", "receipts",
             "tip", "tipJar", "cfg.entitlements",
-            "ing.kipp.Immich-Slideshow.unlock.pro",
+            "ing.kipp.Immich-Slideshow.unlock.supporter",
         ]
         for key in leaks {
             #expect(
@@ -370,8 +372,11 @@ struct EntitlementLeakGuardTests {
 private enum EntitlementLexicon {
 
     /// Terms that must never name a key in a sync payload.
+    ///
+    /// "supporter" is the current unlock's distinctive word; "pro" and "automation" are the
+    /// superseded tier names, kept as defense-in-depth so a stray legacy key is still caught.
     static let forbiddenTerms: Set<String> = [
-        "entitlement", "entitled", "purchase", "unlock", "pro", "automation",
+        "entitlement", "entitled", "purchase", "unlock", "supporter", "pro", "automation",
         "storekit", "transaction", "receipt", "tip",
     ]
 

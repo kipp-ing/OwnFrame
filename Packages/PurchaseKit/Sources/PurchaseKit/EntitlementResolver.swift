@@ -5,8 +5,8 @@ public enum EntitlementResolver {
     ///
     /// The rules, all of them non-fatal by design:
     /// 1. A non-revoked owned product contributes `ProductCatalog.grants`.
-    /// 2. A revoked transaction contributes nothing — evaluated *per transaction*, so a refunded
-    ///    bundle never takes an independently owned unlock down with it (FR-1100-12).
+    /// 2. A revoked transaction contributes nothing — evaluated *per transaction*, so a refund
+    ///    only drops the entitlement when no other live transaction still grants it (FR-1100-12).
     /// 3. Tips contribute nothing (FR-1100-08).
     /// 4. Unknown product ids contribute nothing (forward compatibility with future SKUs).
     /// 5. No transactions resolve to the empty set.

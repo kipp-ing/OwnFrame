@@ -8,43 +8,13 @@
       "internalID" : "1100000001",
       "localizations" : [
         {
-          "description" : "TEST FIXTURE — ambience unlock: Ken Burns motion and the clock overlay.",
-          "displayName" : "Pro",
+          "description" : "TEST FIXTURE — the Supporter Unlock: grants every gated capability (Ken Burns motion, the clock overlay, Home Assistant control, and Shortcuts / App Intents).",
+          "displayName" : "Supporter",
           "locale" : "en_US"
         }
       ],
-      "productID" : "ing.kipp.Immich-Slideshow.unlock.pro",
-      "referenceName" : "TEST FIXTURE Pro unlock",
-      "type" : "NonConsumable"
-    },
-    {
-      "displayPrice" : "1.00",
-      "familyShareable" : true,
-      "internalID" : "1100000002",
-      "localizations" : [
-        {
-          "description" : "TEST FIXTURE — automation unlock: Home Assistant / MQTT and App Intents.",
-          "displayName" : "Automation",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "ing.kipp.Immich-Slideshow.unlock.automation",
-      "referenceName" : "TEST FIXTURE Automation unlock",
-      "type" : "NonConsumable"
-    },
-    {
-      "displayPrice" : "1.00",
-      "familyShareable" : true,
-      "internalID" : "1100000003",
-      "localizations" : [
-        {
-          "description" : "TEST FIXTURE — everything bundle: grants both unlocks.",
-          "displayName" : "Everything",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "ing.kipp.Immich-Slideshow.unlock.everything",
-      "referenceName" : "TEST FIXTURE Everything bundle",
+      "productID" : "ing.kipp.Immich-Slideshow.unlock.supporter",
+      "referenceName" : "TEST FIXTURE Supporter unlock",
       "type" : "NonConsumable"
     },
     {

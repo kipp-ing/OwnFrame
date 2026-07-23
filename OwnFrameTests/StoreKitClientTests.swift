@@ -88,10 +88,10 @@ final class StoreKitClientTests: XCTestCase {
     func test_purchase_success_makesProductOwned() async throws {
         let client = StoreKitClient()
 
-        let outcome = try await client.purchase(.pro)
+        let outcome = try await client.purchase(.supporter)
         XCTAssertEqual(outcome, .success)
 
-        let owned = try await activelyOwns(client, .pro)
+        let owned = try await activelyOwns(client, .supporter)
         XCTAssertTrue(owned, "a completed purchase must surface in ownedTransactions()")
     }
 
@@ -99,15 +99,15 @@ final class StoreKitClientTests: XCTestCase {
 
     func test_restore_doesNotThrow_andPreservesOwnership() async throws {
         let client = StoreKitClient()
-        _ = try await client.purchase(.automation)
-        let ownedBefore = try await activelyOwns(client, .automation)
+        _ = try await client.purchase(.supporter)
+        let ownedBefore = try await activelyOwns(client, .supporter)
         XCTAssertTrue(ownedBefore)
 
         // restore() is `AppStore.sync()`; the store model re-queries afterwards. Here we only
         // assert the adapter half: sync completes without throwing and ownership is intact.
         try await client.restore()
 
-        let ownedAfter = try await activelyOwns(client, .automation)
+        let ownedAfter = try await activelyOwns(client, .supporter)
         XCTAssertTrue(ownedAfter, "restore must not lose an already-owned unlock")
     }
 
@@ -116,17 +116,17 @@ final class StoreKitClientTests: XCTestCase {
 
     func test_refund_excludesProductFromOwned() async throws {
         let client = StoreKitClient()
-        _ = try await client.purchase(.pro)
-        let ownedBefore = try await activelyOwns(client, .pro)
+        _ = try await client.purchase(.supporter)
+        let ownedBefore = try await activelyOwns(client, .supporter)
         XCTAssertTrue(ownedBefore)
 
         let identifier = try XCTUnwrap(
-            session.allTransactions().first { $0.productIdentifier == ProductID.pro.rawValue }?.identifier,
+            session.allTransactions().first { $0.productIdentifier == ProductID.supporter.rawValue }?.identifier,
             "the purchase should have produced a transaction to refund"
         )
         try session.refundTransaction(identifier: identifier)
 
-        let refundedOut = try await waitUntil { try await self.activelyOwns(client, .pro) == false }
+        let refundedOut = try await waitUntil { try await self.activelyOwns(client, .supporter) == false }
         XCTAssertTrue(refundedOut, "a refunded unlock must no longer be actively owned")
     }
 
@@ -137,17 +137,17 @@ final class StoreKitClientTests: XCTestCase {
         session.askToBuyEnabled = true
         let client = StoreKitClient()
 
-        let outcome = try await client.purchase(.pro)
+        let outcome = try await client.purchase(.supporter)
         XCTAssertEqual(outcome, .pending, "an Ask-to-Buy request is a deferral, not a success")
-        let ownedWhilePending = try await activelyOwns(client, .pro)
+        let ownedWhilePending = try await activelyOwns(client, .supporter)
         XCTAssertFalse(ownedWhilePending, "nothing is owned while approval is still pending")
 
         let pending = try XCTUnwrap(
-            session.allTransactions().first { $0.productIdentifier == ProductID.pro.rawValue }?.identifier
+            session.allTransactions().first { $0.productIdentifier == ProductID.supporter.rawValue }?.identifier
         )
         try session.approveAskToBuyTransaction(identifier: pending)
 
-        let ownedAfterApproval = try await waitUntil { try await self.activelyOwns(client, .pro) }
+        let ownedAfterApproval = try await waitUntil { try await self.activelyOwns(client, .supporter) }
         XCTAssertTrue(ownedAfterApproval, "once approved, the entitlement must arrive")
     }
 
@@ -156,14 +156,14 @@ final class StoreKitClientTests: XCTestCase {
     func test_updatesStream_yieldsWhenAskToBuyApproved() async throws {
         session.askToBuyEnabled = true
         let client = StoreKitClient()
-        _ = try await client.purchase(.pro)   // -> .pending, no ownership yet
+        _ = try await client.purchase(.supporter)   // -> .pending, no ownership yet
 
         // Start listening BEFORE approving, exactly as the app does at launch.
         async let firstUpdate: Bool = Self.awaitFirstUpdate(from: client)
         try await Task.sleep(nanoseconds: 300_000_000)   // let the consumer attach
 
         let pending = try XCTUnwrap(
-            session.allTransactions().first { $0.productIdentifier == ProductID.pro.rawValue }?.identifier
+            session.allTransactions().first { $0.productIdentifier == ProductID.supporter.rawValue }?.identifier
         )
         try session.approveAskToBuyTransaction(identifier: pending)
 
@@ -177,7 +177,7 @@ final class StoreKitClientTests: XCTestCase {
     func test_interruptedPurchase_isOwnedOnNextLaunch() async throws {
         // Simulate a purchase that completed at the store but whose app-side finish never ran
         // (crash / kill mid-flight): buy directly and DO NOT finish the transaction.
-        let fetched = try await Product.products(for: [ProductID.pro.rawValue]).first
+        let fetched = try await Product.products(for: [ProductID.supporter.rawValue]).first
         let product = try XCTUnwrap(fetched)
         let result = try await product.purchase()
         guard case .success(let verification) = result,
@@ -188,7 +188,7 @@ final class StoreKitClientTests: XCTestCase {
 
         // "Next launch": a brand-new adapter reads the durable entitlement from the store.
         let relaunched = StoreKitClient()
-        let owned = try await activelyOwns(relaunched, .pro)
+        let owned = try await activelyOwns(relaunched, .supporter)
         XCTAssertTrue(owned, "an interrupted purchase must still resolve as owned on the next launch")
     }
 
@@ -201,11 +201,11 @@ final class StoreKitClientTests: XCTestCase {
         let tip = try await client.purchase(.tipSmall)
         XCTAssertEqual(tip, .success, "a tip completes like any other purchase (FR-1100-08)")
 
-        _ = try await client.purchase(.pro)
+        _ = try await client.purchase(.supporter)
 
         let owned = try await client.ownedTransactions()
         XCTAssertTrue(
-            owned.contains { $0.productID == ProductID.pro.rawValue },
+            owned.contains { $0.productID == ProductID.supporter.rawValue },
             "the unlock is owned"
         )
         XCTAssertFalse(

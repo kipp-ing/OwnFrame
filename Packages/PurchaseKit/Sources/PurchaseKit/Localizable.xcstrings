@@ -1,0 +1,479 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@ was sent for approval. The unlock switches on by itself once it is approved — there is nothing else to do here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ wurde zur Genehmigung gesendet. Die Freischaltung schaltet sich von selbst ein, sobald sie genehmigt ist — hier ist nichts weiter zu tun."
+          }
+        }
+      }
+    },
+    "%@ — yours, on every device signed in to your Apple Account." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — dir gehörend, auf jedem Gerät, das bei deinem Apple-Account angemeldet ist."
+          }
+        }
+      }
+    },
+    "%@, locked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, gesperrt"
+          }
+        }
+      }
+    },
+    "A quiet clock on the frame, in your 12- or 24-hour format." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine dezente Uhr auf dem Rahmen, im 12- oder 24-Stunden-Format."
+          }
+        }
+      }
+    },
+    "A slow drift and scale across every photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein langsames Driften und Zoomen über jedes Foto"
+          }
+        }
+      }
+    },
+    "A tip unlocks nothing and is never required — everything you have keeps working exactly the same. It is simply a thank-you if the app has been good to you." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Trinkgeld schaltet nichts frei und ist nie erforderlich — alles, was du hast, funktioniert genau wie zuvor. Es ist einfach ein Dankeschön, wenn die App dir gute Dienste geleistet hat."
+          }
+        }
+      }
+    },
+    "App Intents so your automations and your voice can drive the frame." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App-Intents, damit deine Automationen und deine Stimme den Rahmen steuern können."
+          }
+        }
+      }
+    },
+    "Brightness, album, and pause or play over MQTT, with discovery and availability built in." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helligkeit, Album und Pause oder Wiedergabe über MQTT — mit integrierter Erkennung und Verfügbarkeit."
+          }
+        }
+      }
+    },
+    "Clock overlay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uhr-Einblendung"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schließen"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fertig"
+          }
+        }
+      }
+    },
+    "Each tip is a one-time thank-you. No subscription, no recurring charge, and no features attached." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedes Trinkgeld ist ein einmaliges Dankeschön. Kein Abo, keine wiederkehrenden Kosten und keine daran geknüpften Funktionen."
+          }
+        }
+      }
+    },
+    "Each unlock is a one-time purchase. No subscription, no recurring charge." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Freischaltung ist ein einmaliger Kauf. Kein Abo, keine wiederkehrenden Kosten."
+          }
+        }
+      }
+    },
+    "Home Assistant control" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home-Assistant-Steuerung"
+          }
+        }
+      }
+    },
+    "If the frame has earned a coffee, this is the jar." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn sich die App einen Kaffee verdient hat, ist das die Kasse dafür."
+          }
+        }
+      }
+    },
+    "Ken Burns motion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ken-Burns-Bewegung"
+          }
+        }
+      }
+    },
+    "Ken Burns motion sample" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ken-Burns-Bewegungsbeispiel"
+          }
+        }
+      }
+    },
+    "Ken Burns, the clock overlay, and full Home Assistant control." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ken Burns, die Uhr-Einblendung und die volle Home-Assistant-Steuerung."
+          }
+        }
+      }
+    },
+    "Opens the %@ unlock screen." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet den Freischaltungs-Bildschirm für %@."
+          }
+        }
+      }
+    },
+    "Photos drift and scale slowly instead of sitting still." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos driften und zoomen langsam, statt stillzustehen."
+          }
+        }
+      }
+    },
+    "Prices and purchases need a connection to the App Store. Everything you already own keeps working, online or not." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preise und Käufe brauchen eine Verbindung zum App Store. Alles, was du bereits besitzt, funktioniert weiter — ob online oder nicht."
+          }
+        }
+      }
+    },
+    "Purchase not completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kauf nicht abgeschlossen"
+          }
+        }
+      }
+    },
+    "Recovers unlocks you already bought with this Apple Account." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stellt Freischaltungen wieder her, die du bereits mit diesem Apple-Account gekauft hast."
+          }
+        }
+      }
+    },
+    "Restore Purchases" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käufe wiederherstellen"
+          }
+        }
+      }
+    },
+    "Shared with your family and included on iPad, iPhone, and Apple TV." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit deiner Familie geteilt und auf iPad, iPhone und Apple TV enthalten."
+          }
+        }
+      }
+    },
+    "Shortcuts and Siri" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzbefehle und Siri"
+          }
+        }
+      }
+    },
+    "Thank you" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Danke"
+          }
+        }
+      }
+    },
+    "That genuinely helps, and it means a lot. Nothing about the app changed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das hilft wirklich und bedeutet viel. An der App hat sich nichts geändert."
+          }
+        }
+      }
+    },
+    "The App Store is unreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der App Store ist nicht erreichbar"
+          }
+        }
+      }
+    },
+    "The Supporter Unlock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Supporter-Freischaltung"
+          }
+        }
+      }
+    },
+    "The ambience touches and full Home Assistant control, in one purchase." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Ambiente-Extras und die volle Home-Assistant-Steuerung — in einem Kauf."
+          }
+        }
+      }
+    },
+    "Tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trinkgeld"
+          }
+        }
+      }
+    },
+    "Tip %@, %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trinkgeld: %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "Tip Jar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trinkgeldkasse"
+          }
+        }
+      }
+    },
+    "Tipping needs a connection to the App Store. Everything you use keeps working, online or not." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für ein Trinkgeld ist eine Verbindung zum App Store nötig. Alles, was du nutzt, funktioniert weiter — ob online oder nicht."
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Unlock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freischalten"
+          }
+        }
+      }
+    },
+    "Unlock %@, %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ freischalten, %2$@"
+          }
+        }
+      }
+    },
+    "Unlocked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freigeschaltet"
+          }
+        }
+      }
+    },
+    "Waiting for approval" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf Freigabe"
+          }
+        }
+      }
+    },
+    "What you get" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das bekommst du"
+          }
+        }
+      }
+    },
+    "Your purchase" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Kauf"
+          }
+        }
+      }
+    },
+    "Your purchase went through. It may take a moment to appear." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Kauf war erfolgreich. Es kann einen Moment dauern, bis er erscheint."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

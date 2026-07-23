@@ -70,7 +70,7 @@ struct SlideshowErrorView: View {
         }
     }
 
-    private var title: String {
+    private var title: LocalizedStringKey {
         switch reason {
         case .unsupportedServer: return "Immich update required"
         case .authentication:
@@ -80,33 +80,27 @@ struct SlideshowErrorView: View {
         }
     }
 
-    private var message: String {
+    private var message: LocalizedStringKey {
         switch reason {
         case .unsupportedServer:
             // 130 FR-130-05/06: terminal — no background retry, so the copy points at the fix.
-            return "This app needs Immich v3 or newer. Update your Immich server, "
-                + "then tap Try again."
+            return "This app needs Immich v3 or newer. Update your Immich server, then tap Try again."
         case .authentication:
             // 900 US3-3/4: for a Photos source the cause is insufficient photo access —
             // name it and point at Settings, not at the Immich connection. "Missing or
             // reduced" also covers the never-asked state (e.g. after a backup restore),
             // where nothing was ever revoked.
             if isPhotoLibrarySource {
-                return "Photo access for this app is missing or was reduced, so this source "
-                    + "can't play. Allow full photo access in Settings."
+                return "Photo access for this app is missing or was reduced, so this source can't play. Allow full photo access in Settings."
             }
-            return "Check your connection settings — the API key or shared link "
-                + "may have expired. Retrying automatically in the background."
+            return "Check your connection settings — the API key or shared link may have expired. Retrying automatically in the background."
         case .notFound:
             // 900 FR-900-16: terminal vanish state — deleted, unshared, or migrated out of
             // this device's view (an owner-upgraded album on the new iCloud format is
             // invisible below iOS 27). Recovery is picking a source, not retrying.
-            return "This album is no longer available — it may have been deleted, unshared, "
-                + "or upgraded to a newer iCloud shared album format this device can't "
-                + "show yet. Pick another source to keep the show going."
+            return "This album is no longer available — it may have been deleted, unshared, or upgraded to a newer iCloud shared album format this device can't show yet. Pick another source to keep the show going."
         case .transient, nil:
-            return "Check the connection to your Immich server and try again. "
-                + "Retrying automatically in the background."
+            return "Check the connection to your Immich server and try again. Retrying automatically in the background."
         }
     }
 }

@@ -7,7 +7,7 @@ drives everything through launch arguments; see memory `uitest-launch-seams`).
 
 | Argument | Effect |
 |---|---|
-| `--uitest-entitlements=<list>` | Seeds a stub `EntitlementStore` with the given set. `<list>` ∈ `none`, `pro`, `automation`, `all` (comma-separated combos allowed). Bypasses StoreKit entirely. |
+| `--uitest-entitlements=<list>` | Seeds a stub `EntitlementStore` with the given set. `<list>` ∈ `none`, `supporter`, `all` — `supporter` and `all` are equivalent (there is one unlock). `pro`/`automation` were removed 2026-07-23 and are no longer parsed; unrecognised words are ignored (a typo degrades to "free"). Bypasses StoreKit entirely. |
 | `--uitest-store=stub` | `StoreClient` stub: canned products with fixed display prices, purchases succeed instantly (entitlement applied via the normal store path). |
 | `--uitest-store=unavailable` | `StoreClient` stub whose `products(for:)` throws → drives the `unavailable` unlock-screen state (FR-1100-16). |
 | `--uitest-store=pending` | Purchases return `.pending` → drives the Ask-to-Buy UI state (FR-1100-15). |
@@ -23,10 +23,10 @@ against the stub source, hermetic, no server).
 | `settings.row.clock.locked` | Clock locked row |
 | `settings.row.broker.locked` | Broker/remote-control locked banner row |
 | `settings.section.unlocks` | Unlocks section header in settings |
-| `unlock.screen.pro` / `unlock.screen.automation` | Unlock screens |
-| `unlock.demo.kenburns` | Live demo slot on the Pro screen |
-| `unlock.price.<pro|automation|everything>` | Price labels |
-| `unlock.buy.<pro|automation|everything>` | Purchase buttons |
+| `unlock.screen.supporter` | The single unlock screen |
+| `unlock.demo.kenburns` | Live Ken Burns demo slot on the unlock screen |
+| `unlock.price.supporter` | Price label |
+| `unlock.buy.supporter` | Purchase button |
 | `unlock.restore` | Restore Purchases action |
 | `unlock.unavailable` | Store-unreachable notice |
 | `unlock.pending` | Ask-to-Buy pending notice |
@@ -39,9 +39,13 @@ against the stub source, hermetic, no server).
    dimmed-but-tappable rule is what this proves).
 2. `none` + stub playback for a sustained window: no element with an `unlock.` prefix ever
    appears without a tap (SC-1100-02 hermetic proxy; the 4 h wall-clock run is a device item).
-3. `pro` (only): Ken Burns/clock rows unlocked; broker row still locked; Automation unlock
-   screen offers only Automation (FR-1100-04 visibility rule with part-ownership).
-4. `all`: no locked rows, no `unlock.` entry points except Restore + tips in settings.
+3. `none`: tapping any locked row opens the single unlock screen offering the Supporter Unlock
+   (`unlock.price.supporter` + `unlock.buy.supporter` present); there is never a second product
+   to choose (FR-1100-04). Under `supporter`/`all` those same rows are unlocked and the screen
+   is unreachable — partial ownership cannot occur, so there is no per-tier visibility state left
+   to exercise.
+4. `all` (== `supporter`): no locked rows, no `unlock.` entry points except Restore + tips in
+   settings.
 5. `--uitest-store=unavailable`: unlock screen shows `unlock.unavailable`, zero price labels
    (FR-1100-16).
 6. Broker settings under `none` with seeded config: fields show stored values (masked as

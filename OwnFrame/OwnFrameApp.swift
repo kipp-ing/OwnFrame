@@ -515,12 +515,12 @@ struct OwnFrameApp: App {
             )
         }
 
-        // 1100 (amended 2026-07-20): the `.automation` gate wraps the factory and selects its
-        // Mode. Without Automation the coordinator still builds in `.telemetryOnly` — a
+        // 1100 (amended 2026-07-20): the Supporter-Unlock gate wraps the factory and selects its
+        // Mode. Without the unlock the coordinator still builds in `.telemetryOnly` — a
         // configured broker connects and publishes read-only sensors so HA can *see* the frame
         // (FR-1100-03a) — while control (command topics, App Intents) stays behind the unlock.
         // Reading the broker credential is now a free-tier op; the factory still never clears or
-        // masks stored config, so buying Automation later upgrades to `.full` with zero
+        // masks stored config, so buying the Supporter Unlock later upgrades to `.full` with zero
         // re-entry (FR-1100-14). Entitlements are read at call time, so a live purchase upgrades
         // telemetry → full on the next build.
         let gatedMakeCoordinator = AutomationCoordinatorGate(

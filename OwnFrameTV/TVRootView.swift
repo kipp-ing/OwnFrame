@@ -79,9 +79,9 @@ struct TVRootView: View {
 
     var body: some View {
         routedContent
-            // 1100 (T033): the tvOS settings surface — Unlocks (restore + tip), the Ambience/Pro
-            // locked row, and Home Assistant gated to the editor when the Automation unlock is
-            // owned or the masked locked-broker view when it is not. Presented at the root so the
+            // 1100 (T033): the tvOS settings surface — Unlocks (restore + tip), the Ambience
+            // locked row, and Home Assistant gated to the editor when the Supporter Unlock is
+            // owned or the free telemetry-only setup when it is not. Presented at the root so the
             // gear reaches it from the slideshow and the DEBUG seam reaches it from any route.
             .fullScreenCover(isPresented: $showSettings) {
                 TVSettingsView(onDone: { showSettings = false })
@@ -356,16 +356,16 @@ final class TVAppModel {
     /// hydration may not have delivered (`.manualRequired`) — offering them would let a
     /// remote pick tear the frame down into onboarding.
     private func makeCoordinator(for slideshow: SlideshowViewModel) async -> HAControlCoordinator? {
-        // 1100 (amended 2026-07-20): telemetry is free, only *control* is gated. Without
-        // Automation the coordinator builds in `.telemetryOnly` — a configured broker connects
-        // and publishes read-only sensors so HA can *see* the frame (FR-1100-03a) — while
-        // control (command topics) stays behind the unlock. Reading the broker credential is now
-        // a free-tier op; nothing is cleared or masked, so buying Automation upgrades to `.full`
-        // with zero re-entry (FR-1100-14). Entitlements are read at call time, so a live
+        // 1100 (amended 2026-07-20): telemetry is free, only *control* is gated. Without the
+        // Supporter Unlock the coordinator builds in `.telemetryOnly` — a configured broker
+        // connects and publishes read-only sensors so HA can *see* the frame (FR-1100-03a) —
+        // while control (command topics) stays behind the unlock. Reading the broker credential is
+        // now a free-tier op; nothing is cleared or masked, so buying the Supporter Unlock upgrades
+        // to `.full` with zero re-entry (FR-1100-14). Entitlements are read at call time, so a live
         // purchase upgrades telemetry → full on the next build. (iOS expresses the same via
         // `AutomationCoordinatorGate`, which is typed on the iOS-only adapter and not reusable
         // here.)
-        let mode: HAControlCoordinator.Mode = entitlements().contains(.automation) ? .full : .telemetryOnly
+        let mode: HAControlCoordinator.Mode = entitlements().contains(.supporter) ? .full : .telemetryOnly
         guard let brokerConfig = brokerProvider.load() else { return nil }
         let library = sourceStore.load()
         let playable = library.sources.filter { source in

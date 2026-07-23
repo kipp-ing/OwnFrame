@@ -75,9 +75,9 @@ public struct TipJarView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Tip Jar")
+                Text("Tip Jar", bundle: .module)
                     .font(.largeTitle.weight(.semibold))
-                Text("If the frame has earned a coffee, this is the jar.")
+                Text("If the frame has earned a coffee, this is the jar.", bundle: .module)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -97,11 +97,11 @@ public struct TipJarView: View {
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Close")
+        .accessibilityLabel(Text("Close", bundle: .module))
         .accessibilityIdentifier("tipjar.close")
         #else
         // tvOS has no swipe-to-dismiss gesture, so the control has to be a real, focusable button.
-        Button("Close", action: onClose)
+        Button(action: onClose) { Text("Close", bundle: .module) }
             .accessibilityIdentifier("tipjar.close")
         #endif
     }
@@ -112,8 +112,7 @@ public struct TipJarView: View {
     /// app. This is the anti-dark-pattern sentence, and it is load-bearing (FR-1100-08).
     private var intro: some View {
         Label {
-            Text("A tip unlocks nothing and is never required — everything you have keeps working "
-                + "exactly the same. It is simply a thank-you if the app has been good to you.")
+            Text("A tip unlocks nothing and is never required — everything you have keeps working exactly the same. It is simply a thank-you if the app has been good to you.", bundle: .module)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: "heart")
@@ -194,13 +193,13 @@ public struct TipJarView: View {
                 if busy == tip.id {
                     ProgressView()
                 } else {
-                    Text("Tip")
+                    Text("Tip", bundle: .module)
                 }
             }
             .buttonStyle(.borderedProminent)
             // Any tip in flight locks every row: one tap, one charge.
             .disabled(busy != nil)
-            .accessibilityLabel("Tip \(tip.displayName), \(tip.displayPrice)")
+            .accessibilityLabel(Text("Tip \(tip.displayName), \(tip.displayPrice)", bundle: .module))
             .accessibilityIdentifier("tipjar.buy.\(tip.id.tipSlug)")
         }
         .padding(Layout.rowPadding)
@@ -223,10 +222,9 @@ public struct TipJarView: View {
                     .foregroundStyle(.pink)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Thank you")
+                    Text("Thank you", bundle: .module)
                         .font(.headline)
-                    Text("That genuinely helps, and it means a lot. Nothing about the app changed "
-                        + "— you already had everything.")
+                    Text("That genuinely helps, and it means a lot. Nothing about the app changed.", bundle: .module)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -258,10 +256,9 @@ public struct TipJarView: View {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("The App Store is unreachable")
+                Text("The App Store is unreachable", bundle: .module)
                     .font(.headline)
-                Text("Tipping needs a connection to the App Store. Everything you use keeps "
-                    + "working, online or not.")
+                Text("Tipping needs a connection to the App Store. Everything you use keeps working, online or not.", bundle: .module)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -283,8 +280,7 @@ public struct TipJarView: View {
     /// A tip is a one-off. The word "lifetime" is banned outright (FR-1100-05), and nothing here
     /// may imply a recurring charge — a tip is not a subscription.
     private var fineprint: some View {
-        Text("Each tip is a one-time thank-you. No subscription, no recurring charge, and no "
-            + "features attached.")
+        Text("Each tip is a one-time thank-you. No subscription, no recurring charge, and no features attached.", bundle: .module)
             .font(.footnote)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -321,9 +317,7 @@ private extension ProductID {
         case .tipMedium: "tip.medium"
         case .tipLarge: "tip.large"
         // Non-tips never reach a tip row, but the slug stays total rather than force-unwrapping.
-        case .pro: "pro"
-        case .automation: "automation"
-        case .everything: "everything"
+        case .supporter: "supporter"
         }
     }
 }

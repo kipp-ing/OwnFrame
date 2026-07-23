@@ -48,7 +48,7 @@ struct TVSlideshowView: View {
     // 1100: optional so previews/hosts without the app environment still render; absent means
     // unentitled, so the gate fails closed. Mirrors the iOS renderer.
     @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
-    // The per-photo Pro latch (FR-1100-12); nil until the first boundary.
+    // The per-photo ambience latch (FR-1100-12); nil until the first boundary.
     @State private var latchedAmbience: AmbienceGate?
     /// `.task` re-fires when the settings `fullScreenCover` is dismissed (the covered view
     /// re-appears); the engine must start once per generation or every settings round-trip
@@ -157,7 +157,7 @@ struct TVSlideshowView: View {
             Task { await stopHA() }
         }
         .onChange(of: viewModel.currentAssetID) { _, _ in
-            // Photo-advance boundary — the only moment the Pro gate may change what
+            // Photo-advance boundary — the only moment the ambience gate may change what
             // renders, so a revocation never freezes a pan mid-photo (FR-1100-12).
             relatchAmbience()
         }
@@ -193,17 +193,17 @@ struct TVSlideshowView: View {
         return (viewModel.preparer as? DecodedImageStore<UIImage>)?.image(for: id)
     }
 
-    // MARK: - The Pro ambience gate (1100)
+    // MARK: - The ambience gate (1100)
 
-    /// Whether the frame owns `.pro`, read live. Universal purchase means this is normally
-    /// the same answer the iPad gives.
-    private var isProEntitled: Bool {
-        entitlements?.current.contains(.pro) ?? false
+    /// Whether the frame owns the Supporter Unlock, read live. Universal purchase means this is
+    /// normally the same answer the iPad gives.
+    private var isUnlocked: Bool {
+        entitlements?.current.contains(.supporter) ?? false
     }
 
     /// The latch in force right now; mirrors the live entitlement until the first boundary.
     private var ambience: AmbienceGate {
-        latchedAmbience ?? AmbienceGate(entitled: isProEntitled)
+        latchedAmbience ?? AmbienceGate(entitled: isUnlocked)
     }
 
     /// Ken Burns as it should actually render. Both call sites below go through this, so an
@@ -216,7 +216,7 @@ struct TVSlideshowView: View {
     /// (There is no clock to gate on tvOS yet — that is a known 1000 leftover.)
     private func relatchAmbience() {
         var gate = ambience
-        gate.relatch(entitled: isProEntitled)
+        gate.relatch(entitled: isUnlocked)
         latchedAmbience = gate
     }
 
