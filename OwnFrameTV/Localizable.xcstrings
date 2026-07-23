@@ -1,0 +1,633 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "\"%@\" will play on this Apple TV." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ wird auf diesem Apple TV abgespielt."
+          }
+        }
+      }
+    },
+    "%lld photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Fotos"
+          }
+        }
+      }
+    },
+    "1 photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Foto"
+          }
+        }
+      }
+    },
+    "API key" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-Schlüssel"
+          }
+        }
+      }
+    },
+    "Ambience — Ken Burns motion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ambiente — Ken-Burns-Bewegung"
+          }
+        }
+      }
+    },
+    "Ambience — Ken Burns motion is on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ambiente — Ken-Burns-Bewegung ist an"
+          }
+        }
+      }
+    },
+    "Back" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück"
+          }
+        }
+      }
+    },
+    "Can't reach your photos right now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Fotos sind gerade nicht erreichbar"
+          }
+        }
+      }
+    },
+    "Check that the Apple TV is online. Retrying automatically…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prüfe, ob das Apple TV online ist. Es wird automatisch erneut versucht …"
+          }
+        }
+      }
+    },
+    "Choose an album" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Album wählen"
+          }
+        }
+      }
+    },
+    "Choose how to reach your photos. You can change this later." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle, wie du deine Fotos erreichst. Das kannst du später ändern."
+          }
+        }
+      }
+    },
+    "Connect a broker so Home Assistant can see this frame." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinde einen Broker, damit Home Assistant diesen Rahmen sehen kann."
+          }
+        }
+      }
+    },
+    "Connect to my Immich server" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit meinem Immich-Server verbinden"
+          }
+        }
+      }
+    },
+    "Connect to your MQTT broker to control the slideshow from Home Assistant." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinde dich mit deinem MQTT-Broker, um die Diashow aus Home Assistant zu steuern."
+          }
+        }
+      }
+    },
+    "Connect to your server" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit deinem Server verbinden"
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fertig"
+          }
+        }
+      }
+    },
+    "Enter your Immich address and an API key to browse and pick an album." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib deine Immich-Adresse und einen API-Schlüssel ein, um Alben zu durchsuchen und auszuwählen."
+          }
+        }
+      }
+    },
+    "Home Assistant (MQTT)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant (MQTT)"
+          }
+        }
+      }
+    },
+    "Host" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host"
+          }
+        }
+      }
+    },
+    "Leave a Tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trinkgeld geben"
+          }
+        }
+      }
+    },
+    "Let Home Assistant and Shortcuts drive the frame." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lass Home Assistant und Kurzbefehle den Rahmen steuern."
+          }
+        }
+      }
+    },
+    "New password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neues Passwort"
+          }
+        }
+      }
+    },
+    "No albums on this server" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Alben auf diesem Server"
+          }
+        }
+      }
+    },
+    "Not available on Apple TV" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Apple TV nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort"
+          }
+        }
+      }
+    },
+    "Password is set — re-enter to change it." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort ist gesetzt — zum Ändern erneut eingeben."
+          }
+        }
+      }
+    },
+    "Paste an Immich share link — no account or API key needed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einen Immich-Freigabelink einfügen — ohne Konto oder API-Schlüssel."
+          }
+        }
+      }
+    },
+    "Paste the Immich share link someone sent you. You'll only be asked for a password if the link needs one." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füge den Immich-Freigabelink ein, den dir jemand geschickt hat. Nach einem Passwort wirst du nur gefragt, wenn der Link eines benötigt."
+          }
+        }
+      }
+    },
+    "Photos drift and scale slowly instead of sitting still." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos driften und zoomen langsam, statt stillzustehen."
+          }
+        }
+      }
+    },
+    "Pick the album to play. You can change it later in Settings." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle das Album, das abgespielt werden soll. Du kannst es später in den Einstellungen ändern."
+          }
+        }
+      }
+    },
+    "Play a shared album" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geteiltes Album abspielen"
+          }
+        }
+      }
+    },
+    "Playing from a Photos library isn't supported here. Use a shared link or connect to your Immich server instead." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Abspielen aus einer Fotos-Mediathek wird hier nicht unterstützt. Verwende stattdessen einen geteilten Link oder verbinde dich mit deinem Immich-Server."
+          }
+        }
+      }
+    },
+    "Please enter a broker host." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte gib einen Broker-Host ein."
+          }
+        }
+      }
+    },
+    "Please enter a password." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte gib ein Passwort ein."
+          }
+        }
+      }
+    },
+    "Please enter a port between 1 and 65535." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte gib einen Port zwischen 1 und 65535 ein."
+          }
+        }
+      }
+    },
+    "Please enter a username." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte gib einen Benutzernamen ein."
+          }
+        }
+      }
+    },
+    "Port" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port"
+          }
+        }
+      }
+    },
+    "Ready to play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereit zum Abspielen"
+          }
+        }
+      }
+    },
+    "Remote control" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fernsteuerung"
+          }
+        }
+      }
+    },
+    "Remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen"
+          }
+        }
+      }
+    },
+    "Restore Purchases" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käufe wiederherstellen"
+          }
+        }
+      }
+    },
+    "Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stelle Käufe wieder her, die du bereits besitzt. Trinkgelder sind optional und schalten nichts frei — sie sind einfach ein Dankeschön."
+          }
+        }
+      }
+    },
+    "Retry Now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt erneut versuchen"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speichern"
+          }
+        }
+      }
+    },
+    "Set up a slideshow from just a shared link — no account or API key needed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richte eine Diashow allein mit einem geteilten Link ein — ohne Konto oder API-Schlüssel."
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen"
+          }
+        }
+      }
+    },
+    "Shared link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geteilter Link"
+          }
+        }
+      }
+    },
+    "Sign in with your server address and an API key to pick an album." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Melde dich mit Serveradresse und API-Schlüssel an, um ein Album zu wählen."
+          }
+        }
+      }
+    },
+    "Start slideshow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diashow starten"
+          }
+        }
+      }
+    },
+    "This shared link is password-protected." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser geteilte Link ist passwortgeschützt."
+          }
+        }
+      }
+    },
+    "Unlocks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freischaltungen"
+          }
+        }
+      }
+    },
+    "Use a shared album link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geteilten Album-Link verwenden"
+          }
+        }
+      }
+    },
+    "Username" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzername"
+          }
+        }
+      }
+    },
+    "Welcome" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Willkommen"
+          }
+        }
+      }
+    },
+    "Where your money goes: the Supporter Unlock covers the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wohin dein Geld fließt: Die Supporter-Freischaltung deckt die laufenden Kosten des Projekts — Entwicklerkonto, KI-Tools, Testgeräte — und alles darüber hinaus geht zurück an Open-Source-Projekte, die der Gemeinschaft dienen. Der kostenlose Rahmen bleibt für immer voll funktionsfähig."
+          }
+        }
+      }
+    },
+    "Your slideshow is ready to start." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Diashow ist startbereit."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -189,16 +189,12 @@ struct TVSettingsView: View {
             }
             .accessibilityIdentifier("settings.tipjar")
 
-            Text("Restore purchases you already own. Tips are optional and unlock nothing — "
-                 + "they just say thanks.")
+            Text("Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
             // Transparency statement (docs/where-the-money-goes.md) — calm, never a nag (FR-1100-09).
-            Text("Where your money goes: the Supporter Unlock covers the project's running costs — "
-                 + "developer account, AI tools, test hardware — and everything beyond that goes "
-                 + "back to open-source projects that serve the community. The free frame stays "
-                 + "whole, forever.")
+            Text("Where your money goes: the Supporter Unlock covers the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("settings.unlocks.moneyPledge")

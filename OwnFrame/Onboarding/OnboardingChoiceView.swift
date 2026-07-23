@@ -62,8 +62,8 @@ struct OnboardingChoiceView: View {
 
 /// A tappable onboarding option: icon + title + one-line description + a chevron.
 private struct ChoiceRow: View {
-    let title: String
-    let description: String
+    let title: LocalizedStringKey
+    let description: LocalizedStringKey
     let systemImage: String
     let identifier: String
     let action: () -> Void
