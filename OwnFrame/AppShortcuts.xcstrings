@@ -1,0 +1,90 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Get ${applicationName} state" : {
+      "comment" : "Spoken Siri phrase for the Get Frame State shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status von ${applicationName} abrufen"
+          }
+        }
+      }
+    },
+    "Next photo on ${applicationName}" : {
+      "comment" : "Spoken Siri phrase for the Next Photo shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächstes Foto auf ${applicationName}"
+          }
+        }
+      }
+    },
+    "Pause ${applicationName}" : {
+      "comment" : "Spoken Siri phrase for the Pause Slideshow shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausiere ${applicationName}"
+          }
+        }
+      }
+    },
+    "Previous photo on ${applicationName}" : {
+      "comment" : "Spoken Siri phrase for the Previous Photo shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorheriges Foto auf ${applicationName}"
+          }
+        }
+      }
+    },
+    "Resume ${applicationName}" : {
+      "comment" : "Spoken Siri phrase for the Resume Slideshow shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setze ${applicationName} fort"
+          }
+        }
+      }
+    },
+    "Set ${applicationName} brightness" : {
+      "comment" : "Spoken Siri phrase for the Set Frame Brightness shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helligkeit von ${applicationName} einstellen"
+          }
+        }
+      }
+    },
+    "Set ${applicationName} source" : {
+      "comment" : "Spoken Siri phrase for the Set Frame Source shortcut. Every utterance must contain ${applicationName}.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle von ${applicationName} festlegen"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

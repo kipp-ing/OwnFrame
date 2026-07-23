@@ -20,6 +20,10 @@ All actions appear in the Shortcuts app automatically after installing the app
 | Set Frame Source | "Set OwnFrame source" | Options = your saved sources |
 | Get Frame State | "Get OwnFrame state" | Returns playing/paused, brightness, source, photo date & place |
 
+The spoken phrases are localized (`OwnFrame/AppShortcuts.xcstrings`); on a German device
+Siri answers to the German wording instead, and Get Frame State reads the play state back
+in the device language.
+
 ## The two assumptions (read this first)
 
 1. **The app must be in the foreground.** iOS only lets an app control screen
