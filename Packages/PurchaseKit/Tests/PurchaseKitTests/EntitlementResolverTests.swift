@@ -15,32 +15,25 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 // MARK: - Rule 1 — non-revoked owned product → union of ProductCatalog.grants
 
-@Test func rule1SingleOwnedUnlockGrantsItsTier() {
-    #expect(EntitlementResolver.resolve([owned(.pro)]) == [.pro])
-    #expect(EntitlementResolver.resolve([owned(.automation)]) == [.automation])
-}
-
+/// The one unlock grants the whole entitlement set — `[.supporter]` is `EntitlementSet.all`.
 // @covers FR-1100-04
-@Test func rule1OwnedBundleGrantsBothTiers() {
-    #expect(EntitlementResolver.resolve([owned(.everything)]) == EntitlementSet.all)
+@Test func rule1OwnedSupporterUnlockGrantsTheFullEntitlementSet() {
+    #expect(EntitlementResolver.resolve([owned(.supporter)]) == [.supporter])
+    #expect(EntitlementResolver.resolve([owned(.supporter)]) == EntitlementSet.all)
 }
 
-@Test func rule1SeparateUnlocksUnionIntoTheFullSet() {
-    let resolved = EntitlementResolver.resolve([owned(.pro), owned(.automation)])
-
-    #expect(resolved == EntitlementSet.all)
-}
-
+/// The reduce unions grants, so owning the same unlock across two transactions (a re-purchase)
+/// resolves to the same single set rather than doubling it.
 @Test func rule1OverlappingGrantsDoNotDuplicate() {
-    let resolved = EntitlementResolver.resolve([owned(.everything), owned(.pro)])
+    let resolved = EntitlementResolver.resolve([owned(.supporter), owned(.supporter)])
 
     #expect(resolved == EntitlementSet.all)
-    #expect(resolved.count == 2)
+    #expect(resolved.count == 1)
 }
 
 @Test func rule1TransactionOrderDoesNotMatter() {
-    let forward = EntitlementResolver.resolve([owned(.pro), owned(.everything), owned(.tipLarge)])
-    let reversed = EntitlementResolver.resolve([owned(.tipLarge), owned(.everything), owned(.pro)])
+    let forward = EntitlementResolver.resolve([owned(.supporter), owned(.tipLarge)])
+    let reversed = EntitlementResolver.resolve([owned(.tipLarge), owned(.supporter)])
 
     #expect(forward == reversed)
     #expect(forward == EntitlementSet.all)
@@ -50,51 +43,33 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 // @covers FR-1100-12
 @Test func rule2RevokedUnlockContributesNothing() {
-    #expect(EntitlementResolver.resolve([owned(.pro, revoked: true)]).isEmpty)
-    #expect(EntitlementResolver.resolve([owned(.automation, revoked: true)]).isEmpty)
+    #expect(EntitlementResolver.resolve([owned(.supporter, revoked: true)]).isEmpty)
+    #expect(EntitlementResolver.resolve([owned(.supporter, revoked: true)]) == EntitlementSet.none)
 }
 
-// @covers FR-1100-12
-@Test func rule2RevokedBundleContributesNothing() {
-    #expect(EntitlementResolver.resolve([owned(.everything, revoked: true)]) == EntitlementSet.none)
-}
-
-/// Revocation is evaluated per transaction, not globally: a refunded bundle must not take an
-/// independently owned unlock down with it.
-// @covers FR-1100-12
-@Test func rule2RevokedBundleLeavesAnIndependentlyOwnedUnlockIntact() {
-    let resolved = EntitlementResolver.resolve([
-        owned(.everything, revoked: true),
-        owned(.automation),
-    ])
-
-    #expect(resolved == [.automation])
-    #expect(resolved.contains(.pro) == false)
-}
-
-/// Combination case: the *same* product owned both revoked and non-revoked (re-purchase after a
-/// refund). The non-revoked transaction still grants; the revoked one contributes nothing.
+/// Revocation is evaluated per transaction, not per product: the *same* unlock owned both revoked
+/// and non-revoked (a re-purchase after a refund) still grants — the live transaction contributes,
+/// the revoked one does not. With a single unlock this is the whole of the per-transaction rule.
 // @covers FR-1100-12
 @Test func rule2SameProductOwnedRevokedAndNonRevokedStillGrants() {
     let revokedFirst = EntitlementResolver.resolve([
-        owned(.pro, revoked: true),
-        owned(.pro),
+        owned(.supporter, revoked: true),
+        owned(.supporter),
     ])
     let revokedLast = EntitlementResolver.resolve([
-        owned(.pro),
-        owned(.pro, revoked: true),
+        owned(.supporter),
+        owned(.supporter, revoked: true),
     ])
 
-    #expect(revokedFirst == [.pro])
-    #expect(revokedLast == [.pro])
+    #expect(revokedFirst == [.supporter])
+    #expect(revokedLast == [.supporter])
 }
 
 // @covers FR-1100-12
 @Test func rule2AllTransactionsRevokedResolvesToEmpty() {
     let resolved = EntitlementResolver.resolve([
-        owned(.pro, revoked: true),
-        owned(.automation, revoked: true),
-        owned(.everything, revoked: true),
+        owned(.supporter, revoked: true),
+        owned(.supporter, revoked: true),
     ])
 
     #expect(resolved == EntitlementSet.none)
@@ -115,11 +90,11 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 // @covers FR-1100-08
 @Test func rule3TipsDoNotChangeAnExistingEntitlement() {
-    let withoutTips = EntitlementResolver.resolve([owned(.pro)])
-    let withTips = EntitlementResolver.resolve([owned(.pro), owned(.tipLarge), owned(.tipSmall)])
+    let withoutTips = EntitlementResolver.resolve([owned(.supporter)])
+    let withTips = EntitlementResolver.resolve([owned(.supporter), owned(.tipLarge), owned(.tipSmall)])
 
     #expect(withTips == withoutTips)
-    #expect(withTips == [.pro])
+    #expect(withTips == [.supporter])
 }
 
 // MARK: - Rule 4 — unknown product ids contribute nothing
@@ -127,7 +102,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 @Test func rule4UnknownProductIdentifiersAreIgnored() {
     let resolved = EntitlementResolver.resolve([
         OwnedTransaction(productID: "ing.kipp.Immich-Slideshow.unlock.future", isRevoked: false),
-        OwnedTransaction(productID: "com.example.other.unlock.pro", isRevoked: false),
+        OwnedTransaction(productID: "com.example.other.unlock.supporter", isRevoked: false),
         OwnedTransaction(productID: "", isRevoked: false),
     ])
 
@@ -137,10 +112,10 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 @Test func rule4UnknownProductIdentifiersDoNotDisturbKnownOnes() {
     let resolved = EntitlementResolver.resolve([
         OwnedTransaction(productID: "ing.kipp.Immich-Slideshow.unlock.future", isRevoked: false),
-        owned(.pro),
+        owned(.supporter),
     ])
 
-    #expect(resolved == [.pro])
+    #expect(resolved == [.supporter])
 }
 
 // MARK: - Rule 5 — empty input → {}

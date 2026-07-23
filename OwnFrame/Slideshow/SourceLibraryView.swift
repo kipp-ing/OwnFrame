@@ -128,7 +128,7 @@ private struct SourceRow: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(isActive ? "\(source.label), active" : source.label)
+        .accessibilityLabel(isActive ? Text("\(source.label), active") : Text(verbatim: source.label))
     }
 }
 
@@ -295,7 +295,7 @@ private struct AddAlbumDoneBar: View {
         .accessibilityIdentifier("sources.add.done")
     }
 
-    private var doneLabel: String {
+    private var doneLabel: LocalizedStringKey {
         switch addedCount {
         case ..<1: "Done"
         case 1: "Done · 1 added"
@@ -316,12 +316,12 @@ private extension SourceKind {
     var subtitle: String {
         switch self {
         case .album:
-            "Album"
+            String(localized: "Album")
         case let .sharedLink(baseURL, _):
-            baseURL.host ?? "Shared link"
+            baseURL.host ?? String(localized: "Shared link")
         case .photoLibrary:
             // 900: a device Apple Photos / iCloud album.
-            "Photos"
+            String(localized: "Photos")
         }
     }
 }

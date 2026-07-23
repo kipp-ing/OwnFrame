@@ -118,7 +118,7 @@ struct SlideshowChrome<Info: View>: View {
 
     private func iconButton(
         _ systemName: String,
-        label: String,
+        label: LocalizedStringKey,
         id: String,
         action: @escaping () -> Void
     ) -> some View {

@@ -69,8 +69,8 @@ struct TVOnboardingView: View {
 /// step's controls, and — where the flow allows going back — an on-screen Back button (the
 /// Menu button is handled by the host).
 private struct TVStepScaffold<Content: View>: View {
-    let title: String
-    var subtitle: String? = nil
+    let title: LocalizedStringKey
+    var subtitle: LocalizedStringKey? = nil
     let viewModel: OnboardingViewModel
     @ViewBuilder var content: Content
 
@@ -171,8 +171,8 @@ private struct TVChoiceStep: View {
 
 /// The two-line label inside a choice button.
 private struct TVChoiceLabel: View {
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
     let systemImage: String
 
     var body: some View {
@@ -316,7 +316,7 @@ private struct TVAlbumRow: View {
                 Text(album.name.isEmpty ? album.id : album.name)
                     .font(.title3.weight(.semibold))
                 if let count = album.assetCount {
-                    Text(count == 1 ? "1 photo" : "\(count) photos")
+                    (count == 1 ? Text("1 photo") : Text("\(count) photos"))
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
@@ -349,7 +349,7 @@ private struct TVConfirmStep: View {
         }
     }
 
-    private var summary: String {
+    private var summary: LocalizedStringKey {
         if let selectedAlbumName {
             return "\"\(selectedAlbumName)\" will play on this Apple TV."
         }

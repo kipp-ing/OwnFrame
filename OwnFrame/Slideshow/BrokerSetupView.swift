@@ -103,8 +103,7 @@ struct BrokerSettingsSection: View {
 
             // FR-900-12: the opt-in is global — say plainly that it also covers photos
             // from the device library, which otherwise never leave the device (FR-900-14).
-            Text("Applies to every source — Immich albums, shared links, and albums from "
-                 + "your Photos library.")
+            Text("Applies to every source — Immich albums, shared links, and albums from your Photos library.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("broker.imagePublishScope")
@@ -127,13 +126,13 @@ struct BrokerSettingsSection: View {
     private nonisolated static func message(for error: BrokerValidationError) -> String {
         switch error {
         case .emptyHost:
-            "Please enter a broker host."
+            String(localized: "Please enter a broker host.")
         case .invalidPort:
-            "Please enter a port between 1 and 65535."
+            String(localized: "Please enter a port between 1 and 65535.")
         case .emptyUsername:
-            "Please enter a username."
+            String(localized: "Please enter a username.")
         case .emptyPassword:
-            "Please enter a password."
+            String(localized: "Please enter a password.")
         }
     }
 }

@@ -57,7 +57,7 @@ struct SlideshowView: View {
     // CLOSED — a wiring mistake can never hand out a paid feature. The `--uitest-entitlements`
     // XCUITests are what protect the opposite direction (a paying frame losing its features).
     @Environment(EntitlementStore.self) private var entitlements: EntitlementStore?
-    // The per-photo Pro latch (FR-1100-12). nil until the first boundary, so the very first
+    // The per-photo ambience latch (FR-1100-12). nil until the first boundary, so the very first
     // render still reflects the live entitlement instead of flashing an ungated frame.
     @State private var latchedAmbience: AmbienceGate?
     @State private var coordinator: HAControlCoordinator?
@@ -190,7 +190,7 @@ struct SlideshowView: View {
         .onChange(of: viewModel.currentAssetID) { _, _ in
             // Photo-advance boundary: the only moment a Random clock may relocate.
             relocateRandomClockIfNeeded()
-            // …and the only moment the Pro gate may change what renders. Doing it here
+            // …and the only moment the ambience gate may change what renders. Doing it here
             // rather than reactively is what keeps a revocation from freezing a pan
             // mid-photo (FR-1100-12).
             relatchAmbience()
@@ -463,17 +463,17 @@ struct SlideshowView: View {
 
     // MARK: - Render-time settings (008)
 
-    // MARK: - The Pro ambience gate (1100)
+    // MARK: - The ambience gate (1100)
 
-    /// Whether the frame currently owns `.pro`, read live.
-    private var isProEntitled: Bool {
-        entitlements?.current.contains(.pro) ?? false
+    /// Whether the frame currently owns the Supporter Unlock, read live.
+    private var isUnlocked: Bool {
+        entitlements?.current.contains(.supporter) ?? false
     }
 
     /// The latch in force right now. Before the first boundary it mirrors the live
     /// entitlement, so a launch is never a frame behind.
     private var ambience: AmbienceGate {
-        latchedAmbience ?? AmbienceGate(entitled: isProEntitled)
+        latchedAmbience ?? AmbienceGate(entitled: isUnlocked)
     }
 
     /// Ken Burns as it should actually render: the user's stored setting, minus the gate.
@@ -496,7 +496,7 @@ struct SlideshowView: View {
     /// foreground. Never called mid-photo: that is the whole point of the latch.
     private func relatchAmbience() {
         var gate = ambience
-        gate.relatch(entitled: isProEntitled)
+        gate.relatch(entitled: isUnlocked)
         latchedAmbience = gate
     }
 

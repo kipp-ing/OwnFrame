@@ -2,23 +2,23 @@
 //  PurchaseGateCoordinatorTests.swift
 //  OwnFrameTests
 //
-//  1100 (T018, amended 2026-07-20 by T050): the `.automation` gate on the HA/MQTT
+//  1100 (T018, amended 2026-07-20 by T050): the Supporter-Unlock gate on the HA/MQTT
 //  coordinator (data-model.md §Gated feature mapping).
 //
 //  The amendment: **telemetry is free, only control is gated** (FR-1100-03 / FR-1100-03a).
 //  The gate no longer blocks the coordinator — it selects its `Mode`:
 //
-//  1. Without `.automation` but with a broker configured, the coordinator builds in
+//  1. Without the Supporter Unlock but with a broker configured, the coordinator builds in
 //     `.telemetryOnly`: it connects and publishes read-only sensors so Home Assistant can
 //     *see* the frame, but never subscribes to a command topic or acts on a command. Reading
 //     the broker config (the Keychain hop, `BrokerConfigStore.load()`) is now a free-tier
 //     operation — telemetry needs it — but the stored config is NEVER cleared or migrated, so
-//     buying Automation later upgrades to `.full` with zero re-entry (FR-1100-14).
+//     buying the Supporter Unlock later upgrades to `.full` with zero re-entry (FR-1100-14).
 //
 //  2. R5, the state-topic rule (unchanged). MQTT state topics carry the STORED settings
-//     values, never the effective rendering. An Automation-only owner (no `.pro`) who drives
-//     the Ken Burns or clock selects over HA must see the stored value echoed back verbatim —
-//     the Pro gate bites at the point of rendering, never on the data or on the wire.
+//     values, never the effective rendering. An owner who drives the Ken Burns or clock
+//     selects over HA must see the stored value echoed back verbatim — the ambience gate
+//     bites at the point of rendering, never on the data or on the wire.
 //     `SlideshowRemoteControlAdapter` stays entitlement-free.
 //
 
@@ -38,7 +38,7 @@ struct PurchaseGateCoordinatorTests {
 
     // MARK: - Mode selection (control-only gate)
 
-    @Test func withoutAutomationTheCoordinatorBuildsInTelemetryMode() async throws {
+    @Test func withoutTheUnlockTheCoordinatorBuildsInTelemetryMode() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none)
         defer { fixture.cleanUp() }
 
@@ -49,8 +49,8 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.lastMode == .telemetryOnly)
     }
 
-    @Test func withAutomationTheCoordinatorBuildsInFullMode() async throws {
-        let fixture = try GateFixture(entitlements: [.automation])
+    @Test func withTheSupporterUnlockTheCoordinatorBuildsInFullMode() async throws {
+        let fixture = try GateFixture(entitlements: [.supporter])
         defer { fixture.cleanUp() }
 
         let coordinator = await fixture.gate(fixture.adapter)
@@ -60,20 +60,8 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.lastMode == .full)
     }
 
-    /// Ambience and automation are independent purchases: owning Pro buys motion and the
-    /// clock, never remote control — so a Pro-only frame gets telemetry, not full control.
-    @Test func proAloneGetsTelemetryNotControl() async throws {
-        let fixture = try GateFixture(entitlements: [.pro])
-        defer { fixture.cleanUp() }
-
-        let coordinator = await fixture.gate(fixture.adapter)
-
-        #expect(coordinator != nil)
-        #expect(fixture.lastMode == .telemetryOnly)
-    }
-
-    /// The everything-bundle grants both tiers, so it must open the control tier.
-    @Test func everythingBundleUnlocksFullControl() async throws {
+    /// The full `EntitlementSet.all` convenience grant (== `[.supporter]`) opens the control tier.
+    @Test func fullEntitlementSetUnlocksFullControl() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.all)
         defer { fixture.cleanUp() }
 
@@ -96,7 +84,7 @@ struct PurchaseGateCoordinatorTests {
     // MARK: - FR-1100-14: stored configuration is read for telemetry but never touched
 
     /// Free telemetry DOES read the broker config (it needs it to connect), but never clears
-    /// or migrates it — the whole basis for a zero-re-entry upgrade when Automation is bought.
+    /// or migrates it — the whole basis for a zero-re-entry upgrade when the Supporter Unlock is bought.
     @Test func telemetryPathReadsBrokerConfigButNeverClears() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none)
         defer { fixture.cleanUp() }
@@ -124,7 +112,7 @@ struct PurchaseGateCoordinatorTests {
 
     /// The full path reads the broker config exactly once — the coordinator factory's own read.
     @Test func fullPathReadsTheBrokerConfigExactlyOnce() async throws {
-        let fixture = try GateFixture(entitlements: [.automation])
+        let fixture = try GateFixture(entitlements: [.supporter])
         defer { fixture.cleanUp() }
 
         _ = await fixture.gate(fixture.adapter)
@@ -133,15 +121,15 @@ struct PurchaseGateCoordinatorTests {
         #expect(fixture.configStore.clearCalls == 0)
     }
 
-    // MARK: - FR-1100-14 / US5 scenario 3: purchasing Automation upgrades telemetry → full
-    // with the previously stored config and zero re-entry.
+    // MARK: - FR-1100-14 / US5 scenario 3: purchasing the Supporter Unlock upgrades telemetry →
+    // full with the previously stored config and zero re-entry.
 
     /// A frame that stored a broker config while free — already publishing telemetry — then
-    /// buys Automation, and its coordinator upgrades from `.telemetryOnly` to `.full` against
-    /// the *same* stored config with no re-entry. One config store, one gate; only the
+    /// buys the Supporter Unlock, and its coordinator upgrades from `.telemetryOnly` to `.full`
+    /// against the *same* stored config with no re-entry. One config store, one gate; only the
     /// entitlement set flips between the two calls — exactly as a live purchase would flip it,
     /// since the gate reads entitlements at call time.
-    @Test func purchasingAutomationUpgradesTelemetryToFullWithTheStoredConfig() async throws {
+    @Test func purchasingTheUnlockUpgradesTelemetryToFullWithTheStoredConfig() async throws {
         let fixture = try GateFixture(entitlements: EntitlementSet.none, suite: "gate.purchase-flip")
         defer { fixture.cleanUp() }
 
@@ -185,8 +173,8 @@ struct PurchaseGateCoordinatorTests {
         #expect(configStore.clearCalls == 0)
         #expect(configStore.stored == before)          // nothing mutated
 
-        // --- Purchase completes: the same set gains `.automation`; nothing else changes.
-        owned.value.insert(.automation)
+        // --- Purchase completes: the same set gains `.supporter`; nothing else changes.
+        owned.value.insert(.supporter)
 
         // --- Entitled: the coordinator now builds in full mode, same seeded config.
         let entitled = await gate(adapter)
@@ -200,11 +188,11 @@ struct PurchaseGateCoordinatorTests {
 
     // MARK: - R5: state topics report stored settings, not effective rendering
 
-    /// An Automation-only owner reads the Ken Burns select over HA: the topic reports the
-    /// STORED `true`, while `AmbienceGate` (no `.pro`) renders it off. Data and rendering are
-    /// deliberately allowed to disagree.
-    @Test func kenBurnsStateTopicReportsStoredValueWhileRenderingStaysProGated() throws {
-        let fixture = try GateFixture(entitlements: [.automation])
+    /// The Ken Burns select read over HA reports the STORED `true`, while an unentitled frame's
+    /// `AmbienceGate(entitled: false)` renders it off. Data and rendering are deliberately
+    /// allowed to disagree — the state topic never reflects the rendering gate.
+    @Test func kenBurnsStateTopicReportsStoredValueWhileRenderingStaysGated() throws {
+        let fixture = try GateFixture(entitlements: [.supporter])
         defer { fixture.cleanUp() }
 
         fixture.store.settings.kenBurns = true
@@ -216,8 +204,8 @@ struct PurchaseGateCoordinatorTests {
     }
 
     /// Same rule for the clock select.
-    @Test func clockStateTopicReportsStoredValueWhileRenderingStaysProGated() throws {
-        let fixture = try GateFixture(entitlements: [.automation])
+    @Test func clockStateTopicReportsStoredValueWhileRenderingStaysGated() throws {
+        let fixture = try GateFixture(entitlements: [.supporter])
         defer { fixture.cleanUp() }
 
         fixture.store.settings.clock = ClockSettings(
@@ -233,11 +221,11 @@ struct PurchaseGateCoordinatorTests {
         #expect(ambience.effectiveClock(setting: snapshot.clockOn) == false)
     }
 
-    /// A remote apply from an Automation-only owner is stored verbatim and echoed back
-    /// verbatim. The gate must never rewrite an incoming command to `false`, which would
-    /// silently destroy the owner's stored preference.
-    @Test func remoteApplyStoresProGatedValuesVerbatimForAnAutomationOnlyOwner() throws {
-        let fixture = try GateFixture(entitlements: [.automation])
+    /// A remote apply from an entitled owner is stored verbatim and echoed back verbatim. The
+    /// gate must never rewrite an incoming command to `false`, which would silently destroy the
+    /// owner's stored preference.
+    @Test func remoteApplyStoresGatedValuesVerbatimForAnEntitledOwner() throws {
+        let fixture = try GateFixture(entitlements: [.supporter])
         defer { fixture.cleanUp() }
 
         var snapshot = fixture.adapter.themeSettings
@@ -256,7 +244,7 @@ struct PurchaseGateCoordinatorTests {
     /// §Invariants: PurchaseKit never reads, writes, masks, or migrates
     /// `ThemeSettings` / `ClockSettings`.
     @Test func adapterSnapshotIsAPureMirrorOfTheStoreRegardlessOfEntitlements() throws {
-        let cases: [EntitlementSet] = [EntitlementSet.none, [.pro], [.automation], EntitlementSet.all]
+        let cases: [EntitlementSet] = [EntitlementSet.none, [.supporter], EntitlementSet.all]
         for (index, entitlements) in cases.enumerated() {
             let fixture = try GateFixture(entitlements: entitlements, suite: "gate.mirror.\(index)")
             defer { fixture.cleanUp() }

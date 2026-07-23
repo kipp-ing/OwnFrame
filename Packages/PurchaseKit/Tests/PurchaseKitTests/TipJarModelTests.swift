@@ -10,7 +10,7 @@ import Testing
 // refresh would be pointless and could race). Tips are gratitude, not a transaction for features.
 //
 // The model is handed a `StoreClient` and *no* `EntitlementStore`: a tip model that cannot see
-// entitlements cannot change them. The tests still inject a real store — seeded with `[.pro]` —
+// entitlements cannot change them. The tests still inject a real store — seeded with `[.supporter]` —
 // and prove the store's `current` never moves and its ownership seam is never queried.
 //
 // Determinism: every store answer is scripted on `StoreClientFake` before the call that consumes
@@ -153,16 +153,16 @@ private extension TipPhase {
 // MARK: - The load-bearing invariant (FR-1100-08)
 
 /// A successful tip thanks the user and leaves the entitlement set **byte-for-byte** unchanged:
-/// the store was seeded with exactly `[.pro]` and must still hold exactly `[.pro]` afterwards —
+/// the store was seeded with exactly `[.supporter]` and must still hold exactly `[.supporter]` afterwards —
 /// a tip must neither add a tier nor remove one. It must also never re-resolve entitlements: a
 /// tip cannot change ownership, so `ownedTransactions()` must never be queried.
 @MainActor
 // @covers FR-1100-08
 @Test func aSuccessfulTipThanksTheUserAndLeavesEntitlementsByteForByteUnchanged() async throws {
-    let fixture = TipFixture(owned: [.pro])
+    let fixture = TipFixture(owned: [.supporter])
     fixture.stocksTips()
     await fixture.model.load()
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
 
     fixture.client.enqueuePurchase(.success)
     fixture.client.resetCallLog()
@@ -170,8 +170,8 @@ private extension TipPhase {
     await fixture.model.tip(.tipMedium)
 
     #expect(fixture.model.phase.isThanked)
-    // Neither added (.automation never appears) nor removed (.pro survives): still exactly [.pro].
-    #expect(fixture.store.current == [.pro])
+    // Neither widened (no unlock is granted) nor cleared (the owned unlock survives): still [.supporter].
+    #expect(fixture.store.current == [.supporter])
     // A tip cannot change entitlements, so re-resolving would be pointless and could race.
     #expect(fixture.client.ownedTransactionsCallCount == 0)
     #expect(fixture.client.purchasedProductIDs == [.tipMedium])
@@ -183,7 +183,7 @@ private extension TipPhase {
 @MainActor
 // @covers FR-1100-08
 @Test func aTipNeverReResolvesEntitlements() async {
-    let fixture = TipFixture(owned: [.pro])
+    let fixture = TipFixture(owned: [.supporter])
     fixture.stocksTips()
     await fixture.model.load()
     fixture.client.enqueuePurchase(.success)
@@ -200,7 +200,7 @@ private extension TipPhase {
 @MainActor
 // @covers FR-1100-15
 @Test func aCancelledTipReturnsToTheOfferWithNoThanksAndNoEntitlementChange() async throws {
-    let fixture = TipFixture(owned: [.pro])
+    let fixture = TipFixture(owned: [.supporter])
     fixture.stocksTips()
     await fixture.model.load()
     fixture.client.enqueuePurchase(.cancelled)
@@ -211,7 +211,7 @@ private extension TipPhase {
     let products = try #require(fixture.model.phase.offerProducts)
     #expect(products.map(\.id) == ProductCatalog.tips)
     #expect(!fixture.model.phase.isThanked)
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
     #expect(fixture.client.ownedTransactionsCallCount == 0)
 }
 
@@ -220,7 +220,7 @@ private extension TipPhase {
 @MainActor
 // @covers FR-1100-15
 @Test func aFailedTipReturnsToTheOfferWithNoThanksAndNoEntitlementChange() async throws {
-    let fixture = TipFixture(owned: [.pro])
+    let fixture = TipFixture(owned: [.supporter])
     fixture.stocksTips()
     await fixture.model.load()
     fixture.client.failNextPurchase()
@@ -231,7 +231,7 @@ private extension TipPhase {
     let products = try #require(fixture.model.phase.offerProducts)
     #expect(products.map(\.id) == ProductCatalog.tips)
     #expect(!fixture.model.phase.isThanked)
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
     #expect(fixture.client.ownedTransactionsCallCount == 0)
 }
 
@@ -239,7 +239,7 @@ private extension TipPhase {
 /// thank for. It returns to the idle offer — never a premature thank-you.
 @MainActor
 @Test func aPendingTipReturnsToTheOfferWithoutThanking() async throws {
-    let fixture = TipFixture(owned: [.pro])
+    let fixture = TipFixture(owned: [.supporter])
     fixture.stocksTips()
     await fixture.model.load()
     fixture.client.enqueuePurchase(.pending)
@@ -250,7 +250,7 @@ private extension TipPhase {
     let products = try #require(fixture.model.phase.offerProducts)
     #expect(products.map(\.id) == ProductCatalog.tips)
     #expect(!fixture.model.phase.isThanked)
-    #expect(fixture.store.current == [.pro])
+    #expect(fixture.store.current == [.supporter])
 }
 
 // MARK: - The tip jar cannot grant an unlock
@@ -264,7 +264,7 @@ private extension TipPhase {
     await fixture.model.load()
     fixture.client.resetCallLog()
 
-    await fixture.model.tip(.pro)
+    await fixture.model.tip(.supporter)
 
     #expect(!fixture.model.phase.isThanked)
     #expect(fixture.client.purchaseCallCount == 0)
@@ -274,7 +274,7 @@ private extension TipPhase {
 // MARK: - Consumables never appear in ownership
 
 /// After a successful tip, the store's own ownership query still surfaces no tip — a consumable
-/// does not become owned. Seeded with `[.pro]`, the resolved ownership stays exactly `[.pro]`.
+/// does not become owned. Seeded with `[.supporter]`, the resolved ownership stays exactly `[.supporter]`.
 ///
 /// Note the seam limit: `StoreClientFake` is queue-based and does not model purchase → ownership
 /// at all, so a tip could never appear here regardless of the flow. The real "consumables do not
@@ -282,7 +282,7 @@ private extension TipPhase {
 /// which explicitly inserts *only* unlocks (never tips) into its owned set on purchase.
 @MainActor
 @Test func theStoreNeverSurfacesATipEvenAfterASuccessfulTip() async throws {
-    let fixture = TipFixture(owned: [.pro])
+    let fixture = TipFixture(owned: [.supporter])
     fixture.stocksTips()
     await fixture.model.load()
     fixture.client.enqueuePurchase(.success)
@@ -293,5 +293,5 @@ private extension TipPhase {
     let owned = try await fixture.client.ownedTransactions()
     let tipRawValues = Set(ProductCatalog.tips.map(\.rawValue))
     #expect(!owned.contains { tipRawValues.contains($0.productID) })
-    #expect(EntitlementResolver.resolve(owned) == [.pro])
+    #expect(EntitlementResolver.resolve(owned) == [.supporter])
 }

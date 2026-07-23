@@ -71,35 +71,35 @@ final class PurchaseGateUITests: XCTestCase {
         }
     }
 
-    /// The second half of assertion 1: a locked row is an entry point, not a dead end. Each
-    /// row leads to the single unlock screen for its tier — Ken Burns and the clock are Pro
-    /// (the launch ambience composition), the broker is Automation.
+    /// The second half of assertion 1: a locked row is an entry point, not a dead end. Every
+    /// locked row now leads to the one Supporter Unlock screen — a single unlock grants every
+    /// gated capability (Ken Burns motion, the clock overlay, and Home Assistant control).
     @MainActor
     func testTappingALockedRowOpensItsTierUnlockScreen() throws {
-        // The two Pro rows open the Pro unlock screen directly.
-        let proRows = ["settings.row.kenburns.locked", "settings.row.clock.locked"]
+        // The two display rows open the Supporter unlock screen directly.
+        let displayRows = ["settings.row.kenburns.locked", "settings.row.clock.locked"]
 
         // A fresh launch per row: no navigation state carried between routes, so a failure
         // names exactly one row.
-        for rowID in proRows {
+        for rowID in displayRows {
             let app = launchIntoSettings(entitlements: "none")
             let row = element(app, rowID)
             XCTAssertTrue(scrollToElement(row, in: app), "\(rowID) must be present to be tapped")
             row.tap()
-            XCTAssertTrue(element(app, "unlock.screen.pro").waitForExistence(timeout: 5),
-                          "tapping \(rowID) must open unlock.screen.pro (FR-1100-09)")
+            XCTAssertTrue(element(app, "unlock.screen.supporter").waitForExistence(timeout: 5),
+                          "tapping \(rowID) must open unlock.screen.supporter (FR-1100-09)")
             app.terminate()
         }
 
-        // The broker row is the Automation "Remote control" locked banner (US5, amended
-        // 2026-07-20): telemetry is free so the broker editor stays live below it, and the
-        // banner opens the Automation unlock screen directly.
+        // The broker row is the "Remote control" locked banner (US5, amended 2026-07-20):
+        // telemetry is free so the broker editor stays live below it, and the banner opens the
+        // same Supporter unlock screen directly.
         let app = launchIntoSettings(entitlements: "none")
         let brokerRow = element(app, "settings.row.broker.locked")
         XCTAssertTrue(scrollToElement(brokerRow, in: app), "broker control-locked row must be present")
         brokerRow.tap()
-        XCTAssertTrue(element(app, "unlock.screen.automation").waitForExistence(timeout: 5),
-                      "the broker control-locked row must open unlock.screen.automation")
+        XCTAssertTrue(element(app, "unlock.screen.supporter").waitForExistence(timeout: 5),
+                      "the broker control-locked row must open unlock.screen.supporter")
     }
 
     // MARK: - Assertion 6 — pre-gate broker config degrades gracefully (US5 / SC-1100-06)
@@ -117,10 +117,10 @@ final class PurchaseGateUITests: XCTestCase {
         ]
         app.launch()
 
-        // Control is locked (needs Automation): the "Remote control" banner is present…
+        // Control is locked (needs the Supporter Unlock): the "Remote control" banner is present…
         let brokerRow = element(app, "settings.row.broker.locked")
         XCTAssertTrue(scrollToElement(brokerRow, in: app),
-                      "the Automation control-locked banner must be present when unentitled")
+                      "the control-locked banner must be present when unentitled")
 
         // …while the broker connection editor is LIVE and pre-filled with the stored config
         // ("not an empty or reset screen", US5 scenario 2). `--uitest-broker` pre-expands it.
@@ -224,7 +224,7 @@ final class PurchaseGateUITests: XCTestCase {
         // Anchor: we really are in a populated settings form, so an absence below means
         // "not rendered", not "never got here".
         XCTAssertTrue(app.switches["settings.clock"].waitForExistence(timeout: 5),
-                      "the live Clock control should be present when Pro is owned")
+                      "the live Clock control should be present when the Supporter Unlock is owned")
 
         // Sweep the whole form — a row that is merely scrolled out of the tree would
         // otherwise read as absent.

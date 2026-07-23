@@ -45,21 +45,24 @@ Contract points (full state machine in data-model.md):
 
 ## Entitlement gating helpers (app-target usage)
 
+There is exactly one entitlement (the Supporter Unlock), so every gate is the same check:
+
 ```swift
-entitlements.contains(.pro)          // Ken Burns effective flag, clock participation
-entitlements.contains(.automation)   // coordinator start, intent guards
+entitlements.contains(.supporter)    // Ken Burns effective flag, clock participation,
+                                     // coordinator start, intent guards
 ```
 
-- Intent guard failure message (localized key `unlock.required.automation`):
-  "Remote control requires the Automation unlock." — thrown as a user-visible intent error,
-  never a silent no-op (FR spec US5, scenario 4).
+- Intent guard failure message (localized key `unlock.required.supporter`):
+  "Remote control requires the Supporter Unlock." — thrown as a user-visible intent error,
+  never a silent no-op (spec US5, scenario 4). Intents stay listed in Shortcuts.
 
 ## Locked-row / unlock-screen UI contract (FR-1100-09)
 
-- `LockedRow` renders the wrapped row dimmed **and** badged (lock glyph + tier name) and stays
-  tappable; tap presents the tier's `UnlockScreenView`.
-- `UnlockScreenView` sections, in order: what-you-get list (with live Ken Burns demo slot on
-  the Pro screen), price + purchase button (or the `unavailable` notice), Restore Purchases.
+- `LockedRow` renders the wrapped row dimmed **and** badged (lock glyph + "Supporter" badge) and
+  stays tappable; tap presents the single `UnlockScreenView`.
+- `UnlockScreenView` sections, in order: what-you-get list (with a live Ken Burns demo slot),
+  price + purchase button (or the `unavailable` notice), Restore Purchases. There is one unlock
+  screen — the Supporter Unlock — reached from any locked row.
 - No view in PurchaseKit may auto-present. Presentation is always user-initiated from a
   locked row, the Unlocks settings section, or onboarding's settings surface — never from
   playback (SC-1100-02).

@@ -30,12 +30,12 @@ enum FrameIntentContext {
         return registry
     }
 
-    /// The `.automation` guard every intent runs FIRST (1100, data-model.md §Gated feature
+    /// The Supporter-Unlock guard every intent runs FIRST (1100, data-model.md §Gated feature
     /// mapping). Ahead of `requireRegistry()` on purpose: an unentitled *and* unconfigured
     /// frame must report the unlock, not send the owner off to fix a setup that was never
     /// the problem. Running it first also keeps a locked intent inert — it never moves the
     /// frame and then complains.
-    static func requireAutomation() throws(FrameIntentError) {
-        guard entitlements().contains(.automation) else { throw .automationLocked }
+    static func requireSupporterUnlock() throws(FrameIntentError) {
+        guard entitlements().contains(.supporter) else { throw .supporterRequired }
     }
 }

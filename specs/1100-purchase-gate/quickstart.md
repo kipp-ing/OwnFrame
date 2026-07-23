@@ -10,9 +10,10 @@ Model: [data-model.md](data-model.md).
 swift test --package-path Packages/PurchaseKit
 ```
 
-Green means: resolver rules (bundle→both, revocation, tips/unknown ignored), snapshot cache
+Green means: resolver rules (supporter→`.all`, revocation, tips/unknown ignored), snapshot cache
 round-trip + never-expires, store model cache-first launch + refresh-never-downgrades +
-updates application, view-model offer computation and `unavailable`/`pending` states.
+updates application, view-model offer computation (owns nothing → offer the single Supporter
+Unlock; owns it → "owned" state) and `unavailable`/`pending` states.
 
 ## 2. Full suites via XcodeBuildMCP (primary gate)
 
@@ -59,9 +60,10 @@ XCUITest layer is the gate; this step is for the human eye only.
 Code-complete is not ship-ready until these are ticked (tracked in
 `docs/manual-verification.md` alongside the existing device gates):
 
-- [ ] ASC: create IAPs exactly matching `ProductID` raw values; Family Sharing ON for the three
-      unlocks; localized names/descriptions using "one-time purchase" phrasing (never
-      "lifetime"); attach to the 1.1 submission (IAPs reviewed with the build).
+- [ ] ASC: create IAPs exactly matching `ProductID` raw values — the single **Supporter Unlock**
+      non-consumable (Family Sharing ON) plus the consumable tips (no Family Sharing); localized
+      names/descriptions using "one-time purchase" phrasing (never "lifetime"); attach to the 1.1
+      submission (IAPs reviewed with the build).
 - [x] ~~Run `StoreKitClientTests` from the Xcode IDE (Cmd-U) or on device.~~ **Done 2026-07-21 —
       not a device-day item.** The suite skipped because of two setup bugs in the test, not because
       headless `xcodebuild` can't serve products; both fixed. All 7 cases now pass under plain

@@ -19,10 +19,10 @@ final class SettingsUITests: XCTestCase {
         MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
-    // 1100: this suite exercises the clock (Pro) and MQTT (Automation) settings rows as
-    // settings behaviour, not as the gate — so every launch seeds `all`. The locked-row and
-    // unlock behaviour is owned entirely by PurchaseGateUITests; seeding here keeps this suite
-    // about what it was always about.
+    // 1100: this suite exercises the clock and MQTT settings rows as settings behaviour, not as
+    // the gate — so every launch seeds `all` (the clock needs the Supporter Unlock, and `all`
+    // also yields the clean entitled MQTT layout). The locked-row and unlock behaviour is owned
+    // entirely by PurchaseGateUITests; seeding here keeps this suite about what it was always about.
     @MainActor
     func testSettingsShowsBrightnessAndLiveDisplayOptionsAndDismisses() throws {
         let app = XCUIApplication()

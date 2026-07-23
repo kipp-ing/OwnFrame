@@ -1,20 +1,19 @@
-/// A paid capability tier (spec 1100, data-model.md §Entitlement).
+/// The single paid entitlement (spec 1100, data-model.md §Entitlement).
 ///
 /// Entitlements are *derived* from owned transactions, never stored per feature: a gate asks
-/// `entitlements.contains(.pro)` at the point of effect. The everything-bundle is deliberately
-/// absent — it is a product that grants both tiers, not a tier of its own, which keeps the
-/// entitlement space closed under future SKUs.
+/// `entitlements.contains(.supporter)` at the point of effect. There is exactly one functional
+/// unlock — the Supporter Unlock (FR-1100-02, FR-1100-04) — so this enum holds one case. The type
+/// stays a `Set` so the resolver, cache, and UI-test seams keep their existing shape.
 public enum Entitlement: String, CaseIterable, Sendable, Codable, Hashable, Identifiable {
-    /// Ambience: Ken Burns motion and the clock overlay.
-    case pro
-    /// Automation: HA/MQTT remote control and App Intents.
-    case automation
+    /// The Supporter Unlock: Ken Burns motion, the clock overlay, and Home Assistant remote
+    /// control plus Shortcuts/App Intents — every gated capability, in one purchase.
+    case supporter
 
-    /// Lets a tier drive `.sheet(item:)` when a locked row asks for its unlock screen.
+    /// Lets the unlock drive `.sheet(item:)` when a locked row asks for its unlock screen.
     public var id: String { rawValue }
 }
 
-/// The set of tiers a user currently holds.
+/// The set of entitlements a user currently holds.
 public typealias EntitlementSet = Set<Entitlement>
 
 extension Set where Element == Entitlement {
@@ -25,6 +24,6 @@ extension Set where Element == Entitlement {
     ///   optional context would resolve to `Optional.none` instead.
     public static var none: EntitlementSet { [] }
 
-    /// Every tier — what the everything-bundle grants.
+    /// Everything the Supporter Unlock grants.
     public static var all: EntitlementSet { EntitlementSet(Entitlement.allCases) }
 }

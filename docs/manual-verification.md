@@ -63,6 +63,11 @@ Status): the sim proves the mechanics, your eyes prove the elegance.
       do both in one pass; also check the camera-denied path still leaves manual entry usable
       (`specs/120-source-library/tasks.md` Phase 8).
 - [ ] **800 T029**: Siri phrase checklist on device (`specs/800-app-intents/tasks.md`).
+- [ ] **800 + 300 (German Siri)**: on a device set to German, confirm Siri recognises the
+      localized spoken phrases (`OwnFrame/AppShortcuts.xcstrings` — e.g. "Pausiere OwnFrame",
+      "Nächstes Foto auf OwnFrame") and that **Get Frame State** reads the play state back in
+      German ("Läuft"/"Pausiert"). Tip: create a fresh shortcut per check — Siri caches the old
+      phrasing. Phrase text only ships in the catalog; recognition itself is device-only.
 - [ ] **900 quickstart** device/beta gates: real Photos library end-to-end + the iOS 27 beta
       shared-album rebuild check (`specs/900-photo-library-source/quickstart.md`).
 

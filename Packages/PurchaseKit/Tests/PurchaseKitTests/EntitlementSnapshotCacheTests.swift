@@ -18,25 +18,16 @@ private let storageKey = "purchase.entitlements.v1"
     let savedAt = Date(timeIntervalSince1970: 1_700_000_000)
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
 
-    cache.save(EntitlementSnapshot(entitlements: [.pro, .automation], savedAt: savedAt))
+    cache.save(EntitlementSnapshot(entitlements: [.supporter], savedAt: savedAt))
 
     let loaded = try #require(EntitlementSnapshotCache(defaults: fixture.defaults).load())
     #expect(loaded.entitlements == EntitlementSet.all)
     #expect(abs(loaded.savedAt.timeIntervalSince1970 - savedAt.timeIntervalSince1970) < 1.0)
 }
 
-@Test func singleTierSnapshotRoundTripsWithoutWideningTheSet() throws {
-    let fixture = DefaultsFixture()
-    let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
-
-    cache.save(EntitlementSnapshot(entitlements: [.automation], savedAt: Date()))
-
-    let loaded = try #require(cache.load())
-    #expect(loaded.entitlements == [.automation])
-    #expect(loaded.entitlements.contains(.pro) == false)
-}
-
 /// An empty snapshot is a real, positively resolved "owns nothing" — distinct from "no snapshot".
+/// Loading it must not widen the set into the unlock (the "does not widen on load" guarantee that
+/// a single entitlement leaves only the empty set to prove).
 @Test func emptySnapshotLoadsAsAnEmptySetNotAsNil() throws {
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
@@ -45,19 +36,22 @@ private let storageKey = "purchase.entitlements.v1"
 
     let loaded = try #require(cache.load())
     #expect(loaded.entitlements.isEmpty)
+    #expect(loaded.entitlements.contains(.supporter) == false)
 }
 
 /// FR-1100-12: a successful resolve to a smaller set is the one path that may shrink the cache.
+/// With a single unlock the only set smaller than `.all` is empty (a refund), which must replace
+/// the previous snapshot rather than merge with it.
 // @covers FR-1100-12
 @Test func savingASmallerSetReplacesThePreviousSnapshot() throws {
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
 
     cache.save(EntitlementSnapshot(entitlements: EntitlementSet.all, savedAt: Date()))
-    cache.save(EntitlementSnapshot(entitlements: [.pro], savedAt: Date()))
+    cache.save(EntitlementSnapshot(entitlements: EntitlementSet.none, savedAt: Date()))
 
     let loaded = try #require(EntitlementSnapshotCache(defaults: fixture.defaults).load())
-    #expect(loaded.entitlements == [.pro])
+    #expect(loaded.entitlements == EntitlementSet.none)
 }
 
 // MARK: - Versioned key
@@ -66,7 +60,7 @@ private let storageKey = "purchase.entitlements.v1"
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
 
-    cache.save(EntitlementSnapshot(entitlements: [.pro], savedAt: Date()))
+    cache.save(EntitlementSnapshot(entitlements: [.supporter], savedAt: Date()))
 
     #expect(fixture.defaults.object(forKey: storageKey) != nil)
     #expect(fixture.defaults.object(forKey: "purchase.entitlements") == nil)
@@ -88,14 +82,14 @@ private let storageKey = "purchase.entitlements.v1"
 @Test func theVersionedKeyCarriesTheWholeSnapshot() throws {
     let source = DefaultsFixture()
     EntitlementSnapshotCache(defaults: source.defaults)
-        .save(EntitlementSnapshot(entitlements: [.automation], savedAt: Date()))
+        .save(EntitlementSnapshot(entitlements: [.supporter], savedAt: Date()))
     let payload = try #require(source.defaults.object(forKey: storageKey))
 
     let destination = DefaultsFixture()
     destination.defaults.set(payload, forKey: storageKey)
 
     let loaded = try #require(EntitlementSnapshotCache(defaults: destination.defaults).load())
-    #expect(loaded.entitlements == [.automation])
+    #expect(loaded.entitlements == [.supporter])
 }
 
 // MARK: - The snapshot never expires (FR-1100-10)
@@ -117,10 +111,10 @@ private let storageKey = "purchase.entitlements.v1"
     let fixture = DefaultsFixture()
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
 
-    cache.save(EntitlementSnapshot(entitlements: [.pro], savedAt: Date(timeIntervalSince1970: 0)))
+    cache.save(EntitlementSnapshot(entitlements: [.supporter], savedAt: Date(timeIntervalSince1970: 0)))
 
     let loaded = try #require(cache.load())
-    #expect(loaded.entitlements == [.pro])
+    #expect(loaded.entitlements == [.supporter])
 }
 
 /// `savedAt` is diagnostic only — a snapshot dated in the future is not rejected either.
@@ -131,13 +125,13 @@ private let storageKey = "purchase.entitlements.v1"
 
     cache.save(
         EntitlementSnapshot(
-            entitlements: [.automation],
+            entitlements: [.supporter],
             savedAt: Date().addingTimeInterval(365 * 24 * 60 * 60)
         )
     )
 
     let loaded = try #require(cache.load())
-    #expect(loaded.entitlements == [.automation])
+    #expect(loaded.entitlements == [.supporter])
 }
 
 // MARK: - Absent / corrupt data → nil, never a crash
@@ -184,8 +178,8 @@ private let storageKey = "purchase.entitlements.v1"
     let cache = EntitlementSnapshotCache(defaults: fixture.defaults)
 
     #expect(cache.load() == nil)
-    cache.save(EntitlementSnapshot(entitlements: [.pro], savedAt: Date()))
+    cache.save(EntitlementSnapshot(entitlements: [.supporter], savedAt: Date()))
 
     let loaded = try #require(cache.load())
-    #expect(loaded.entitlements == [.pro])
+    #expect(loaded.entitlements == [.supporter])
 }

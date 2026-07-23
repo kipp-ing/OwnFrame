@@ -33,8 +33,11 @@ struct FrameStateEntity: TransientAppEntity {
     var photoCountry: String?
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(
-            title: "\(isPlaying ? "Playing" : "Paused") · \(brightnessPercent)%",
+        // The status word is localized on its own so Siri and the Shortcuts result
+        // read it in the device language; the "%@ · %lld%%" frame is localized too.
+        let status: LocalizedStringResource = isPlaying ? "Playing" : "Paused"
+        return DisplayRepresentation(
+            title: "\(String(localized: status)) · \(brightnessPercent)%",
             subtitle: sourceLabel.map { "\($0)" }
         )
     }
