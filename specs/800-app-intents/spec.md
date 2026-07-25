@@ -4,12 +4,11 @@
 
 **Created**: 2026-07-09
 
-**Status**: Implemented on branch `800-app-intents` (2026-07-17) — T001–T028 complete;
-all automated gates green (40 AppIntentsKit tests, 13 `FrameIntentGlueTests`,
-`build_sim` clean, full XCUITest suite 108 passed / 0 failed / 2 intentional skips).
-Remaining before ship: T029 only — the quickstart manual device checklist (SC-800-02
-overnight automation, SC-800-03 Siri/Shortcuts discovery, honesty/edge drills) on the
-real frame iPad — then merge.
+**Status**: Implemented + merged to main (2026-07-18) — T001–T028 complete; all automated gates
+green at merge time (40 AppIntentsKit tests, 13 `FrameIntentGlueTests`, `build_sim` clean, full
+XCUITest suite 108 passed / 0 failed / 2 intentional skips — re-measure before quoting these
+counts). Remaining: T029 only — the quickstart manual device checklist (SC-800-02 overnight
+automation, SC-800-03 Siri/Shortcuts discovery, honesty/edge drills) on the real frame iPad.
 
 **Input**: New module (next free hundreds-block). Expose the slideshow's existing remote-control
 command surface as **App Intents**, so Shortcuts, Siri, and on-device personal automations can

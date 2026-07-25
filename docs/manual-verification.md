@@ -11,8 +11,10 @@ passes. Nothing here runs in CI.
 
 ## FINAL DEVICE DAY — consolidated tick-list (added 2026-07-18, everything merged to main)
 
-Everything below is hardware-gated; all sim/host gates are green (182 SlideshowKit host tests,
-iOS XCUITest 120/0/2, tvOS builds). One device day covers it. Details live in the linked specs —
+Everything below is hardware-gated; all sim/host gates are green (2026-07-25, iPad Pro 11-inch
+(M4) sim: PurchaseKit 106 host tests, full iOS suite 163/0/5 — the 5 skips are the
+ASC-screenshot, live-smoke and 3 device-rig items; tvOS builds). One device day covers it.
+Details live in the linked specs —
 this list is the single place to tick.
 
 ### A. Ken Burns smoothness redesign (needs only eyes + devices)
@@ -109,7 +111,7 @@ account, a second device, a family member account, and ASC access. **Nothing her
       verified 7/7 on the iOS 18.6 sim, Framepad (17.7.10) and FramePhone (26.0.1). This is the
       runtime proof of the StoreKit adapter (T030); it runs in CI now, not on device day.
 - [ ] Products load at all (the id-drift smoke test — if this fails, re-check the ids above).
-- [ ] Buy each unlock for real; the feature activates without a relaunch (SC-1100-03).
+- [ ] Buy the Supporter Unlock for real; the gated features activate without a relaunch (SC-1100-03).
 - [ ] Buy a tip → thank-you state, and **no entitlement change whatsoever** (FR-1100-08).
 - [ ] Cancel mid-flow → back to the offer, no charge, no nagging follow-up prompt.
 - [ ] Ask-to-Buy with a child test account → pending state; approve later → the entitlement
@@ -244,7 +246,7 @@ Run on the iPad simulator via XcodeBuildMCP (scheme "OwnFrame").
    stored there; **no username/password**. Credentials live in the Keychain only. *(SC-003)*
 
 ### T019 — quickstart SC mapping
-Confirm SC-001…SC-006 from [specs/006-broker-setup/quickstart.md](../specs/006-broker-setup/quickstart.md)
+Confirm SC-600-01…SC-600-06 from [specs/600-broker-setup/spec.md](../specs/600-broker-setup/spec.md)
 on the simulator. The host-side criteria are already covered by `BrokerSetupKit` tests; this step is the
 simulator-side confirmation (form validation hints, persistence, secret boundary). US2's change/remove UI
 (SC-005/SC-006/FR-009) is already covered automatically by `BrokerSetupUITests`.

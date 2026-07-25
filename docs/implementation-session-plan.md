@@ -1,5 +1,13 @@
 # Implementation Session Plan — Roadmap Majors (900 first)
 
+> **Historical as of 2026-07-26.** Phases 0–4 below are **executed history**, still written in
+> the imperative: `900-photo-library-source`, `800-app-intents`, and `1000-apple-tv` are all
+> implemented and merged to main. Kept for the delegation model and the Phase-1 leak table, which
+> record how the source-protocol refactor was shaped. The one part that is still live is the
+> "Ship gate" section — and it is tracked more accurately in `docs/manual-verification.md`
+> ("FINAL DEVICE DAY", §C). Current truth: `docs/spec-overview.md` and the module spec under
+> `specs/Nxx-*/`. The 2026-07-09 Codex ruling noted below still stands.
+
 **Created**: 2026-07-16 · **Orchestrator**: Claude Fable (this harness) · **Implementers**:
 Opus subagents (Agent tool, `model: opus`) · Codex remains disabled (2026-07-09 ruling).
 
@@ -77,10 +85,12 @@ HA select/metadata for Photos sources (FR-900-11/12, Opus slice against HAContro
 image-publishing opt-in copy, quality-ceiling honesty in Settings (FR-900-15). Device
 spot-check with real iCloud content (SC-900-02), authorization UI paths (SC-900-05).
 
-## Ship gate (not this session)
+## Ship gate (still open — tracked elsewhere)
 
 SC-900-07: US1/US2 on the newest iOS beta with a real legacy shared album + the
 upgraded-album vanish drill. Schedule when a 27 beta is on the test iPad.
+**Tick it in `docs/manual-verification.md` ("FINAL DEVICE DAY", §C — "900 quickstart device/beta
+gates"), not here** — that list is the single place device gates are tracked.
 
 ---
 
