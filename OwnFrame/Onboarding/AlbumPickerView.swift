@@ -105,7 +105,11 @@ struct AlbumPickerView: View {
     static func subtitle(for album: Album) -> String? {
         var parts: [String] = []
         if let dateText = dateText(album.startDate, album.endDate) { parts.append(dateText) }
-        if let count = album.assetCount { parts.append(count == 1 ? "1 photo" : "\(count) photos") }
+        // Built as a String and joined, so the count needs an explicit lookup — a bare literal
+        // here would ship the English text into an otherwise localized subtitle.
+        if let count = album.assetCount {
+            parts.append(count == 1 ? String(localized: "1 photo") : String(localized: "\(count) photos"))
+        }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 

@@ -448,7 +448,8 @@ public struct UnlockScreenView: View {
 //
 // Marketing wording for the unlock and its product lives beside the screen that says it, not in
 // the model: an `Entitlement` is a capability, and a `ProductID` is an App Store Connect identifier.
-// English only — the repo ships English-only by design (CLAUDE.md).
+// The wording itself is localized against the package catalog (`bundle: .module`) — a package's
+// strings do not live in the app bundle; what sits here is the *choice* of wording, not its text.
 
 private struct UnlockBenefit {
     let title: String

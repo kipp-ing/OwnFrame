@@ -141,9 +141,11 @@ Active feature: `1100-purchase-gate` (branch `1100-purchase-gate`, cut from `mai
 spec at `specs/1100-purchase-gate/spec.md`, current plan at `specs/1100-purchase-gate/plan.md`
 (+ research/data-model/contracts/quickstart, 2026-07-19). Purchase gate /
 one-time unlocks: the free core stays whole (all sources + full core playback, basic
-transitions); paid tiers **Pro** (ambience — launch composition **Ken Burns motion + clock
-overlay**, amended 2026-07-19; never-publicly-shipped features only) and **Automation** (HA/MQTT
-+ App Intents) plus an optional everything-bundle; one-time purchases only, no subscriptions ever,
+transitions); one paid **Supporter Unlock** grants everything gated — ambience (**Ken Burns
+motion + clock overlay**, amended 2026-07-19; never-publicly-shipped features only) *and*
+automation (HA/MQTT + App Intents). The former Pro/Automation tiers and the everything-bundle
+were **collapsed into that single unlock on 2026-07-23** (PR #40): `Entitlement` has one case,
+`ProductCatalog.unlocks` is `[.supporter]`. One-time purchases only, no subscriptions ever,
 never the word "lifetime"; Family Sharing + universal purchase (incl. tvOS); on-device
 entitlement caching so unattended frames work offline indefinitely; never-claw-back
 (FR-1100-13); **sequencing is release-blocking: the gated build must be the first version the
@@ -154,8 +156,11 @@ anywhere in this public repo — pricing is decided in App Store Connect at subm
 **real `StoreKitClient` StoreKit 2 adapter**, `LockedRow`/`UnlockScreenView`/`TipJarView`), gates
 at the point of effect in both apps, Unlocks settings section (Restore + tip jar), US5 broker
 degradation (masked config behind a locked banner), and launch `refresh()` + `listenForUpdates()`
-now wired on both apps' production entry points. PurchaseKit 110 host tests + full iOS suite
-**153/0/9** green on iOS 18.6. **T030 fully done — the old "caveat" was a misdiagnosis, corrected
+now wired on both apps' production entry points. **Current measured gate (2026-07-25, iPad Pro
+11-inch (M4) sim): PurchaseKit 106 host tests green, full iOS suite 163/0/5** — the 5 skips are
+the ASC-screenshot, live-smoke, and 3 device-rig items. (The older "110 host / 153/0/9" figures
+predate the tier collapse and the post-PR-#40 review; re-measure before quoting any count.)
+**T030 fully done — the old "caveat" was a misdiagnosis, corrected
 2026-07-21.** It held that `SKTestSession` serves 0 products under headless `xcodebuild` ("the
 runner, not the runtime") so its 7 cases needed the Xcode IDE or a device. Actually two setup bugs
 in the test: `configurationFileNamed:` resolves against `Bundle.main` (the *host app* bundle, which
@@ -163,10 +168,11 @@ lacks `Configuration.storekit`) and fails **silently**; and `resetToDefaultState
 `disableDialogs`, so setting it first left Ask-to-Buy blocking on a dialog. Both fixed, skip-guard
 replaced by a hard assertion, all 7 passing on the iOS 18.6 sim + Framepad (17.7.10) + FramePhone
 (26.0.1). Runs headlessly in CI; nothing folds into T042. See `docs/testing.md`; issue #16 closed.
-**Also note:** a 2026-07-21 full-suite run found two failures **pre-existing on `main`** and
-unrelated to 1100 — `BrokerSetupUITests` (#21) and `ShareSheetIncomingUITests` (#22, order-dependent)
-— so the "153/0/9 green" line above no longer reproduces as stated. **T033 done (2026-07-20):** the tvOS unlock surface — new `TVSettingsView` (gear
-destination) with the Ambience/Pro locked row, an Automation-gated Home-Assistant row
+**Resolved:** the two failures a 2026-07-21 run found pre-existing on `main` — `BrokerSetupUITests`
+(#21) and `ShareSheetIncomingUITests` (#22, order-dependent) — were fixed in PR #36; both issues are
+closed and all six of their cases pass in the 2026-07-25 run. **T033 done (2026-07-20):** the tvOS unlock surface — new `TVSettingsView` (gear
+destination) with the ambience locked row, a Home-Assistant row (both Supporter-gated since the
+2026-07-23 collapse; they were Pro- and Automation-gated when T033 landed)
 (`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
 tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
 the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-only opaque

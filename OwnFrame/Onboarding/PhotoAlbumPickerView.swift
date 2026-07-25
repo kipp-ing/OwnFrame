@@ -117,8 +117,14 @@ struct PhotoAlbumPickerView: View {
 
     @ViewBuilder
     private func limitedContent(_ pool: SourceCollection?) -> some View {
-        let label = pool?.title ?? String(localized: "Selected Photos")
-        let isAdded = sourceLibrary.sources.contains { $0.label == label }
+        // The pool's model-side title is a fixed English identifier (PhotoLibraryKit ships no
+        // catalog); the row shows — and persists — the localized name instead. Identity is the
+        // sentinel collection ID, not the label, so neither a rename nor a language switch can
+        // make an already-added pool look un-added.
+        let label = String(localized: "Selected Photos")
+        let isAdded = sourceLibrary.sources.contains {
+            $0.kind == .photoLibrary(collectionID: PhotoLibrarySource.selectedPhotosID)
+        }
         List {
             Section {
                 Button {

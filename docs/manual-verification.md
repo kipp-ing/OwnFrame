@@ -90,7 +90,7 @@ account, a second device, a family member account, and ASC access. **Nothing her
 - [ ] Create the IAPs with ids matching `ProductID` raw values **character-for-character**
       (`Packages/PurchaseKit/Sources/PurchaseKit/ProductCatalog.swift` is the source of truth).
       Id drift has no compile-time signal and fails only at runtime as "products unavailable".
-- [ ] Family Sharing **ON** for the three non-consumable unlocks, OFF for the tips.
+- [ ] Family Sharing **ON** for the Supporter Unlock, OFF for the tips.
 - [ ] Localized names/descriptions use "one-time purchase"; the word **"lifetime" appears
       nowhere**, and nothing implies a subscription (FR-1100-05).
 - [ ] Prices set here and only here — never committed to this repo. The `.storekit` file's
@@ -161,8 +161,8 @@ account, a second device, a family member account, and ASC access. **Nothing her
       narrow: install the gated build on a *configured* frame and confirm the app emits those
       empty retained payloads on connect. Framepad could not do it in that session — its app was
       already unconfigured, see the note at the end of this section.
-- [ ] Buy Automation → the controllable entities appear and HA control resumes using the previously
-      stored settings with **zero re-entry** (FR-1100-14).
+- [ ] Buy the Supporter Unlock → the controllable entities appear and HA control resumes using the
+      previously stored settings with **zero re-entry** (FR-1100-14).
 
 > **Frame state note (2026-07-21).** Framepad (iPad Pro 10.5, iOS 17.7.10 — the deployment floor)
 > currently carries a **dev-signed Debug build** and its app is **unconfigured**: no source, no

@@ -17,9 +17,12 @@
 import AppIntents
 import AppIntentsKit
 
-/// The contract's user-facing error copy (English-only, FR-300-30), mapped 1:1
-/// from the package's closed taxonomy. Parameter details (like the rejected
-/// percent) stay out of the copy by design — the message names the rule.
+/// The contract's user-facing error copy, mapped 1:1 from the package's closed
+/// taxonomy. The wording ships localized through the app's String Catalog
+/// (FR-300-30; German since 2026-07-23) — the glue tests pin the locale to English
+/// so they assert the contract wording rather than the runner's language.
+/// Parameter details (like the rejected percent) stay out of the copy by design —
+/// the message names the rule.
 enum FrameIntentError: Error, Equatable, CustomLocalizedStringResourceConvertible {
     case notConfigured
     case frameNotOpen
