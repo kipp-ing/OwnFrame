@@ -16,10 +16,11 @@ State as of 2026-07-09. Read this first in the next session; the previous handov
   Home-screen/share-sheet/HA-device name is **"OwnFrame"** (8 chars, no icon-label
   truncation). Renamed across the repo, the Xcode project/source-folders/schemes, README, and
   docs; bundle IDs (`ing.kipp.Immich-Slideshow`) are unchanged.
-- **ASC**: app id `6784154405`, state PREPARE_FOR_SUBMISSION. ⚠️ **Name/subtitle still carry
-  the old "Photo Frame for Immich" name — update them to "OwnFrame" before submission.**
-  description/promo/keywords are **not** yet pushed — source of truth is
-  `docs/app-store-listing.md`. Privacy policy is live (ASC links
+- **ASC**: app id `6784154405`. ~~Name/subtitle still carry the old "Photo Frame for Immich"
+  name~~ and ~~description/promo/keywords are not yet pushed~~ — **both resolved 2026-07-26**:
+  the iOS **1.1** record (id `49d4c9d6-…`, PREPARE_FOR_SUBMISSION) now carries the current
+  name, subtitle, description, promo text, keywords, and What's New in **en-US and de-DE**.
+  Source of truth stays `docs/app-store-listing.md`. Privacy policy is live (ASC links
   `docs/privacy-policy.md` on GitHub; was a 404 until 2026-07-09, now fixed and agreed).
   Contact for anything published: **app@kipp.ing**.
 - **Specs**: three new ones, all committed. `310-slideshow-resilience` (auto-retry +
@@ -55,10 +56,13 @@ feature.json already points there) → then the checklist below. Before every re
 - [ ] Bump `CURRENT_PROJECT_VERSION`, archive + upload (recipe in memory
       `appstore-upload-cli`: `PATH=/usr/bin:$PATH` for exportArchive, never use the session
       scratchpad for archive/export paths).
-- [ ] Push listing fields to ASC from `docs/app-store-listing.md`: description, promotional
-      text, keywords, What's New — these live on `appStoreVersionLocalizations` (the 1.0
-      version), *not* `appInfoLocalizations`. JWT helper: `~/.appstoreconnect/asc_jwt.py`
-      (ES256 via openssl, stdlib-only; prints a 15-min token; key sits next to it).
+- [x] Push listing fields to ASC from `docs/app-store-listing.md`: description, promotional
+      text, keywords, What's New — these live on `appStoreVersionLocalizations` (now the **1.1**
+      version), *not* `appInfoLocalizations`. **Name and subtitle are the exception** — they sit
+      on `appInfoLocalizations`, under the app's PREPARE_FOR_SUBMISSION `appInfo`
+      (`b8cb2f74-…`; the READY_FOR_SALE one is not editable). JWT helper:
+      `~/.appstoreconnect/asc_jwt.py` (ES256 via openssl, stdlib-only; prints a 15-min token;
+      key sits next to it). Done 2026-07-26 for en-US and de-DE.
 - [ ] Screenshots (iPad 13" class required, 11" recommended) — landscape slideshow, chrome,
       onboarding, settings, HA dashboard shot.
 - [ ] Privacy nutrition label in ASC: "Data Not Collected".
@@ -66,11 +70,13 @@ feature.json already points there) → then the checklist below. Before every re
 - [ ] **App Review demo access**: reviewers have no Immich server — provide a working demo
       *shared link* (password-free) in the review notes, plus one sentence on what Immich is
       and the naming provenance (accepted by the Immich creator) in case 5.2.1 comes up.
-- [ ] The `de-DE` ASC localization still only mirrors the English text. **Stale since
-      2026-07-23**: the app's UI now ships German (topic 300), so that locale needs real German
-      listing copy — `docs/app-store-listing.md` has no German section yet. (Repo policy is
+- [x] **Done 2026-07-26** — the `de-DE` ASC localization no longer mirrors the English text.
+      Real German copy (subtitle, promo, description, keywords, What's New) is written and
+      pushed to 1.1, with terminology matched to the shipped German UI from topic 300. It is
+      recorded under "German listing (de-DE)" in `docs/app-store-listing.md`. (Repo policy is
       unchanged: source, specs and docs stay English; German lives in the String Catalogs, and
-      for the store in ASC.)
+      for the store in ASC — the listing doc is the one sanctioned exception, since it *is*
+      store copy.)
 
 ## Deferred (do not start before release)
 
