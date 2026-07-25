@@ -374,7 +374,9 @@ struct SlideshowSettingsView: View {
                 } footer: {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Restore purchases you already own. Tips are optional and unlock nothing — they just say thanks.")
-                        Text("Where your money goes: the unlocks cover the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever.")
+                        // Transparency statement (docs/where-the-money-goes.md) — word-for-word the
+                        // tvOS copy in TVSettingsView, so both platforms share one catalog entry.
+                        Text("Where your money goes: the Supporter Unlock covers the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever.")
                             .accessibilityIdentifier("settings.unlocks.moneyPledge")
                     }
                 }

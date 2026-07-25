@@ -162,15 +162,34 @@ private final class StoreFixture {
     #expect(relaunched.client.totalCallCount == 0)
 }
 
-/// FR-1100-08: a tip purchase resolves to no entitlement, and a revoked unlock contributes
-/// nothing, while a live unlock still grants — the tip and the refunded transaction are both
-/// ignored, the surviving one is honoured.
+/// FR-1100-08 / FR-1100-12: a tip resolves to no entitlement, and a revoked unlock contributes
+/// nothing — so a library holding only those two grants nothing at all.
+///
+/// The revoked transaction is deliberately the *only* one for its product. With a single unlock,
+/// adding a live duplicate alongside it (as this test did before the tier collapse, when a second
+/// live tier carried the assertion) makes the expectation pass whether or not `isRevoked` is
+/// honoured. The duplicate case is worth asserting too — it lives in the test below.
 @MainActor
 // @covers FR-1100-08, FR-1100-12
 @Test func refreshIgnoresTipsAndRevokedTransactions() async {
     let fixture = StoreFixture()
     fixture.client.enqueueOwnedTransactions([
         OwnedTransaction(productID: ProductID.tipLarge.rawValue, isRevoked: false),
+        OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: true),
+    ])
+
+    await fixture.store.refresh()
+
+    #expect(fixture.store.current == EntitlementSet.none)
+}
+
+/// A refunded transaction does not cancel a second, live purchase of the same unlock — the live
+/// one still grants. Together with the test above this pins both directions of `isRevoked`.
+@MainActor
+// @covers FR-1100-12, FR-1100-13
+@Test func refreshHonoursALiveUnlockAlongsideARevokedDuplicate() async {
+    let fixture = StoreFixture()
+    fixture.client.enqueueOwnedTransactions([
         OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: true),
         OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: false),
     ])

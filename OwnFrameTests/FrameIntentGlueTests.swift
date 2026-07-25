@@ -68,6 +68,18 @@ struct FrameIntentGlueTests {
 
     // MARK: - Error mapping (contract copy, state untouched)
 
+    /// The contract copy resolved in English, whatever the runner's locale is.
+    ///
+    /// This copy ships translated (spec 300), so a bare `String(localized:)` renders German on a
+    /// German device and the comparison against the contract text goes red for the wrong reason.
+    /// Pinning the locale keeps these assertions about the *contract wording*, not the tester's
+    /// language — the translations themselves are covered by the catalogs.
+    private func contractCopy(_ error: FrameIntentError) -> String {
+        var resource = error.localizedStringResource
+        resource.locale = Locale(identifier: "en")
+        return String(localized: resource)
+    }
+
     @Test func outOfRangeBrightnessThrowsTheContractCopyAndRecordsNothing() async throws {
         let fixture = try Fixture()
         defer { fixture.restore() }
@@ -79,7 +91,7 @@ struct FrameIntentGlueTests {
         }
         #expect(fixture.surface.calls.isEmpty)
         #expect(
-            String(localized: FrameIntentError.brightnessOutOfRange.localizedStringResource)
+            contractCopy(.brightnessOutOfRange)
                 == "Brightness must be between 0 and 100 percent."
         )
     }
@@ -92,18 +104,18 @@ struct FrameIntentGlueTests {
             _ = try await PauseSlideshowIntent().perform()
         }
         #expect(
-            String(localized: FrameIntentError.notConfigured.localizedStringResource)
+            contractCopy(.notConfigured)
                 == "Set up the frame first — open OwnFrame and add a source."
         )
     }
 
     @Test func remainingContractCopyMatches() {
         #expect(
-            String(localized: FrameIntentError.frameNotOpen.localizedStringResource)
+            contractCopy(.frameNotOpen)
                 == "OwnFrame must be open on the frame device for this."
         )
         #expect(
-            String(localized: FrameIntentError.sourceMissing.localizedStringResource)
+            contractCopy(.sourceMissing)
                 == "This source no longer exists in the frame's library."
         )
     }

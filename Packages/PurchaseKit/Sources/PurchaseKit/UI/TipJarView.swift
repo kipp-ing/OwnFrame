@@ -308,7 +308,9 @@ public struct TipJarView: View {
 // MARK: - Presentation copy
 //
 // The short slug used in accessibility identifiers — never the raw ASC identifier, which is a
-// bundle-prefixed string no test should have to spell. English only, by design (CLAUDE.md).
+// bundle-prefixed string no test should have to spell. Always English, and never localized:
+// these are test-contract identifiers, not display copy — translating them would break every
+// accessibility-identifier assertion the moment the device language changed.
 
 private extension ProductID {
     var tipSlug: String {
