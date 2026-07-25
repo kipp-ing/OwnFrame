@@ -39,11 +39,12 @@ against the stub source, hermetic, no server).
    dimmed-but-tappable rule is what this proves).
 2. `none` + stub playback for a sustained window: no element with an `unlock.` prefix ever
    appears without a tap (SC-1100-02 hermetic proxy; the 4 h wall-clock run is a device item).
-3. `none`: tapping any locked row opens the single unlock screen offering the Supporter Unlock
-   (`unlock.price.supporter` + `unlock.buy.supporter` present); there is never a second product
-   to choose (FR-1100-04). Under `supporter`/`all` those same rows are unlocked and the screen
-   is unreachable — partial ownership cannot occur, so there is no per-tier visibility state left
-   to exercise.
+3. `none`: tapping any locked row (Ken Burns, clock, or the broker control banner) opens the same
+   `unlock.screen.supporter` — there is never a second product or screen to choose (FR-1100-04).
+   Under `supporter`/`all` those same rows are unlocked and the screen is unreachable — partial
+   ownership cannot occur, so there is no per-tier visibility state left to exercise.
+   (`unlock.price.supporter` / `unlock.buy.supporter` exist on that screen but are not
+   independently asserted by any XCUITest today — `ProductID.uiSlug` itself is untested.)
 4. `all` (== `supporter`): no locked rows, no `unlock.` entry points except Restore + tips in
    settings.
 5. `--uitest-store=unavailable`: unlock screen shows `unlock.unavailable`, zero price labels

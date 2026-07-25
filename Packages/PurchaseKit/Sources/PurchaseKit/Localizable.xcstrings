@@ -342,6 +342,17 @@
         }
       }
     },
+    "The purchase could not be completed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Kauf konnte nicht abgeschlossen werden."
+          }
+        }
+      }
+    },
     "Tip" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -1,5 +1,11 @@
 # Handover — Release Prep
 
+> **Historical as of 2026-07-25.** This captured the state on 2026-07-09 and is kept for the
+> naming/ASC provenance only. Everything its "Deferred" section lists has since shipped —
+> `800-app-intents`, `900-photo-library-source`, the `320` disk image cache, the `510` clock
+> overlay, and the German localization (topic 300, 2026-07-23). Do not read the roadmap parts
+> as current: start from `docs/spec-overview.md` and the module spec under `specs/Nxx-*/`.
+
 State as of 2026-07-09. Read this first in the next session; the previous handover
 (`handover-live-ha-verification.md`) is historical — that work is done.
 

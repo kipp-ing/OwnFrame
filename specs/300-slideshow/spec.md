@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-23
 
-**Status**: Active
+**Status**: Active — **amended 2026-07-25**: German localization for the slideshow UI strings shipped 2026-07-23 across iOS + tvOS via String Catalogs (PR #40); it is no longer deferred. FR-300-30, the User Story 7 narrative, and the "German translations" Roadmap entry below are superseded accordingly — repo policy is unchanged (Swift source/comments/specs stay English; German lives only in the catalogs).
 
 **Input**: Consolidated from `specs/003-slideshow/spec.md` and `specs/007-slideshow-ui/spec.md`: fullscreen playback engine, calm slideshow UI, chrome and gestures, album browser, info overlay, cache behavior, resilience, clock rendering, and localization.
 
@@ -107,7 +107,7 @@ From the chrome, the user can toggle an info overlay showing only capture date/t
 
 ### User Story 7 - Reach settings, brightness, reset, and localization (Priority: P3)
 
-From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from Settings. All slideshow UI strings ship in English through localizable string catalogs; other device languages fall back to English. (German translations are deferred — see Roadmap; the clock overlay is implemented per `510-clock-overlay`.)
+From the chrome, the user reaches Settings with a live brightness slider and display-option controls owned by topic 500. Reset is reachable from Settings. All slideshow UI strings ship in English through localizable string catalogs, with a German localization also shipping via the same catalogs (shipped 2026-07-23 — see the amendment above); other device languages fall back to English. (The clock overlay is implemented per `510-clock-overlay`.)
 
 **Why this priority**: These controls round out a usable frame while keeping feature ownership clear and the default overlay-free.
 
@@ -169,7 +169,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **FR-300-26**: Settings MUST be reachable from chrome with a live brightness slider whose behavior is owned by topic 400.
 - **FR-300-27**: Settings MUST surface topic 500 display-option controls, and those changes MUST affect the running slideshow.
 - **FR-300-28**: Reset MUST be reachable from Settings (not the chrome) and MUST delegate connection clearing to topic 200.
-- **FR-300-30**: All slideshow UI strings MUST be localizable (string catalog, no hardcoded user-facing strings in views); the app ships English. Additional languages (German first) are deferred — see Roadmap.
+- **FR-300-30**: All slideshow UI strings MUST be localizable (string catalog, no hardcoded user-facing strings in views); the app ships English source, with a German localization shipped 2026-07-23 (see the amendment above). Languages beyond English/German remain deferred — see Roadmap.
 - **FR-300-31**: Slideshow state, timers, image loading, cache, and data access MUST remain testable behind injected protocols, with no real server, clock, cache, or display hardware required for unit tests.
 - **FR-300-32**: The UI MUST never reveal or log API keys, broker credentials, shared-link passwords, or other secrets.
 - **FR-300-33**: Chrome bar insets from the screen edges MUST remain stable across device orientation and MUST NOT shift with the rendered image's framing — whether the photo is fit or fill, and whether Ken Burns is on or off. Ken Burns honors the active fit option (500, FR-500-20) and does not by itself switch fit/fill framing.
@@ -199,9 +199,10 @@ Spec Kit feature.
 - **Auto-retry with backoff** (was FR-300-11): load/connection failures auto-retry with backoff for
   unattended recovery, beyond the existing manual retry. **Now specced** as sub-spec
   `310-slideshow-resilience` (FR-310-01…05) — planned pre-release.
-- **German translations** (part of FR-300-30): a `de` localization for the string catalogs. All
-  source strings stay English (repo policy: English-only source); German ships as a translation
-  pass over the existing catalogs once scheduled.
+- **German translations** (part of FR-300-30): a `de` localization for the string catalogs.
+  **Shipped 2026-07-23** across iOS + tvOS (PR #40) — no longer deferred; source strings stay
+  English (repo policy: English-only source) while German ships as a translation pass over the
+  existing catalogs.
 - **Periodic source refresh** (was FR-300-12): the active source asset list refreshes periodically
   so newly added Immich photos enter rotation without an app restart. **Now specced** as sub-spec
   `310-slideshow-resilience` (FR-310-06…11) — planned pre-release.

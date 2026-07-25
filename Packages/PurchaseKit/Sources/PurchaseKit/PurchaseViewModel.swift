@@ -194,9 +194,12 @@ public final class PurchaseViewModel {
     ///
     /// The store's own description is appended when it has one, because "why" is the entire point
     /// of the `.failed` case; the leading sentence guarantees the message is never empty or raw.
-    /// Not localized — the app ships English-only by design (CLAUDE.md).
+    ///
+    /// The lead resolves against `.module` — a package's strings do not live in the app bundle,
+    /// and this one renders under an already-translated title. The appended store description
+    /// comes from StoreKit and is localized by the system.
     private static func failureMessage(for error: any Error) -> String {
-        let lead = "The purchase could not be completed."
+        let lead = String(localized: "The purchase could not be completed.", bundle: .module)
         guard let description = (error as? any LocalizedError)?.errorDescription,
               !description.isEmpty
         else { return lead }
