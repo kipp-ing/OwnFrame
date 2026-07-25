@@ -19,7 +19,6 @@ State as of 2026-07-09. Read this first in the next session; the previous handov
 - **ASC**: app id `6784154405`, state PREPARE_FOR_SUBMISSION. ⚠️ **Name/subtitle still carry
   the old "Photo Frame for Immich" name — update them to "OwnFrame" before submission.**
   description/promo/keywords are **not** yet pushed — source of truth is
-  description/promo/keywords are **not** yet pushed — source of truth is
   `docs/app-store-listing.md`. Privacy policy is live (ASC links
   `docs/privacy-policy.md` on GitHub; was a 404 until 2026-07-09, now fixed and agreed).
   Contact for anything published: **app@kipp.ing**.
@@ -67,8 +66,11 @@ feature.json already points there) → then the checklist below. Before every re
 - [ ] **App Review demo access**: reviewers have no Immich server — provide a working demo
       *shared link* (password-free) in the review notes, plus one sentence on what Immich is
       and the naming provenance (accepted by the Immich creator) in case 5.2.1 comes up.
-- [ ] The `de-DE` ASC localization exists and mirrors the English text — fine (repo policy is
-      English-only); just keep both locales in sync when patching.
+- [ ] The `de-DE` ASC localization still only mirrors the English text. **Stale since
+      2026-07-23**: the app's UI now ships German (topic 300), so that locale needs real German
+      listing copy — `docs/app-store-listing.md` has no German section yet. (Repo policy is
+      unchanged: source, specs and docs stay English; German lives in the String Catalogs, and
+      for the store in ASC.)
 
 ## Deferred (do not start before release)
 

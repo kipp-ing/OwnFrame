@@ -63,7 +63,10 @@ Editing `project.pbxproj` by hand is brittle — **prefer to avoid it.**
   (the `mcp` subcommand). Without it the server prints usage and the client gets
   `-32000`. Run `/mcp` after a fresh start to confirm the connection.
 - **`preferXcodebuild: true`** for `build_sim`/`test_sim` — the incremental builder
-  (xcodemake) chokes on project changes. Default sim: **iPad Pro 11" (M5)**.
+  (xcodemake) chokes on project changes. Default sim: **iPad Pro 11-inch (M4)** — pin it by
+  `simulatorId`, not by name. An unpinned "iPad Pro 11"" resolves to the **M5**, whose default
+  **iOS 26.4** runtime serves 0 StoreKit products and fails all 7 `StoreKitClientTests`; see
+  [testing.md](testing.md#known-traps--false-greens-flakes-and-landmines).
 - **No `axe`/`idb`** installed → MCP UI automation is read-only
   (`snapshot_ui`/`screenshot`). Drive UI through XCUITest instead.
 - **`cd` in a Bash tool call drifts the working directory** for later calls. Use

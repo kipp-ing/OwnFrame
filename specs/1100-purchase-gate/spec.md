@@ -4,8 +4,13 @@
 
 **Created**: 2026-07-19
 
-**Status**: Draft — amended 2026-07-19: **Ken Burns motion + clock overlay form the ambience
-launch composition** (decided with Jan; possible because no version was ever publicly released,
+**Status**: Code-complete + merged to main (2026-07-20, PR #14; the single-unlock collapse landed
+2026-07-23 in PR #40) — T001–T041 done and green (measured 2026-07-25: PurchaseKit 106 host tests,
+full iOS suite 163 passed / 0 failed / 5 skipped). **T042** — the manual App Store Connect day
+(create the IAPs, sandbox purchase/restore/Family-Sharing/universal checks, release sequencing per
+FR-1100-17) — is all that remains, blocked on ASC access. Amended 2026-07-19: **Ken Burns motion +
+clock overlay form the ambience launch composition** (decided with Jan; possible because no
+version was ever publicly released,
 so the never-claw-back rule does not yet bind anything). Locked-row presentation refined the same
 day: dimmed is fine, but locked rows must carry a lock badge and stay tappable. Amended
 2026-07-20: **Home Assistant telemetry is free, only *control* is gated** — an unentitled frame

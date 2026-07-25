@@ -20,9 +20,10 @@ Generated for the active topic specs on 2026-06-23. This maps functional require
 >
 > The live source of truth is each `specs/Nxx-*/spec.md`; this file is a point-in-time aid.
 >
-> **Known coverage holes in this file** (reconciliation pass, 2026-07-19): there are no sections
-> for `110`, `120`, `210`, `710`, or `1000`, all of which are shipped. Adding the `1000` section is
-> task 1000/T025; the other four have no owning task yet.
+> **Known coverage holes in this file** (reconciliation pass, 2026-07-19; list corrected
+> 2026-07-26): there are no sections for `110`, `210`, `710`, `1000`, or `1100`, all of which are
+> shipped. `120` *does* have one — added 2026-07-19, after this note was written, covering
+> FR-120-12 only. Adding the `1000` section is task 1000/T025; the others have no owning task yet.
 
 Status values: `covered` means existing tests exercise the requirement directly enough for the current scope, `partial` means tests cover only part of the requirement or the code path is split across app UI and package logic, and `missing` means no existing test was found or the behavior is not implemented.
 
@@ -344,7 +345,7 @@ green. The live camera QR decode + permission prompt is a manual **device gate**
 | FR-220-10 | Sources land in one library (downstream/HA/App-Intent unchanged) | reuses `SourceLibrary`/`addPhotoLibrarySource`/`resolveSharedLink` (120/900 round-trip; `OwnFrameTests/HAControlRoundTripTests`) | covered | host-unit (reuse) |
 | FR-220-11 | No secrets; a scanned URL carries none (password still prompted) | `ScannedLinkRoutingTests` (nothing persisted on invalid; `.needsPassword` still prompts); `QRScannerView` logs no decoded URL — audit 2026-07-17 | covered | host-unit + static audit |
 | FR-220-12 | Scan feeds a host-testable seam (no camera in unit tests) | `ScannedShareLinkTests` + `ScannedLinkRoutingTests` drive a fake `CodeScanning` (no `AVFoundation`) | covered | host-unit |
-| FR-220-13 | New user-facing strings are English-only | repo localization hook enforces English; new strings audited | covered | static |
+| FR-220-13 | New user-facing strings are English-only | repo localization hook enforces English **source literals** in Swift; user-facing German ships via the String Catalogs (2026-07-23) and is not blocked by the hook; new strings audited | covered | static |
 
 | SC | Outcome (short) | Evidence | Status |
 |---|---|---|---|

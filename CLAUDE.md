@@ -40,17 +40,24 @@ This project uses XcodeBuildMCP for builds, tests, and the simulator.
   singletons).
 - Network behind a protocol (`ImmichAPI`), so tests run without a real server (mock/stub).
 
-## Orchestration: Claude Orchestrates, Codex Implements
-A two-model workflow applies to non-trivial implementation work:
+## Orchestration: Claude Orchestrates, Subagents Implement
+
+> ⚠️ **Codex delegation is DISABLED** (Jan's standing ruling, 2026-07-09). Do **not** start
+> `codex-agent`, `/codex:rescue`, `/codex:review`, or `/codex:adversarial-review`. The Codex
+> sections below are kept for the day it is re-enabled — until then, read "Codex agent" as
+> "Claude subagent (the `Agent` tool)" throughout, and ignore the `codex-agent` CLI invocations.
+
+The orchestration shape still holds; only the implementer changed:
 
 - **Claude (you) orchestrates and judges.** Read the task, decide what to delegate, write the
-  briefing, review Codex's diff, own the verification gate. Write as little code yourself as
+  briefing, review the diff, own the verification gate. Write as little code yourself as
   possible — implementation is delegated.
-- **Codex is the implementation army.** Codex agents (via the `codex-agent` CLI of the
-  `codex-orchestrator` plugin, or `/codex:rescue` for small/quick tasks) implement against a
-  briefing, run their own unit tests, and commit their own work.
-- **Cross-model review.** `/codex:review` or `/codex:adversarial-review` for an independent
-  look — a different model reviews code it didn't generate itself.
+- **Claude subagents are the implementation army.** Spawn them with the `Agent` tool against a
+  briefing; they run their own unit tests. Launch independent ones in one message so they run
+  concurrently. Unlike Codex they do **not** commit — you review and commit their work.
+- **Cross-model review** is unavailable while Codex is off. Substitute an adversarial
+  verification pass: a fresh subagent whose brief is to *refute* each finding, told to treat the
+  original claim as a hypothesis rather than a fact.
 
 ### When to Delegate
 Delegate well-scoped implementation work: a feature slice, a bugfix, a refactor with a clear
@@ -137,8 +144,8 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Active feature: `1100-purchase-gate` (branch `1100-purchase-gate`, cut from `main` 2026-07-19) —
-spec at `specs/1100-purchase-gate/spec.md`, current plan at `specs/1100-purchase-gate/plan.md`
+Release-blocking feature: `1100-purchase-gate` — **merged to `main`**; the branch is gone. Spec at
+`specs/1100-purchase-gate/spec.md`, plan at `specs/1100-purchase-gate/plan.md`
 (+ research/data-model/contracts/quickstart, 2026-07-19). Purchase gate /
 one-time unlocks: the free core stays whole (all sources + full core playback, basic
 transitions); one paid **Supporter Unlock** grants everything gated — ambience (**Ken Burns
@@ -151,7 +158,7 @@ entitlement caching so unattended frames work offline indefinitely; never-claw-b
 (FR-1100-13); **sequencing is release-blocking: the gated build must be the first version the
 public ever sees — approved v1.0 build 8 stays unreleased (FR-1100-17)**. No price points
 anywhere in this public repo — pricing is decided in App Store Connect at submission.
-**Status (2026-07-20): implemented on-branch** — new `Packages/PurchaseKit` (entitlement model,
+**Status: code-complete and merged to `main`** — new `Packages/PurchaseKit` (entitlement model,
 `AmbienceGate` per-photo latch, `StoreClient` + host-testable resolver/cache/store, and now the
 **real `StoreKitClient` StoreKit 2 adapter**, `LockedRow`/`UnlockScreenView`/`TipJarView`), gates
 at the point of effect in both apps, Unlocks settings section (Restore + tip jar), US5 broker
@@ -176,8 +183,7 @@ destination) with the ambience locked row, a Home-Assistant row (both Supporter-
 (`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
 tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
 the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-only opaque
-backing. **Code-complete (T001–T041 done):** final gate 2026-07-20 — PurchaseKit 110 host + full
-iOS XCUITest 153/0/9 (iOS 26.5, same on 18.6) green, iOS + tvOS build. **Remaining: T042 only** —
+backing. **T001–T041 done. Remaining: T042 only** —
 the manual ASC/device day (create IAPs, sandbox purchase/restore/Family-Sharing/universal checks,
 release sequencing v1.0-b8-stays-unreleased → v1.1-gated-first, FR-1100-17); blocked on Jan's ASC
 access. Now purely ASC-gated — the StoreKitTest run came off this list on 2026-07-21.
@@ -187,6 +193,8 @@ shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ah
 **merged to main + pushed (2026-07-18)**. Remaining there: real-hardware device gates
 (SC-1000-02/05/06/08, CloudKit-decrypt-on-tvOS proof, 24h soak), real MQTT/CloudKit, and the
 tvOS clock + FR-1000-10 pixel-shift — tick-list in `docs/manual-verification.md` ("FINAL DEVICE
-DAY"). Earlier context: `510` clock merged; `900`/`800`/`220` merged + implemented (their device
-ship-gates share that same device day); v1.0 in App Store review; `310`/`320` implemented.
+DAY"). Earlier context: `510` clock merged; `900`/`800`/`220`/`310`/`320` merged (their device
+ship-gates share that same device day). `1200-observed-fixes` (album no-server guidance, Ken Burns
+honors Fit, battery/charging HA telemetry) merged 2026-07-22 via PR #39. v1.0 build 8 is
+**approved but deliberately unreleased** — see FR-1100-17 above.
 <!-- SPECKIT END -->
