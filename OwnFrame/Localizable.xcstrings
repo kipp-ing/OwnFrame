@@ -2552,12 +2552,12 @@
         }
       }
     },
-    "Where your money goes: the unlocks cover the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever." : {
+    "Where your money goes: the Supporter Unlock covers the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wohin dein Geld fließt: Die Freischaltungen decken die laufenden Kosten des Projekts — Entwicklerkonto, KI-Tools, Testgeräte — und alles darüber hinaus geht zurück an Open-Source-Projekte, die der Gemeinschaft dienen. Die kostenlose App bleibt für immer voll funktionsfähig."
+            "value" : "Wohin dein Geld fließt: Die Supporter-Freischaltung deckt die laufenden Kosten des Projekts — Entwicklerkonto, KI-Tools, Testgeräte — und alles darüber hinaus geht zurück an Open-Source-Projekte, die der Gemeinschaft dienen. Die kostenlose App bleibt für immer voll funktionsfähig."
           }
         }
       }

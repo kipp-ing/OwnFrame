@@ -8,8 +8,9 @@ extension Entitlement {
     /// The user-facing unlock name, as it appears on locked badges and unlock screens.
     ///
     /// Presentation only, which is why it lives beside the view rather than in the model: the
-    /// entitlement itself is a capability, not a marketing name. Not localized — the repo ships
-    /// English-only by design (CLAUDE.md).
+    /// entitlement itself is a capability, not a marketing name. Deliberately *not* localized:
+    /// "Supporter" is the product's proper name, the fixed morpheme every locale keeps — the
+    /// German copy builds on it too ("Supporter-Freischaltung").
     public var displayName: String {
         switch self {
         case .supporter: "Supporter"
