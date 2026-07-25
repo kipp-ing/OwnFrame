@@ -184,5 +184,5 @@ secrets, never server URLs with credentials, no photo bytes.
   the `AppIntent` conformances stay in the app target.
 - Minimum OS for intents matches the app's iOS 17 floor (App Intents is iOS 16+); iOS-18-only
   surfaces (Control Center controls) are Roadmap, gated at runtime.
-- Localization: intent titles/phrases ship English-only like the rest of the app (FR-300-30
-  policy).
+- Localization: intent titles/phrases ship localized like the rest of the app — English plus
+  German since 2026-07-23, the phrases through `AppShortcuts.xcstrings` (FR-300-30).
