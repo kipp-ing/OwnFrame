@@ -303,6 +303,16 @@ of hanging the run.
   is the source of truth.
 - **`xcodebuild` never extracts strings into `Localizable.xcstrings`** — only the Xcode IDE
   does. Hand-edit surgically; don't JSON round-trip (Xcode sorts by ICU collation).
+- **The simulator's connected hardware keyboard can SIGABRT sheet presentation** (issue #42):
+  presenting the tip jar sheet over a landscape iPad Form aborts in UIKit's focus engine
+  (`_UIFocusContainerGuideFallbackItemsContainer`, `parentEnvironment != nil` assert) — an
+  unfixed UIKit bug (Apple r.154431813, DTS-confirmed, iPadOS 18.6 and 26.0 alike) that runs
+  only while a hardware keyboard is attached. No view-level arrangement prevents it
+  (`.sheet(item:)`, `NavigationStack`, detents, focus modifiers — all tried). Defused by
+  `FocusEngineUITestWorkaround` in `OwnFrameApp.swift`: DEBUG-only, `--uitest`-gated, no-ops
+  `UIFocusSystem.updateFocusIfNeeded`, which XCUITest (accessibility-driven) never needs. The
+  keyboardless production frame never runs this path. Regression guard:
+  `TipJarPresentationUITests` (landscape is load-bearing there — portrait masks the bug).
 
 ## Live-server contract check (manual, opt-in)
 
