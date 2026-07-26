@@ -25,12 +25,13 @@ struct HATopicsTests {
         #expect(HAEntity.phase.rawValue == "phase")
         #expect(HAEntity.photoCount.rawValue == "photo_count")
         #expect(HAEntity.version.rawValue == "version")
+        #expect(HAEntity.frameStatus.rawValue == "frame_status")
     }
 
     @Test
     func haEntityAllCasesCount() {
-        // 21 core + battery + charging (1200 US3).
-        #expect(HAEntity.allCases.count == 23)
+        // 21 core + battery + charging (1200 US3) + frame_status (FR-710-24, 2026-07-26).
+        #expect(HAEntity.allCases.count == 24)
     }
 
     // @covers FR-710-01, FR-710-08
@@ -55,6 +56,7 @@ struct HATopicsTests {
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .phase) == "homeassistant/sensor/dev1/phase/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .photoCount) == "homeassistant/sensor/dev1/photo_count/config")
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .version) == "homeassistant/sensor/dev1/version/config")
+        #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .frameStatus) == "homeassistant/sensor/dev1/frame_status/config")
 
         // Existing entities (regression check)
         #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .playback) == "homeassistant/switch/dev1/playback/config")

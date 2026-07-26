@@ -235,26 +235,28 @@ has no tasks.md of its own.
 **Independent test**: fake transport + injected UI-visibility signal only — no real broker, no
 simulator (SC-700-15, SC-710-08).
 
-- [ ] T042 [P] Red tests: `frame_status` discovery (sensor, `entity_category: diagnostic`, no
+- [x] T042 [P] Red tests: `frame_status` discovery (sensor, `entity_category: diagnostic`, no
   `command_topic`, retained state), free-tier membership (`isReadOnlySensor`, published in
   telemetry-only mode), state echo `running`/`inactive` from an explicit visibility API, no
   availability/`phase`/`playback` publish on visibility change, `connectCount`/`disconnectCount`
   unchanged across visibility changes (SC-700-15), reconnect republishes current visibility —
   in `Packages/HAControlKit/Tests/HAControlKitTests/`
-- [ ] T043 Implement `frame_status` entity + explicit UI-visibility input on
+- [x] T043 Implement `frame_status` entity + explicit UI-visibility input on
   `HAControlCoordinator` (never inferred from view appear/disappear), in
   `Packages/HAControlKit/Sources/HAControlKit/{HAEntityState,HADiscovery,HATopics,HAControlCoordinator}.swift`
   to green T042
-- [ ] T044 Decouple coordinator teardown + `PowerManager.deactivate()` from modal-induced view
+- [x] T044 Decouple coordinator teardown + `PowerManager.deactivate()` from modal-induced view
   lifecycle in `OwnFrame/Slideshow/SlideshowView.swift` and
   `OwnFrameTV/{TVRootView,TVSlideshowView}.swift`: genuine exit and scenePhase-background still
   tear down; modal presentation only drives the visibility signal. Guard start against
   double-start when the covered view re-appears.
-- [ ] T045 Extract the teardown/visibility decision into a host-testable seam with red tests
+- [x] T045 Extract the teardown/visibility decision into a host-testable seam with red tests
   first (modal-presented → keep session + idle timer, publish `inactive`; genuine exit →
   teardown; background → teardown per FR-400-03)
-- [ ] T046 Update `specs/710-ha-full-control/data-model.md` entity list with `frame_status`;
-  full verification gate (host suites + full `test_sim`) before merge
+- [x] T046 Update `specs/710-ha-full-control/data-model.md` entity list with `frame_status`;
+  full verification gate (host suites + full `test_sim`) before merge (2026-07-26: 12
+  packages green on the host; full sim suite 165/0/61 — all 61 skips are the opt-in
+  screenshot/device-rig/live-smoke categories)
 
 ---
 

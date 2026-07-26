@@ -19,6 +19,7 @@ public enum HAEntity: String, CaseIterable, Sendable {
     case currentPhotoImage = "current_photo_image"   // topic suffix differs, see contracts
     // diagnostics (FR-710-07)
     case phase, photoCount = "photo_count", version
+    case frameStatus = "frame_status"   // running|inactive, explicit UI-visibility signal (FR-710-24, 2026-07-26)
 }
 ```
 
