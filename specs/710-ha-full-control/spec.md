@@ -16,8 +16,8 @@ changes.
 
 > **Purchase-gate tiering (per spec 1100, amended 2026-07-20).** The entities defined here
 > split across tiers: the **read-only sensor entities** (current photo + metadata, current-photo
-> image, playback phase, photo count, version, and — on battery-bearing devices — battery level
-> and charging state) plus broker connection + availability (LWT) are
+> image, playback phase, photo count, version, frame status, and — on battery-bearing devices —
+> battery level and charging state) plus broker connection + availability (LWT) are
 > **free** — an unentitled frame publishes them so Home Assistant can *see* it. The
 > **controllable entities** (everything with a `command_topic`: brightness/light, album select,
 > playback switch, the settings controls, next/previous) and all command handling require the
@@ -115,9 +115,9 @@ update; verify pressing while paused steps without resuming.
 
 ### User Story 4 - Diagnostics & state on reconnect (Priority: P3)
 
-HA shows diagnostic sensors (slideshow phase, photo count of the active album, app version, and —
-on battery-bearing devices — battery level and charging state) and after any reconnect the full
-state of *all* entities is re-published, so HA never shows stale values.
+HA shows diagnostic sensors (slideshow phase, photo count of the active album, app version, frame
+status, and — on battery-bearing devices — battery level and charging state) and after any
+reconnect the full state of *all* entities is re-published, so HA never shows stale values.
 
 **Acceptance Scenarios**:
 
@@ -133,6 +133,10 @@ state of *all* entities is re-published, so HA never shows stale values.
    state changes, **Then** the battery sensor and the charging binary sensor update (event-driven,
    no polling); on a device without a battery (e.g. Apple TV) these two entities are absent from
    discovery.
+5. **Given** the app is connected and foregrounded, **When** an in-app modal is presented over the
+   slideshow, **Then** the `frame_status` sensor changes from `running` to `inactive`, while
+   `phase`, `playback`, and availability are unaffected; dismissing the modal returns it to
+   `running` (see the 700 amendment, FR-700-23, for why this must not touch availability).
 
 ### Edge Cases
 
@@ -242,6 +246,23 @@ Numbering continues the 700 series in the `710` sub-spec block.
   notifications), not by polling. On a device without a battery (e.g. Apple TV) both entities MUST
   be omitted from discovery rather than published with a placeholder.
 
+*(FR-710-24, added 2026-07-26, alongside the 700 amendment of the same date — FR-700-23 — which
+fixes the connectivity/UI-visibility conflation this sensor separates out.)*
+
+- **FR-710-24**: The app MUST expose a read-only diagnostic sensor `frame_status` with exactly two
+  values: `running` (connected, and the slideshow surface is frontmost, uncovered by any modal) and
+  `inactive` (connected and foregrounded, but a sheet or other in-app modal covers the slideshow).
+  `frame_status` MUST be driven by an explicit UI-visibility signal from the presenting layer, not
+  inferred from view-appear/disappear lifecycle — the same inference that caused the connectivity
+  defect FR-700-23 fixes. Like the other diagnostic sensors, it shares the app's availability
+  binding, so when the app itself goes offline (FR-700-23) the entity shows unavailable rather than
+  publishing a third value on its own state topic. It is `entity_category: diagnostic`, publishes
+  retained state, and carries no `command_topic`; being a read-only sensor, it is **free** telemetry
+  an unentitled frame still publishes, matching the tiering of `phase` and `battery`/`charging`
+  (FR-1100-03a). `frame_status` is orthogonal to and does not change `phase` (FR-710-07, unchanged:
+  `loading|playing|empty|failed`) or `playback` (FR-700-07/08): existing automations keyed on either
+  continue to see exactly the same values and semantics as before this amendment.
+
 ### Key Entities *(include if feature involves data)*
 
 - **Settings Entity**: one HA entity per `ThemeSettings` field; command topic accepts the raw
@@ -250,9 +271,10 @@ Numbering continues the 700 series in the `710` sub-spec block.
   (re)connect instead) and metadata (sensor state + attributes, also not retained, cached
   per-asset in a bounded LRU for the session); lifecycle bound to `SlideshowViewModel`
   photo-change events.
-- **Diagnostics**: read-only sensors (`phase`, `photo_count`, `version`, `battery`) and the
-  `charging` binary sensor, marked `entity_category: diagnostic`; `battery`/`charging` appear only
-  on battery-bearing devices.
+- **Diagnostics**: read-only sensors (`phase`, `photo_count`, `version`, `battery`, `frame_status`)
+  and the `charging` binary sensor, marked `entity_category: diagnostic`; `battery`/`charging`
+  appear only on battery-bearing devices; `frame_status` is `running`/`inactive`, driven by an
+  explicit UI-visibility signal, and is orthogonal to `phase`.
 - **Publish Options**: image publishing enabled flag (default off), image source size, byte
   cap — stored with the broker configuration (non-secret part).
 
@@ -277,6 +299,10 @@ Numbering continues the 700 series in the `710` sub-spec block.
   binary sensor that reflect the device's actual battery level and charging state and update on
   change without polling; on a device without a battery, neither entity is discovered — verified
   with the fake transport (no real broker) and an injected battery source.
+- **SC-710-08**: Presenting any in-app modal over the slideshow changes `frame_status` from
+  `running` to `inactive` (and back on dismissal) without changing `phase`, `playback`, or
+  availability — verified with the fake transport and an injected UI-visibility signal, no real
+  broker or simulator required.
 
 ## Open Questions
 

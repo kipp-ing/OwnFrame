@@ -43,10 +43,13 @@ depicted lingers on the broker; both are republished on (re)connect/announce ins
 | `version`               | sensor (diagnostic)  | app version string                                               | bundle |
 | `battery`               | sensor (diagnostic)  | integer 0–100, `device_class: battery`, unit `%`                 | UIDevice.batteryLevel |
 | `charging`              | binary_sensor (diag) | `ON`/`OFF`, `device_class: battery_charging` (ON = on power)     | UIDevice.batteryState |
+| `frame_status`          | sensor (diagnostic)  | `running`\|`inactive`                                            | explicit UI-visibility signal (2026-07-26, FR-710-24) |
 
 Enabled by default: all except `current_photo_image` (opt-in — FR-710-15, `HAPublishOptions`).
 `battery` and `charging` are published only on battery-bearing devices (absent on Apple TV, which
-has no battery — FR-710-23).
+has no battery — FR-710-23). `frame_status` is read-only, free-tier telemetry (FR-1100-03a),
+orthogonal to `phase` — added 2026-07-26 alongside the 700 amendment FR-700-23, which is what
+availability itself now excludes (in-app UI presentation is not a connectivity change).
 
 ## 3. `current_photo` payload (research.md §2)
 
