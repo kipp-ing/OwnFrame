@@ -2,7 +2,11 @@
 
 **Feature Branch**: `1200-observed-fixes`
 **Created**: 2026-07-22
-**Status**: Draft
+**Status**: Implemented + merged to main via PR #39 (2026-07-22) — all three fixes shipped:
+`OnboardingKit.serverConfigured` + the `noServer` phase in the album picker and browser (US1),
+the shared `KenBurnsFraming` framing/pan decision honored by both renderers (US2), and the
+`battery`/`charging` HA entities behind `BatteryReporting` (US3, omitted on batteryless devices).
+Remaining: live MQTT/HA and perceived-motion checks on the frame — device-day gates.
 **Input**: Three issues observed on the running frame:
 1. Adding an album with no Immich server configured shows "Couldn't load albums" instead of guiding the user to add a server.
 2. The Ken Burns effect ignores the **Fit** setting (it forces Fill framing).

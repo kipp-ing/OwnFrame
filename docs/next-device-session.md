@@ -54,8 +54,9 @@ The remaining T042 work is ASC-gated only (1b below).
 Needs IAPs created in App Store Connect first — blocked on Jan's ASC access, so confirm that is
 done before planning this leg.
 
-- [ ] Purchase Pro; verify the Ken Burns + clock gates unlock at the point of effect.
-- [ ] Purchase Automation; verify HA control entities appear (telemetry → full).
+- [ ] Purchase the Supporter Unlock (the single product); verify **both** capability groups
+      unlock at the point of effect — ambience (Ken Burns + clock overlay) *and* automation
+      (HA control entities go telemetry → full).
 - [ ] Restore on a second install; verify entitlements return.
 - [ ] Family Sharing; universal purchase (iOS purchase unlocks tvOS).
 - [ ] **Never-claw-back (FR-1100-13)**: with the frame offline for a long period, entitlements

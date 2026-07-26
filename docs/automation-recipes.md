@@ -8,7 +8,13 @@ extra hardware: the frame schedules itself.
 ## What you can say / run
 
 All actions appear in the Shortcuts app automatically after installing the app
-(no setup), and respond to Siri with the app name in the phrase:
+(no setup), and respond to Siri with the app name in the phrase. **Running them
+needs the Supporter Unlock** — the one-time purchase that also unlocks Ken Burns
+motion, the clock overlay, and Home Assistant control. The actions stay visible
+in Shortcuts either way, so you can build your automations first; without the
+unlock they stop with a short message instead of doing anything (see *Errors you
+might see* below). Everything the frame does on its own — every photo source and
+the full slideshow — stays free.
 
 | Action | Siri phrase | Notes |
 |---|---|---|
@@ -88,6 +94,10 @@ third-party intents:
 
 ## Errors you might see
 
+- "Remote control requires the Supporter Unlock." — the frame doesn't own the
+  unlock yet. Open OwnFrame → Settings → Unlocks (or **Restore Purchases** if you
+  already bought it on another device). Your shortcut is fine as it is; it will
+  work as soon as the unlock is in place.
 - "Set up the frame first — open OwnFrame and add a source." — the app has
   never finished onboarding.
 - "OwnFrame must be open on the frame device for this." — the app wasn't

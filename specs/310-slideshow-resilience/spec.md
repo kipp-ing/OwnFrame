@@ -4,8 +4,8 @@
 
 **Created**: 2026-07-09
 
-**Status**: Implemented (2026-07-09, branch `310-slideshow-resilience`) — was the pre-release
-gate before the App Store release. FR→test mapping in `docs/spec-traceability.md` (310 section).
+**Status**: Implemented + merged to main (2026-07-09) — was the pre-release gate before the App
+Store release. FR→test mapping in `docs/spec-traceability.md` (310 section).
 
 **Input**: Sub-spec of `specs/300-slideshow`. A photo frame runs unattended for weeks: it must
 survive network loss without anyone touching it, and newly added photos must enter rotation

@@ -70,22 +70,29 @@ no live server, no real Keychain, fully deterministic and CI-safe.
    | Identifier | Element |
    |------------|---------|
    | `onboarding.serverURL` | server URL text field |
-   | `onboarding.server.continue` | "Weiter" button (step 1) |
    | `onboarding.apiKey` | API-key secure field |
-   | `onboarding.apiKey.connect` | "Verbinden" button (step 2) |
+   | `onboarding.connection.continue` | Continue — validates URL + key in one action |
    | `onboarding.album.<id>` | each album row |
-   | `main.completed` | the post-onboarding main screen |
+   | `onboarding.source.continue` | Continue, once a source has been added |
+   | `onboarding.confirm.start` | Start, on the confirmation step |
+   | `slideshow.image` | the running slideshow's current image |
 
-**Current tests** (`OwnFrameUITests/OwnFrameUITests.swift`):
+   Server URL and API key share **one** combined connection step — there is no separate
+   per-field step or per-step button.
 
-- `testOnboardingHappyPathReachesMainScreen` — drives Server → API key → album → main screen.
-- `testFreshLaunchShowsServerStep` — a fresh launch starts at step 1.
+**The suite** — 25 files under `OwnFrameUITests/`, one per flow (album browser, clock overlay,
+purchase gate, settings, shared links, slideshow chrome, …). The core onboarding pair lives in
+`OwnFrameUITests/OwnFrameUITests.swift`:
+
+- `testOnboardingHappyPathReachesSlideshow` — connection (URL + key on one screen) → source
+  (album) → confirm → the running slideshow.
+- `testFreshLaunchShowsConnectionStep` — a fresh launch starts at the combined connection step.
 
 **Run just the flow** (skips the slow launch-perf suite):
 
 ```text
 test_sim  extraArgs:
-  -only-testing:OwnFrameUITests/OwnFrameUITests/testOnboardingHappyPathReachesMainScreen
+  -only-testing:OwnFrameUITests/OwnFrameUITests/testOnboardingHappyPathReachesSlideshow
 ```
 
 **Extending it to a new flow** (e.g. SlideshowView): add accessibility identifiers
