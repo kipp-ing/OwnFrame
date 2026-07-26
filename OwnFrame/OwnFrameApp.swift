@@ -658,6 +658,11 @@ private struct RootView: View {
             if let slideshow, let powerManager, let remoteAdapter {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
                               isPhotoLibrarySource: activeSourceIsPhotoLibrary,
+                              // FR-700-23 "any other sheet/full-screen surface": these two
+                              // sheets are presented by THIS view over the running
+                              // slideshow, so they must count as a modal cover exactly
+                              // like SlideshowView's own sheets.
+                              externallyCovered: incomingSheet != nil || showAlbumReselect,
                               themeStore: themeStore,
                               makeCoordinator: { await factories.makeCoordinator(remoteAdapter) },
                               onReset: {

@@ -75,6 +75,7 @@ struct ImmichSlideshowTVApp: App {
 
 struct TVRootView: View {
     @Bindable var model: TVAppModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
 
     var body: some View {
@@ -85,6 +86,32 @@ struct TVRootView: View {
             // gear reaches it from the slideshow and the DEBUG seam reaches it from any route.
             .fullScreenCover(isPresented: $showSettings) {
                 TVSettingsView(onDone: { showSettings = false })
+            }
+            .onChange(of: showSettings) { _, presented in
+                // FR-710-24: the explicit UI-visibility signal, driven by the cover's
+                // presentation state at the presenting layer — never inferred from the
+                // covered view's appear/disappear lifecycle (FR-700-23's conflation).
+                Task { await model.setSurfaceVisible(!presented) }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                // FR-400-03 / FR-700-23: while the settings cover is up, TVSlideshowView
+                // may be out of the hierarchy (fullScreenCover replaces the covered
+                // view), so its own scenePhase handler cannot be relied on. The
+                // presenting layer owns backgrounding then: release keep-awake + stop
+                // the coordinator on leaving the foreground, re-acquire + restart on
+                // return. If both handlers do fire, every call here is an idempotent
+                // no-op (stopHA/startHA guard on the model, the PowerManager calls are
+                // boolean latches). Uncovered, the slideshow view handles this itself
+                // exactly as before.
+                guard showSettings else { return }
+                switch newPhase {
+                case .active:
+                    model.powerManager.willEnterForeground()
+                    Task { await model.startHA() }
+                default:
+                    model.powerManager.didEnterBackground()
+                    Task { await model.stopHA() }
+                }
             }
             #if DEBUG
             // Hermetic screenshot/verification seam: open the settings surface straight away, so
@@ -113,6 +140,7 @@ struct TVRootView: View {
                     startHA: { await model.startHA() },
                     stopHA: { await model.stopHA() },
                     isCurrentGeneration: { model.slideshow === slideshow },
+                    isModalPresented: { showSettings },
                     onSettings: { showSettings = true }
                 )
                 .id(ObjectIdentifier(slideshow))
@@ -233,6 +261,10 @@ final class TVAppModel {
     /// retained "offline" (or its LWT after client takeover) land after the new "online".
     private var haCoordinator: HAControlCoordinator?
     private var isStartingHA = false
+    /// FR-710-24: the presenting layer's UI-visibility signal, remembered on the model so
+    /// a coordinator built while the settings cover is up (foreground return, broker
+    /// configured from settings) announces `inactive` rather than the default `running`.
+    private var isSurfaceVisible = true
 
     /// What the frame owns (1100). Read at each point of effect rather than captured as a
     /// value, so a purchase made while the app runs opens its gate without a relaunch.
@@ -413,6 +445,9 @@ final class TVAppModel {
         // fetches state); starting it would bind HA to the outgoing generation.
         guard self.slideshow === slideshow else { return }
         haCoordinator = coordinator
+        // FR-710-24: seed frame_status before the announce so a start under the settings
+        // cover publishes `inactive` (recorded only while disconnected — no publish yet).
+        await coordinator.setSurfaceVisible(isSurfaceVisible)
         await coordinator.start()
         if coordinator.connection == .disconnected {
             haCoordinator = nil
@@ -424,6 +459,15 @@ final class TVAppModel {
         guard let coordinator = haCoordinator else { return }
         haCoordinator = nil
         await coordinator.stop()
+    }
+
+    /// FR-710-24 / SC-710-08: forward the presenting layer's UI-visibility signal to the
+    /// live coordinator (publishes only on the frame_status topic — availability, phase
+    /// and playback are untouched, FR-700-23/SC-700-15) and remember it for the next
+    /// coordinator build.
+    func setSurfaceVisible(_ visible: Bool) async {
+        isSurfaceVisible = visible
+        await haCoordinator?.setSurfaceVisible(visible)
     }
 
     // MARK: - Active-source switching (US1/US4)

@@ -34,6 +34,12 @@ public final class HAControlCoordinator {
     private let enabledEntities: Set<HAEntity>
     private let mode: Mode
     private var deviceID: String?
+    /// FR-710-24: the explicit UI-visibility signal from the presenting layer. `true` =
+    /// the slideshow surface is frontmost (`frame_status` = `running`), `false` = an
+    /// in-app modal covers it (`inactive`). Defaults to visible so a plain start
+    /// announces `running`. Deliberately NOT derived from any view-lifecycle callback —
+    /// that inference is the conflation FR-700-23 fixes.
+    private var surfaceVisible = true
     private var incomingTask: Task<Void, Never>?
     private var connectionTask: Task<Void, Never>?
     private var settingsEchoTask: Task<Void, Never>?
@@ -110,6 +116,18 @@ public final class HAControlCoordinator {
         }
         await transport.disconnect()
         connection = .disconnected
+    }
+
+    /// FR-710-24 / SC-710-08: record the presenting layer's UI-visibility signal and echo
+    /// it as the `frame_status` sensor (`running`/`inactive`). Publishes on the
+    /// frame_status state topic only — never availability, never `phase`/`playback`, and
+    /// never a connect/disconnect (FR-700-23 / SC-700-15). While disconnected the value
+    /// is only recorded; the next `announce()` publishes it.
+    public func setSurfaceVisible(_ visible: Bool) async {
+        guard visible != surfaceVisible else { return }
+        surfaceVisible = visible
+        guard connection == .connected, enabledEntities.contains(.frameStatus) else { return }
+        await echo(.frameStatus)
     }
 
     internal func announce() async {
@@ -326,7 +344,8 @@ public final class HAControlCoordinator {
                 await photoReporter?.showNext()
             case .previous:
                 await photoReporter?.showPrevious()
-            case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
+            case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging,
+                 .frameStatus:
                 break
             }
 
@@ -420,6 +439,9 @@ public final class HAControlCoordinator {
             // omitted it, but guard so a stray echo can't publish a false "OFF").
             guard let battery else { return }
             payload = battery.current.isOnPower ? "ON" : "OFF"
+        case .frameStatus:
+            // Exactly two values (FR-710-24); the availability binding covers "offline".
+            payload = surfaceVisible ? "running" : "inactive"
         case .next, .previous, .currentPhoto, .currentPhotoImage:
             payload = ""  // routed above; kept for switch exhaustiveness
         }
@@ -470,7 +492,7 @@ public final class HAControlCoordinator {
         switch entity {
         case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate:
             true
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus:
             false
         }
     }
@@ -499,7 +521,7 @@ public final class HAControlCoordinator {
             snapshot.clockSize.rawValue
         case .clockDate:
             snapshot.clockDate ? "ON" : "OFF"
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus:
             ""
         }
     }
@@ -545,7 +567,7 @@ public final class HAControlCoordinator {
         case .clockDate:
             guard let value = switchBool(payload) else { return }
             snapshot.clockDate = value
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus:
             return
         }
 
