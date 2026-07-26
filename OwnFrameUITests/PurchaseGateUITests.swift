@@ -18,7 +18,9 @@
 //  running slideshow with zero purchase UI at every step.
 //
 //  Assertions 3, 5 and 6 (part-ownership visibility, store-unavailable, pre-gate broker
-//  config) are separate files; assertion 7 is explicitly not XCUITest.
+//  config) are separate files; assertion 7 is explicitly not XCUITest. Assertion 3's
+//  `ProductID.uiSlug` parenthetical (PR #40 post-merge review gap — `unlock.price.supporter` /
+//  `unlock.buy.supporter` were unasserted) is covered here.
 //
 
 import XCTest
@@ -100,6 +102,36 @@ final class PurchaseGateUITests: XCTestCase {
         brokerRow.tap()
         XCTAssertTrue(element(app, "unlock.screen.supporter").waitForExistence(timeout: 5),
                       "the broker control-locked row must open unlock.screen.supporter")
+    }
+
+    // MARK: - ProductID.uiSlug coverage — price + buy identifiers on the unlock screen
+
+    /// Closes the gap the PR #40 post-merge review found (recorded in contracts/uitest-seams.md
+    /// assertion 3's parenthetical): `ProductID.uiSlug` feeds `unlock.price.supporter` and
+    /// `unlock.buy.supporter`, but no XCUITest ever asserted either existed. Opens the one
+    /// unlock screen from a locked row under `none` entitlements — `launchIntoSettings` leaves
+    /// `--uitest-store=` unset, which `PurchaseUITestSeams.storeBehavior` defaults to `.stub`, so
+    /// the screen has a real stub product ("$1.00") to price.
+    @MainActor
+    func testUnlockScreenShowsSupporterPriceAndBuyIdentifiers() throws {
+        let app = launchIntoSettings(entitlements: "none")
+
+        let kenBurnsRow = element(app, "settings.row.kenburns.locked")
+        XCTAssertTrue(scrollToElement(kenBurnsRow, in: app), "kenburns locked row must be present")
+        kenBurnsRow.tap()
+
+        XCTAssertTrue(element(app, "unlock.screen.supporter").waitForExistence(timeout: 5),
+                      "the locked row must open unlock.screen.supporter")
+
+        let price = element(app, "unlock.price.supporter")
+        XCTAssertTrue(price.waitForExistence(timeout: 5),
+                      "unlock.price.supporter must exist once the stub store's products load")
+        XCTAssertFalse(price.label.isEmpty,
+                       "unlock.price.supporter must carry a non-empty price label")
+
+        let buy = element(app, "unlock.buy.supporter")
+        XCTAssertTrue(buy.waitForExistence(timeout: 5), "unlock.buy.supporter must exist")
+        XCTAssertTrue(buy.isHittable, "unlock.buy.supporter must be hittable, not merely present")
     }
 
     // MARK: - Assertion 6 — pre-gate broker config degrades gracefully (US5 / SC-1100-06)
