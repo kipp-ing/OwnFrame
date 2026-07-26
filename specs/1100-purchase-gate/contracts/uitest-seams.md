@@ -43,8 +43,10 @@ against the stub source, hermetic, no server).
    `unlock.screen.supporter` — there is never a second product or screen to choose (FR-1100-04).
    Under `supporter`/`all` those same rows are unlocked and the screen is unreachable — partial
    ownership cannot occur, so there is no per-tier visibility state left to exercise.
-   (`unlock.price.supporter` / `unlock.buy.supporter` exist on that screen but are not
-   independently asserted by any XCUITest today — `ProductID.uiSlug` itself is untested.)
+   (`unlock.price.supporter` / `unlock.buy.supporter` are asserted by
+   `PurchaseGateUITests.testUnlockScreenShowsSupporterPriceAndBuyIdentifiers` — non-empty
+   price label, hittable buy button — closing the `ProductID.uiSlug` gap the PR #40
+   post-merge review documented here.)
 4. `all` (== `supporter`): no locked rows, no `unlock.` entry points except Restore + tips in
    settings.
 5. `--uitest-store=unavailable`: unlock screen shows `unlock.unavailable`, zero price labels
