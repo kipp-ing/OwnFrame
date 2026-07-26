@@ -5,7 +5,8 @@
 **Created**: 2026-06-23
 
 **Status**: Active — **amended 2026-07-21** (frame identity, US3 / FR-700-16…22 / SC-700-11…14).
-The identity half is **release-blocking for the first public release**; see US3.
+The identity half is **release-blocking for the first public release**; see US3. **Further
+amended 2026-07-26** (in-app UI presentation is not connectivity loss, FR-700-23 / SC-700-15).
 
 **Input**: Consolidated from `specs/005-hacontrol/spec.md`: secure MQTT connection, Home Assistant discovery, availability, and pause/play control for the running slideshow.
 
@@ -13,6 +14,17 @@ The identity half is **release-blocking for the first public release**; see US3.
 (iPad Pro 10.5 / iOS 17.7.10) showed the shipped implementation **violates FR-700-06**
 ("stable, duplicate-free device and entity IDs"). US3 and FR-700-16…22 below make that
 requirement precise enough to be testable, and separate *identity* from *name*.
+
+**Amendment 2026-07-26 — in-app UI presentation is not connectivity loss.** Live verification on
+the physical frame showed Home Assistant reporting the frame **offline** whenever any in-app
+modal UI (Settings, the album browser, source setup, the connection-error editor) was presented
+over the slideshow, even though the app stayed foregrounded and connected; dismissing the UI
+reconnected everything. FR-700-23 below makes explicit that availability tracks app-level
+connectivity, not which in-app view is frontmost. The same defect was also found re-arming the
+system idle timer while such UI is open, which already violates FR-400-01 (400-power-manager: the
+display MUST stay awake while the slideshow is active in the foreground) — that spec needs no new
+text, but the fix for FR-700-23 MUST restore both the broker session and the idle timer together,
+since both regressions share one root cause.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -100,6 +112,7 @@ that Home Assistant shows the same device and entity IDs.
 - **Missing or invalid credentials**: If no valid broker configuration exists, no connection is attempted and the app continues locally.
 - **Connection drop during operation**: LWT marks the device offline; after reconnect, the app republishes online availability and the current state.
 - **App in the background**: Commands requiring foreground-only capabilities are not forced in the background; platform boundaries are respected through the relevant module.
+- **In-app modal UI over the slideshow** (Settings, album browser, source setup, the connection-error editor): the app is still foregrounded and connected, so this is not backgrounding — availability stays online and the broker session is left alone (FR-700-23).
 - **Conflicting or rapid commands**: The last valid command wins, and echoed state always reflects the real app state.
 - **Duplicate discovery**: Repeated discovery publication does not create duplicate Home Assistant devices or entities because IDs are stable and unique.
 - **Secret leak**: Broker username and password never appear in logs, UserDefaults, cache, source code, or committed files.
@@ -112,7 +125,7 @@ that Home Assistant shows the same device and entity IDs.
 - **FR-700-01**: The app MUST connect to the configured MQTT broker as a client over TLS, and TLS validation MUST remain enabled.
 - **FR-700-02**: Broker credentials MUST come from the Keychain-backed broker configuration only and MUST never be logged, cached, committed, or stored in UserDefaults.
 - **FR-700-03**: If broker configuration is missing, invalid, or connection fails, the app MUST keep running locally without crashing or blocking the slideshow.
-- **FR-700-04**: On connect, the app MUST publish online availability and register a Last Will and Testament so the broker marks the device offline on unexpected disconnect.
+- **FR-700-04**: On connect, the app MUST publish online availability and register a Last Will and Testament so the broker marks the device offline on unexpected disconnect (a real loss of app-level connectivity — see FR-700-23 for what does not count).
 - **FR-700-05**: After disconnect, the app MUST attempt reconnect and, on success, reannounce online availability and current state.
 - **FR-700-06**: The app MUST register through Home Assistant MQTT discovery using stable, duplicate-free device and entity IDs.
 - **FR-700-07**: The app MUST expose a pause/play switch entity whose availability follows the app's online/offline availability.
@@ -137,13 +150,28 @@ to the constitution's rule that nothing secret enters UserDefaults.)*
 - **FR-700-21**: On the first run of a build implementing FR-700-16, a frame that is already registered MUST adopt its current identity rather than minting a new one, so no existing Home Assistant entity is orphaned by the upgrade itself.
 - **FR-700-22**: The user MUST be able to set a human-readable frame name that determines the Home Assistant display name. Changing it MUST NOT change frame identity, and MUST NOT orphan, duplicate, or rename any entity ID.
 
+*(FR-700-23, added 2026-07-26, closes the gap the same-day observed defect exposed: nothing above
+said what "unexpected disconnect" excludes.)*
+
+- **FR-700-23**: Availability (the online/offline state on the availability topic, backed by the
+  LWT) MUST reflect app-level connectivity only — the app is running in the foreground with a
+  live broker session. Presenting any in-app modal UI over the slideshow (Settings, the album
+  browser, source setup, the connection-error editor, or any other sheet/full-screen surface)
+  MUST NOT publish offline, MUST NOT disconnect or reconnect the broker session, and MUST NOT
+  re-arm the LWT. Availability MUST transition to offline only on an actual loss of app-level
+  connectivity — the app leaving the foreground (backgrounded or terminated) or a genuine
+  broker/network failure — never on which in-app view happens to be frontmost. Whether the
+  slideshow surface itself is frontmost behind such UI is a separate, finer-grained signal carried
+  by its own diagnostic sensor (710's `frame_status`) — it MUST NOT be encoded as a third value on
+  this topic, which is HA-discovery-binary (online/offline only).
+
 ### Key Entities *(include if feature involves data)*
 
 - **Broker Configuration**: Host, port, username, and password supplied by broker setup; credentials originate from the Keychain. It carries the frame identity for convenience but is **not its owner** — identity outlives any broker configuration (FR-700-16).
 - **Frame Identity**: The opaque, per-frame, per-platform value that anchors every discovery payload, entity `unique_id`, topic namespace, and availability topic. Generated once, never derived from a platform identifier or a name, never displayed, never synchronised (FR-700-16…21). *(Previously "Device Identity"; renamed to make the split from Frame Name explicit.)*
 - **Frame Name**: The human-readable label the user gives a frame, determining only its Home Assistant display name. Free-form, non-unique, changeable at any time, and never part of any key (FR-700-22).
 - **Home Assistant Entity**: A remotely controllable capability with discovery configuration, command topic, state topic, and availability binding. In this active spec, the entities are pause/play (switch), brightness (dimmable light), and album select.
-- **Remote Control State**: The app state echoed to Home Assistant, including running or paused and online or offline.
+- **Remote Control State**: The app state echoed to Home Assistant, including running or paused and online or offline. Online/offline here is app-level connectivity only (FR-700-23); which in-app view is frontmost is a separate signal, not encoded here (see 710's `frame_status`).
 - **MQTT Transport**: The injectable protocol boundary for publishing, subscribing, connecting, reconnecting, and LWT behavior.
 
 ### Roadmap / Deferred (not yet built)
@@ -174,6 +202,7 @@ photo navigation, current-photo image/metadata, and diagnostics.)*
 - **SC-700-12**: No two frames ever share a topic namespace or an entity `unique_id`, including when the platform identifier is unavailable to both.
 - **SC-700-13**: Renaming a frame changes only its Home Assistant display name: every entity ID, dashboard binding, and automation referencing it keeps working.
 - **SC-700-14**: Updating a frame from a build predating FR-700-16 leaves its existing Home Assistant entities in place and unchanged.
+- **SC-700-15**: Presenting any in-app modal UI over the running slideshow (Settings, album browser, source setup, connection-error editor) does not publish offline availability and does not disconnect the broker session — Home Assistant shows the frame online throughout — verified through the injected MQTT transport.
 
 ## Assumptions
 
