@@ -19,6 +19,9 @@ import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import ThemeKit
+#if DEBUG
+import ObjectiveC
+#endif
 
 @main
 struct OwnFrameApp: App {
@@ -103,6 +106,13 @@ struct OwnFrameApp: App {
     }
 
     init() {
+        #if DEBUG
+        // Defuse an unfixed iPadOS focus-engine simulator abort before any window exists (issue
+        // #42). No-op unless launched with `--uitest`; entirely absent from Release. See
+        // FocusEngineUITestWorkaround for the full rationale.
+        FocusEngineUITestWorkaround.installIfNeeded()
+        #endif
+
         // The intents registry exists before either factory branch (800): created
         // once per process and handed to the intent shells' composition seam
         // (FrameIntentContext — see there for why not AppDependencyManager);
@@ -862,6 +872,38 @@ private struct RootView: View {
 }
 
 #if DEBUG
+// MARK: - Focus-engine UI-test workaround (DEBUG only)
+
+/// Neutralizes an unfixed iPadOS focus-engine abort that reproduces only in the *simulator* under
+/// UI tests (issue #42).
+///
+/// When a sheet is presented on an iPad with a hardware keyboard attached, UIKit resolves the new
+/// modal's initial focus by *inferring* a default focus item, and that inference can abort in
+/// `-[_UIFocusContainerGuideFallbackItemsContainer initWithParentEnvironment:childItems:]` on
+/// `Invalid parameter not satisfying: parentEnvironment != nil`. An Apple DTS engineer has confirmed
+/// this as an internal, still-unfixed UIKit bug (r.154431813) with no view-level workaround, and it
+/// fires ONLY while a hardware keyboard is connected. The tip jar's loading state happens to trip it
+/// where the structurally similar unlock sheet does not — but no `.sheet(item:)`, `NavigationStack`,
+/// `.presentationDetents`, `.focusable`, or `.defaultFocus` arrangement prevents it reliably (all
+/// were tried against issue #42).
+///
+/// The wall-mounted production frame has no keyboard and never runs this path, so there is nothing to
+/// fix in shipping code. The simulator, however, defaults to a connected hardware keyboard, which is
+/// the sole reason the UI tests hit the abort. This shim is compiled ONLY into DEBUG builds (never
+/// the App Store binary) and installed ONLY under `--uitest`; it replaces `-[UIFocusSystem
+/// updateFocusIfNeeded]` — the focus pass that drives the inference — with a no-op. XCUITest drives
+/// the UI through the accessibility API, not the focus engine, so nothing under test depends on it.
+enum FocusEngineUITestWorkaround {
+    static func installIfNeeded() {
+        guard ProcessInfo.processInfo.arguments.contains("--uitest") else { return }
+        guard let focusSystem = NSClassFromString("UIFocusSystem"),
+              let method = class_getInstanceMethod(focusSystem, NSSelectorFromString("updateFocusIfNeeded"))
+        else { return }
+        let noop: @convention(block) (AnyObject) -> Void = { _ in }
+        method_setImplementation(method, imp_implementationWithBlock(noop))
+    }
+}
+
 // MARK: - UI test seam (DEBUG only)
 //
 // Activated solely by the `--uitest` launch argument that the XCUITest target
