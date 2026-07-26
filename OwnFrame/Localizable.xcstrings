@@ -429,7 +429,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prüfe die Verbindung zu deinem Immich-Server und versuche es erneut. Erneuter Versuch automatisch im Hintergrund."
+            "value" : "Prüfe die Verbindung zu deinem Immich-Server und versuche es erneut. Es wird automatisch im Hintergrund erneut versucht."
           }
         }
       }
@@ -440,7 +440,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prüfe deine Verbindungseinstellungen — der API-Schlüssel oder der geteilte Link ist möglicherweise abgelaufen. Erneuter Versuch automatisch im Hintergrund."
+            "value" : "Prüfe deine Verbindungseinstellungen — der API-Schlüssel oder der geteilte Link ist möglicherweise abgelaufen. Es wird automatisch im Hintergrund erneut versucht."
           }
         }
       }
@@ -1727,7 +1727,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fotobild an Home Assistant senden"
+            "value" : "Foto an Home Assistant senden"
           }
         }
       }
