@@ -1,10 +1,20 @@
 # Handover — Live Home Assistant Verification, Session 2
 
+> **Historical as of 2026-07-26.** This captured the state on 2026-07-05 and is kept for the
+> bug write-ups and the live-rig recipes ("How to resume") only. The work it hands over is
+> **finished**: session 2 closed the whole 710 checklist live on 2026-07-08 — see
+> `docs/manual-verification.md`, "Topic 710", which is the current record. Its session fixes are
+> committed and on main (`c179840`, 2026-07-06) and the app has been renamed to **OwnFrame** since
+> (2026-07-22, PR #37), so the MQTT topic root is `ownframe/` and every entity id below carries
+> the old slug. Do not read the "Open / unresolved" section as a to-do: start from
+> `docs/spec-overview.md` and the module spec under `specs/Nxx-*/`.
+
 Written 2026-07-05 at the end of the **first** live-verification session (the previous version of
 this file was the entry point *into* that session; this version supersedes it for the next one).
 Session 1 got the app connected to a real broker + real HA instance for the first time, found and
-fixed 4 real bugs via TDD, and got most of the 700+710 checklist passing live. **Not finished** —
-pick up with the "Open / unresolved" section below.
+fixed 4 real bugs via TDD, and got most of the 700+710 checklist passing live. It was not finished
+at the time of writing — session 2 (2026-07-08) picked up the "Open / unresolved" section below
+and cleared all of it.
 
 ## Where things stand
 
@@ -62,11 +72,18 @@ pick up with the "Open / unresolved" section below.
   not a bug — needs its own spec/plan + TDD implementation as a follow-up. Do not attempt it as
   part of a "live verification" session again; it needs the normal SDD workflow.
 
-## Open / unresolved — pick up here
+## Open / unresolved as of 2026-07-05 — **all cleared on 2026-07-08**
+
+Session 2 worked through every item below and passed all 7 checklist points live; the `next` /
+`current_photo` item turned out to be a false alarm (now pinned by a committed host
+characterization test). The authoritative record is `docs/manual-verification.md`, "Topic 710".
+Kept here for the investigation trail only.
 
 - **`next` button / `current_photo` sensor did not update.** Pressed "next" via HA
-  (`button.press` on `button.immich_slideshow_slideshow_next`); `sensor.immich_slideshow_
-  slideshow_current_photo` kept the exact same asset ID and `last_changed` timestamp, despite
+  (`button.press` on `button.immich_slideshow_slideshow_next` — pre-rename slug; today's device
+  is "OwnFrame", so the ids read `button.ownframe_slideshow_next` /
+  `sensor.ownframe_slideshow_current_photo`); the current-photo sensor
+  kept the exact same asset ID and `last_changed` timestamp, despite
   `photo_count=45`, `phase=playing`, `playback=on` (so it's not an empty-album or paused-state
   issue). **We stopped mid-investigation** — the very next step is confirming whether the photo
   actually advanced *on the iPad's screen* when "next" was pressed:
@@ -92,11 +109,14 @@ pick up with the "Open / unresolved" section below.
 - Once all of the above pass: tick `docs/manual-verification.md` (700's T019/T023/T027 + the 710
   section), remove the "live Home-Assistant confirmation is still pending" line from the README
   banner (per the original handover's closing instructions), and reconsider tagging the first
-  release (version is still 1.0 (1)).
+  release. **All three done** (the version was 1.0 (1) when this was written; the build approved
+  in ASC and deliberately held back is now **v1.0 (8)**, FR-1100-17).
 
-## Repo state — uncommitted
+## Repo state — uncommitted *(historical; long since committed)*
 
-Nothing from this session has been committed. `git status --short`:
+The session ended with the changes below unstaged. They were committed as `c179840` (2026-07-06)
+and are on main — this listing is dead, kept only to show what the session touched.
+`git status --short` at the time:
 
 ```
  M OwnFrame/OwnFrameApp.swift
@@ -118,6 +138,7 @@ something we edited, safe to include, nothing to review there.
 All 4 fixes are covered by tests and green (80/80 `HAControlKit`, 67/67 full simulator suite as of
 the last full run this session). Suggest committing (one commit per fix, or logically grouped) at
 the start of next session before continuing — ask the user first, per normal workflow.
+*(Done: committed as `c179840` on 2026-07-06; on main.)*
 
 ## How to resume
 

@@ -8,9 +8,11 @@ this file is only the current state and the next moves.
 > 65 → 196; 24 of 448 verdicts refuted and stripped; the audit stage fired for the first time
 > (8 rulings, 4 upheld additions adopted). Findings filed as issues #28–#33 — six more of the
 > #26 shape. The per-requirement gap backlog lives in the seven commit messages on that PR.
-> What remains from this file: the "Do not do these unattended" list below (#21, #22, #26,
-> test repair — now joined by #28–#33) and the write-a-test gap backlog. The pipeline itself
-> is done; do not re-run it wholesale.
+> What remains from this file (as of 2026-07-26): from the "Do not do these unattended" list
+> below, only **test repair** — #21, #22 and #26 were fixed in PRs #35/#36, as were #28, #30 and
+> #31 of the new batch. Still open are **#29, #32 and #33**, all tvOS-side and therefore deferred
+> under the iOS-first policy. The write-a-test gap backlog also stands. The pipeline itself is
+> done; do not re-run it wholesale.
 
 ## Where things stand
 
@@ -78,9 +80,9 @@ these entries are much larger, so budget above that, not below.
 
 **Dead wiring.** The single most valuable output so far was not a tag — it was issue **#26**:
 FR-510-03 requires the random clock to "never land on the caption's place". The picker honours an
-`occupied` set and has a green test for it, but `SlideshowView.relocateRandomClockIfNeeded()`
-passes `occupied: []`, hardcoded. The feature does not work in the shipping app, and every test
-passes.
+`occupied` set and had a green test for it, but `SlideshowView.relocateRandomClockIfNeeded()`
+passed `occupied: []`, hardcoded. The feature did not work in the shipping app, and every test
+passed. (Fixed in PR #35; kept here because the *shape* is the point.)
 
 That is the shape to hunt: **a correct component, a green component test, and an app that does
 not wire it.** All three verifier prompts now instruct agents to follow app-behaviour
@@ -123,15 +125,16 @@ naming the layer that would own one. Tags say where you are exposed; gaps say wh
 Real logic changes need review; a comment-only backfill does not. Leave these for a session with
 a human in the loop:
 
-- **#26** — FR-510-03 dead wiring. Pass the caption's place into
+- ~~**#26** — FR-510-03 dead wiring. Pass the caption's place into
   `relocateRandomClockIfNeeded()`. Test the *wiring*, not the picker; the picker already has a
-  green test and it did not help.
-- **#21** — `BrokerSetupUITests` fails on a clean simulator on stock `main` (`broker.username`
-  never appears). Suspect the 1100 free-telemetry rework (T046–T048) moved the field or changed
-  its gate state.
-- **#22** — `ShareSheetIncomingUITests` is order-dependent: passes alone, fails in the full
+  green test and it did not help.~~ **Closed in PR #35.**
+- ~~**#21** — `BrokerSetupUITests` fails on a clean simulator on stock `main` (`broker.username`
+  never appears).~~ **Closed in PR #36.** The suspicion recorded here — that the 1100
+  free-telemetry rework (T046–T048) moved the field or changed its gate state — was wrong: the
+  field was merely off-screen, and the fix scrolls it into view.
+- ~~**#22** — `ShareSheetIncomingUITests` is order-dependent: passes alone, fails in the full
   suite, reading `https://host/s/slug` where it expects `https://demo.example.com/s/abc123`.
-  Grep that literal to find the leaking test.
+  Grep that literal to find the leaking test.~~ **Closed in PR #36.**
 - **Test repair** — the `FR-600-02` class: tests that pass while proving nothing (replacing
   `validate()` with `return nil` keeps it green). Strengthening those changes assertions, not
   comments, and belongs in its own reviewed run.

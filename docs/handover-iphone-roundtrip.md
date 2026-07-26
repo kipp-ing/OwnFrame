@@ -1,5 +1,15 @@
 # Handover — iPhone Roundtrip (last one before Submit)
 
+> **Historical as of 2026-07-26.** This captured the state on 2026-07-11 and is kept for the
+> device-matrix / screenshot / ASC-upload provenance only. It is **not** a session entry point:
+> §5's roundtrip is done (see the status block directly below), and everything its closing
+> "Deferred after release" note lists has since shipped — `800-app-intents`,
+> `900-photo-library-source`, `1000-apple-tv`, the `510` clock overlay, and the German
+> localization (topic 300, 2026-07-23). The build staged in ASC is now **v1.0 (8)**, approved
+> and **deliberately unreleased**: the purchase-gated build must be the first version the public
+> ever sees (FR-1100-17). Do not read the roadmap parts as current: start from
+> `docs/spec-overview.md` and the module spec under `specs/Nxx-*/`.
+
 > **STATUS 2026-07-11 (late): the §5 extreme-device roundtrip is DONE — one real bug found
 > and fixed, build 1.0 (5) uploaded and selected.**
 > All four matrix devices ran the full suite + live noob smoke (all frames eyeballed):
@@ -35,8 +45,9 @@
 > **Next session:** the extreme-device noob roundtrip (§5) — iOS 17.5/18.6 + smallest
 > screens, same live-smoke method that caught the two chrome bugs.
 
-State as of 2026-07-11. Read this first in the next session; `handover-release-prep.md` is
-historical — everything in it is done.
+State as of 2026-07-11 (`handover-release-prep.md` was already historical then). Everything from
+here down is the record of that session — sections 1–3 and 5 are done, and the app went through
+review; the build now sitting approved in ASC is **v1.0 (8)**, held back on purpose (FR-1100-17).
 
 ## Where the project stands
 
@@ -50,8 +61,9 @@ v1.0 is **fully staged in ASC** (app id `6784154405`, version id
   38 images, expires 2027-07-11. Live-validated against the exact client paths in build 3.
 - **7 iPad-13" screenshots** (2752×2064) uploaded to **both** locales, all COMPLETE.
 
-**Why not submitted yet:** the app targets **iPhone too** (`TARGETED_DEVICE_FAMILY = "1,2"`,
-all four orientations) and **iPhone has never been tested** — not the suite, not manually.
+**Why not submitted yet** *(as of 2026-07-11 — since resolved; the status block at the top is
+the outcome)*: the app targets **iPhone too** (`TARGETED_DEVICE_FAMILY = "1,2"`, all four
+orientations) and iPhone had not been tested at that point — neither the suite nor manually.
 One more roundtrip: test on iPhone → fix what surfaces → iPhone screenshots → ASC upload →
 then Jan's three human clicks (privacy label, age rating, Submit).
 
@@ -124,7 +136,10 @@ smaller phones by auto-scaling).
 Privacy label "Data Not Collected" → age rating confirm (all-NONE = 4+) → **Submit for
 Review**. What's New is N/A for a first version.
 
-## 5. Next session — extreme-device noob roundtrip (iOS 17/18 floor + newest)
+## 5. Extreme-device noob roundtrip (iOS 17/18 floor + newest) — **DONE 2026-07-11**
+
+Ran as planned below; the outcome (one real bug found and fixed, build bumped to 1.0 (5)) is in
+the status block at the top of this file. The plan text is kept as the recipe, not as a to-do.
 
 **Why:** every test so far ran on iOS 26.5 flagships. The iOS 17 floor (View+Compat shims,
 no Liquid Glass pre-26) is a **different rendering and interaction path that has never been
@@ -181,4 +196,7 @@ build 4's upload is pending anyway.
   app installed with the demo-link source — reset to German only if Jan asks. The iPhone
   26.5 sim `82562538-…` is English too (keeps a German QWERTZ keyboard; the capture rig
   dismisses the keyboard, so it doesn't matter).
-- Deferred after release: `800-app-intents` → `900-photo-library-source`; clock overlay.
+- ~~Deferred after release: `800-app-intents` → `900-photo-library-source`; clock overlay.~~
+  **All three shipped and are merged to main** (800 + 900 in July 2026, the `510` clock overlay
+  on 2026-07-18) — as did `1000-apple-tv` and the German localization (topic 300, 2026-07-23).
+  See `docs/spec-overview.md`.

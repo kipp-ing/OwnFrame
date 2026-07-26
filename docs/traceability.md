@@ -97,7 +97,8 @@ Ten findings of this class are worth more than three hundred tags.
 
 ## Calibration — what a healthy run looks like
 
-Measured over 6 modules, 2026-07-21:
+Measured over the first 6 modules, 2026-07-21 — the oldest and narrowest sample; see the note
+under the table before using it as the reference rate:
 
 | Module | Tags claimed | Refuted | Rate |
 |---|---|---|---|
@@ -107,6 +108,12 @@ Measured over 6 modules, 2026-07-21:
 | 100-immich-client | 28 | 4 | 14% |
 | 600-broker-setup | 14 | 2 | 14% |
 | 500-display-options | 25 | 9 | **36%** |
+
+**Later runs supersede this table.** A seventh module took the observed set to
+0/0/10/14/14/33/36% (recorded in
+[next-traceability-session.md](next-traceability-session.md)), and the full seven-entry pipeline
+run of 2026-07-22 (PR #34) refuted 24 of 448 verdicts across the remaining modules. Read the six
+rows above as the original hand-checked sample, not as the current rate.
 
 **Read the rate as a health check on the verifier, not only on the tagger.** ~10–20% is the
 healthy band. Near 0% across a batch means the verifier is rubber-stamping — re-read its
@@ -155,9 +162,12 @@ So traceability is a **map**, not an alarm. It makes these questions answerable 
 - which requirements are proven only by a human remembering (`manual only`)
 - which tests must run for a change to a given spec area
 
-— and none of those are "did this change break something". That is CI's job, and
-[#20](https://github.com/kipp-ing/OwnFrame/issues/20) records that CI has been red for
-months. **Until that is fixed, 100% traceability would still gate nothing.**
+— and none of those are "did this change break something". That is CI's job, and CI does it
+again: [#20](https://github.com/kipp-ing/OwnFrame/issues/20) — red on `main` for months because
+it was pinned to Xcode 16 — was **closed 2026-07-21**. The job now tracks macos-26/Xcode 26.x,
+runs 852 host tests across 12 packages, and asserts a per-package test-count line, so a green
+check cannot mean "nothing ran". **Traceability still gates nothing by itself; the alarm is CI,
+and it is armed.**
 
 ## Running it
 
@@ -192,5 +202,6 @@ in the commit message, since that is the durable part.
 **Budget.** The verified batch of 4 modules cost ~489k subagent tokens across 8 agents
 (~122k/module) — roughly double the unverified rate. Worth it for tags, which are trusted
 silently for a long time afterwards. Not worth it for output a human is about to read anyway.
-The remaining large modules (`300`, `200`, `210`) span packages and layers and should be
-budgeted higher than the observed average, not lower.
+The large modules (`300`, `200`, `210`) span packages and layers. They were covered by the
+2026-07-22 pipeline run (PR #34), so they are no longer outstanding; budget any repeat over
+them higher than the observed average, not lower.
