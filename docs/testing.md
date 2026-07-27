@@ -293,7 +293,7 @@ of hanging the run.
 ### Environment
 
 - **Any runtime ≥ iOS 17 is a valid destination** since the floor was lowered (verified
-  17.5 / 18.6 / 26.0 / 26.5) — **except iOS 26.4, on which `SKTestSession` serves 0 products**
+  17.5 / 18.6 / 26.0 / 26.5 / **27.0 device**) — **except iOS 26.4, on which `SKTestSession` serves 0 products**
   and all 7 `StoreKitClientTests` fail (see that section). Pin **`simulatorId` only** — when
   session defaults carry both `simulatorName` and `simulatorId`, name resolution wins and may
   pick an ineligible runtime (e.g. booting "iPad Pro 11" M5" onto the broken 26.4).
@@ -313,6 +313,64 @@ of hanging the run.
   `UIFocusSystem.updateFocusIfNeeded`, which XCUITest (accessibility-driven) never needs. The
   keyboardless production frame never runs this path. Regression guard:
   `TipJarPresentationUITests` (landscape is load-bearing there — portrait masks the bug).
+
+### iOS 27 on real hardware (session 2026-07-27)
+
+iOS 27 shipped developer beta 1 on 2026-06-08 and is in public beta; GA is expected ~2026-09-14.
+FramePhone (iPhone 13 mini) now runs **27.0**. Findings from the first session against it:
+
+**Xcode 26.6 (SDK 26.5) drives an iOS 27 device fine — no Xcode 27 beta needed to test.**
+`build`, `build-for-testing`, `devicectl install`, `devicectl process launch --console`, and
+full **XCUITest** all work. Two non-fatal log lines are expected and can be ignored:
+`DVTDevice: Error locating DeviceSupport directory … nilError` and
+`IDELaunchParametersSnapshot: no debugger version`. What does **not** work is **LLDB attach** —
+there is no iOS 27 DeviceSupport, so interactive debugging needs the Xcode 27 beta. Test runs
+do not need it.
+
+**Submission is not blocked.** The mandate that landed 2026-04-28 requires the *iOS 26* SDK,
+which 26.5 already satisfies; the iOS 27 SDK is not expected to be mandatory until ~April 2027.
+Do not hold the gated release for iOS 27.
+
+**Green on 27.0:** app launches and runs without crashing, and `StoreKitClientTests` is **7/7**
+on device — the release-gating purchase-gate suite is unaffected.
+
+**Seven UI failures, of which six look OS-related.** Full `OwnFrameUITests` on FramePhone/27.0:
+154 executed, **7 failures**, 61 skipped (all skips are the intentional env-gated ones —
+device-rig, German sweep, live smoke, ASC screenshots).
+
+| Test | 27.0 device | 26.5 sim, iPhone 17 | 26.5 sim, **13 mini** |
+|---|---|---|---|
+| `SlideshowChromeUITests/testChromeInsetsStableAcrossOrientationAndKenBurns` | fail | **fail** | — |
+| `AlbumBrowserUITests/testAlbumBrowserOpensDrillsIn…` | fail | pass | **pass** |
+| `BrokerSetupUITests/testExistingBrokerPrefillsFieldsMasksPasswordAndRemoves` | fail | pass | **pass** |
+| `BrokerSetupUITests/testImagePublishTogglePersistsAcrossRelaunch` | fail | pass | **pass** |
+| `PurchaseGateUITests/testNoLockedRowsWhenEverythingIsUnlocked` | fail | pass | **pass** |
+| `PurchaseGateUITests/testUnlockScreenShowsSupporterPriceAndBuyIdentifiers` | fail | pass | **pass** |
+| `SourceOnboardingUITests/testOnboardingAddAlbumSourceReachesSlideshowInLandscape` | fail | pass | **pass** |
+
+The chrome-insets one fails on 26.5 too → **pre-existing, not iOS 27**. The other six were
+controlled for screen geometry by creating an **iPhone 13 mini simulator on 26.5**
+(`xcrun simctl create … iPhone-13-mini … iOS-26-5`) — all six pass there, so it is **not** the
+compact form factor. They fail **deterministically** on device (two full runs, near-identical
+durations), so it is not timing flake.
+
+**Failure mode is scroll position / hit-testing, not logic.** The messages cluster:
+"must be hittable, not merely present", "should have scrolled as far as the MQTT section",
+"confirmation step should offer Start". The failure-time hierarchy dump for the broker test
+shows `broker.username`/`password`/`save` present while `broker.host`/`port` have scrolled off
+and been recycled out of the a11y tree. The suite's swipe-count and
+`coordinate(withNormalizedOffset:)` heuristics land differently under iOS 27's layout.
+`AppStoreScreenshotUITests` captures all 7 shots on 26.5 but dies after 2 on 27.0.
+
+> **Confound not yet closed:** every 26.5 baseline above is a **simulator**, every 27.0 data
+> point is **real hardware**. Simulator-vs-device is therefore not separated from 26.5-vs-27.0.
+> Closing it needs the same suite on a real device running iOS 26.x — "iPad jk" (iPad Pro M4)
+> and "jk in da house" (iPhone 16 Pro) are both on 26.5.2 and would do it. Until that runs,
+> treat "iOS 27 regression" as the leading hypothesis, not a settled fact.
+
+**Trap: on a device, test-runner env vars need the `TEST_RUNNER_` prefix.** `SCREENSHOT_CAPTURE=1
+xcodebuild …` silently skips the test (the var never reaches the runner);
+`TEST_RUNNER_SCREENSHOT_CAPTURE=1` works. Same for `SCREENSHOT_DE` and `LIVE_SMOKE`.
 
 ## Live-server contract check (manual, opt-in)
 

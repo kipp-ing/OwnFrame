@@ -20,6 +20,40 @@ Developer mode is enabled and signing works out of the box (Apple Development,
 mobil@kippings.de). Installing a dev build over the existing one **preserves the data
 container**.
 
+### The other paired devices
+
+| Name | Model | OS | Role |
+|---|---|---|---|
+| **Framepad** | iPad Pro 10.5 (iPad7,3) | 17.7.10 | the deployment floor; **caps at iOS 17 forever** |
+| **FramePhone** | iPhone 13 mini (iPhone14,4) | **27.0** | the iOS 27 beta device (see below) |
+| iPad jk | iPad Pro 11-inch (M4) | 26.5.2 | modern iPad, real hardware |
+| jk in da house | iPhone 16 Pro | 26.5.2 | modern iPhone, real hardware |
+
+Framepad can never run iOS 27, so **the frame Jan actually runs is unaffected by the iOS 27
+release.** iOS 27 is a *customer* risk (users on modern iPads auto-update), not a rig risk.
+
+## FramePhone — the iOS 27 device
+
+```bash
+xcrun devicectl list devices     # id 5DB5F6B0-0800-543A-A733-6F7F4959C87F
+```
+
+`framepad.sh` drives it unchanged via `FRAMEPAD_DEVICE_ID=5DB5F6B0-0800-543A-A733-6F7F4959C87F`.
+
+**Xcode 26.6 (SDK 26.5) drives an iOS 27 device without the Xcode 27 beta.** Build, install,
+`devicectl process launch --console`, and full XCUITest all work. Expect two harmless log lines
+— `DVTDevice: Error locating DeviceSupport directory … nilError` and
+`IDELaunchParametersSnapshot: no debugger version`. **LLDB attach does not work** (no iOS 27
+DeviceSupport); interactive debugging needs the Xcode 27 beta, test runs do not.
+
+**Trap — `TEST_RUNNER_` prefix.** On a device, env vars only reach the test runner when
+prefixed. `SCREENSHOT_CAPTURE=1 xcodebuild …` silently *skips* the test;
+`TEST_RUNNER_SCREENSHOT_CAPTURE=1` runs it. Same for `SCREENSHOT_DE`, `LIVE_SMOKE`,
+`DEVICE_RIG`.
+
+Current iOS 27 status, controls, and the still-open simulator-vs-hardware confound live in
+[testing.md](testing.md#ios-27-on-real-hardware-session-2026-07-27) and issue #50.
+
 ## Prerequisites (one-time, physical)
 
 Two device settings must be on, and **neither can be set from the CLI**:
