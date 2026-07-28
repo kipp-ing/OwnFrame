@@ -366,12 +366,42 @@ and been recycled out of the a11y tree. The suite's swipe-count and
 > point is **real hardware**. Simulator-vs-device is therefore not separated from 26.5-vs-27.0.
 > Closing it needs the same suite on a real device running iOS 26.x — "iPad jk" (iPad Pro M4)
 > and "jk in da house" (iPhone 16 Pro) are both on 26.5.2 and would do it.
+>
+> **Closed 2026-07-28 — see below. It is iOS 27.**
 
-#### iOS 27 demoted as the explanation (rechecked 2026-07-28)
+#### Confound closed: iOS 27 is the variable (2026-07-28)
 
-The session above called "iOS 27 regression" the leading hypothesis. **Two follow-ups weakened
-it. Treat device-vs-simulator as the leading hypothesis instead, and note that the failure
-mode is fully explained by test fragility alone.**
+**Result: all six pass on real iOS 26.5.2 hardware.** `jk in da house` (iPhone 16 Pro,
+`97DCFF2E-012F-57E8-914F-CC15B7924FB7`), full build from clean DerivedData over localNetwork:
+6 executed, **0 failures**, 109 s. So **device-vs-simulator is refuted** — real hardware on 26.5
+behaves like the simulator on 26.5.
+
+The matrix now reads:
+
+| Geometry | OS | Runtime | Six tests |
+|---|---|---|---|
+| iPhone 17 | 26.5 | simulator | pass |
+| iPhone 13 mini | 26.5 | simulator | pass |
+| iPhone 16 Pro | **26.5** | **real device** | **pass** |
+| iPhone 13 mini | **27.0** | real device | **fail** |
+
+Geometry was controlled by the 13 mini sim; runtime by the 16 Pro device. **The only factor
+present in every failing run and absent from every passing run is iOS 27.** A strict
+single-variable isolation (13 mini hardware on 26.5) is no longer obtainable — FramePhone is
+already on 27.0 and downgrading is not practical — but no other variable survives.
+
+> **Correction to the reasoning below.** The SDK-gating fact is correct and still stands, but the
+> inference drawn from it over-generalized: it rules out **bar minimization specifically** as the
+> mechanism, not iOS 27 as a whole. Empirically something in iOS 27 *does* change layout/scroll
+> behavior for a binary linked against SDK 26.5. Finding *what* is the open question; it is not
+> the mechanism named below.
+
+**Still open, and the question that actually matters: are users affected, or only the tests?**
+The tests fail because fixed swipe counts and normalized-offset taps cannot adapt; a human
+scrolling by hand adapts trivially. So a 27.0 user may well see a perfectly usable app. Next
+step is to read the failure-time screenshots from the 27.0 run (`xcresulttool export
+attachments`, see `framepad.sh:export_shots`) and judge whether the UI *looks* wrong or merely
+sits at a different scroll offset. Harden the harness either way.
 
 **1. The iOS 27 change that would cause this is gated on the iOS 27 SDK, which we don't link.**
 The symptom (content scrolled to a different offset, elements present but not hittable) is what
@@ -409,14 +439,16 @@ keyboard would appear and push form content out of the tree — which fits the r
 > This does not disprove the issue #42 mechanism — that is a *focus-engine* crash, and only
 > keyboard *presentation* was measured here.
 
-**What remains, cheapest first:** (a) run the suite on a real **iOS 26.5** device — `jk in da
-house` (iPhone 16 Pro) — which is the one control that actually separates device from OS;
+**What remains** (the 26.5-device control that used to head this list ran on 2026-07-28 — see
+"Confound closed" above): (a) identify what in iOS 27 actually moves the content, given that
+bar minimization is ruled out, and decide whether users are affected or only the tests;
 (b) harden the harness regardless, since fixed swipe counts (`maxSwipes = 8`,
 `for _ in 0..<3`) and `coordinate(withNormalizedOffset:)` toggle taps are geometry- and
 scroll-physics-dependent and will break at every OS bump. Note that
 `PurchaseGateUITests/testNoLockedRowsWhenEverythingIsUnlocked` and `AlbumBrowserUITests` never
-type at all — they are pure fixed-swipe sweeps, so **test fragility alone already explains the
-six failures without invoking iOS 27**.
+type at all — they are pure fixed-swipe sweeps. **iOS 27 is the trigger, but the fragility is
+what turns it into six red tests**; a harness that scrolled to convergence instead of a fixed
+count would likely survive the same layout change.
 
 **Timing:** iOS 27 GA is predicted **2026-09-14**. Submission is genuinely unblocked — Apple's
 upcoming-requirements page lists **only** the 2026-04-28 iOS 26 SDK mandate and **no announced
