@@ -439,12 +439,43 @@ keyboard would appear and push form content out of the tree — which fits the r
 > This does not disprove the issue #42 mechanism — that is a *focus-engine* crash, and only
 > keyboard *presentation* was measured here.
 
+#### Outcome of the hardening pass (2026-07-28)
+
+**4 of the 6 now pass on FramePhone / 27.0; 2 remain and are NOT harness problems.**
+`ScrollHarness.swift` replaced the fixed-swipe helper that had been copy-pasted into six files
+(see that file's header for the design). Fixed by it: both `BrokerSetupUITests`, both
+`PurchaseGateUITests`.
+
+> **Correction.** An earlier note in this session said all six were harness fragility and the app
+> was fine on 27.0. That held for four of them. The remaining two look like genuine iOS 27
+> behaviour and are recorded as open, not worked around — a green test bought with a trick would
+> have hidden the most important result.
+
+**Still failing on 27.0, with the evidence gathered:**
+
+1. `AlbumBrowserUITests` — tapping an album card never navigates. The card is a real `Button` in
+   the tree (`identifier: 'album.row.a1'`, frame `{{35.8, 183.0}, {124.0, 137.7}}`) and is
+   hittable. **Both** an element tap and a `coordinate(...).tap()` were tried; the screen
+   recording shows the sheet simply sitting on the grid for the rest of the test. The path is
+   `NavigationLink` → `.buttonStyle(.plain)` → inside a `LazyVGrid` in a `ScrollView` in a sheet.
+2. `SourceOnboardingUITests…InLandscape` — `onboarding.confirm.start` is never reachable. The
+   confirm step is a lazy `Form`; "Add another source" renders as the last visible row and
+   "Start slideshow" (the next row of the *same* `Section`) does not. Scrolling to it does not
+   help: the failure frame after up to 60 scroll steps is byte-identical to the frame before any
+   scrolling, i.e. **the form did not move at all**.
+
+**Both need one manual check on the device to classify, and automation cannot settle either:**
+does a finger tap drill into an album on 27.0, and does the confirm step scroll in landscape on
+27.0? If yes to both, these are XCUITest synthesis artifacts. If no, they are product bugs — and
+the onboarding one would strand an iPhone user mid-setup in landscape, which is release-relevant.
+The specific alternative for #2 is that XCUITest's `swipeUp` travels along the wrong axis in
+landscape, which would make "the form did not move" an artifact rather than a finding.
+
 **What remains** (the 26.5-device control that used to head this list ran on 2026-07-28 — see
-"Confound closed" above): (a) identify what in iOS 27 actually moves the content, given that
-bar minimization is ruled out, and decide whether users are affected or only the tests;
-(b) harden the harness regardless, since fixed swipe counts (`maxSwipes = 8`,
-`for _ in 0..<3`) and `coordinate(withNormalizedOffset:)` toggle taps are geometry- and
-scroll-physics-dependent and will break at every OS bump. Note that
+"Confound closed" above): (a) the two manual device checks above; (b) the harness work is done,
+but note for future readers that fixed swipe counts (`maxSwipes = 8`, `for _ in 0..<3`) and
+`coordinate(withNormalizedOffset:)` toggle taps are geometry- and scroll-physics-dependent and
+were what broke at this OS bump. Note that
 `PurchaseGateUITests/testNoLockedRowsWhenEverythingIsUnlocked` and `AlbumBrowserUITests` never
 type at all — they are pure fixed-swipe sweeps. **iOS 27 is the trigger, but the fragility is
 what turns it into six red tests**; a harness that scrolled to convergence instead of a fixed
