@@ -365,8 +365,72 @@ and been recycled out of the a11y tree. The suite's swipe-count and
 > **Confound not yet closed:** every 26.5 baseline above is a **simulator**, every 27.0 data
 > point is **real hardware**. Simulator-vs-device is therefore not separated from 26.5-vs-27.0.
 > Closing it needs the same suite on a real device running iOS 26.x — "iPad jk" (iPad Pro M4)
-> and "jk in da house" (iPhone 16 Pro) are both on 26.5.2 and would do it. Until that runs,
-> treat "iOS 27 regression" as the leading hypothesis, not a settled fact.
+> and "jk in da house" (iPhone 16 Pro) are both on 26.5.2 and would do it.
+
+#### iOS 27 demoted as the explanation (rechecked 2026-07-28)
+
+The session above called "iOS 27 regression" the leading hypothesis. **Two follow-ups weakened
+it. Treat device-vs-simulator as the leading hypothesis instead, and note that the failure
+mode is fully explained by test fragility alone.**
+
+**1. The iOS 27 change that would cause this is gated on the iOS 27 SDK, which we don't link.**
+The symptom (content scrolled to a different offset, elements present but not hittable) is what
+Liquid Glass **bar minimization** produces: `UINavigationItem.barMinimizeBehavior` +
+`barMinimizationSafeAreaAdjustment` (SwiftUI: `toolbarMinimizeBehavior(_:for:)`), where the safe
+area reflows as the bar minimizes on scroll. That is **SDK-27-gated** — OwnFrame is built with
+SDK 26.5, so it should not receive it. The iOS 27 UIKit changes that *do* apply to every binary
+regardless of SDK are display-link deprecations, `UILookToScrollInteraction`, iPadOS menu-image
+visibility, and trait inheritance through presentation views — none of which move form fields.
+*(Forward note: binaries built with the iOS 27 SDK must use the scene-based lifecycle or they
+fail to launch. OwnFrame is SwiftUI with `UIApplicationSceneManifest_Generation = YES`, so it is
+already compliant.)*
+
+**2. The software keyboard is NOT the difference — and the pref that would control it does
+nothing here.** The plausible sim-vs-device delta was that the sim runs with a hardware keyboard
+attached (see the issue #42 note above) while FramePhone has none, so on device the software
+keyboard would appear and push form content out of the tree — which fits the recorded
+`broker.host`/`broker.port`-scrolled-off hierarchy dump exactly. Measured, and it does not hold:
+
+- All six tests **pass** on a fresh iPhone 13 mini / **26.5** sim
+  (`E6A5FDB1-0DAC-4326-BBC7-226ADEBCDD24`) — 6/6, 156 s.
+- A throwaway probe (focus `onboarding.sharedLink.url`, then assert `app.keyboards` exists)
+  showed the **software keyboard appears in headless `xcodebuild test` runs either way**: it was
+  present with `ConnectHardwareKeyboard` unset *and* with it explicitly `= 1`. So the sim
+  baseline already behaves like the device here; there is no keyboard delta to explain #50.
+
+> **Trap — `ConnectHardwareKeyboard` is not a usable lever, twice over.** (a) Writing it with
+> **PlistBuddy is silently discarded**: cfprefsd owns
+> `~/Library/Preferences/com.apple.iphonesimulator.plist` and rewrites the device's
+> `DevicePreferences` sub-dict, dropping the key — it printed back correctly and was gone by the
+> next read. Use `defaults write com.apple.iphonesimulator DevicePreferences -dict-add "<UDID>"
+> '{ConnectHardwareKeyboard = 1;}'` (note: this **replaces** that UDID's whole sub-dict).
+> (b) Even when it does persist, it **did not change software-keyboard presentation** in a
+> headless `xcodebuild test` run. Don't build a control on it without a probe like the one above.
+> This does not disprove the issue #42 mechanism — that is a *focus-engine* crash, and only
+> keyboard *presentation* was measured here.
+
+**What remains, cheapest first:** (a) run the suite on a real **iOS 26.5** device — `jk in da
+house` (iPhone 16 Pro) — which is the one control that actually separates device from OS;
+(b) harden the harness regardless, since fixed swipe counts (`maxSwipes = 8`,
+`for _ in 0..<3`) and `coordinate(withNormalizedOffset:)` toggle taps are geometry- and
+scroll-physics-dependent and will break at every OS bump. Note that
+`PurchaseGateUITests/testNoLockedRowsWhenEverythingIsUnlocked` and `AlbumBrowserUITests` never
+type at all — they are pure fixed-swipe sweeps, so **test fragility alone already explains the
+six failures without invoking iOS 27**.
+
+**Timing:** iOS 27 GA is predicted **2026-09-14**. Submission is genuinely unblocked — Apple's
+upcoming-requirements page lists **only** the 2026-04-28 iOS 26 SDK mandate and **no announced
+iOS 27 SDK requirement** (the "~April 2027" above is a projection, not an Apple date).
+
+Sources for the above:
+
+- [SDK minimum requirements (Apple Developer)](https://www.developer.apple.com/news/upcoming-requirements/)
+- [What's New in UIKit in iOS 27 — Kyle Howells](https://ikyle.me/blog/2026/whats-new-in-uikit-ios-27) (SDK-gated vs. universal split)
+- [What's New in SwiftUI for iOS 27 — Blake Crosley](https://blakecrosley.com/blog/whats-new-swiftui-ios-27)
+- [iOS 27: UIBarMinimization — Anton Gubarenko](https://antongubarenko.substack.com/p/ios-27-uibarminimization)
+- [UIKit's Scene Mandate: What Fails to Launch on iOS 27](https://blakecrosley.com/blog/uikit-scene-lifecycle-mandate-ios-27)
+- [iOS 27: Everything We Know — MacRumors](https://www.macrumors.com/roundup/ios-27/) (GA date estimate)
+- [Disable hardware keyboard before XCUITest on CI — fastlane#14685](https://github.com/fastlane/fastlane/issues/14685)
 
 **Trap: on a device, test-runner env vars need the `TEST_RUNNER_` prefix.** `SCREENSHOT_CAPTURE=1
 xcodebuild …` silently skips the test (the var never reaches the runner);

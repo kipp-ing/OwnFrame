@@ -1,6 +1,6 @@
 # Privacy Policy — OwnFrame
 
-Last updated: 2026-07-26
+Last updated: 2026-07-28
 
 OwnFrame turns an iPhone, iPad, or Apple TV into a full-screen photo frame. It shows photos from
 an [Immich](https://immich.app) server you control, from an Immich shared link, or from your own
@@ -19,7 +19,8 @@ already use:
 1. **Your Immich server** (or the server behind an Immich shared link you paste) — to load
    albums and photos over HTTPS.
 2. **Your MQTT broker**, only if you set one up for Home Assistant control.
-3. **Apple's iCloud**, only if you use the Apple TV app — see "Syncing to Apple TV" below.
+3. **Apple's iCloud**, only once the Apple TV app ships and you use it to sync setup — see
+   "Syncing to Apple TV" below. No released version connects to iCloud for this.
 4. **Apple's App Store**, only when you make a purchase or restore one — see "Purchases" below.
 
 There are no connections to the developer or to any other third party.
@@ -54,17 +55,22 @@ setup. No image from the camera is stored or transmitted.
 
 ## Syncing to Apple TV
 
-The Apple TV app can pick up the configuration from your iPhone or iPad so you don't have to
-type it in on a remote. This travels through **your own iCloud account**, never through the
-developer:
+> **Not available yet.** The Apple TV app has not been released, and this sync is not active in
+> any version you can install: the shipping build carries no iCloud entitlement, so it never
+> writes your setup to iCloud. This section is published in advance so the disclosure is in place
+> before the feature ships, and describes how it *will* work.
 
-- Non-secret settings (server URL, chosen album, display options) go via iCloud key-value
+The Apple TV app will be able to pick up the configuration from your iPhone or iPad so you don't
+have to type it in on a remote. It will travel through **your own iCloud account**, never through
+the developer:
+
+- Non-secret settings (server URL, chosen album, display options) via iCloud key-value
   storage.
-- Secrets (API key, shared-link password, MQTT credentials) go via CloudKit **encrypted
+- Secrets (API key, shared-link password, MQTT credentials) via CloudKit **encrypted
   fields**, which are end-to-end encrypted — Apple cannot read them either.
 
-If you are not signed in to iCloud, sync simply doesn't happen and you configure the Apple TV
-directly.
+If you are not signed in to iCloud, sync simply won't happen and you configure the Apple TV
+directly. Setting the Apple TV up by hand always stays possible.
 
 ## Purchases
 
