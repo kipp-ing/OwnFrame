@@ -55,15 +55,33 @@ extension XCUIApplication {
         return "\(count)|\(stamp(first))|\(stamp(last))"
     }
 
+    /// The element gestures are sent to: the scrollable container if there is one, else the app.
+    ///
+    /// This matters in landscape. `XCUIApplication`'s own frame can be reported in a rotated
+    /// coordinate space, so `app.swipeUp()` travels along the wrong axis and the content simply
+    /// does not move — on iOS 27 that left `onboarding.confirm.start` permanently unreachable in
+    /// the landscape onboarding test even though the step scrolls fine under a finger. A child
+    /// container's frame is orientation-correct, so the gesture goes the way it looks.
+    @MainActor
+    private var scrollSurface: XCUIElement {
+        // SwiftUI `Form`/`List` render as a collection view; plain `ScrollView` as a scroll view.
+        for candidate in [collectionViews.firstMatch, tables.firstMatch, scrollViews.firstMatch]
+        where candidate.exists && candidate.isHittable {
+            return candidate
+        }
+        return self
+    }
+
     /// One short, low-momentum scroll step. Deliberately a flick and not a press-drag: a
     /// press-drag dwells on the control under its start point and can actuate it (see the file
     /// comment). `.slow` keeps the travel small so a step rarely carries the target past the
     /// viewport — which is the whole failure mode this file exists to remove.
     @MainActor
-    private func dragStep(_ direction: ScrollDirection) {
+    private func dragStep(_ direction: ScrollDirection, velocity: XCUIGestureVelocity = .slow) {
+        let surface = scrollSurface
         switch direction {
-        case .up: swipeUp(velocity: .slow)
-        case .down: swipeDown(velocity: .slow)
+        case .up: surface.swipeUp(velocity: velocity)
+        case .down: surface.swipeDown(velocity: velocity)
         }
     }
 
@@ -105,17 +123,21 @@ extension XCUIApplication {
     ) -> Bool {
         if condition() { return true }
         var fingerprint = scrollFingerprint()
-        var stalled = 0
         for _ in 0 ..< maxSteps {
             dragStep(direction)
             if condition() { return true }
-            let updated = scrollFingerprint()
-            // Two consecutive unchanged reads, not one. A single unchanged fingerprint also
-            // happens mid-animation — rotating the device and scrolling before the new layout
-            // settles produced exactly that, and one-strike end-detection gave up while there
-            // was still content below (issue #50).
-            stalled = (updated == fingerprint) ? stalled + 1 : 0
-            if stalled >= 2 { return condition() } // genuinely at the end of the content
+            var updated = scrollFingerprint()
+            if updated == fingerprint {
+                // Nothing moved — but do not conclude "end of content" yet. A `.slow` flick can be
+                // too short to shift anything in a shallow viewport (landscape on a phone was
+                // exactly this: the settings form stopped one section above MQTT and the harness
+                // called it the end), and an unchanged read also happens mid-animation, e.g. when
+                // scrolling before a rotation has settled. Escalate once before believing it.
+                dragStep(direction, velocity: .default)
+                if condition() { return true }
+                updated = scrollFingerprint()
+                if updated == fingerprint { return condition() } // genuinely at the end
+            }
             fingerprint = updated
         }
         return condition()
@@ -137,13 +159,16 @@ extension XCUIApplication {
     ) {
         onStep(0)
         var fingerprint = scrollFingerprint()
-        var stalled = 0
         for step in 1 ... maxSteps {
             dragStep(direction)
             onStep(step)
-            let updated = scrollFingerprint()
-            stalled = (updated == fingerprint) ? stalled + 1 : 0
-            if stalled >= 2 { return } // see the note in scrollUntil
+            var updated = scrollFingerprint()
+            if updated == fingerprint {
+                dragStep(direction, velocity: .default) // escalate — see the note in scrollUntil
+                onStep(step)
+                updated = scrollFingerprint()
+                if updated == fingerprint { return } // genuinely at the end
+            }
             fingerprint = updated
         }
     }

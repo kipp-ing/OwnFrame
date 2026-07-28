@@ -36,22 +36,20 @@ final class AlbumBrowserUITests: XCTestCase {
         XCTAssertTrue(albumsButton.waitForExistence(timeout: 2))
         albumsButton.tap()
 
-        // Album grid (stub albums a1/a2). NavigationLink may surface as a link/other
-        // rather than a button, so match by identifier across any element type.
-        let album = app.descendants(matching: .any).matching(identifier: "album.row.a1").firstMatch
+        // Album grid (stub albums a1/a2). Typed `.buttons` query rather than
+        // `descendants(matching: .any)`: the card resolves as a Button (confirmed in the 27.0
+        // hierarchy dump), and the any-type query inside a sheet can hand back an outer node whose
+        // tap never reaches the NavigationLink.
+        let album = app.buttons["album.row.a1"]
         XCTAssertTrue(album.waitForExistence(timeout: 5), "album grid should list the stub album")
         // Existence is not enough to tap: a card that is present but not hit-testable swallows
         // the tap, and the drill-in never happens (issue #50 — the 27.0 failure frame shows the
         // grid still on screen while the test waits for thumbnails).
         XCTAssertTrue(app.scrollUntilHittable(album), "the stub album card should be tappable")
-        // KNOWN FAILING ON iOS 27 (issue #50). The card is a proper Button in the tree at a valid
-        // frame and is hittable, but neither an element tap nor a coordinate tap navigates — the
-        // screen recording shows the grid simply sitting there for the rest of the test. Both were
-        // tried; neither is a workaround, so the assertion below is left to report it honestly
-        // rather than being routed around. Whether a HUMAN tap navigates on 27.0 is untested and
-        // is the next thing to check: if it does not, this is a product bug in the
-        // NavigationLink-in-LazyVGrid-in-sheet path, not a harness problem.
-        album.tap()
+        // A brief press rather than an instantaneous tap. A finger navigates here on 27.0
+        // (confirmed manually on FramePhone), while a synthesized zero-duration tap did not —
+        // nor did a coordinate tap. See issue #50.
+        album.press(forDuration: 0.05)
 
         // Thumbnail grid → pick a photo.
         let thumb = app.descendants(matching: .any).matching(identifier: "album.thumbnail.asset-2").firstMatch
