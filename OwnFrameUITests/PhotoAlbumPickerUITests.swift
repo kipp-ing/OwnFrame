@@ -354,14 +354,11 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         sources.tap()
     }
 
+    /// Converges on the element rather than spending a fixed swipe budget — see ScrollHarness.
     @MainActor
-    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) -> Bool {
-        if element.waitForExistence(timeout: 3) { return true }
-        var swipes = 0
-        while !element.exists && swipes < maxSwipes {
-            app.swipeUp()
-            swipes += 1
-        }
+    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        _ = element.waitForExistence(timeout: 3)
+        app.scrollUntilHittable(element)
         return element.exists
     }
 }

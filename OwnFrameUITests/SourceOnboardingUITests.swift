@@ -40,9 +40,12 @@ final class SourceOnboardingUITests: XCTestCase {
         XCTAssertTrue(cont.waitForExistence(timeout: 5), "Continue should appear after adding a source")
         cont.tap()
 
-        // Confirmation step lists the library; start the slideshow.
+        // Confirmation step lists the library; start the slideshow. The step is a lazy `Form`,
+        // and in landscape on a phone the Start row sits below the fold — so it is not vended
+        // into the accessibility tree at all and waiting for existence *before* scrolling can
+        // only ever time out. Scroll first, then assert (issue #50).
         let start = app.buttons["onboarding.confirm.start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 5), "confirmation step should offer Start")
+        XCTAssertTrue(app.scrollUntilHittable(start), "confirmation step should offer a reachable Start")
         start.tap()
 
         // The chosen album source plays: a1 → asset-1…3.
@@ -83,7 +86,7 @@ final class SourceOnboardingUITests: XCTestCase {
         XCTAssertTrue(cont.waitForExistence(timeout: 10), "Continue should appear after the link resolves")
         cont.tap()
         let start = app.buttons["onboarding.confirm.start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollUntilHittable(start), "confirmation step should offer a reachable Start")
         start.tap()
 
         // The shared link resolves to album a2 → asset-4…6.
@@ -114,8 +117,10 @@ final class SourceOnboardingUITests: XCTestCase {
         XCTAssertTrue(cont.waitForExistence(timeout: 5), "Continue should appear after adding a source")
         cont.tap()
 
+        // Landscape on a phone pushes Start out of the lazy Form's rendered range, so it does not
+        // exist until scrolled — assert reachability, not bare existence (issue #50).
         let start = app.buttons["onboarding.confirm.start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 5), "confirmation step should offer Start")
+        XCTAssertTrue(app.scrollUntilHittable(start), "confirmation step should offer a reachable Start")
         start.tap()
 
         let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch

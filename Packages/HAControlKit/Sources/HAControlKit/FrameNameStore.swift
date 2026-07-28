@@ -18,7 +18,11 @@ public protocol FrameNameStore: AnyObject {
 
 @MainActor
 public final class UserDefaultsFrameNameStore: FrameNameStore {
-    private static let key = "haControl.frameName"
+    /// The single key this store owns. Exposed so a test seam can clear it directly instead of
+    /// calling `removePersistentDomain` — see `UserDefaultsHAPublishOptionsStore.defaultsKey`.
+    public static let defaultsKey = "haControl.frameName"
+
+    private static let key = defaultsKey
 
     private let defaults: UserDefaults
     private let defaultName: String
