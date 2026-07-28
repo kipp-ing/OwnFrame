@@ -152,8 +152,8 @@ final class SettingsUITests: XCTestCase {
     /// Converges on the element rather than spending a fixed swipe budget — see ScrollHarness.
     @MainActor
     private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
-        _ = element.waitForExistence(timeout: 3)
-        app.scrollUntilHittable(element)
+        if element.waitForExistence(timeout: 3) { return true }
+        app.scrollUntilExists(element)
         return element.exists
     }
 }

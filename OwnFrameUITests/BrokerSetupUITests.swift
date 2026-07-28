@@ -133,8 +133,8 @@ final class BrokerSetupUITests: XCTestCase {
     /// existence, and converges instead of spending a fixed swipe budget — see ScrollHarness.
     @MainActor
     private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
-        _ = element.waitForExistence(timeout: 5) // let async content land before dragging for it
-        app.scrollUntilHittable(element)
+        if element.waitForExistence(timeout: 5) { return true }
+        app.scrollUntilExists(element)
         return element.exists
     }
 }
