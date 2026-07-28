@@ -51,8 +51,10 @@ prefixed. `SCREENSHOT_CAPTURE=1 xcodebuild …` silently *skips* the test;
 `TEST_RUNNER_SCREENSHOT_CAPTURE=1` runs it. Same for `SCREENSHOT_DE`, `LIVE_SMOKE`,
 `DEVICE_RIG`.
 
-Current iOS 27 status, controls, and the still-open simulator-vs-hardware confound live in
-[testing.md](testing.md#ios-27-on-real-hardware-session-2026-07-27) and issue #50.
+Current iOS 27 status and the controls that closed the simulator-vs-hardware confound live in
+[testing.md](testing.md#ios-27-on-real-hardware-session-2026-07-27) and issue #50. Short version:
+iOS 27 was the variable, the six red UI tests were harness/synthesis artifacts, and all six run
+green on FramePhone since 2026-07-28.
 
 ## Prerequisites (one-time, physical)
 

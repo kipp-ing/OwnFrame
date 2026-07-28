@@ -46,9 +46,22 @@ final class AlbumBrowserUITests: XCTestCase {
         // the tap, and the drill-in never happens (issue #50 — the 27.0 failure frame shows the
         // grid still on screen while the test waits for thumbnails).
         XCTAssertTrue(app.scrollUntilHittable(album), "the stub album card should be tappable")
-        // A brief press rather than an instantaneous tap. A finger navigates here on 27.0
-        // (confirmed manually on FramePhone), while a synthesized zero-duration tap did not —
-        // nor did a coordinate tap. See issue #50.
+        // On iOS 27 no synthesized tap navigates this NavigationLink — element tap, coordinate
+        // tap and a brief press were all tried, and the screen recording shows the grid simply
+        // sitting there. A FINGER does navigate (verified manually on FramePhone/27.0), so the
+        // app is fine and this is XCUITest synthesis. Recorded as an expected failure rather
+        // than skipped, so the rest of the test still runs on 27 and the whole thing keeps
+        // guarding 17–26 normally. `isStrict` means XCTest fails the test if the drill-in ever
+        // starts working, which is the prompt to delete this block. See issue #50.
+        //
+        // Runtime check, not `#available`: the app is built against the iOS 26.5 SDK, which has
+        // no iOS 27 availability symbol to compile against.
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 {
+            XCTExpectFailure(
+                "iOS 27: synthesized taps do not activate a NavigationLink in a LazyVGrid in a sheet (#50)",
+                strict: true
+            )
+        }
         album.press(forDuration: 0.05)
 
         // Thumbnail grid → pick a photo.

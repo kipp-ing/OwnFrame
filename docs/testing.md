@@ -441,38 +441,46 @@ keyboard would appear and push form content out of the tree — which fits the r
 
 #### Outcome of the hardening pass (2026-07-28)
 
-**4 of the 6 now pass on FramePhone / 27.0; 2 remain and are NOT harness problems.**
+**All six now run green on FramePhone / 27.0 — 6 executed, 0 failures, 121 s.**
 `ScrollHarness.swift` replaced the fixed-swipe helper that had been copy-pasted into six files
-(see that file's header for the design). Fixed by it: both `BrokerSetupUITests`, both
-`PurchaseGateUITests`.
+(see that file's header for the design). Five of the six are genuine fixes; the sixth is a
+*recorded expected failure*, which is not the same thing — read on before quoting "6/6".
 
-> **Correction.** An earlier note in this session said all six were harness fragility and the app
-> was fine on 27.0. That held for four of them. The remaining two look like genuine iOS 27
-> behaviour and are recorded as open, not worked around — a green test bought with a trick would
-> have hidden the most important result.
+> **Correction, twice over.** A first note this session said all six were harness fragility and
+> the app was fine on 27.0; a second said that held for four and the other two were genuine iOS
+> 27 behaviour. The measured end state is neither: **five** were harness fragility, and **one** is
+> a real iOS 27 XCUITest limitation that the app itself does not share.
 
-**Still failing on 27.0, with the evidence gathered:**
+**Fixed by the harness (5):** both `BrokerSetupUITests`, both `PurchaseGateUITests`, and
+`SourceOnboardingUITests…InLandscape`. The onboarding one needed the *second* round of harness
+work (986a21c), not the first: `XCUIApplication`'s own frame can be reported in a rotated
+coordinate space, so `app.swipeUp()` travelled along the wrong axis in landscape and the form did
+not move at all — exactly the "failure frame after 60 scroll steps is byte-identical" symptom
+recorded above. Sending the gesture to the scrollable container instead (its frame is
+orientation-correct), plus escalating a stalled `.slow` flick to `.default` before concluding
+"end of content", made `onboarding.confirm.start` reachable. So the alternative explanation
+floated for it — wrong-axis `swipeUp` — was the right one, and no manual device check was needed
+in the end.
 
-1. `AlbumBrowserUITests` — tapping an album card never navigates. The card is a real `Button` in
-   the tree (`identifier: 'album.row.a1'`, frame `{{35.8, 183.0}, {124.0, 137.7}}`) and is
-   hittable. **Both** an element tap and a `coordinate(...).tap()` were tried; the screen
-   recording shows the sheet simply sitting on the grid for the rest of the test. The path is
-   `NavigationLink` → `.buttonStyle(.plain)` → inside a `LazyVGrid` in a `ScrollView` in a sheet.
-2. `SourceOnboardingUITests…InLandscape` — `onboarding.confirm.start` is never reachable. The
-   confirm step is a lazy `Form`; "Add another source" renders as the last visible row and
-   "Start slideshow" (the next row of the *same* `Section`) does not. Scrolling to it does not
-   help: the failure frame after up to 60 scroll steps is byte-identical to the frame before any
-   scrolling, i.e. **the form did not move at all**.
+**Not fixed, and deliberately not worked around (1):** `AlbumBrowserUITests` — on 27.0 no
+*synthesized* tap activates the album card. Element tap, `coordinate(...).tap()` and a brief
+`press(forDuration:)` were all tried; the recording shows the sheet sitting on the grid for the
+rest of the test. The card is a real `Button` in the tree (`identifier: 'album.row.a1'`, frame
+`{{35.8, 183.0}, {124.0, 137.7}}`) and is hittable. A **finger does navigate** — checked by hand
+on FramePhone/27.0 — so the app is fine and this is XCUITest synthesis against `NavigationLink` →
+`.buttonStyle(.plain)` inside a `LazyVGrid` in a `ScrollView` in a sheet. The test now wraps that
+single tap in `XCTExpectFailure(strict: true)`, gated on
+`ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27`: the case keeps guarding iOS
+17–26 unchanged, still runs the rest of its assertions on 27, and **fails loudly the day the
+drill-in starts working** — which is the prompt to delete the block. `#available` cannot express
+the gate: the app links the iOS 26.5 SDK, which has no iOS 27 symbol to compile against.
 
-**Both need one manual check on the device to classify, and automation cannot settle either:**
-does a finger tap drill into an album on 27.0, and does the confirm step scroll in landscape on
-27.0? If yes to both, these are XCUITest synthesis artifacts. If no, they are product bugs — and
-the onboarding one would strand an iPhone user mid-setup in landscape, which is release-relevant.
-The specific alternative for #2 is that XCUITest's `swipeUp` travels along the wrong axis in
-landscape, which would make "the form did not move" an artifact rather than a finding.
+**Users are not affected by any of the six.** Every one was a harness or test-synthesis artifact;
+nothing here changes what a person sees or can do on 27.0.
 
 **What remains** (the 26.5-device control that used to head this list ran on 2026-07-28 — see
-"Confound closed" above): (a) the two manual device checks above; (b) the harness work is done,
+"Confound closed" above; both manual device checks are settled, one by hand and one by the
+harness fix): the harness work is done,
 but note for future readers that fixed swipe counts (`maxSwipes = 8`, `for _ in 0..<3`) and
 `coordinate(withNormalizedOffset:)` toggle taps are geometry- and scroll-physics-dependent and
 were what broke at this OS bump. Note that
