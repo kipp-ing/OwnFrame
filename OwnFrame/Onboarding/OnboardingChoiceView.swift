@@ -36,7 +36,7 @@ struct OnboardingChoiceView: View {
             Section {
                 ChoiceRow(
                     title: "Use an iCloud album",
-                    description: "Easiest — play photos from an album on this iPad or in iCloud. No server needed.",
+                    description: "Easiest — play photos from an album on this device or in iCloud. No server needed.",
                     systemImage: "photo.on.rectangle.angled",
                     identifier: "onboarding.choice.photoLibrary"
                 ) { viewModel.choosePath(.photoLibrary) }
