@@ -45,10 +45,12 @@ Run the whole simulator suite:
 XcodeBuildMCP → test_sim   (scheme "OwnFrame", iPad Pro 11" on iOS 18.6, preferXcodebuild: true)
 ```
 
-**Pick the runtime deliberately — not every ≥17 destination works.** The iOS **26.4**
-simulator serves **0 StoreKit products**, which fails all 7 `StoreKitClientTests` (see
-"`SKTestSession` serves 0 products" below). Run on iOS **18.6** or **26.5** (or a device);
-avoid 26.4 — which is what an unpinned "iPad Pro 11" M5" currently boots to.
+**Pick the runtime deliberately — not every ≥17 destination works.** No iOS **26.x**
+simulator can run `StoreKitClientTests`: `SKTestSession` never binds there, so the 7 cases
+skip themselves (see "`SKTestSession` serves 0 products" below). **Run the release gate on iOS
+18.6** — that is the only simulator runtime on which the purchase gate's automated proof
+actually executes. Hardware (Framepad 17.7.10, FramePhone 27.0) works too.
+A green run on a 26.x simulator is **not** a green purchase gate: check the skip count.
 
 ## Layer 3 — UI tests (hermetic XCUITest)
 
@@ -248,14 +250,26 @@ Verified 7/7 on iOS 18.6 sim, iPad Pro 11" M4 (18.6), Framepad (17.7.10) and Fra
 (26.0.1). Always pass `-test-timeouts-enabled YES` so a future dialog regression fails instead
 of hanging the run.
 
-> **The iOS 26.4 simulator serves 0 products (found 2026-07-22).** On the **26.4** runtime —
-> iPhone **and** iPad Pro 11" M5, so it is the runtime, not the device — `SKTestSession` loads
-> the fixture (the `contentsOf:` unwrap succeeds) yet `Product.products(for:)` returns **0 of 3**,
-> failing all 7 cases with `productUnavailable`. This is **neither** of the two setup bugs above
-> (those are fixed) **nor** a code regression: the identical `main` build is 7/7 on iOS 18.6,
-> on the Framepad (17.7.10), and per the line above on 26.0.1 — so 26.4 is a per-build Apple
-> simulator-runtime defect. Run StoreKit tests (and the full suite) on **18.6 / 26.5 / a device**
-> rather than 26.4 — switch runtimes; re-running the same 26.4 sim won't help.
+> **No iOS 26.x simulator can run these cases (26.4 found 2026-07-22, 26.5 confirmed and
+> diagnosed 2026-07-29, issue #54).** First seen on 26.4 and read as a per-build defect; 26.5
+> then went the same way, so it is the 26 line, not one bad runtime build.
+>
+> **What actually happens:** the session never binds. `SKTestSession(contentsOf:)` succeeds and
+> the fixture is unquestionably reachable — the file sits in the test bundle and its ids match
+> the catalog character for character — but `session.storefront` reads back **empty**, even
+> immediately after being assigned, and every `Product.products(for:)` returns 0. Three
+> hypotheses were tested and refuted: it is **not** timing (polling for 5 s changes nothing),
+> **not** the host app touching StoreKit at launch before `setUp` runs (suppressing that changes
+> nothing), and **not** the fixture or the product ids (the same bundle is 7/7 on 18.6).
+>
+> **What the suite does now:** `setUp` skips on exactly that signal — no products **and** an
+> empty storefront — and fails on every other cause. An assertion on the healthy path pins the
+> discriminator: a bound session always reports a storefront, so if that ever fails the skip
+> condition has become unsafe and must be revisited. This is deliberately narrower than the old
+> blanket `XCTSkipIf` that hid the two setup bugs above.
+>
+> **Consequence for the release gate:** run it on **iOS 18.6** or on hardware. Confirmed
+> 2026-07-29: 7/7 on iPad Pro 11" M4 (18.6), 7 skipped / 0 failed on iPhone 13 mini (26.5).
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
   access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
   transition moves monotonically between the two photos' YAVG levels, a dip below both is
