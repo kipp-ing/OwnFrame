@@ -123,16 +123,27 @@ account, a second device, a family member account, and ASC access. **Nothing her
       harmless for a review screenshot, but re-shoot if a reviewer ever queries it.
 - [x] IAP availability set in all 175 territories (they sell wherever the app sells).
 - [x] **Build 9 attached to the 1.1 version record** (verified via the ASC API 2026-07-29).
-- [ ] **IAPs attached to the 1.1 review submission — STILL OPEN, and the highest-consequence
-      item left.** Verified 2026-07-29: all four are `READY_TO_SUBMIT`, but that means *eligible*,
-      not *attached*, and **no review submission exists for 1.1 yet** (the only ones on record are
-      the COMPLETE v1.0 submissions of 07-12 and 07-14). First-time IAPs are reviewed **only** as
-      items in the same review submission as the build. Submitting the version alone leaves them
-      unreviewed and ships a purchase-gated app with **no purchasable products** — the Supporter
-      Unlock unbuyable for everyone. Add them to the version *before* "Add for Review", then
-      confirm the submission lists **five items**: build 9 + the four `ing.kipp.ownframe.*`
-      products. Note ASC may also object that no territory is selected — that is the FR-1100-17
-      guard, not a metadata fault.
+- [ ] **IAPs submitted for review alongside 1.1 — STILL OPEN, and the highest-consequence item
+      left.** Verified 2026-07-29: all four are `READY_TO_SUBMIT`, but that means *eligible*, not
+      *submitted*, and **no review submission exists for 1.1 yet** (the only ones on record are
+      the COMPLETE v1.0 submissions of 07-12 and 07-14, each carrying a single `appStoreVersion`
+      item and no IAPs). Submitting the version alone leaves the products unreviewed and ships a
+      purchase-gated app with **no purchasable products**.
+
+      **The association runs from the IAP, not from the app version** — there is no "add IAP"
+      control on the version page, which is the trap. Correct path: *Monetization → In-App
+      Purchases → product → **Add for Review*** → ASC then asks for platform + app version
+      (iOS / 1.1) because it is the first of its type → *Submit for Review*, all four in one
+      submission. Requires Account Holder / Admin / App Manager.
+
+      **Both types matter:** the unlock is non-consumable, the tips are consumable, and Apple
+      requires the first of **each type** to ride with a version — so all four must go with 1.1.
+      Later products can then be submitted standalone.
+
+      The **Paid Applications agreement is confirmed active** (ASC will not create IAPs at all
+      without it, and all four were created successfully). ASC may still object that no territory
+      is selected — that is the FR-1100-17 guard, not a metadata fault.
+      Source: [App Store Connect Help — Submit an in-app purchase](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase).
 
 **Sandbox on device:**
 
