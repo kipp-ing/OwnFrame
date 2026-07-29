@@ -45,12 +45,19 @@ Run the whole simulator suite:
 XcodeBuildMCP → test_sim   (scheme "OwnFrame", iPad Pro 11" on iOS 18.6, preferXcodebuild: true)
 ```
 
-**Pick the runtime deliberately — not every ≥17 destination works.** No iOS **26.x**
-simulator can run `StoreKitClientTests`: `SKTestSession` never binds there, so the 7 cases
-skip themselves (see "`SKTestSession` serves 0 products" below). **Run the release gate on iOS
-18.6** — that is the only simulator runtime on which the purchase gate's automated proof
-actually executes. Hardware (Framepad 17.7.10, FramePhone 27.0) works too.
-A green run on a 26.x simulator is **not** a green purchase gate: check the skip count.
+**Pick the runtime deliberately — not every ≥17 destination works.** On iOS **26.4** and **26.5**
+simulators `SKTestSession` never binds, so all 7 `StoreKitClientTests` skip themselves (see
+"`SKTestSession` serves 0 products" below). Verified good: **18.6** and **26.0** (7/7 each,
+2026-07-29), plus hardware (Framepad 17.7.10, FramePhone 27.0). Run the release gate on one of
+those, and **check the skip count** — a "green" run on 26.4/26.5 is not a green purchase gate,
+it is a run that quietly skipped it.
+
+> **Trap: `simulatorName` in the XcodeBuildMCP session defaults beats `simulatorId`.** Several
+> runtimes carry the *same* device name ("iPad Pro 11-inch (M4)" exists on 17.5, 18.6 and 26.0),
+> so setting both pins nothing — the name re-resolves and you silently test a different OS than
+> you selected. This bit a release-gate run on 2026-07-29: it was set to 18.6 by id and actually
+> ran on 26.0. Always confirm the destination afterwards from the result bundle:
+> `xcrun xcresulttool get test-results summary --path <xcresult>` reports `osVersion`.
 
 ## Layer 3 — UI tests (hermetic XCUITest)
 
@@ -250,9 +257,9 @@ Verified 7/7 on iOS 18.6 sim, iPad Pro 11" M4 (18.6), Framepad (17.7.10) and Fra
 (26.0.1). Always pass `-test-timeouts-enabled YES` so a future dialog regression fails instead
 of hanging the run.
 
-> **No iOS 26.x simulator can run these cases (26.4 found 2026-07-22, 26.5 confirmed and
-> diagnosed 2026-07-29, issue #54).** First seen on 26.4 and read as a per-build defect; 26.5
-> then went the same way, so it is the 26 line, not one bad runtime build.
+> **iOS 26.4 and 26.5 simulators cannot run these cases (26.4 found 2026-07-22, 26.5 confirmed
+> and diagnosed 2026-07-29, issue #54).** It is per-runtime-build, not the whole 26 line: **26.0
+> is 7/7**, and so are 18.6 and hardware. Only 26.4 and 26.5 are affected so far.
 >
 > **What actually happens:** the session never binds. `SKTestSession(contentsOf:)` succeeds and
 > the fixture is unquestionably reachable — the file sits in the test bundle and its ids match
@@ -268,8 +275,10 @@ of hanging the run.
 > condition has become unsafe and must be revisited. This is deliberately narrower than the old
 > blanket `XCTSkipIf` that hid the two setup bugs above.
 >
-> **Consequence for the release gate:** run it on **iOS 18.6** or on hardware. Confirmed
-> 2026-07-29: 7/7 on iPad Pro 11" M4 (18.6), 7 skipped / 0 failed on iPhone 13 mini (26.5).
+> **Consequence for the release gate:** run it on **18.6**, **26.0** or hardware — never on
+> 26.4/26.5 — and verify the destination and the skip count afterwards rather than trusting the
+> selector. Confirmed 2026-07-29: 7/7 on iPad Pro 11" M4 (18.6), 7/7 on iPad Pro 11" M4 (26.0),
+> 7 skipped / 0 failed on iPhone 13 mini (26.5).
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
   access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
   transition moves monotonically between the two photos' YAVG levels, a dip below both is
