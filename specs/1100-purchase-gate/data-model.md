@@ -24,10 +24,10 @@ EntitlementSet: Set<Entitlement>             // convenience: .none, .all == [.su
 
 ```
 ProductID: enum, RawRepresentable<String> {
-  supporter  = "ing.kipp.Immich-Slideshow.unlock.supporter"
-  tipSmall   = "ing.kipp.Immich-Slideshow.tip.small"
-  tipMedium  = "ing.kipp.Immich-Slideshow.tip.medium"
-  tipLarge   = "ing.kipp.Immich-Slideshow.tip.large"
+  supporter  = "ing.kipp.ownframe.unlock.supporter"
+  tipSmall   = "ing.kipp.ownframe.tip.small"
+  tipMedium  = "ing.kipp.ownframe.tip.medium"
+  tipLarge   = "ing.kipp.ownframe.tip.large"
 }
 ProductCatalog:
   unlocks: [supporter]
@@ -35,6 +35,11 @@ ProductCatalog:
   grants(_ id: ProductID) -> EntitlementSet   // supporter→{supporter} (== .all), tips→{}
 ```
 
+- The ids are **not** derived from the bundle id (`ing.kipp.Immich-Slideshow`). App Store Connect
+  accepts only alphanumerics, underscores and periods in a product id, so the bundle id's hyphen
+  is rejected with a 409 at creation time — found 2026-07-29 when the products were first created.
+  The `ing.kipp.ownframe.*` prefix was chosen then; the hyphenated ids never existed in ASC, so
+  nothing was migrated and no purchase can reference them.
 - Single source of truth for id strings and the entitlement mapping; ASC must be configured to
   match (checklist). Validation rule: unknown ids resolve to `{}` and are ignored, never fatal
   (forward compatibility with future SKUs).

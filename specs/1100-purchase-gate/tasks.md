@@ -18,7 +18,7 @@ full XCUITest suite runs before merge.
 > capability at once (spec.md FR-1100-02/04, amended 2026-07-22). The task list below is a
 > **historical record** and is not renumbered: wherever a task says `.pro`, `.automation`,
 > "everything", "bundle", or names a tier, the shipped model has one entitlement — `.supporter`
-> (== `EntitlementSet.all`) — and one unlock product (`ing.kipp.Immich-Slideshow.unlock.supporter`)
+> (== `EntitlementSet.all`) — and one unlock product (`ing.kipp.ownframe.unlock.supporter`)
 > plus the tips. The gated *capabilities* those tasks describe are unchanged; they are now all
 > granted by the single product. Forward-looking counts have been corrected in place (T003, the
 > T042 ASC-day) so they do not mislead; test-description tasks keep their original wording as the

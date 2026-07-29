@@ -155,14 +155,31 @@ enum BrokerSettingsStoreFactory {
 /// `--uitest-reset-publish-options` clears for a deterministic start; production
 /// uses the standard defaults (no secrets — just booleans and a byte cap).
 enum HAPublishOptionsStoreFactory {
+    #if DEBUG
+    static let uitestSuite = "uitest.haPublish"
+
+    /// `--uitest-reset-publish-options` means "start this LAUNCH from a clean slate", so the
+    /// wipe must happen once per process — a `static let` runs exactly once, lazily.
+    ///
+    /// It used to sit inside `make()`, which is wrong because `make()` is called repeatedly
+    /// within a single launch: the app entry builds one store, the HA coordinator builds another
+    /// on every broker start, and `SlideshowSettingsView.init` builds one *every time SwiftUI
+    /// re-initialises that view*. So a reset-launch wiped the preference moments after the user
+    /// toggled it, and the next launch read the default back. That is what made
+    /// `testImagePublishTogglePersistsAcrossRelaunch` flaky — it only passed when no re-render
+    /// happened to land between the toggle and the relaunch (diagnosed 2026-07-28, issue #50).
+    private static let resetOncePerLaunch: Void = {
+        guard ProcessInfo.processInfo.arguments.contains("--uitest-reset-publish-options") else { return }
+        UserDefaults(suiteName: uitestSuite)?
+            .removeObject(forKey: UserDefaultsHAPublishOptionsStore.defaultsKey)
+    }()
+    #endif
+
     static func make() -> any HAPublishOptionsStore {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--uitest") {
-            let suite = "uitest.haPublish"
-            let defaults = UserDefaults(suiteName: suite) ?? .standard
-            if ProcessInfo.processInfo.arguments.contains("--uitest-reset-publish-options") {
-                defaults.removePersistentDomain(forName: suite)
-            }
+            _ = resetOncePerLaunch
+            let defaults = UserDefaults(suiteName: uitestSuite) ?? .standard
             return UserDefaultsHAPublishOptionsStore(defaults: defaults)
         }
         #endif
@@ -174,14 +191,22 @@ enum HAPublishOptionsStoreFactory {
 /// factory: a hermetic suite under `--uitest` so a rename in one test cannot leak into the next,
 /// the standard defaults in production. Not a secret and not an identity — purely cosmetic.
 enum FrameNameStoreFactory {
+    #if DEBUG
+    static let uitestSuite = "uitest.frameName"
+
+    /// Once per launch, not once per store — see the note in `HAPublishOptionsStoreFactory`.
+    private static let resetOncePerLaunch: Void = {
+        guard ProcessInfo.processInfo.arguments.contains("--uitest-reset-publish-options") else { return }
+        UserDefaults(suiteName: uitestSuite)?
+            .removeObject(forKey: UserDefaultsFrameNameStore.defaultsKey)
+    }()
+    #endif
+
     static func make() -> any FrameNameStore {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--uitest") {
-            let suite = "uitest.frameName"
-            let defaults = UserDefaults(suiteName: suite) ?? .standard
-            if ProcessInfo.processInfo.arguments.contains("--uitest-reset-publish-options") {
-                defaults.removePersistentDomain(forName: suite)
-            }
+            _ = resetOncePerLaunch
+            let defaults = UserDefaults(suiteName: uitestSuite) ?? .standard
             return UserDefaultsFrameNameStore(defaults: defaults, defaultName: "OwnFrame")
         }
         #endif

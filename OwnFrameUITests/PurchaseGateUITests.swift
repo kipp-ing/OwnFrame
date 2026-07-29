@@ -131,7 +131,11 @@ final class PurchaseGateUITests: XCTestCase {
 
         let buy = element(app, "unlock.buy.supporter")
         XCTAssertTrue(buy.waitForExistence(timeout: 5), "unlock.buy.supporter must exist")
-        XCTAssertTrue(buy.isHittable, "unlock.buy.supporter must be hittable, not merely present")
+        // The unlock sheet's feature list is taller than the viewport on small phones, so the
+        // buy button legitimately starts below the fold — scroll to it before demanding a hit
+        // test. (What must never happen is the button being unreachable, not it needing a scroll.)
+        XCTAssertTrue(app.scrollUntilHittable(buy),
+                      "unlock.buy.supporter must be reachable and hittable, not merely present")
     }
 
     // MARK: - Assertion 6 — pre-gate broker config degrades gracefully (US5 / SC-1100-06)
@@ -260,17 +264,23 @@ final class PurchaseGateUITests: XCTestCase {
 
         // Sweep the whole form — a row that is merely scrolled out of the tree would
         // otherwise read as absent.
-        for step in 0...Self.maxSwipes {
+        //
+        // The MQTT anchor is recorded as "seen at any point during the sweep" rather than
+        // "present at the end". A Form recycles rows out of the accessibility tree once they
+        // scroll away, so asserting against the final screen only passes when the sweep happens
+        // to stop with that section still on it — which is exactly the coincidence that held on
+        // iOS 26.5 and broke on 27.0 (issue #50).
+        var sawMQTT = false
+        app.sweepToEnd { step in
             for identifier in Self.lockedRowIdentifiers {
                 XCTAssertFalse(element(app, identifier).exists,
                                "\(identifier) must not exist with everything unlocked (scroll step \(step))")
             }
-            if step < Self.maxSwipes { app.swipeUp() }
+            sawMQTT = sawMQTT || element(app, "settings.mqtt").exists
         }
 
-        // Proves the sweep actually reached the bottom of the form, where the broker lives.
-        XCTAssertTrue(element(app, "settings.mqtt").exists,
-                      "the sweep should have scrolled as far as the MQTT section")
+        // Proves the sweep really traversed the form rather than failing to move at all.
+        XCTAssertTrue(sawMQTT, "the sweep should have passed the MQTT section")
     }
 
     // MARK: - Helpers
@@ -280,8 +290,6 @@ final class PurchaseGateUITests: XCTestCase {
         "settings.row.clock.locked",
         "settings.row.broker.locked",
     ]
-
-    private static let maxSwipes = 8
 
     /// Launches straight into the settings sheet over the hermetic stub slideshow:
     /// `--uitest-chrome` pins the chrome so nothing races the idle auto-hide, and
@@ -325,19 +333,11 @@ final class PurchaseGateUITests: XCTestCase {
                        file: file, line: line)
     }
 
-    /// Swipes up until the element exists (or the swipe budget is exhausted).
+    /// Converges on the element rather than spending a fixed swipe budget — see ScrollHarness.
     @MainActor
-    private func scrollToElement(
-        _ element: XCUIElement,
-        in app: XCUIApplication,
-        maxSwipes: Int = PurchaseGateUITests.maxSwipes
-    ) -> Bool {
+    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         if element.waitForExistence(timeout: 3) { return true }
-        var swipes = 0
-        while !element.exists && swipes < maxSwipes {
-            app.swipeUp()
-            swipes += 1
-        }
+        app.scrollUntilExists(element)
         return element.exists
     }
 }

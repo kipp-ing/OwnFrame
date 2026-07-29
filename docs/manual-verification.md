@@ -81,23 +81,45 @@ account, a second device, a family member account, and ASC access. **Nothing her
 
 **Do this one FIRST — it is release-blocking and cheap to check:**
 
-- [ ] **FR-1100-17 / SC-1100-09 sequencing**: in ASC confirm approved **v1.0 build 8 is still
-      unreleased** and will never be released, and that version **1.1 (gated) is the first version
-      the public ever sees**. The whole feature exists because the reviewed-but-unreleased build
-      gives HA away free; shipping b8 by accident forfeits that, permanently, for every existing
-      install. Verify before anything else on device day.
+- [x] **FR-1100-17 / SC-1100-09 sequencing** — **audited via the ASC API 2026-07-29, and the
+      mechanism is not what this file assumed.** v1.0 build 8 is **not** in an unreleased state:
+      the version reads `READY_FOR_SALE` / `READY_FOR_DISTRIBUTION`, its review completed
+      **2026-07-14**, and `releaseType` is `AFTER_APPROVAL`. What actually keeps it off the store
+      is **app availability**: all **175 territories** are `available: false`, effective
+      **2026-07-22**. So FR-1100-17 is held by a switch, not by a state — and flipping
+      availability on before 1.1 ships would publish the ungated build instantly.
+      **Two open items for Jan:**
+      - Availability must be turned on **only** as part of the 1.1 release, never before.
+      - Between approval (~07-15) and the pull (07-22) the app may have been publicly
+        downloadable. **Check App Analytics → Downloads for that window.** If anyone installed,
+        never-claw-back (FR-1100-13) binds for them and "Initial release." in What's New is wrong.
+- [ ] **EU trader status — release-blocking for 27 territories, found 2026-07-29.** The territory
+      availability records for the EU carry `contentStatuses: [TRADER_STATUS_NOT_PROVIDED,
+      CANNOT_SELL]` (27 of 175; the other 148 carry `CANNOT_SELL` only, i.e. Jan's own switch).
+      Without trader status the app **cannot be sold in the EU at all** — including Germany, the
+      home market the whole de-DE listing was written for. Not exposed in the ASC API: set it in
+      the ASC web UI under Business → Trader Status, and expect **multi-day verification**, so
+      start it before anything else.
 
-**Store setup (do before any sandbox purchase — a mismatch here breaks everything downstream):**
+**Store setup — done 2026-07-29 via the ASC API; all four products are `READY_TO_SUBMIT`:**
 
-- [ ] Create the IAPs with ids matching `ProductID` raw values **character-for-character**
-      (`Packages/PurchaseKit/Sources/PurchaseKit/ProductCatalog.swift` is the source of truth).
-      Id drift has no compile-time signal and fails only at runtime as "products unavailable".
-- [ ] Family Sharing **ON** for the Supporter Unlock, OFF for the tips.
-- [ ] Localized names/descriptions use "one-time purchase"; the word **"lifetime" appears
-      nowhere**, and nothing implies a subscription (FR-1100-05).
-- [ ] Prices set here and only here — never committed to this repo. The `.storekit` file's
-      values are placeholder fixtures, not pricing decisions.
-- [ ] IAPs attached to the 1.1 submission (they are reviewed together with the build).
+- [x] IAPs created. **The ids in this repo changed to do it**: ASC rejects a product id containing
+      anything but alphanumerics, underscores and periods, so every `ing.kipp.Immich-Slideshow.*`
+      id 409'd on the bundle id's hyphen. They are now `ing.kipp.ownframe.*`
+      (`ProductCatalog.swift` remains the source of truth, and a test now pins the character set,
+      not just the literals). The hyphenated ids never existed in ASC — nothing was migrated.
+- [x] Family Sharing **ON** for the Supporter Unlock, OFF for the tips.
+- [x] Localized names/descriptions (en-US + de-DE) — one-time framing, no "lifetime", nothing
+      implying a subscription (FR-1100-05).
+- [x] Prices set in ASC only, never in this repo. The `.storekit` file's values remain placeholder
+      fixtures.
+- [x] Review screenshots attached (unlock screen for the unlock, tip jar for the three tips),
+      captured in English off the hermetic sweep via `SCREENSHOT_LOCALE=en`. Note the tip jar
+      shot shows the stub store's placeholder `$1.00` on all three rows, not the real ASC prices —
+      harmless for a review screenshot, but re-shoot if a reviewer ever queries it.
+- [x] IAP availability set in all 175 territories (they sell wherever the app sells).
+- [ ] IAPs attached to the 1.1 submission (they are reviewed together with the build) — at
+      submission time.
 
 **Sandbox on device:**
 

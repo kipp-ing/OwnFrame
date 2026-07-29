@@ -29,6 +29,11 @@ struct SlideshowView: View {
     // 900 US3: the active source is a Photos-library source — switches the error state's
     // auth copy/fix to the photo-access wording and the iOS Settings path.
     var isPhotoLibrarySource = false
+    // FR-700-23: modal surfaces the HOST presents over this view (the incoming-link sheet
+    // and the album-reselect sheet live on RootView, not here). They must count as "the
+    // slideshow surface is covered" exactly like this view's own sheets — "any other
+    // sheet/full-screen surface" — or their presentation re-triggers the offline defect.
+    var externallyCovered = false
     // The shared, concrete settings store. Render-time preferences (transition, fit,
     // Ken Burns, clock) are read from it directly; the settings sheet binds it (008).
     let themeStore: UserDefaultsThemeStore
@@ -60,7 +65,12 @@ struct SlideshowView: View {
     // The per-photo ambience latch (FR-1100-12). nil until the first boundary, so the very first
     // render still reflects the live entitlement instead of flashing an ungated frame.
     @State private var latchedAmbience: AmbienceGate?
-    @State private var coordinator: HAControlCoordinator?
+    // Identity-scoped owner of the per-run coordinator (FR-700-23): lives exactly as long
+    // as this view identity, so when a source switch or reset destroys the surface while
+    // a sheet is still up (the case the modal-cover branch in onDisappear deliberately
+    // skips), the lease's deinit still stops the coordinator — a leaked live transport
+    // would fight the successor generation for the frame's MQTT client id.
+    @State private var lease = HACoordinatorLease()
     @State private var isStartingCoordinator = false
 
     // Reveal-on-tap chrome (Slice A). Hidden by default; a tap reveals it and an
@@ -164,11 +174,27 @@ struct SlideshowView: View {
             await startCoordinator()
         }
         .onDisappear {
-            // Leaving the slideshow: restore the idle timer and any app-changed
-            // brightness to its baseline (FR-002/FR-011).
-            powerManager.deactivate()
             autoHideTask?.cancel()
-            Task { await stopCoordinator() }
+            // FR-700-23: on the live iOS 17 frame, presenting ANY sheet over the
+            // slideshow fires this callback, so a disappearance alone cannot mean
+            // "leaving the slideshow". The presenting layer's modal state decides:
+            // a cover keeps the broker session (availability stays online, SC-700-15)
+            // AND the keep-awake hold (FR-400-01) — frame_status carries the covered
+            // surface instead (FR-710-24, via onChange below). A genuine exit tears
+            // down exactly as before (FR-002/FR-011).
+            switch SlideshowSurfaceLifecycle.decision(for: .viewDisappeared, isModalPresented: anyModalPresented) {
+            case .keepAlive:
+                break
+            case .tearDown:
+                powerManager.deactivate()
+                Task { await stopCoordinator() }
+            }
+        }
+        .onChange(of: anyModalPresented) { _, presented in
+            // FR-710-24: the explicit UI-visibility signal — driven by the sheet
+            // presentation state itself, never inferred from onAppear/onDisappear
+            // (that inference is the exact conflation behind the offline defect).
+            Task { await lease.coordinator?.setSurfaceVisible(!presented) }
         }
         .onChange(of: viewModel.phase) { _, newPhase in
             // Failed state: pin the chrome visible (Settings/Albums stay one tap
@@ -215,8 +241,13 @@ struct SlideshowView: View {
                 Task { await startCoordinator() }
             default:
                 viewModel.pause()
-                powerManager.didEnterBackground()
-                Task { await stopCoordinator() }
+                // Leaving the foreground is a REAL loss of app-level connectivity
+                // (FR-700-23) and always releases the keep-awake (FR-400-03) — even
+                // when a sheet is up, unlike the modal-cover branch in onDisappear.
+                if SlideshowSurfaceLifecycle.decision(for: .leftForeground, isModalPresented: anyModalPresented) == .tearDown {
+                    powerManager.didEnterBackground()
+                    Task { await stopCoordinator() }
+                }
             }
         }
         .sheet(isPresented: $showAlbumBrowser) {
@@ -247,7 +278,17 @@ struct SlideshowView: View {
                 makeServerAPI: makeServerAPI,
                 makePhotoGateway: makePhotoGateway,
                 isPhotoLibrarySource: isPhotoLibrarySource,
-                onReset: onReset,
+                onReset: {
+                    // Reset destroys this surface with the settings sheet still up, so
+                    // the modal-cover branch in onDisappear will NOT release the
+                    // keep-awake hold or the broker session — do both here before
+                    // handing over: the idle timer must come back for onboarding
+                    // (FR-400-02) and HA should see a prompt, graceful offline. (The
+                    // lease's deinit is the backstop, but reset deserves the tidy path.)
+                    powerManager.deactivate()
+                    Task { await stopCoordinator() }
+                    onReset()
+                },
                 diskCache: diskCache,
                 snapshotStore: snapshotStore,
                 budgetStore: budgetStore
@@ -283,6 +324,19 @@ struct SlideshowView: View {
                 }
             }
         }
+    }
+
+    /// FR-700-23 / FR-710-24: the aggregated modal-presentation state of every in-app
+    /// surface over the slideshow — this view's own sheets (Settings, album browser,
+    /// sources, the connection-error editor) plus the host-presented ones
+    /// (`externallyCovered`: the incoming-link and album-reselect sheets on RootView).
+    /// THIS — not onAppear/onDisappear — is the UI-visibility signal: presentation state
+    /// says *why* the surface is covered, while lifecycle callbacks fire identically for
+    /// covers and genuine exits. The info overlay (`showInfo`) is chrome, not a modal,
+    /// so it does not count.
+    private var anyModalPresented: Bool {
+        externallyCovered || showSettings || showAlbumBrowser || showSources
+            || errorConnectionViewModel != nil
     }
 
     @ViewBuilder
@@ -408,27 +462,30 @@ struct SlideshowView: View {
         // That keeps the MQTT client re-connectable across background/foreground (the old
         // reused-client path stayed offline after the first background cycle).
         // `isStartingCoordinator` guards the await gap (building now fetches the album
-        // list) against a second appear/scenePhase call building a duplicate. All on the
-        // main actor, so the flag check/set is race-free.
-        guard coordinator == nil, !isStartingCoordinator else { return }
+        // list) against a second appear/scenePhase call building a duplicate — including
+        // the `.task` re-fire after a sheet dismissal on iOS 17 hardware, where the
+        // kept-alive coordinator (FR-700-23) is still in the lease. All on the main
+        // actor, so the flag check/set is race-free.
+        guard lease.coordinator == nil, !isStartingCoordinator else { return }
         isStartingCoordinator = true
         defer { isStartingCoordinator = false }
 
         guard let coordinator = await makeCoordinator() else { return }
-        self.coordinator = coordinator
+        lease.adopt(coordinator)
+        // FR-710-24: seed frame_status before the announce — a coordinator can be
+        // (re)built while a sheet is already up (foreground return with Settings open),
+        // and the announce must then publish `inactive`, not the default `running`.
+        await coordinator.setSurfaceVisible(!anyModalPresented)
         await coordinator.start()
         // Connect failed: release it so a later appear/foreground retries instead of being
         // stuck. stop() fully tears the transport down (disconnect + shutdown).
         if coordinator.connection == .disconnected {
-            self.coordinator = nil
-            await coordinator.stop()
+            await lease.stop()
         }
     }
 
     private func stopCoordinator() async {
-        guard let coordinator else { return }
-        self.coordinator = nil
-        await coordinator.stop()
+        await lease.stop()
     }
 
     /// The decode-ahead bitmap when it already landed (1000 Ken Burns: no lazy

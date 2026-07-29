@@ -45,10 +45,19 @@ Run the whole simulator suite:
 XcodeBuildMCP → test_sim   (scheme "OwnFrame", iPad Pro 11" on iOS 18.6, preferXcodebuild: true)
 ```
 
-**Pick the runtime deliberately — not every ≥17 destination works.** The iOS **26.4**
-simulator serves **0 StoreKit products**, which fails all 7 `StoreKitClientTests` (see
-"`SKTestSession` serves 0 products" below). Run on iOS **18.6** or **26.5** (or a device);
-avoid 26.4 — which is what an unpinned "iPad Pro 11" M5" currently boots to.
+**Pick the runtime deliberately — not every ≥17 destination works.** On iOS **26.4** and **26.5**
+simulators `SKTestSession` never binds, so all 7 `StoreKitClientTests` skip themselves (see
+"`SKTestSession` serves 0 products" below). Verified good: **18.6** and **26.0** (7/7 each,
+2026-07-29), plus hardware (Framepad 17.7.10, FramePhone 27.0). Run the release gate on one of
+those, and **check the skip count** — a "green" run on 26.4/26.5 is not a green purchase gate,
+it is a run that quietly skipped it.
+
+> **Trap: `simulatorName` in the XcodeBuildMCP session defaults beats `simulatorId`.** Several
+> runtimes carry the *same* device name ("iPad Pro 11-inch (M4)" exists on 17.5, 18.6 and 26.0),
+> so setting both pins nothing — the name re-resolves and you silently test a different OS than
+> you selected. This bit a release-gate run on 2026-07-29: it was set to 18.6 by id and actually
+> ran on 26.0. Always confirm the destination afterwards from the result bundle:
+> `xcrun xcresulttool get test-results summary --path <xcresult>` reports `osVersion`.
 
 ## Layer 3 — UI tests (hermetic XCUITest)
 
@@ -248,14 +257,28 @@ Verified 7/7 on iOS 18.6 sim, iPad Pro 11" M4 (18.6), Framepad (17.7.10) and Fra
 (26.0.1). Always pass `-test-timeouts-enabled YES` so a future dialog regression fails instead
 of hanging the run.
 
-> **The iOS 26.4 simulator serves 0 products (found 2026-07-22).** On the **26.4** runtime —
-> iPhone **and** iPad Pro 11" M5, so it is the runtime, not the device — `SKTestSession` loads
-> the fixture (the `contentsOf:` unwrap succeeds) yet `Product.products(for:)` returns **0 of 3**,
-> failing all 7 cases with `productUnavailable`. This is **neither** of the two setup bugs above
-> (those are fixed) **nor** a code regression: the identical `main` build is 7/7 on iOS 18.6,
-> on the Framepad (17.7.10), and per the line above on 26.0.1 — so 26.4 is a per-build Apple
-> simulator-runtime defect. Run StoreKit tests (and the full suite) on **18.6 / 26.5 / a device**
-> rather than 26.4 — switch runtimes; re-running the same 26.4 sim won't help.
+> **iOS 26.4 and 26.5 simulators cannot run these cases (26.4 found 2026-07-22, 26.5 confirmed
+> and diagnosed 2026-07-29, issue #54).** It is per-runtime-build, not the whole 26 line: **26.0
+> is 7/7**, and so are 18.6 and hardware. Only 26.4 and 26.5 are affected so far.
+>
+> **What actually happens:** the session never binds. `SKTestSession(contentsOf:)` succeeds and
+> the fixture is unquestionably reachable — the file sits in the test bundle and its ids match
+> the catalog character for character — but `session.storefront` reads back **empty**, even
+> immediately after being assigned, and every `Product.products(for:)` returns 0. Three
+> hypotheses were tested and refuted: it is **not** timing (polling for 5 s changes nothing),
+> **not** the host app touching StoreKit at launch before `setUp` runs (suppressing that changes
+> nothing), and **not** the fixture or the product ids (the same bundle is 7/7 on 18.6).
+>
+> **What the suite does now:** `setUp` skips on exactly that signal — no products **and** an
+> empty storefront — and fails on every other cause. An assertion on the healthy path pins the
+> discriminator: a bound session always reports a storefront, so if that ever fails the skip
+> condition has become unsafe and must be revisited. This is deliberately narrower than the old
+> blanket `XCTSkipIf` that hid the two setup bugs above.
+>
+> **Consequence for the release gate:** run it on **18.6**, **26.0** or hardware — never on
+> 26.4/26.5 — and verify the destination and the skip count afterwards rather than trusting the
+> selector. Confirmed 2026-07-29: 7/7 on iPad Pro 11" M4 (18.6), 7/7 on iPad Pro 11" M4 (26.0),
+> 7 skipped / 0 failed on iPhone 13 mini (26.5).
 - **Animations cannot be verified by screenshot or XCUITest** (timing luck / no mid-frame
   access). Use `simctl io … recordVideo` + `ffprobe signalstats` luma traces; a healthy
   transition moves monotonically between the two photos' YAVG levels, a dip below both is
@@ -293,7 +316,7 @@ of hanging the run.
 ### Environment
 
 - **Any runtime ≥ iOS 17 is a valid destination** since the floor was lowered (verified
-  17.5 / 18.6 / 26.0 / 26.5) — **except iOS 26.4, on which `SKTestSession` serves 0 products**
+  17.5 / 18.6 / 26.0 / 26.5 / **27.0 device**) — **except iOS 26.4, on which `SKTestSession` serves 0 products**
   and all 7 `StoreKitClientTests` fail (see that section). Pin **`simulatorId` only** — when
   session defaults carry both `simulatorName` and `simulatorId`, name resolution wins and may
   pick an ineligible runtime (e.g. booting "iPad Pro 11" M5" onto the broken 26.4).
@@ -313,6 +336,199 @@ of hanging the run.
   `UIFocusSystem.updateFocusIfNeeded`, which XCUITest (accessibility-driven) never needs. The
   keyboardless production frame never runs this path. Regression guard:
   `TipJarPresentationUITests` (landscape is load-bearing there — portrait masks the bug).
+
+### iOS 27 on real hardware (session 2026-07-27)
+
+iOS 27 shipped developer beta 1 on 2026-06-08 and is in public beta; GA is expected ~2026-09-14.
+FramePhone (iPhone 13 mini) now runs **27.0**. Findings from the first session against it:
+
+**Xcode 26.6 (SDK 26.5) drives an iOS 27 device fine — no Xcode 27 beta needed to test.**
+`build`, `build-for-testing`, `devicectl install`, `devicectl process launch --console`, and
+full **XCUITest** all work. Two non-fatal log lines are expected and can be ignored:
+`DVTDevice: Error locating DeviceSupport directory … nilError` and
+`IDELaunchParametersSnapshot: no debugger version`. What does **not** work is **LLDB attach** —
+there is no iOS 27 DeviceSupport, so interactive debugging needs the Xcode 27 beta. Test runs
+do not need it.
+
+**Submission is not blocked.** The mandate that landed 2026-04-28 requires the *iOS 26* SDK,
+which 26.5 already satisfies; the iOS 27 SDK is not expected to be mandatory until ~April 2027.
+Do not hold the gated release for iOS 27.
+
+**Green on 27.0:** app launches and runs without crashing, and `StoreKitClientTests` is **7/7**
+on device — the release-gating purchase-gate suite is unaffected.
+
+**Seven UI failures, of which six look OS-related.** Full `OwnFrameUITests` on FramePhone/27.0:
+154 executed, **7 failures**, 61 skipped (all skips are the intentional env-gated ones —
+device-rig, German sweep, live smoke, ASC screenshots).
+
+| Test | 27.0 device | 26.5 sim, iPhone 17 | 26.5 sim, **13 mini** |
+|---|---|---|---|
+| `SlideshowChromeUITests/testChromeInsetsStableAcrossOrientationAndKenBurns` | fail | **fail** | — |
+| `AlbumBrowserUITests/testAlbumBrowserOpensDrillsIn…` | fail | pass | **pass** |
+| `BrokerSetupUITests/testExistingBrokerPrefillsFieldsMasksPasswordAndRemoves` | fail | pass | **pass** |
+| `BrokerSetupUITests/testImagePublishTogglePersistsAcrossRelaunch` | fail | pass | **pass** |
+| `PurchaseGateUITests/testNoLockedRowsWhenEverythingIsUnlocked` | fail | pass | **pass** |
+| `PurchaseGateUITests/testUnlockScreenShowsSupporterPriceAndBuyIdentifiers` | fail | pass | **pass** |
+| `SourceOnboardingUITests/testOnboardingAddAlbumSourceReachesSlideshowInLandscape` | fail | pass | **pass** |
+
+The chrome-insets one fails on 26.5 too → **pre-existing, not iOS 27**. The other six were
+controlled for screen geometry by creating an **iPhone 13 mini simulator on 26.5**
+(`xcrun simctl create … iPhone-13-mini … iOS-26-5`) — all six pass there, so it is **not** the
+compact form factor. They fail **deterministically** on device (two full runs, near-identical
+durations), so it is not timing flake.
+
+**Failure mode is scroll position / hit-testing, not logic.** The messages cluster:
+"must be hittable, not merely present", "should have scrolled as far as the MQTT section",
+"confirmation step should offer Start". The failure-time hierarchy dump for the broker test
+shows `broker.username`/`password`/`save` present while `broker.host`/`port` have scrolled off
+and been recycled out of the a11y tree. The suite's swipe-count and
+`coordinate(withNormalizedOffset:)` heuristics land differently under iOS 27's layout.
+`AppStoreScreenshotUITests` captures all 7 shots on 26.5 but dies after 2 on 27.0.
+
+> **Confound not yet closed:** every 26.5 baseline above is a **simulator**, every 27.0 data
+> point is **real hardware**. Simulator-vs-device is therefore not separated from 26.5-vs-27.0.
+> Closing it needs the same suite on a real device running iOS 26.x — "iPad jk" (iPad Pro M4)
+> and "jk in da house" (iPhone 16 Pro) are both on 26.5.2 and would do it.
+>
+> **Closed 2026-07-28 — see below. It is iOS 27.**
+
+#### Confound closed: iOS 27 is the variable (2026-07-28)
+
+**Result: all six pass on real iOS 26.5.2 hardware.** `jk in da house` (iPhone 16 Pro,
+`97DCFF2E-012F-57E8-914F-CC15B7924FB7`), full build from clean DerivedData over localNetwork:
+6 executed, **0 failures**, 109 s. So **device-vs-simulator is refuted** — real hardware on 26.5
+behaves like the simulator on 26.5.
+
+The matrix now reads:
+
+| Geometry | OS | Runtime | Six tests |
+|---|---|---|---|
+| iPhone 17 | 26.5 | simulator | pass |
+| iPhone 13 mini | 26.5 | simulator | pass |
+| iPhone 16 Pro | **26.5** | **real device** | **pass** |
+| iPhone 13 mini | **27.0** | real device | **fail** |
+
+Geometry was controlled by the 13 mini sim; runtime by the 16 Pro device. **The only factor
+present in every failing run and absent from every passing run is iOS 27.** A strict
+single-variable isolation (13 mini hardware on 26.5) is no longer obtainable — FramePhone is
+already on 27.0 and downgrading is not practical — but no other variable survives.
+
+> **Correction to the reasoning below.** The SDK-gating fact is correct and still stands, but the
+> inference drawn from it over-generalized: it rules out **bar minimization specifically** as the
+> mechanism, not iOS 27 as a whole. Empirically something in iOS 27 *does* change layout/scroll
+> behavior for a binary linked against SDK 26.5. Finding *what* is the open question; it is not
+> the mechanism named below.
+
+**Still open, and the question that actually matters: are users affected, or only the tests?**
+The tests fail because fixed swipe counts and normalized-offset taps cannot adapt; a human
+scrolling by hand adapts trivially. So a 27.0 user may well see a perfectly usable app. Next
+step is to read the failure-time screenshots from the 27.0 run (`xcresulttool export
+attachments`, see `framepad.sh:export_shots`) and judge whether the UI *looks* wrong or merely
+sits at a different scroll offset. Harden the harness either way.
+
+**1. The iOS 27 change that would cause this is gated on the iOS 27 SDK, which we don't link.**
+The symptom (content scrolled to a different offset, elements present but not hittable) is what
+Liquid Glass **bar minimization** produces: `UINavigationItem.barMinimizeBehavior` +
+`barMinimizationSafeAreaAdjustment` (SwiftUI: `toolbarMinimizeBehavior(_:for:)`), where the safe
+area reflows as the bar minimizes on scroll. That is **SDK-27-gated** — OwnFrame is built with
+SDK 26.5, so it should not receive it. The iOS 27 UIKit changes that *do* apply to every binary
+regardless of SDK are display-link deprecations, `UILookToScrollInteraction`, iPadOS menu-image
+visibility, and trait inheritance through presentation views — none of which move form fields.
+*(Forward note: binaries built with the iOS 27 SDK must use the scene-based lifecycle or they
+fail to launch. OwnFrame is SwiftUI with `UIApplicationSceneManifest_Generation = YES`, so it is
+already compliant.)*
+
+**2. The software keyboard is NOT the difference — and the pref that would control it does
+nothing here.** The plausible sim-vs-device delta was that the sim runs with a hardware keyboard
+attached (see the issue #42 note above) while FramePhone has none, so on device the software
+keyboard would appear and push form content out of the tree — which fits the recorded
+`broker.host`/`broker.port`-scrolled-off hierarchy dump exactly. Measured, and it does not hold:
+
+- All six tests **pass** on a fresh iPhone 13 mini / **26.5** sim
+  (`E6A5FDB1-0DAC-4326-BBC7-226ADEBCDD24`) — 6/6, 156 s.
+- A throwaway probe (focus `onboarding.sharedLink.url`, then assert `app.keyboards` exists)
+  showed the **software keyboard appears in headless `xcodebuild test` runs either way**: it was
+  present with `ConnectHardwareKeyboard` unset *and* with it explicitly `= 1`. So the sim
+  baseline already behaves like the device here; there is no keyboard delta to explain #50.
+
+> **Trap — `ConnectHardwareKeyboard` is not a usable lever, twice over.** (a) Writing it with
+> **PlistBuddy is silently discarded**: cfprefsd owns
+> `~/Library/Preferences/com.apple.iphonesimulator.plist` and rewrites the device's
+> `DevicePreferences` sub-dict, dropping the key — it printed back correctly and was gone by the
+> next read. Use `defaults write com.apple.iphonesimulator DevicePreferences -dict-add "<UDID>"
+> '{ConnectHardwareKeyboard = 1;}'` (note: this **replaces** that UDID's whole sub-dict).
+> (b) Even when it does persist, it **did not change software-keyboard presentation** in a
+> headless `xcodebuild test` run. Don't build a control on it without a probe like the one above.
+> This does not disprove the issue #42 mechanism — that is a *focus-engine* crash, and only
+> keyboard *presentation* was measured here.
+
+#### Outcome of the hardening pass (2026-07-28)
+
+**All six now run green on FramePhone / 27.0 — 6 executed, 0 failures, 121 s.**
+`ScrollHarness.swift` replaced the fixed-swipe helper that had been copy-pasted into six files
+(see that file's header for the design). Five of the six are genuine fixes; the sixth is a
+*recorded expected failure*, which is not the same thing — read on before quoting "6/6".
+
+> **Correction, twice over.** A first note this session said all six were harness fragility and
+> the app was fine on 27.0; a second said that held for four and the other two were genuine iOS
+> 27 behaviour. The measured end state is neither: **five** were harness fragility, and **one** is
+> a real iOS 27 XCUITest limitation that the app itself does not share.
+
+**Fixed by the harness (5):** both `BrokerSetupUITests`, both `PurchaseGateUITests`, and
+`SourceOnboardingUITests…InLandscape`. The onboarding one needed the *second* round of harness
+work (986a21c), not the first: `XCUIApplication`'s own frame can be reported in a rotated
+coordinate space, so `app.swipeUp()` travelled along the wrong axis in landscape and the form did
+not move at all — exactly the "failure frame after 60 scroll steps is byte-identical" symptom
+recorded above. Sending the gesture to the scrollable container instead (its frame is
+orientation-correct), plus escalating a stalled `.slow` flick to `.default` before concluding
+"end of content", made `onboarding.confirm.start` reachable. So the alternative explanation
+floated for it — wrong-axis `swipeUp` — was the right one, and no manual device check was needed
+in the end.
+
+**Not fixed, and deliberately not worked around (1):** `AlbumBrowserUITests` — on 27.0 no
+*synthesized* tap activates the album card. Element tap, `coordinate(...).tap()` and a brief
+`press(forDuration:)` were all tried; the recording shows the sheet sitting on the grid for the
+rest of the test. The card is a real `Button` in the tree (`identifier: 'album.row.a1'`, frame
+`{{35.8, 183.0}, {124.0, 137.7}}`) and is hittable. A **finger does navigate** — checked by hand
+on FramePhone/27.0 — so the app is fine and this is XCUITest synthesis against `NavigationLink` →
+`.buttonStyle(.plain)` inside a `LazyVGrid` in a `ScrollView` in a sheet. The test now wraps that
+single tap in `XCTExpectFailure(strict: true)`, gated on
+`ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27`: the case keeps guarding iOS
+17–26 unchanged, still runs the rest of its assertions on 27, and **fails loudly the day the
+drill-in starts working** — which is the prompt to delete the block. `#available` cannot express
+the gate: the app links the iOS 26.5 SDK, which has no iOS 27 symbol to compile against.
+
+**Users are not affected by any of the six.** Every one was a harness or test-synthesis artifact;
+nothing here changes what a person sees or can do on 27.0.
+
+**What remains** (the 26.5-device control that used to head this list ran on 2026-07-28 — see
+"Confound closed" above; both manual device checks are settled, one by hand and one by the
+harness fix): the harness work is done,
+but note for future readers that fixed swipe counts (`maxSwipes = 8`, `for _ in 0..<3`) and
+`coordinate(withNormalizedOffset:)` toggle taps are geometry- and scroll-physics-dependent and
+were what broke at this OS bump. Note that
+`PurchaseGateUITests/testNoLockedRowsWhenEverythingIsUnlocked` and `AlbumBrowserUITests` never
+type at all — they are pure fixed-swipe sweeps. **iOS 27 is the trigger, but the fragility is
+what turns it into six red tests**; a harness that scrolled to convergence instead of a fixed
+count would likely survive the same layout change.
+
+**Timing:** iOS 27 GA is predicted **2026-09-14**. Submission is genuinely unblocked — Apple's
+upcoming-requirements page lists **only** the 2026-04-28 iOS 26 SDK mandate and **no announced
+iOS 27 SDK requirement** (the "~April 2027" above is a projection, not an Apple date).
+
+Sources for the above:
+
+- [SDK minimum requirements (Apple Developer)](https://www.developer.apple.com/news/upcoming-requirements/)
+- [What's New in UIKit in iOS 27 — Kyle Howells](https://ikyle.me/blog/2026/whats-new-in-uikit-ios-27) (SDK-gated vs. universal split)
+- [What's New in SwiftUI for iOS 27 — Blake Crosley](https://blakecrosley.com/blog/whats-new-swiftui-ios-27)
+- [iOS 27: UIBarMinimization — Anton Gubarenko](https://antongubarenko.substack.com/p/ios-27-uibarminimization)
+- [UIKit's Scene Mandate: What Fails to Launch on iOS 27](https://blakecrosley.com/blog/uikit-scene-lifecycle-mandate-ios-27)
+- [iOS 27: Everything We Know — MacRumors](https://www.macrumors.com/roundup/ios-27/) (GA date estimate)
+- [Disable hardware keyboard before XCUITest on CI — fastlane#14685](https://github.com/fastlane/fastlane/issues/14685)
+
+**Trap: on a device, test-runner env vars need the `TEST_RUNNER_` prefix.** `SCREENSHOT_CAPTURE=1
+xcodebuild …` silently skips the test (the var never reaches the runner);
+`TEST_RUNNER_SCREENSHOT_CAPTURE=1` works. Same for `SCREENSHOT_DE` and `LIVE_SMOKE`.
 
 ## Live-server contract check (manual, opt-in)
 
