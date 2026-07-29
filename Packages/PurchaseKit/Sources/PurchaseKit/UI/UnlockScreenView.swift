@@ -85,8 +85,15 @@ public struct UnlockScreenView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
+                // Issue #52: on a 375 pt phone the close button leaves `.largeTitle` too little
+                // room and the product's own name truncated to "The Supporte…" — on the screen
+                // where the purchase decision is made. German is longer still ("Die
+                // Supporter-Freischaltung"), so it wraps first and only shrinks as a backstop.
                 Text("The Supporter Unlock", bundle: .module)
                     .font(.largeTitle.weight(.semibold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(tier.unlockTagline)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
