@@ -409,7 +409,7 @@ struct SlideshowSettingsView: View {
                     } header: {
                         Text("Storage")
                     } footer: {
-                        Text("Photos you have viewed are kept on this iPad so the slideshow keeps playing when the network is down.")
+                        Text("Photos you have viewed are kept on this device so the slideshow keeps playing when the network is down.")
                     }
                     .task { cacheUsage = await diskCache.currentUsage() }
                 }
