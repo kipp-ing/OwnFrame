@@ -51,25 +51,41 @@ import Testing
 // MARK: - Product identifiers (must match App Store Connect exactly)
 
 @Test func productIdentifierRawValuesMatchAppStoreConnect() {
-    #expect(ProductID.supporter.rawValue == "ing.kipp.Immich-Slideshow.unlock.supporter")
-    #expect(ProductID.tipSmall.rawValue == "ing.kipp.Immich-Slideshow.tip.small")
-    #expect(ProductID.tipMedium.rawValue == "ing.kipp.Immich-Slideshow.tip.medium")
-    #expect(ProductID.tipLarge.rawValue == "ing.kipp.Immich-Slideshow.tip.large")
+    #expect(ProductID.supporter.rawValue == "ing.kipp.ownframe.unlock.supporter")
+    #expect(ProductID.tipSmall.rawValue == "ing.kipp.ownframe.tip.small")
+    #expect(ProductID.tipMedium.rawValue == "ing.kipp.ownframe.tip.medium")
+    #expect(ProductID.tipLarge.rawValue == "ing.kipp.ownframe.tip.large")
+}
+
+/// App Store Connect rejects a product id containing anything but alphanumerics, underscores and
+/// periods — a hyphen 409s at creation time. The ids used to be derived from the bundle id
+/// (`ing.kipp.Immich-Slideshow`), whose hyphen is legal there and illegal here; this pins the
+/// distinction so the two can never be conflated again.
+@Test func productIdentifiersUseOnlyCharactersAppStoreConnectAccepts() {
+    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_."))
+    for id in ProductID.allCases {
+        #expect(
+            id.rawValue.unicodeScalars.allSatisfy(allowed.contains),
+            "\(id.rawValue) contains a character App Store Connect rejects"
+        )
+    }
 }
 
 @Test func productIdentifierIsConstructibleFromItsRawValue() {
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.supporter") == .supporter)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.tip.small") == .tipSmall)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.tip.medium") == .tipMedium)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.tip.large") == .tipLarge)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.unlock.supporter") == .supporter)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.tip.small") == .tipSmall)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.tip.medium") == .tipMedium)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.tip.large") == .tipLarge)
 }
 
 /// Forward compatibility: a future SKU is simply not in the catalog — never fatal. The retired
-/// `.pro`/`.automation`/`.everything` ids are now just such unknowns.
+/// `.pro`/`.automation`/`.everything` ids are now just such unknowns, and so are the
+/// never-created `ing.kipp.Immich-Slideshow.*` ids this catalog carried before the rename.
 @Test func unknownProductIdentifiersAreNotInTheCatalog() {
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.future") == nil)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.SUPPORTER") == nil)
-    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.pro") == nil)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.unlock.future") == nil)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.unlock.SUPPORTER") == nil)
+    #expect(ProductID(rawValue: "ing.kipp.ownframe.unlock.pro") == nil)
+    #expect(ProductID(rawValue: "ing.kipp.Immich-Slideshow.unlock.supporter") == nil)
     #expect(ProductID(rawValue: "com.example.other.unlock.supporter") == nil)
     #expect(ProductID(rawValue: "") == nil)
 }

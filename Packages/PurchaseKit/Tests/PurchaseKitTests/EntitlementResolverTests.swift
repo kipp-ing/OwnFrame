@@ -101,7 +101,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 @Test func rule4UnknownProductIdentifiersAreIgnored() {
     let resolved = EntitlementResolver.resolve([
-        OwnedTransaction(productID: "ing.kipp.Immich-Slideshow.unlock.future", isRevoked: false),
+        OwnedTransaction(productID: "ing.kipp.ownframe.unlock.future", isRevoked: false),
         OwnedTransaction(productID: "com.example.other.unlock.supporter", isRevoked: false),
         OwnedTransaction(productID: "", isRevoked: false),
     ])
@@ -111,7 +111,7 @@ private func owned(_ id: ProductID, revoked: Bool = false) -> OwnedTransaction {
 
 @Test func rule4UnknownProductIdentifiersDoNotDisturbKnownOnes() {
     let resolved = EntitlementResolver.resolve([
-        OwnedTransaction(productID: "ing.kipp.Immich-Slideshow.unlock.future", isRevoked: false),
+        OwnedTransaction(productID: "ing.kipp.ownframe.unlock.future", isRevoked: false),
         owned(.supporter),
     ])
 
