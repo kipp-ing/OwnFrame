@@ -88,18 +88,22 @@ account, a second device, a family member account, and ASC access. **Nothing her
       is **app availability**: all **175 territories** are `available: false`, effective
       **2026-07-22**. So FR-1100-17 is held by a switch, not by a state — and flipping
       availability on before 1.1 ships would publish the ungated build instantly.
-      **Two open items for Jan:**
-      - Availability must be turned on **only** as part of the 1.1 release, never before.
-      - Between approval (~07-15) and the pull (07-22) the app may have been publicly
-        downloadable. **Check App Analytics → Downloads for that window.** If anyone installed,
-        never-claw-back (FR-1100-13) binds for them and "Initial release." in What's New is wrong.
-- [ ] **EU trader status — release-blocking for 27 territories, found 2026-07-29.** The territory
-      availability records for the EU carry `contentStatuses: [TRADER_STATUS_NOT_PROVIDED,
-      CANNOT_SELL]` (27 of 175; the other 148 carry `CANNOT_SELL` only, i.e. Jan's own switch).
-      Without trader status the app **cannot be sold in the EU at all** — including Germany, the
-      home market the whole de-DE listing was written for. Not exposed in the ASC API: set it in
-      the ASC web UI under Business → Trader Status, and expect **multi-day verification**, so
-      start it before anything else.
+      **Update 2026-07-29 (Jan) — both sub-items resolved or improved:**
+      - **Zero downloads** in the 07-15 → 07-22 window (App Analytics). The ungated build reached
+        nobody, so "Initial release." is honest and **never-claw-back (FR-1100-13) binds to no
+        existing user**. The upgrade-path checks below concern only Jan's own frames.
+      - `releaseType` was changed **`AFTER_APPROVAL` → `MANUAL`**, so FR-1100-17 is now held by
+        **two independent locks**, not one: approval cannot auto-publish, *and* all 175
+        territories remain `available: false`. Release order is therefore: approved → click
+        *Release this version* → then availability on.
+- [ ] **EU trader status — IN PROGRESS with Apple as of 2026-07-29; release-blocking for 27
+      territories.** The territory availability records for the EU carry `contentStatuses:
+      [TRADER_STATUS_NOT_PROVIDED, CANNOT_SELL]` (27 of 175; the other 148 carry `CANNOT_SELL`
+      only, i.e. Jan's own switch). Without trader status the app **cannot be sold in the EU at
+      all** — including Germany, the home market the whole de-DE listing was written for. Not
+      exposed in the ASC API: set it in the ASC web UI under Business → Trader Status, and expect
+      **multi-day verification**. If it has not cleared at release time, ship the non-EU
+      territories and add the EU 27 afterwards rather than holding the whole release.
 
 **Store setup — done 2026-07-29 via the ASC API; all four products are `READY_TO_SUBMIT`:**
 
@@ -118,8 +122,17 @@ account, a second device, a family member account, and ASC access. **Nothing her
       shot shows the stub store's placeholder `$1.00` on all three rows, not the real ASC prices —
       harmless for a review screenshot, but re-shoot if a reviewer ever queries it.
 - [x] IAP availability set in all 175 territories (they sell wherever the app sells).
-- [ ] IAPs attached to the 1.1 submission (they are reviewed together with the build) — at
-      submission time.
+- [x] **Build 9 attached to the 1.1 version record** (verified via the ASC API 2026-07-29).
+- [ ] **IAPs attached to the 1.1 review submission — STILL OPEN, and the highest-consequence
+      item left.** Verified 2026-07-29: all four are `READY_TO_SUBMIT`, but that means *eligible*,
+      not *attached*, and **no review submission exists for 1.1 yet** (the only ones on record are
+      the COMPLETE v1.0 submissions of 07-12 and 07-14). First-time IAPs are reviewed **only** as
+      items in the same review submission as the build. Submitting the version alone leaves them
+      unreviewed and ships a purchase-gated app with **no purchasable products** — the Supporter
+      Unlock unbuyable for everyone. Add them to the version *before* "Add for Review", then
+      confirm the submission lists **five items**: build 9 + the four `ing.kipp.ownframe.*`
+      products. Note ASC may also object that no territory is selected — that is the FR-1100-17
+      guard, not a metadata fault.
 
 **Sandbox on device:**
 
