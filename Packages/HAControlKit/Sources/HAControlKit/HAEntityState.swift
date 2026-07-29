@@ -24,6 +24,11 @@ public enum HAEntity: String, CaseIterable, Sendable {
     case version
     case battery
     case charging
+    /// FR-710-24 (2026-07-26): `running` when the slideshow surface is frontmost,
+    /// `inactive` when an in-app modal covers it. Driven by an explicit UI-visibility
+    /// signal from the presenting layer — never inferred from view lifecycle, and never
+    /// a third value on the (binary) availability topic (FR-700-23).
+    case frameStatus = "frame_status"
 }
 
 public extension HAEntity {
@@ -37,7 +42,8 @@ public extension HAEntity {
     /// to `nil` (see `HADiscovery`); nothing here is ever driven from HA.
     var isReadOnlySensor: Bool {
         switch self {
-        case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging:
+        case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging,
+             .frameStatus:
             true
         case .playback, .brightness, .album, .order, .duration, .transition, .kenBurns,
              .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate,

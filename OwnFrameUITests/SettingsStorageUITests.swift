@@ -21,13 +21,12 @@ final class SettingsStorageUITests: XCTestCase {
         MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
-    /// The Form vends rows lazily, and Storage sits far down — swipe until the
-    /// element exists (bounded so a missing row fails the assertion, not hangs).
+    /// The Form vends rows lazily and Storage sits far down. Converges on the row instead of
+    /// spending a fixed swipe budget, so it neither stops short nor scrolls past it — the fixed
+    /// count was what broke on iOS 27 (issue #50). See ScrollHarness.
     @MainActor
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<4 where !element.exists {
-            app.swipeUp()
-        }
+        app.scrollUntilHittable(element)
     }
 
     @MainActor

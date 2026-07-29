@@ -149,15 +149,11 @@ final class SettingsUITests: XCTestCase {
                       "reset should return to the combined connection step")
     }
 
-    /// Swipes up until the element exists (or the swipe budget is exhausted).
+    /// Converges on the element rather than spending a fixed swipe budget — see ScrollHarness.
     @MainActor
-    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) -> Bool {
+    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         if element.waitForExistence(timeout: 3) { return true }
-        var swipes = 0
-        while !element.exists && swipes < maxSwipes {
-            app.swipeUp()
-            swipes += 1
-        }
+        app.scrollUntilExists(element)
         return element.exists
     }
 }

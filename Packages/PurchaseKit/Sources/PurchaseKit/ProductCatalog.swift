@@ -2,11 +2,15 @@
 ///
 /// These raw values are the contract with ASC: drift breaks purchases at runtime with no
 /// compile-time signal (contracts/purchasekit-api.md §Product identifiers).
+///
+/// They deliberately do **not** mirror the bundle id (`ing.kipp.Immich-Slideshow`): ASC accepts
+/// only alphanumerics, underscores and periods in a product id, so the bundle id's hyphen is
+/// rejected outright. `ProductCatalogTests` pins both the literals and the character set.
 public enum ProductID: String, CaseIterable, Sendable, Hashable {
-    case supporter = "ing.kipp.Immich-Slideshow.unlock.supporter"
-    case tipSmall = "ing.kipp.Immich-Slideshow.tip.small"
-    case tipMedium = "ing.kipp.Immich-Slideshow.tip.medium"
-    case tipLarge = "ing.kipp.Immich-Slideshow.tip.large"
+    case supporter = "ing.kipp.ownframe.unlock.supporter"
+    case tipSmall = "ing.kipp.ownframe.tip.small"
+    case tipMedium = "ing.kipp.ownframe.tip.medium"
+    case tipLarge = "ing.kipp.ownframe.tip.large"
 }
 
 /// The single source of truth for which products exist and what each one grants.

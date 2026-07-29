@@ -632,11 +632,25 @@ final class GermanScreenshotSweepUITests: XCTestCase {
         launch(args, landscapeOnIPad: landscapeOnIPad)
     }
 
+    /// The locale the sweep drives the app in. German by default — that is what this sweep is
+    /// for — but App Store Connect wants the IAP review screenshots in the primary locale
+    /// (en-US), and those are the same screens. `SCREENSHOT_LOCALE=en` re-runs any case here in
+    /// English rather than duplicating the navigation.
+    private static var locale: (language: String, locale: String) {
+        let environment = ProcessInfo.processInfo.environment
+        let requested = environment["SCREENSHOT_LOCALE"]
+            ?? environment["TEST_RUNNER_SCREENSHOT_LOCALE"]
+            ?? "de"
+        return requested == "en" ? ("(en)", "en_US") : ("(de)", "de_DE")
+    }
+
     @MainActor
     @discardableResult
     private func launch(_ args: [String], landscapeOnIPad: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest"] + args + ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
+        let locale = Self.locale
+        app.launchArguments = ["--uitest"] + args
+            + ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
         app.launch()
         if landscapeOnIPad, UIDevice.current.userInterfaceIdiom == .pad {
             XCUIDevice.shared.orientation = .landscapeLeft

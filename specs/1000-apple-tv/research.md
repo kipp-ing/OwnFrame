@@ -40,3 +40,41 @@
 
 - `swift-nio-ssl` tvOS compile (T004). CloudKit `encryptedValues` decrypt on real tvOS hardware
   (device gate). 24h soak + remote-only walkthrough need hardware.
+
+## iCloud KVS facts (verified online 2026-07-28, prompted by issue #51)
+
+Researched while diagnosing why FR-1000-06 never worked on hardware. These are the facts T026
+depends on — recorded here so the entitlement change does not have to re-derive them.
+
+- **The entitlement is `com.apple.developer.ubiquity-kvstore-identifier`**, default value
+  `$(TeamIdentifierPrefix)$(CFBundleIdentifier)`. It is *not* the same key as
+  `com.apple.developer.ubiquity-container-identifiers` (that one is iCloud **document**
+  storage, which tvOS does not have — see spec.md's platform constraints). The authoritative
+  name is also stated verbatim by the runtime error the app logs on every device launch:
+  *"Please specify your store identifier in the `com.apple.developer.ubiquity-kvstore-identifier`
+  entitlement."*
+- **Without the entitlement `NSUbiquitousKeyValueStore` degrades to a silent local no-op** — it
+  does not throw, does not crash, and returns values you just wrote. This is precisely why the
+  gap survived: every test injects `InMemoryConfigSyncStore`, and the real store *looks* like it
+  works when read back on the same device.
+- **The provisioning profile's entitlement value must match the entitlements file exactly**, or
+  code signing fails. So T026 is a portal change plus a project change, not a plist edit alone.
+- **Same bundle ID ⇒ one shared store across iOS and tvOS.** Both app targets are already
+  `ing.kipp.Immich-Slideshow` (pbxproj `PRODUCT_BUNDLE_IDENTIFIER` at :695 and :944), so the
+  default identifier resolves to the same store on both platforms with no explicit value. This
+  is the mechanism behind the spec's "same bundle-ID family also unlocks iCloud KVS sharing"
+  assumption.
+- **Limits: 1 MB total per user, 1 MB per value, 1024 keys max, key names ≤ 64 bytes UTF-8.**
+  Ample for `SyncedConfig` — FR-1000-04 already caps the whole UserDefaults footprint at 100 KB
+  (SC-1000-07), and the source-library JSON is the only field that grows. No redesign needed;
+  note the *key-name* limit if fields are ever added dynamically.
+- `synchronize()` is best-effort/optional on modern OSes (changes propagate on their own); the
+  existing `UbiquitousKVSConfigSyncStore` call is harmless.
+
+Sources:
+
+- [Enabling iCloud Storage — Entitlement Key Reference (Apple)](https://developer.apple.com/library/content/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingiCloud.html)
+- [Designing for Key-Value Data in iCloud (Apple)](https://developer.apple.com/library/archive/documentation/General/Conceptual/iCloudDesignGuide/Chapters/DesigningForKey-ValueDataIniCloud.html)
+- [NSUbiquitousKeyValueStore (Apple docs)](https://developer.apple.com/documentation/foundation/nsubiquitouskeyvaluestore)
+- [Sharing NSUbiquitousKeyValueStore across platforms — Apple Developer Forums](https://developer.apple.com/forums/thread/714826)
+- [Missing kvstore entitlement, observed symptom — UICKeyChainStore #62](https://github.com/kishikawakatsumi/UICKeyChainStore/issues/62)

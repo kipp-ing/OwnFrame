@@ -69,6 +69,8 @@ public enum HATopics {
             "sensor"
         case .charging:
             "binary_sensor"
+        case .frameStatus:
+            "sensor"
         }
     }
 }

@@ -153,7 +153,7 @@ struct EntitlementLeakGuardTests {
             """
             {"schema":1,"brokerHost":"broker.local","brokerPort":8883,\
             "entitlements":["supporter"],"isSupporter":true,"unlocked":true,\
-            "purchase":{"productID":"ing.kipp.Immich-Slideshow.unlock.supporter","owned":true},\
+            "purchase":{"productID":"ing.kipp.ownframe.unlock.supporter","owned":true},\
             "storeKitTransactions":[{"receipt":"forged"}]}
             """.utf8
         )
@@ -185,7 +185,7 @@ struct EntitlementLeakGuardTests {
         var hostile = clean
         hostile["cfg.entitlements"] = .string("supporter")
         hostile["cfg.unlock.pro"] = .int64(1)  // superseded product id — still an attack shape
-        hostile["ing.kipp.Immich-Slideshow.unlock.supporter"] = .int64(1)
+        hostile["ing.kipp.ownframe.unlock.supporter"] = .int64(1)
 
         let decodedClean = SyncedConfigKVSCodec.decode(clean)
         let decodedHostile = SyncedConfigKVSCodec.decode(hostile)
@@ -203,7 +203,7 @@ struct EntitlementLeakGuardTests {
     /// never become an entitlement, because the consumer has no entitlement sink to route it to.
     @Test
     func entitlementShapedSharedLinkKeyStaysInertData() async {
-        let hostileKey = "ing.kipp.Immich-Slideshow.unlock.supporter"
+        let hostileKey = "ing.kipp.ownframe.unlock.supporter"
         let secretStore = InMemorySecretSyncStore(
             stored: SyncedSecret(
                 immichApiKey: "immich-api-key-value",
@@ -263,7 +263,7 @@ struct EntitlementLeakGuardTests {
             "isSupporter", "supporterTier", "supporterUnlocked",
             "storeKit", "storekitTransactions", "transaction", "receipt", "receipts",
             "tip", "tipJar", "cfg.entitlements",
-            "ing.kipp.Immich-Slideshow.unlock.supporter",
+            "ing.kipp.ownframe.unlock.supporter",
         ]
         for key in leaks {
             #expect(

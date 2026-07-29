@@ -801,13 +801,13 @@
         }
       }
     },
-    "Easiest — play photos from an album on this iPad or in iCloud. No server needed." : {
+    "Easiest — play photos from an album on this device or in iCloud. No server needed." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Am einfachsten — Fotos aus einem Album auf diesem iPad oder in iCloud abspielen. Kein Server nötig."
+            "value" : "Am einfachsten — Fotos aus einem Album auf diesem Gerät oder in iCloud abspielen. Kein Server nötig."
           }
         }
       }
@@ -1586,12 +1586,12 @@
         }
       }
     },
-    "Photos you have viewed are kept on this iPad so the slideshow keeps playing when the network is down." : {
+    "Photos you have viewed are kept on this device so the slideshow keeps playing when the network is down." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bereits angezeigte Fotos werden auf diesem iPad behalten, damit die Diashow weiterläuft, wenn das Netzwerk ausfällt."
+            "value" : "Bereits angezeigte Fotos werden auf diesem Gerät behalten, damit die Diashow weiterläuft, wenn das Netzwerk ausfällt."
           }
         }
       }

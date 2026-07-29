@@ -19,6 +19,7 @@
 //  source switch, so retained availability can never end "offline" while playing (US4).
 //
 
+import HAControlKit
 import PowerKit
 import PurchaseKit
 import SlideshowKit
@@ -41,6 +42,11 @@ struct TVSlideshowView: View {
     /// NOT tear down the shared PowerManager / the successor's HA coordinator (its
     /// replacement has already taken over).
     var isCurrentGeneration: () -> Bool = { true }
+    /// Whether the presenting layer currently covers this view with an in-app modal
+    /// (the settings `fullScreenCover`). On tvOS the cover REMOVES this view — its
+    /// `onDisappear` fires — so the disappearance alone cannot mean "leaving the
+    /// slideshow"; this closure supplies the *why* (FR-700-23).
+    var isModalPresented: () -> Bool = { false }
     /// Opens the tvOS settings surface (Home Assistant / MQTT broker).
     var onSettings: () -> Void = {}
 
@@ -153,8 +159,18 @@ struct TVSlideshowView: View {
             // Outgoing generation after a source switch: the successor already owns the
             // shared PowerManager and HA lifecycle — tearing them down here would kill them.
             guard isCurrentGeneration() else { return }
-            powerManager.deactivate()
-            Task { await stopHA() }
+            // FR-700-23: the settings fullScreenCover removes this view, so onDisappear
+            // fires for a mere cover too. A cover keeps the broker session (availability
+            // stays online, SC-700-15) and the keep-awake hold (FR-400-01); the covered
+            // surface is reported via frame_status instead (FR-710-24, signalled by the
+            // presenting layer). A genuine exit tears down exactly as before.
+            switch SlideshowSurfaceLifecycle.decision(for: .viewDisappeared, isModalPresented: isModalPresented()) {
+            case .keepAlive:
+                break
+            case .tearDown:
+                powerManager.deactivate()
+                Task { await stopHA() }
+            }
         }
         .onChange(of: viewModel.currentAssetID) { _, _ in
             // Photo-advance boundary — the only moment the ambience gate may change what
@@ -177,8 +193,12 @@ struct TVSlideshowView: View {
                 Task { await startHA() }
             default:
                 viewModel.pause()
-                powerManager.didEnterBackground()
-                Task { await stopHA() }
+                // Leaving the foreground is a real connectivity loss (FR-700-23) and
+                // always releases the keep-awake (FR-400-03) — never a keepAlive case.
+                if SlideshowSurfaceLifecycle.decision(for: .leftForeground, isModalPresented: isModalPresented()) == .tearDown {
+                    powerManager.didEnterBackground()
+                    Task { await stopHA() }
+                }
             }
         }
     }

@@ -106,6 +106,7 @@
       "layers" : [
         {
           "glass" : false,
+          "hidden" : true,
           "image-name" : "Image 12.png",
           "name" : "Image 12",
           "position" : {
@@ -113,6 +114,30 @@
             "translation-in-points" : [
               2,
               -6
+            ]
+          }
+        },
+        {
+          "glass" : false,
+          "image-name" : "Image 13.png",
+          "name" : "Image 13",
+          "position" : {
+            "scale" : 0.78,
+            "translation-in-points" : [
+              11.470000000000027,
+              -4.903823999999986
+            ]
+          }
+        },
+        {
+          "hidden" : true,
+          "image-name" : "image.png",
+          "name" : "image",
+          "position" : {
+            "scale" : 0.59,
+            "translation-in-points" : [
+              0,
+              0
             ]
           }
         },

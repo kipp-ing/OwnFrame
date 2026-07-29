@@ -27,6 +27,11 @@ public protocol HAPublishOptionsStore: AnyObject {
 
 @MainActor
 public final class UserDefaultsHAPublishOptionsStore: HAPublishOptionsStore {
+    /// The single key this store owns. Exposed so a test seam can clear it directly instead of
+    /// calling `removePersistentDomain`, which leaves later writes through the same
+    /// `UserDefaults` instance silently dropped.
+    public static let defaultsKey = "haPublish.options"
+
     private let defaults: UserDefaults
     private var cachedOptions: HAPublishOptions
 
@@ -36,14 +41,14 @@ public final class UserDefaultsHAPublishOptionsStore: HAPublishOptionsStore {
             cachedOptions = newValue
             if let encoded = try? JSONEncoder().encode(newValue),
                let jsonString = String(data: encoded, encoding: .utf8) {
-                defaults.set(jsonString, forKey: "haPublish.options")
+                defaults.set(jsonString, forKey: Self.defaultsKey)
             }
         }
     }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let saved = defaults.string(forKey: "haPublish.options"),
+        if let saved = defaults.string(forKey: Self.defaultsKey),
            let data = saved.data(using: .utf8),
            let decoded = try? JSONDecoder().decode(HAPublishOptions.self, from: data) {
             self.cachedOptions = decoded

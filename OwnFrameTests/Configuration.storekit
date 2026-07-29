@@ -13,7 +13,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "ing.kipp.Immich-Slideshow.unlock.supporter",
+      "productID" : "ing.kipp.ownframe.unlock.supporter",
       "referenceName" : "TEST FIXTURE Supporter unlock",
       "type" : "NonConsumable"
     },
@@ -28,7 +28,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "ing.kipp.Immich-Slideshow.tip.small",
+      "productID" : "ing.kipp.ownframe.tip.small",
       "referenceName" : "TEST FIXTURE tip small",
       "type" : "Consumable"
     },
@@ -43,7 +43,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "ing.kipp.Immich-Slideshow.tip.medium",
+      "productID" : "ing.kipp.ownframe.tip.medium",
       "referenceName" : "TEST FIXTURE tip medium",
       "type" : "Consumable"
     },
@@ -58,7 +58,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "ing.kipp.Immich-Slideshow.tip.large",
+      "productID" : "ing.kipp.ownframe.tip.large",
       "referenceName" : "TEST FIXTURE tip large",
       "type" : "Consumable"
     }

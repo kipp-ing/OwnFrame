@@ -70,9 +70,12 @@ public enum HADiscovery {
             // Stateless HA button: command topic + payload_press, no state topic.
             json["state_topic"] = nil
             json["payload_press"] = "PRESS"
-        case .phase, .photoCount, .version:
+        case .phase, .photoCount, .version, .frameStatus:
             // Read-only diagnostic sensors: no command topic, marked diagnostic so
-            // HA files them under the device's diagnostics (FR-710-07).
+            // HA files them under the device's diagnostics (FR-710-07). `frame_status`
+            // (FR-710-24) shares the shape — incl. the availability binding above, so
+            // an offline frame shows the entity as unavailable rather than a stale
+            // `running`/`inactive`.
             json["command_topic"] = nil
             json["entity_category"] = "diagnostic"
         case .battery:
@@ -154,6 +157,8 @@ public enum HADiscovery {
             "Slideshow Battery"
         case .charging:
             "Slideshow Charging"
+        case .frameStatus:
+            "Slideshow Frame Status"
         }
     }
 }

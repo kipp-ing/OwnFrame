@@ -65,6 +65,14 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
       dependency (FR-1000-09); entitlements (iCloud KVS + CloudKit private DB); shared scheme.
       Minimal `ImmichSlideshowTVApp` stub. **Verify: `build_sim` for the tvOS scheme succeeds**
       (resolve `swift-nio-ssl`/`mqtt-nio` tvOS compile here — the T004 spike-verify risk).
+      ⚠️ **Partially done — the entitlements clause was never implemented** (found 2026-07-27,
+      issue #51). `OwnFrame/OwnFrame.entitlements` carries only the app group, and `OwnFrameTV`
+      has no `CODE_SIGN_ENTITLEMENTS` at all. Consequence: **FR-1000-06 is inert on real
+      hardware** — `NSUbiquitousKeyValueStore` without
+      `com.apple.developer.ubiquity-kvstore-identifier` degrades to a silent local no-op, so
+      iPad→TV config sync has only ever worked against the injected fakes. Everything else in
+      T005 (target, bundle-id family, package set, exception set, scheme) is done and verified.
+      Split out as **T026** below.
 
 **Checkpoint**: tvOS target builds an empty app on the sim; packages tvOS-ready.
 
@@ -147,6 +155,27 @@ real-hardware gates (SC-1000-02/05/06/08 + CloudKit-decrypt-on-tvOS proof + 24h 
 - [ ] T025 [inline] Docs + traceability: update `docs/spec-overview.md` (1000 status), `CLAUDE.md`
       active-feature note, and register the device gates (SC-1000-02/05/06/08 + CloudKit-on-hardware)
       in quickstart.md. Requirement→task traceability table.
+- [ ] T026 [inline] **iCloud entitlements — the clause T005 skipped** (issue #51, found 2026-07-27).
+      Until this lands, **FR-1000-06 does not work on any real device**: KVS silently no-ops
+      without the entitlement, so US2's prefill/restore has only ever been exercised against
+      injected fakes. Land **KVS first, CloudKit separately** — KVS alone unblocks FR-1000-06 and
+      the `manual-verification.md` hardware gate with a much smaller signing blast radius.
+      1. `com.apple.developer.ubiquity-kvstore-identifier` =
+         `$(TeamIdentifierPrefix)$(CFBundleIdentifier)` on **both** app targets. `OwnFrameTV` has
+         no entitlements file at all — create `OwnFrameTV/OwnFrameTV.entitlements` and wire
+         `CODE_SIGN_ENTITLEMENTS`. Both targets are already bundle ID `ing.kipp.Immich-Slideshow`,
+         so the identifier resolves to the same store on iOS and tvOS (that shared-bundle-id
+         assumption in spec.md is what makes one store work).
+      2. Enable the iCloud capability on the App ID in the portal and regenerate profiles — the
+         profile's entitlement value must match the file exactly or signing fails.
+      3. **Verify against the signed binary, not the source:** `codesign -d --entitlements -`.
+         Checking only the `.entitlements` file is what let this sit undetected.
+      4. CloudKit (FR-1000-12) as its own step: add the container, flip
+         `SecretSyncStoreFactory.cloudKitEntitlementsPresent` to `true`, and invert the unit test
+         that currently asserts it is off.
+      5. The failure mode is a silent no-op whose only symptom is a console line, so add a
+         launch-time assertion or a `DEVICE_RIG` check — no existing test can see it.
+      6. Then run the deferred gate: "KVS non-secret sync on hardware" in `manual-verification.md`.
 
 ## Dependencies
 

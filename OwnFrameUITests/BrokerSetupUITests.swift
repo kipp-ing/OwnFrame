@@ -111,13 +111,10 @@ final class BrokerSetupUITests: XCTestCase {
         XCTAssertTrue(scrollToElement(toggle, in: app), "image-publish toggle should be reachable in the MQTT section")
         XCTAssertEqual(toggle.value as? String, "0", "image publishing must be off by default (FR-710-15)")
 
-        // Ensure the switch is fully on-screen (it's the last row) before tapping.
-        var tries = 0
-        while !toggle.isHittable && tries < 4 { app.swipeUp(); tries += 1 }
-        // Center-tapping a Form Toggle can land on its (long) label; tap the trailing
-        // edge where the switch control sits. Then wait for the value to flip —
-        // SwiftUI reflects the @State change asynchronously.
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        // Scrolls the switch fully into view, then taps its trailing edge (a centre tap can
+        // land on the long label). Then wait for the value to flip — SwiftUI reflects the
+        // @State change asynchronously.
+        app.tapSwitchControl(toggle)
         let isOn = NSPredicate(format: "value == %@", "1")
         expectation(for: isOn, evaluatedWith: toggle)
         waitForExpectations(timeout: 3)
@@ -132,16 +129,12 @@ final class BrokerSetupUITests: XCTestCase {
         XCTAssertEqual(toggleAfter.value as? String, "1", "the image-publish toggle should persist across relaunch")
     }
 
-    /// Swipes up until the element exists (or the swipe budget is exhausted). The
-    /// folded-in MQTT section is below the fold of the settings form.
+    /// Scrolls the folded-in MQTT section into view. Aims for hittability rather than mere
+    /// existence, and converges instead of spending a fixed swipe budget — see ScrollHarness.
     @MainActor
-    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) -> Bool {
+    private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         if element.waitForExistence(timeout: 5) { return true }
-        var swipes = 0
-        while !element.exists && swipes < maxSwipes {
-            app.swipeUp()
-            swipes += 1
-        }
+        app.scrollUntilExists(element)
         return element.exists
     }
 }

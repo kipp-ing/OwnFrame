@@ -32,6 +32,12 @@
 //     and the Ask-to-Buy cases then block forever waiting for a tap no headless run will make.
 //     Configure the session AFTER resetting it.
 //
+//  A third trap is NOT in the test (issue #54, 2026-07-29): on iOS 26.x simulators the session
+//  never binds — `storefront` reads back empty even right after being assigned, and no product
+//  resolves. Same code, same fixture, same ids are green on an iOS 18.6 simulator and on real
+//  hardware. `setUp` skips on that precise signal and fails on every other cause; see the comment
+//  there, and `docs/testing.md` for the destination the release gate uses.
+//
 
 import StoreKit
 import StoreKitTest
@@ -63,6 +69,7 @@ final class StoreKitClientTests: XCTestCase {
         session.resetToDefaultState()
         session.clearTransactions()
         session.disableDialogs = true        // no confirmation sheets — purchases auto-complete
+        session.storefront = "USA"           // pinned, so the storefront check below is meaningful
 
         // Fail loudly, never skip: an empty store here means the fixture stopped reaching the
         // session (a renamed/removed resource, a broken config), and every case below would fail
@@ -70,10 +77,44 @@ final class StoreKitClientTests: XCTestCase {
         // theory that headless runs simply can't serve products; that theory was wrong, so a
         // silent skip would now only hide a real regression.
         let available = try await Product.products(for: ProductCatalog.unlocks.map(\.rawValue))
+
+        // Trap 3 (issue #54, 2026-07-29): on iOS 26.x **simulators** the session never binds at
+        // all. `storefront` reads back empty — even immediately after assigning it — and every
+        // product query returns nothing. It is not a timing problem (polling for 5 s changes
+        // nothing), not the fixture (the same bundle and the same ids serve fine elsewhere), and
+        // not the host app racing StoreKit. The identical code and fixture are green on an iOS
+        // 18.6 simulator and on real hardware (FramePhone, iOS 27), so it is a runtime defect in
+        // the 26.x simulators, not a defect in what these cases test.
+        //
+        // An empty storefront is what separates "the session infrastructure is dead" from "the
+        // adapter is broken": a working session always reports one, and the assertion below pins
+        // that. So skip only on that precise signal — a session that binds and still serves no
+        // products is a real regression and must fail, which is why the old blanket `XCTSkipIf`
+        // was removed (it hid two genuine setup bugs; see traps 1 and 2).
+        if available.isEmpty, session.storefront.isEmpty {
+            throw XCTSkip(
+                "SKTestSession did not bind on this runtime (iOS 26.x simulator regression, "
+                + "issue #54). Run this suite on an iOS 18.6 simulator or on hardware — "
+                + "docs/testing.md names the destination the release gate uses."
+            )
+        }
+
+        // Fail loudly, never skip: an empty store here means the fixture stopped reaching the
+        // session (a renamed/removed resource, a broken config), and every case below would fail
+        // for that reason rather than an adapter one. This used to be an `XCTSkipIf` on the
+        // theory that headless runs simply can't serve products; that theory was wrong, so a
+        // silent skip would now only hide a real regression.
         XCTAssertEqual(
             available.count, ProductCatalog.unlocks.count,
             "SKTestSession served \(available.count) of \(ProductCatalog.unlocks.count) unlocks — "
             + "the fixture is not reaching the session."
+        )
+        // Pins the discriminator the skip above relies on: a session that serves products always
+        // reports a storefront. If this ever fails, the skip condition has become unsafe.
+        XCTAssertFalse(
+            session.storefront.isEmpty,
+            "a bound SKTestSession must report a storefront — issue #54's skip condition "
+            + "assumes an empty one means the session never bound"
         )
     }
 

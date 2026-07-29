@@ -309,7 +309,8 @@ struct HADiscoveryTests {
     // @covers FR-710-07
     @Test
     func diagnosticSensorsAreReadOnlyAndDiagnosticCategory() throws {
-        for entity in [HAEntity.phase, .photoCount, .version] {
+        // .frameStatus added 2026-07-26 (FR-710-24): same diagnostic-sensor shape.
+        for entity in [HAEntity.phase, .photoCount, .version, .frameStatus] {
             let data = HADiscovery.config(for: entity, deviceID: "dev1", deviceName: "Slideshow", albumOptions: [])
             let json = try Self.object(from: data)
             #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: entity))
