@@ -461,7 +461,10 @@ private extension Entitlement {
                 ),
                 UnlockBenefit(
                     title: String(localized: "Clock overlay", bundle: .module),
-                    detail: String(localized: "A quiet clock on the frame, in your 12- or 24-hour format.", bundle: .module),
+                    // Deliberately no 12/24-hour claim: the shipping overlay renders a fixed
+                    // 24-hour HH:mm (ClockOverlayView documents why), so the offer must not
+                    // promise a format choice the feature does not deliver.
+                    detail: String(localized: "A quiet clock on the frame — in the style and place you choose.", bundle: .module),
                     symbol: "clock"
                 ),
                 UnlockBenefit(

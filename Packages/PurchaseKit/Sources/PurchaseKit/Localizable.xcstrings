@@ -34,13 +34,13 @@
         }
       }
     },
-    "A quiet clock on the frame, in your 12- or 24-hour format." : {
+    "A quiet clock on the frame — in the style and place you choose." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine dezente Uhr auf dem Rahmen, im 12- oder 24-Stunden-Format."
+            "value" : "Eine dezente Uhr auf dem Rahmen — Stil und Platz wählst du."
           }
         }
       }
