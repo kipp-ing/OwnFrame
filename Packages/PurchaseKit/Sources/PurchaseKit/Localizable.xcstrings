@@ -199,6 +199,17 @@
         }
       }
     },
+    "Live sample: Ken Burns motion with the clock overlay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live-Beispiel: Ken-Burns-Bewegung mit Uhr-Overlay"
+          }
+        }
+      }
+    },
     "Opens the %@ unlock screen." : {
       "extractionState" : "manual",
       "localizations" : {

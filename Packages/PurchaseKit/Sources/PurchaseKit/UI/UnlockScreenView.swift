@@ -152,39 +152,17 @@ public struct UnlockScreenView: View {
         }
     }
 
-    /// The unlock screen's motion sample slot.
-    ///
-    /// A neutral, bundled placeholder for now: FR-1100-09 asks for a *live* demo where the
-    /// feature is visual, and a looping sample lands with the demo work. It deliberately does not
-    /// reach into a running slideshow — the unlock screen must render identically whether it was
-    /// opened from playback settings or from onboarding, and must never depend on a photo source
-    /// being configured at all.
+    /// The unlock screen's motion sample slot — the live demo FR-1100-09 asks for where the
+    /// feature is visual: the bundled cliff photo under the slideshow's slow drift-and-scale,
+    /// with a miniature clock overlay (`KenBurnsDemoView`). Self-contained: it never reaches
+    /// into a running slideshow and never depends on a photo source being configured.
     private var kenBurnsDemo: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [.indigo.opacity(0.55), .teal.opacity(0.35)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-
-            VStack(spacing: 8) {
-                Image(systemName: "camera.viewfinder")
-                    .font(.system(size: Layout.demoGlyphSize, weight: .light))
-                Text("A slow drift and scale across every photo", bundle: .module)
-                    .font(.footnote)
-                    .multilineTextAlignment(.center)
-            }
-            .foregroundStyle(.white.opacity(0.9))
-            .padding()
-        }
-        .frame(height: Layout.demoHeight)
-        .frame(maxWidth: .infinity)
-        .accessibilityElement()
-        .accessibilityLabel(Text("Ken Burns motion sample", bundle: .module))
-        .accessibilityIdentifier("unlock.demo.kenburns")
+        KenBurnsDemoView()
+            .frame(height: Layout.demoHeight)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement()
+            .accessibilityLabel(Text("Live sample: Ken Burns motion with the clock overlay", bundle: .module))
+            .accessibilityIdentifier("unlock.demo.kenburns")
     }
 
     // MARK: - Offer
@@ -438,7 +416,6 @@ public struct UnlockScreenView: View {
         static let rowPadding: CGFloat = 24
         static let contentWidth: CGFloat = 1000
         static let demoHeight: CGFloat = 260
-        static let demoGlyphSize: CGFloat = 54
         #else
         static let padding: CGFloat = 24
         static let sectionSpacing: CGFloat = 28
@@ -446,7 +423,6 @@ public struct UnlockScreenView: View {
         static let rowPadding: CGFloat = 16
         static let contentWidth: CGFloat = 560
         static let demoHeight: CGFloat = 160
-        static let demoGlyphSize: CGFloat = 34
         #endif
     }
 }
