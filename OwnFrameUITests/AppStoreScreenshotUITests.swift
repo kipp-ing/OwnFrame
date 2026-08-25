@@ -10,8 +10,22 @@
 //
 //      xcrun xcresulttool export attachments --path <bundle>.xcresult --output-path <dir>
 //
-//  XCUIScreen returns the portrait pixel buffer even in landscape — rotate the
-//  exported PNGs 90° CCW (`sips -r 270`) to get the 2752×2064 landscape frames.
+//  PORTRAIT (2026-08-25). The store set is portrait — iPad 13" 2064×2752, iPhone 6.9"
+//  1320×2868 — so this rig no longer forces landscape, and the `sips -r 270` rotation
+//  step the old landscape recipe needed is GONE: XCUIScreen returns the portrait pixel
+//  buffer, which is now the orientation we actually want.
+//
+//  LOCALE. `SCREENSHOT_LOCALE=de` (or TEST_RUNNER_SCREENSHOT_LOCALE) re-runs the same
+//  navigation in German; the default is English. de-DE previously shipped the English
+//  captures because this rig could only produce them. Same mechanism as
+//  GermanScreenshotSweepUITests — `-AppleLanguages` / `-AppleLocale` launch arguments,
+//  which are plain NSUserDefaults overrides and independent of the --uitest seams.
+//
+//  WHAT THIS RIG IS FOR. Only the frames that need REAL photographs: the store set's
+//  photo slots. Everything that is pure UI (the source-choice screen, the album picker —
+//  neither renders a photo thumbnail) comes from the hermetic sweep instead, which is
+//  faster, needs no network, and localizes for free. See docs/app-store-presentation.md.
+//
 //  The demo link and hero assets are the ones referenced in the App Review notes
 //  (docs/app-store-listing.md): album "2021-06-Island best of", 38 images.
 //
@@ -21,9 +35,27 @@ import XCTest
 final class AppStoreScreenshotUITests: XCTestCase {
 
     private static let demoLink = "https://bilder.kippings.de/s/Iceland2021"
-    // Hero photos (Jan's picks): the red-roof chapel and the iceberg drone shot.
-    private static let chapelAssetID = "87b68d06-03e7-4d9d-a07d-dd00171af601"   // DSC05546
-    private static let icebergAssetID = "a21c487a-802b-4be5-a1d5-62f3e41978dd"  // DJI_0371
+
+    /// The photo slots of the store set, in capture order, each targeted by an asset-id
+    /// oracle on `slideshow.image`. Asset ids are device- and locale-independent.
+    ///
+    /// PLACEHOLDER PICKS: these are still the Iceland album's two heroes. The store set
+    /// needs four photographs from the curated everyday/family album (slots 1, 2, 5, 6) —
+    /// add the remaining ids here once that album's shared link exists, and point
+    /// `demoLink` at it. The rig captures however many entries this list holds.
+    private static let heroes: [(name: String, assetID: String)] = [
+        ("01-hero-drawer", "87b68d06-03e7-4d9d-a07d-dd00171af601"),   // DSC05546, red-roof chapel
+        ("02-hero-favourites", "a21c487a-802b-4be5-a1d5-62f3e41978dd"), // DJI_0371, iceberg drone shot
+    ]
+
+    /// English unless the runner asks for German. Mirrors GermanScreenshotSweepUITests.
+    private static var locale: (language: String, locale: String) {
+        let environment = ProcessInfo.processInfo.environment
+        let requested = environment["SCREENSHOT_LOCALE"]
+            ?? environment["TEST_RUNNER_SCREENSHOT_LOCALE"]
+            ?? "en"
+        return requested == "de" ? ("(de)", "de_DE") : ("(en)", "en_US")
+    }
 
     override func setUpWithError() throws {
         guard ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE"] == "1" else {
@@ -36,67 +68,41 @@ final class AppStoreScreenshotUITests: XCTestCase {
         MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
-    /// One pass through the marketing states: onboarding choice, shared-link setup,
-    /// two slideshow heroes, chrome, photo info, settings. Captures are attached
-    /// full-screen; the heroes are reached via the `slideshow.image` value oracle.
+    /// The store set's photo slots: onboard through the demo link, then walk to each hero
+    /// and capture it full-screen with no chrome showing. This is the marketing critical
+    /// path and is deliberately free of the chrome-reveal races that make the sheet
+    /// captures below flaky — if those fail, these are already attached.
     @MainActor
-    func testCaptureAppStoreScreenshots() throws {
-        let app = XCUIApplication()
-        app.launch()
-        XCUIDevice.shared.orientation = .landscapeLeft
-        sleep(1)
+    func testCaptureHeroPhotos() throws {
+        let app = launch()
+        let image = try startSlideshow(app)
 
-        // 1 — first-run choice screen (requires a fresh install).
-        let sharedLinkChoice = app.buttons["onboarding.choice.sharedLink"]
-        XCTAssertTrue(sharedLinkChoice.waitForExistence(timeout: 10),
-                      "expected the first-run choice screen — uninstall the app before capturing")
-        attach(name: "01-onboarding-choice")
-        sharedLinkChoice.tap()
-
-        // 2 — shared-link setup, filled with the demo link, keyboard dismissed.
-        let url = app.textFields["onboarding.sharedLink.url"]
-        XCTAssertTrue(url.waitForExistence(timeout: 5))
-        url.tap()
-        url.typeText(Self.demoLink)
-        dismissKeyboard(app)
-        attach(name: "02-onboarding-sharedlink")
-        app.buttons["onboarding.sharedLink.start"].tap()
-
-        // 3 — slideshow running (live resolve + first image over the network).
-        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
-        XCTAssertTrue(image.waitForExistence(timeout: 60), "the demo link should start the slideshow")
-        sleep(2)
-
-        // 4 — hero 1: the chapel. Swipe (never reveals chrome) until the oracle matches.
-        advance(image, to: Self.chapelAssetID)
-        attach(name: "03-hero-chapel")
-
-        // 5 — chrome over the chapel.
-        revealChrome(app, image: image)
-        attach(name: "04-chrome")
-
-        // 6 — hero 2: the iceberg. Hide the chrome, swipe on.
-        hideChrome(app, image: image)
-        advance(image, to: Self.icebergAssetID)
-        attach(name: "05-hero-iceberg")
-
-        // 7 — settings sheet over the iceberg. The chrome auto-hide races taps on an
-        // aged chrome, so re-reveal fresh and retry until the sheet's Done appears.
-        let done = app.buttons["Done"]
-        for _ in 0..<3 {
-            if done.exists { break }
-            revealChrome(app, image: image)
-            app.buttons["slideshow.chrome.settings"].tap()
-            _ = done.waitForExistence(timeout: 3)
+        for hero in Self.heroes {
+            advance(image, to: hero.assetID)
+            attach(name: hero.name)
         }
-        XCTAssertTrue(done.exists, "the settings sheet should present")
-        sleep(1)
-        attach(name: "06-settings")
-        done.tap()
-        sleep(1)
+    }
 
-        // 8 — photo info overlay over the iceberg (drone shot carries GPS), using the
-        // overlay card as the oracle; date + location load async, give them a beat.
+    /// Chrome, photo-info overlay and settings sheet over a live photo. Not part of the
+    /// six-slot store set, kept because these are the only captures of those surfaces with
+    /// a REAL photograph behind them (the hermetic sweep renders flat rectangles).
+    ///
+    /// Ordered so the settings sheet comes LAST and is never dismissed: its Done button
+    /// carries no accessibility id and its label is localized, so tapping it would need a
+    /// German string literal (which the english-only rule forbids) or an app change. Ending
+    /// on the sheet sidesteps that entirely.
+    @MainActor
+    func testCaptureChromeAndSheets() throws {
+        let app = launch()
+        let image = try startSlideshow(app)
+        guard let hero = Self.heroes.first else { return XCTFail("no hero configured") }
+        advance(image, to: hero.assetID)
+
+        revealChrome(app, image: image)
+        attach(name: "20-chrome")
+
+        // Date + location load async, give them a beat. The chrome auto-hide races taps on
+        // an aged chrome, so re-reveal fresh and retry until the card appears.
         let infoCard = app.descendants(matching: .any).matching(identifier: "slideshow.info.card").firstMatch
         for _ in 0..<3 {
             if infoCard.exists { break }
@@ -106,7 +112,51 @@ final class AppStoreScreenshotUITests: XCTestCase {
         }
         XCTAssertTrue(infoCard.exists, "the photo info overlay should appear")
         sleep(2)
-        attach(name: "07-photo-info")
+        attach(name: "21-photo-info")
+
+        let settings = app.buttons["slideshow.chrome.settings"]
+        for _ in 0..<3 {
+            revealChrome(app, image: image)
+            settings.tap()
+            if app.sliders.firstMatch.waitForExistence(timeout: 3) { break }
+        }
+        XCTAssertTrue(app.sliders.firstMatch.exists, "the settings sheet should present")
+        sleep(1)
+        attach(name: "22-settings")
+    }
+
+    // MARK: - Launch + onboarding
+
+    @MainActor
+    private func launch() -> XCUIApplication {
+        let app = XCUIApplication()
+        let locale = Self.locale
+        app.launchArguments = ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
+        app.launch()
+        XCUIDevice.shared.orientation = .portrait
+        sleep(1)
+        return app
+    }
+
+    /// Fresh-install onboarding through the demo shared link, up to the first live image.
+    @MainActor
+    private func startSlideshow(_ app: XCUIApplication) throws -> XCUIElement {
+        let sharedLinkChoice = app.buttons["onboarding.choice.sharedLink"]
+        XCTAssertTrue(sharedLinkChoice.waitForExistence(timeout: 10),
+                      "expected the first-run choice screen — uninstall the app before capturing")
+        sharedLinkChoice.tap()
+
+        let url = app.textFields["onboarding.sharedLink.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 5))
+        url.tap()
+        url.typeText(Self.demoLink)
+        dismissKeyboard(app)
+        app.buttons["onboarding.sharedLink.start"].tap()
+
+        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 60), "the demo link should start the slideshow")
+        sleep(2)
+        return image
     }
 
     // MARK: - Helpers
@@ -135,14 +185,6 @@ final class AppStoreScreenshotUITests: XCTestCase {
             usleep(800_000)
         }
         XCTAssertTrue(probe.isHittable, "chrome should be visible after tapping the photo")
-    }
-
-    @MainActor
-    private func hideChrome(_ app: XCUIApplication, image: XCUIElement) {
-        if app.buttons["slideshow.chrome.next"].isHittable {
-            image.tap()
-            usleep(800_000)
-        }
     }
 
     /// Best-effort keyboard dismissal: the iPad's dedicated dismiss key when present,
