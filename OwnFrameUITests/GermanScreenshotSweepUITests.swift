@@ -225,6 +225,16 @@ final class GermanScreenshotSweepUITests: XCTestCase {
         attach("16-incoming-link-onboarding")
     }
 
+    /// The album picker as a real server presents it — many albums, nothing filtered.
+    /// This is the App Store set's "choose an album" slot: test11's two-album fixture reads
+    /// as an empty app on a 2064×2752 canvas, and test12 has a search query typed into it.
+    @MainActor
+    func test17_albumPickerMany() throws {
+        let app = launch("--uitest-onboarding-source", "--uitest-albums-many")
+        try require(app, "onboarding.album.album-munich", screen: "17-album-picker-many")
+        attach("17-album-picker-many")
+    }
+
     // MARK: - 20…34 Slideshow
 
     @MainActor
@@ -644,6 +654,18 @@ final class GermanScreenshotSweepUITests: XCTestCase {
         return requested == "en" ? ("(en)", "en_US") : ("(de)", "de_DE")
     }
 
+    /// This sweep is a QA tool and defaults to landscape on iPad, matching how the frame
+    /// usually stands. The App Store set is PORTRAIT, though, and two of its slots are pure
+    /// UI that renders no photo thumbnail (the source-choice screen and the album picker),
+    /// so they are captured here rather than by the live-network rig. `SCREENSHOT_PORTRAIT=1`
+    /// switches this sweep to portrait for those marketing runs without disturbing the
+    /// default QA behaviour of the other cases.
+    private static var forcesPortrait: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["SCREENSHOT_PORTRAIT"] == "1"
+            || environment["TEST_RUNNER_SCREENSHOT_PORTRAIT"] == "1"
+    }
+
     @MainActor
     @discardableResult
     private func launch(_ args: [String], landscapeOnIPad: Bool = true) -> XCUIApplication {
@@ -652,7 +674,7 @@ final class GermanScreenshotSweepUITests: XCTestCase {
         app.launchArguments = ["--uitest"] + args
             + ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
         app.launch()
-        if landscapeOnIPad, UIDevice.current.userInterfaceIdiom == .pad {
+        if landscapeOnIPad, !Self.forcesPortrait, UIDevice.current.userInterfaceIdiom == .pad {
             XCUIDevice.shared.orientation = .landscapeLeft
             settle()
         } else {
