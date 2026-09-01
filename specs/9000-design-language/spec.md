@@ -60,9 +60,10 @@ error states — as open items with owners, instead of letting a gap read as a s
 - Q: Appearance? → A: **Always dark, app-wide.** Photographs carry every screen and the frame
   recedes; it also matches the slideshow chrome, which is already white-on-dark. Known cost, recorded
   as a risk: a bright room during setup is less legible (FR-9000-07, SC-9000-03).
-- Q: Which accent color? → A: **Not decided.** The canvas' language sheet says, verbatim, *"Accent —
-  one warm hue, pick on the artboards"*, and offers three candidates against today's blue. The pick
-  is an open decision (FR-9000-14, Roadmap), not something this spec may invent.
+- Q: Which accent color? → A: **Messing `#E3A857`** — Jan's decision, 2026-09-01. The canvas'
+  language sheet said only *"Accent — one warm hue, pick on the artboards"* and offered three
+  candidates against today's blue; its artboards all rendered in Messing, and that hint is now the
+  decision. Recorded in FR-9000-14, which also carries the contrast consequence.
 - Q: The canvas' album-picker artboard shows a checkmark on a row and a pinned bar reading
   *"1 Album ausgewählt"*. Does the picker become multi-select? → A: **No.** The picker's interaction
   model is owned by `210` and is unchanged: sources are added one at a time, and the pinned bar is
@@ -202,11 +203,13 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
   `OwnFrame/Assets.xcassets/AccentColor.colorset`, and every tint MUST derive from it. Today that
   colorset declares **no** color, so the app's blue is an omission rather than a decision — that is
   the defect this requirement closes.
-- **FR-9000-14**: The accent hue is **an open decision**, deliberately not fixed by this spec. The
-  design record offers three warm candidates — *Messing* `#E3A857`, *Terrakotta* `#E08C6A`,
-  *Gletscher* `#5AC8C8` — against today's default `#0A84FF`. The canvas' own artboards render
-  consistently in *Messing*, which is a strong hint and **not** a decision. Whichever is chosen MUST
-  be recorded here before implementation begins (see `Roadmap / Deferred`).
+- **FR-9000-14**: The accent hue is **Messing `#E3A857`** (decided 2026-09-01). It MUST be the value
+  declared in `AccentColor.colorset` per FR-9000-13. Recorded for provenance: it was chosen over
+  *Terrakotta* `#E08C6A` and *Gletscher* `#5AC8C8`, against today's default `#0A84FF`.
+  **Consequence, binding on FR-9000-19:** Messing is a *light* hue — relative luminance 0.45 — so it
+  carries **10:1 against the `#000000` ground**, comfortably past FR-9000-07, but only **2.1:1 under
+  white text**, which fails AA. A filled control tinted Messing MUST therefore carry a **near-black
+  label**, never a white one. Messing as text, icon or stroke *on* the dark ground is unrestricted.
 - **FR-9000-15**: Surfaces MUST come from the named system-role palette recorded by the design
   record: `systemBackground` `#000000`, `secondarySystemGroupedBackground` `#1C1C1E`, the tertiary
   grouped surface `#2C2C2E`, and `quaternaryFill` `rgba(118,118,128,0.24)`. Arbitrary greys MUST NOT
@@ -357,8 +360,8 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
   root — two in total, iOS and tvOS — and no per-screen appearance overrides.
 - **SC-9000-03**: Onboarding screens measure at least 4.5:1 contrast for body text and 3:1 for large
   text and meaningful icons against their own background.
-- **SC-9000-04**: `AccentColor.colorset` declares a color, and no view sets a tint that does not
-  derive from it.
+- **SC-9000-04**: `AccentColor.colorset` declares `#E3A857`, no view sets a tint that does not derive
+  from it, and no accent-filled control renders a white label.
 - **SC-9000-05**: No shipped view hardcodes a point size for text; every text role resolves through a
   stock Dynamic Type style, and the first-run path shows no truncation at an accessibility text size.
 - **SC-9000-06**: On a 13" iPad, no text or form field on a first-run screen exceeds the 640–720pt
@@ -412,9 +415,6 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
 
 ## Roadmap / Deferred
 
-- **The accent hue** — three candidates recorded (FR-9000-14), none chosen. This is a single-file
-  change with app-wide effect and MUST be decided and written into this spec **before** AP-U
-  implementation starts, not during it.
 - **Empty and error state layouts** — the design record covers none (FR-9000-31). Only the tone rule
   is binding today; the visual pattern is unspecified and must be designed before the screens that
   need it are reworked.
