@@ -666,6 +666,21 @@ final class GermanScreenshotSweepUITests: XCTestCase {
             || environment["TEST_RUNNER_SCREENSHOT_PORTRAIT"] == "1"
     }
 
+    /// The App Store set has to stay legible at carousel thumbnail size, which is what
+    /// FR-9010-34 pins down: captures are taken at an enlarged Dynamic Type size and must show
+    /// no truncated string there. `-UIPreferredContentSizeCategoryName` is a plain
+    /// NSUserDefaults override in the same class as `-AppleLanguages`, so this seam needs no
+    /// app-source change at all. Pass a full category name, e.g. `UICTContentSizeCategoryXXL`;
+    /// unset means the device default, keeping the QA sweep's behaviour untouched.
+    private static var textSizeArguments: [String] {
+        let environment = ProcessInfo.processInfo.environment
+        guard let category = environment["SCREENSHOT_TEXT_SIZE"]
+            ?? environment["TEST_RUNNER_SCREENSHOT_TEXT_SIZE"],
+              !category.isEmpty
+        else { return [] }
+        return ["-UIPreferredContentSizeCategoryName", category]
+    }
+
     @MainActor
     @discardableResult
     private func launch(_ args: [String], landscapeOnIPad: Bool = true) -> XCUIApplication {
@@ -673,6 +688,7 @@ final class GermanScreenshotSweepUITests: XCTestCase {
         let locale = Self.locale
         app.launchArguments = ["--uitest"] + args
             + ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
+            + Self.textSizeArguments
         app.launch()
         if landscapeOnIPad, !Self.forcesPortrait, UIDevice.current.userInterfaceIdiom == .pad {
             XCUIDevice.shared.orientation = .landscapeLeft
