@@ -42,54 +42,25 @@ This project uses XcodeBuildMCP for builds, tests, and the simulator.
 
 ## Orchestration: Claude Orchestrates, Subagents Implement
 
-> ⚠️ **Codex delegation is DISABLED** (Jan's standing ruling, 2026-07-09). Do **not** start
-> `codex-agent`, `/codex:rescue`, `/codex:review`, or `/codex:adversarial-review`. The Codex
-> sections below are kept for the day it is re-enabled — until then, read "Codex agent" as
-> "Claude subagent (the `Agent` tool)" throughout, and ignore the `codex-agent` CLI invocations.
-
-The orchestration shape still holds; only the implementer changed:
-
 - **Claude (you) orchestrates and judges.** Read the task, decide what to delegate, write the
   briefing, review the diff, own the verification gate. Write as little code yourself as
   possible — implementation is delegated.
 - **Claude subagents are the implementation army.** Spawn them with the `Agent` tool against a
   briefing; they run their own unit tests. Launch independent ones in one message so they run
-  concurrently. Unlike Codex they do **not** commit — you review and commit their work.
-- **Cross-model review** is unavailable while Codex is off. Substitute an adversarial
-  verification pass: a fresh subagent whose brief is to *refute* each finding, told to treat the
-  original claim as a hypothesis rather than a fact.
+  concurrently. They do **not** commit — you review and commit their work. Their tool output
+  never enters the main context, which is the biggest context lever available.
+- **Cross-model review is unavailable.** Substitute an adversarial verification pass: a fresh
+  subagent whose brief is to *refute* each finding, told to treat the original claim as a
+  hypothesis rather than a fact.
 
 ### When to Delegate
 Delegate well-scoped implementation work: a feature slice, a bugfix, a refactor with a clear
-goal. **Keep inline:**
+goal, or bulk reading of large diffs and logs (use an `Explore` subagent, not direct `Read`).
+**Keep inline:**
 - Test *design* for shared/concurrent state, races, timing (e.g. the SlideshowView timer)
 - Security-critical/cross-cutting work: keychain, TLS, onboarding wiring, app entry point
-- SwiftUI/UI that needs the simulator for verification (Codex only tests logic on the host)
+- SwiftUI/UI that needs the simulator for verification
 - Anything that would break the 2-round limit below — finish it inline instead
-
-### Briefing Workflow
-Before delegating:
-
-    .claude/scripts/codex-brief.sh "<task description>" <file1> <file2> ...
-
-This renders a briefing to stdout: task, in-scope files, current `git status` /
-`git diff --stat`, verification command, and house rules. `codex-agent start` takes its prompt
-as a positional argument (not via stdin), so pass it via command substitution:
-
-    codex-agent start "$(.claude/scripts/codex-brief.sh "..." Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift)" --map -s workspace-write
-
-`--map` injects `docs/CODEBASE_MAP.md`. This file is **automatically regenerated lean on every
-session start** (`.claude/scripts/build-map.sh`, deterministic, no LLM — via the `SessionStart`
-hook in `.claude/settings.json`; the file is git-ignored). For the richer, narrated variant, run
-`/cartographer` manually when needed (token-intensive — Claude never starts it on its own).
-`--dry-run` shows the prompt up front without starting an agent.
-
-### Codex Coding Session (Target Flow)
-1. **Map** — automatic on session start (`build-map.sh`); otherwise manual `/cartographer`.
-2. **Briefing** — render `codex-brief.sh`, `codex-agent start ... --map` (map gets injected).
-3. **Implement** — Codex against the briefing (house rules below, 2-round limit).
-4. **Review** — at the end, `/codex:review` (cross-model). Optional as a stop gate via
-   `/codex:setup`.
 
 ### House Rules (non-negotiable)
 - **TDD first:** red test before implementation (constitution, NON-NEGOTIABLE).
@@ -99,15 +70,31 @@ hook in `.claude/settings.json`; the file is git-ignored). For the richer, narra
   in scope.
 - **Stage only with explicit paths** (`git add <path>`), never `-A`/`.`. On `.git/index.lock`:
   leave it uncommitted and report it.
-- **Codex: unit tests only** (`swift test` on the host) — no simulator/integration tests.
+- **Subagents: unit tests only** (`swift test` on the host) — no simulator/integration tests.
 - **Hard 2-round limit:** one implement round + one fix round. Otherwise finish inline.
-- **Delegate bulk reading of large Codex diffs/logs to an `Explore` subagent**, not direct
-  `Read`.
 
 ### Verification Gate (owned by Claude)
-- Build + tests via **XcodeBuildMCP** (Swift Testing) — the primary gate.
-- Codex delivers green `swift build`/`swift test` (host, unit only); Claude additionally
-  verifies the app target, simulator, and UI/preview via XcodeBuildMCP.
+Build + tests via **XcodeBuildMCP** (Swift Testing) — the primary gate. Subagents deliver green
+`swift build`/`swift test` (host, unit only); Claude additionally verifies the app target,
+simulator, and UI/preview via XcodeBuildMCP.
+
+## Session Economy
+- **One work package per session**, ending at a commit boundary. Soft ceiling ~250k tokens; when
+  approaching it, commit what is verified and record what is half-done rather than pushing on. A
+  session that ends with an uncommitted tree is the expensive failure — the next one has to
+  rediscover the state.
+- **The repo is the handoff, never the scrollback.** Findings, decisions and their reasoning land
+  in the owning spec or `docs/` page and are committed before the session ends.
+- **Batch skill-heavy work** (design canvases, store rendering) into a single session — those
+  skill loads cost more than all the source reading combined.
+- **Downscale before reading images**: `sips -Z 900 in.png --out small.png`. Never `Read` a raw
+  2064×2752 capture.
+- **Delegate bulk work** to subagents so their tool output stays out of the main context. This
+  harness only spawns them when Jan asks, so ask when a package is large.
+- **`docs/CODEBASE_MAP.md` is regenerated lean on every session start** (`.claude/scripts/
+  build-map.sh`, deterministic, no LLM, via the `SessionStart` hook in `.claude/settings.json`;
+  git-ignored). The richer narrated variant is `/cartographer`, run manually — it is
+  token-intensive, so Claude never starts it on its own.
 
 ## Modules
 1. **ImmichClient** — REST against Immich. Auth via `x-api-key` header. Endpoints: album list,
