@@ -127,11 +127,26 @@ final class AppStoreScreenshotUITests: XCTestCase {
 
     // MARK: - Launch + onboarding
 
+    /// See FR-9010-34: the shipped captures are taken at an enlarged Dynamic Type size so a
+    /// truncated string cannot reach the store page. `-UIPreferredContentSizeCategoryName` is a
+    /// plain NSUserDefaults override in the same class as `-AppleLanguages`, so no app-source
+    /// change is needed. Pass a full category name, e.g. `UICTContentSizeCategoryXXL`; unset
+    /// means the device default.
+    private static var textSizeArguments: [String] {
+        let environment = ProcessInfo.processInfo.environment
+        guard let category = environment["SCREENSHOT_TEXT_SIZE"]
+            ?? environment["TEST_RUNNER_SCREENSHOT_TEXT_SIZE"],
+              !category.isEmpty
+        else { return [] }
+        return ["-UIPreferredContentSizeCategoryName", category]
+    }
+
     @MainActor
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
         let locale = Self.locale
         app.launchArguments = ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
+            + Self.textSizeArguments
         app.launch()
         XCUIDevice.shared.orientation = .portrait
         sleep(1)
