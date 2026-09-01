@@ -22,6 +22,15 @@ chronological feature numbering anymore; a single concern lives in exactly one s
   section, and substantial future work gets a reserved sub-spec number (and, where it already has
   a real outline, its own `Status: Deferred` spec).
 
+- **Supporting processes get a separated four-digit block.** The `100`–`1200` blocks are *product
+  modules* that mirror Swift packages. Some durable concerns are not modules at all — they govern
+  how the product is presented rather than what it does. Those live in a clearly separated **9000**
+  block, far above the module range so the two can never be confused, and they use the same
+  `N` / `N10` / `N20` sub-spec convention scaled to four digits: `9000-design-language` is the topic,
+  `9010-store-presentation` its sub-spec. The requirement-ID rule is unchanged — they read
+  `FR-9000-NN` / `SC-9000-NN` and `FR-9010-NN` / `SC-9010-NN`, so an ID still locates its own spec.
+  Such a spec's `Package` column names the surfaces it governs, not a package it owns.
+
 When a genuinely new module appears, give it the next free hundreds-block. A new capability of an
 existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec directly.
 
@@ -50,6 +59,8 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
 | 1000 | [apple-tv](../specs/1000-apple-tv/spec.md)                       | tvOS app target (new) | Apple TV port: same packages/engine on tvOS 17+, purgeable-storage discipline, config sync (non-secrets via KVS, secrets E2E via CloudKit encrypted fields — constitution III v1.1.0), remote-first chrome, HA device parity. | Merged to main (2026-07-18): **all four user stories implemented + sim-verified.** US1 (frame plays, real demo-link end-to-end), US2 (onboarding + real-source routing + KVS prefill/restore + secret hydration seam), US3 (purge-tolerance), US4 (HA adapter + coordinator with distinct identity + broker onboarding). All packages tvOS + new ConfigSyncKit; software-dim, remote chrome, FR-1000-07 bypass removed; iPad companion publishes full payload on launch/foreground; ThemeSettings Codable. Ken Burns redesigned here (2026-07-18 micro-judder fix): shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead — motion contract unchanged, swap decode-stalls eliminated (see 1000 tasks.md Status). Remaining (device-gated): real MQTT/CloudKit, tvOS clock + FR-1000-10 pixel-shift, real-hardware gates (SC-1000-02/05/06/08 + CloudKit-on-tvOS proof + 24h soak). |
 | 1100 | [purchase-gate](../specs/1100-purchase-gate/spec.md)             | app targets (package decided at plan time) | Purchase gate: free core stays whole (all sources + core playback + basic transitions); a single one-time **Supporter Unlock** grants every gated capability at once (ambience — **Ken Burns + clock**, never-publicly-shipped rule — plus HA/MQTT + App Intents); no tiers, no bundle; offline entitlement caching for unattended frames; Family Sharing + universal purchase (incl. tvOS); never-claw-back; gated build must be the **first** public release (v1.0 b8 stays unreleased). No price points in-repo by design. | Merged to main (2026-07-20, PR #14; tiers collapsed into the single Supporter Unlock 2026-07-23, PR #40): entitlement model + all US1–US6 gates/UI + US5 broker degradation + the real StoreKit adapter + the tvOS unlock surface green (measured 2026-07-25: PurchaseKit 106 host, full iOS suite 163/0/5; the 5 skips = ASC-screenshot + live-smoke + 3 device-rig items). tvOS surface Apple-TV-simulator screenshot-verified. Remaining: **T042** only — the manual ASC day (create the IAPs, sandbox purchase/restore/Family-Sharing/universal checks, release sequencing FR-1100-17), blocked on ASC access. |
 | 1200 | [observed-fixes](../specs/1200-observed-fixes/spec.md)           | OnboardingKit + app UI, SlideshowKit, HAControlKit | Work-order bundle of three fixes observed on the running frame: Album-tab no-server guidance instead of a dead-end load error (FR-210-30), Ken Burns honors the Fit setting instead of forcing Fill (FR-500-20), battery + charging as free read-only HA telemetry (FR-710-23). Defines no new durable FR-1200 IDs. | Merged to main via PR #39 (2026-07-22); live MQTT/HA + perceived-motion checks ride the device day |
+| 9000 | [design-language](../specs/9000-design-language/spec.md)         | cross-cutting: both app targets + every String Catalog (no package of its own) | **Supporting process, not a module.** The governing design language for app UI *and* store copy, so the two cannot drift: always-dark appearance, the SF Pro type scale, the surface palette and the single declared accent, the content-column/inset-grouped/photographic-row layout rules, and the DE/EN vocabulary that retires "API key", "server address", "instance" and "Add a source" from the first-run path. Written *after* the design canvas of 2026-09-01 as the record of what it converged on, in the same relationship `quiet-glass` has to 500/510. Owns no screen: the UI overhaul applies it and amends `210` (album picker) and `220` (welcome). | Active — specced 2026-09-01, nothing implemented; accent hue and empty/error-state layouts are open (see its Roadmap) |
+| 9010 | [store-presentation](../specs/9010-store-presentation/spec.md)   | `Design/AppStore/` + `.claude/scripts/` (no package) | *(sub-spec of 9000)* The App Store asset system: six slots in why→feel→how order, the SVG-by-element-id template contract, the `content.json` manifest, the stdlib-only render pipeline over already-present binaries, and a version-parameterised ASC upload to a new 1.2 record. Bounds what a slot may claim — the 60-minute foreground-only refresh, no `BGTaskScheduler`, real captures only, purchase indicators on Supporter-gated features, never "lifetime", no price points in-repo. | Active — specced 2026-09-01; capture rigs built (`d936e1f`), templates/manifest/renderer/uploader all unbuilt (plan AP-1…AP-9) |
 
 ## How they connect
 
@@ -86,12 +97,20 @@ existing module becomes a sub-spec (`N10`, `N20`, …) or amends the module spec
   shared-link resolution; it adds no new backend behavior.
 - **300** *consumes* 500 (option values), 400 (brightness), 100/110 (sources) and *delegates*
   reset to 200 — it does not redefine them.
+- **9000 / 9010** sit *outside* the module graph and own no behaviour. `9000` constrains how every
+  screen above reads and looks (appearance, type, layout, vocabulary); `9010` applies that same
+  language to the store page. When applying `9000` turns up a behaviour change, it is specced in the
+  owning module — for the current UI overhaul, `210` (album picker) and `220` (welcome screen).
 
 ## Reading order
 
 Core path: **100 → 200 → 300**, then **400 / 500** as the slideshow's foreground-power and
 display layers, then **600 → 700 → 710** for the Home Assistant remote-control path. `110` feeds `120`'s
 source kinds — read it alongside `120`.
+
+Before touching any user-visible surface — a screen, a string, or a store asset — read **9000**
+first, and **9010** as well if the work touches the store page. They are short, they are binding on
+everything above, and they are the reason a reviewer can cite a requirement instead of taste.
 
 ## Reserved / deferred (roadmap)
 
