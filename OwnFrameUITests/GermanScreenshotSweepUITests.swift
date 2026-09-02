@@ -34,6 +34,21 @@
 //  every process the simulator spawns, which does include the runner. Both spellings are
 //  accepted below, so `TEST_RUNNER_SCREENSHOT_DE` works too if a future toolchain forwards it.
 //
+//  APP STORE RUNS (9010, AP-4 — differs from a QA sweep in three ways):
+//
+//      xcrun simctl spawn "$UDID" launchctl setenv SCREENSHOT_PORTRAIT 1
+//      xcrun simctl spawn "$UDID" launchctl setenv SCREENSHOT_TEXT_SIZE AccessibilityM
+//      xcrun simctl spawn "$UDID" launchctl setenv SCREENSHOT_LOCALE en          # then de
+//      xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged \
+//        --batteryLevel 100 --wifiBars 3 --wifiMode active
+//
+//  and target only the cases a slot needs (`test01_onboardingChoice` -> slot 03,
+//  `test17_albumPickerMany` -> slot 04) rather than the whole sweep.
+//
+//  Use an **iOS 18.6** simulator for these. iOS 26 draws its windowing-system resize grip
+//  into the bottom-right corner of every capture — system chrome that must not reach a store
+//  page. See `docs/presentation-overhaul-plan.md` (AP-4) and `docs/testing.md`.
+//
 //  Export the captures afterwards with:
 //
 //      xcrun xcresulttool export attachments --path /tmp/de-sweep.xcresult --output-path <dir>
@@ -674,11 +689,38 @@ final class GermanScreenshotSweepUITests: XCTestCase {
     /// unset means the device default, keeping the QA sweep's behaviour untouched.
     private static var textSizeArguments: [String] {
         let environment = ProcessInfo.processInfo.environment
-        guard let category = environment["SCREENSHOT_TEXT_SIZE"]
+        guard let requested = environment["SCREENSHOT_TEXT_SIZE"]
             ?? environment["TEST_RUNNER_SCREENSHOT_TEXT_SIZE"],
-              !category.isEmpty
+              !requested.isEmpty
         else { return [] }
-        return ["-UIPreferredContentSizeCategoryName", category]
+        return ["-UIPreferredContentSizeCategoryName", Self.contentSizeCategory(requested)]
+    }
+
+    /// The raw values UIKit actually accepts. The preference silently ignores anything else and
+    /// renders the whole run at the default size while still reporting success — a false green
+    /// this rig must not allow, because the resulting captures look plausible and are wrong.
+    /// The trap that cost a capture run: the accessibility categories end in `M`/`L`/`XL`, so
+    /// `UICTContentSizeCategoryAccessibilityMedium` is not a category at all.
+    private static let knownContentSizeCategories: Set<String> = [
+        "XS", "S", "M", "L", "XL", "XXL", "XXXL",
+        "AccessibilityM", "AccessibilityL", "AccessibilityXL",
+        "AccessibilityXXL", "AccessibilityXXXL",
+    ]
+
+    /// Accepts either a full `UICTContentSizeCategory…` value or its bare suffix (`XXL`,
+    /// `AccessibilityM`), and traps on anything UIKit would drop on the floor.
+    private static func contentSizeCategory(_ requested: String) -> String {
+        let prefix = "UICTContentSizeCategory"
+        let suffix = requested.hasPrefix(prefix) ? String(requested.dropFirst(prefix.count)) : requested
+        guard knownContentSizeCategories.contains(suffix) else {
+            preconditionFailure("""
+                SCREENSHOT_TEXT_SIZE=\(requested) is not a Dynamic Type category. UIKit would \
+                ignore it silently and capture at the default size. Use one of: \
+                \(knownContentSizeCategories.sorted().joined(separator: ", ")) — \
+                bare or prefixed with \(prefix).
+                """)
+        }
+        return prefix + suffix
     }
 
     @MainActor

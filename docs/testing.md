@@ -226,6 +226,16 @@ red test means a real regression, or that a green one means success.
 - **Screenshots confirm layout, not behaviour.** Assertions only fail when actually run —
   a red `SettingsUITests` sat undetected across two user stories because per-task
   validation was screenshots only. Run the full suite before merging any SwiftUI change.
+- **An unknown Dynamic Type category captures at the default size and still reports
+  success.** `-UIPreferredContentSizeCategoryName` is a plain preference: UIKit ignores any
+  value it doesn't recognise, so the whole screenshot run renders at normal size while the
+  tests pass and the images look plausible. The trap is the spelling — the accessibility
+  categories end in `M`/`L`/`XL`, so `UICTContentSizeCategoryAccessibilityMedium` is not a
+  category at all and cost one full capture matrix (2026-09-02). Caught by measuring a
+  glyph's bounding box across sizes: "AccessibilityMedium" rendered *smaller* than XXL.
+  `SCREENSHOT_TEXT_SIZE` now validates the value and `preconditionFailure`s on an unknown
+  one; bare suffixes (`XXL`, `AccessibilityM`) are accepted. **Never eyeball a Dynamic Type
+  capture and conclude the size applied — measure it against the size below.**
 - **A skip is not a pass, and a skip-guard can outlive its reason.** The seven
   `StoreKitClientTests` cases skip-guarded themselves for a day on the belief that headless
   `xcodebuild` couldn't serve StoreKit products. The belief was wrong (see below) and the
@@ -320,6 +330,12 @@ of hanging the run.
   and all 7 `StoreKitClientTests` fail (see that section). Pin **`simulatorId` only** — when
   session defaults carry both `simulatorName` and `simulatorId`, name resolution wins and may
   pick an ineligible runtime (e.g. booting "iPad Pro 11" M5" onto the broken 26.4).
+- **iOS 26 draws a resize grip into every simulator capture.** The new windowing system
+  puts a ~46×46px gray arc 10px in from the bottom-right corner of the app window; it is
+  content-independent, survives a "full-screen" capture, and is indistinguishable from a
+  rendering artifact in a store screenshot. **Take App Store captures on 18.6**, where it is
+  absent (verified 2026-09-02 on iPad Pro 13" M4, both runtimes, same screens). Harmless for
+  QA screenshots; disqualifying for anything shipped to the store page.
 - **New `.swift` files need no `project.pbxproj` edit** — the project uses
   `PBXFileSystemSynchronizedRootGroup`, so files dropped into a synced folder are
   auto-included. SourceKit "No such module" diagnostics in the editor are noise; the build
