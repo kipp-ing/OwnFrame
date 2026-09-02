@@ -930,9 +930,29 @@ enum UITestSupport {
         return URL(string: args[flagIndex + 1])
     }
 
+    /// Place names for the stub albums. Deliberately proper nouns that are spelled the same in
+    /// German and English: an album list is the one screen whose *content* appears verbatim in
+    /// both store locales, and Swift literals must stay English (`9000`, FR-9000-32), so a
+    /// translated name is not an option. They also satisfy FR-9010-35 — no shipped capture may
+    /// show the `Album <n>` placeholder shape these used to have. None of them fold-matches
+    /// "munchen", which the search UITests rely on narrowing to a single row.
+    nonisolated static let stubAlbumPlaces = [
+        "Amsterdam", "Barcelona", "Bergen", "Porto", "Sylt", "Verona", "Bordeaux", "Stockholm",
+        "Ravenna", "Dubrovnik", "Helsinki", "Bologna", "Mallorca", "Split", "Berlin", "Hamburg",
+        "Bremen", "Leipzig", "Dresden", "Potsdam", "Rostock", "Kiel", "Erfurt", "Weimar",
+        "Bamberg", "Regensburg", "Passau", "Graz", "Linz", "Salzburg", "Innsbruck", "Bregenz",
+        "Basel", "Bern", "Chur", "Davos", "Locarno", "Lugano", "Utrecht", "Rotterdam", "Paris",
+        "Lyon", "Toulouse", "Marseille", "Avignon", "Biarritz", "Madrid", "Valencia", "Granada",
+        "Malaga", "Faro", "Siena", "Pisa", "Palermo", "Bari", "Zadar", "Malta", "Santorini",
+        "Naxos",
+    ]
+
     /// 60 stub albums with date + count metadata for the searchable-picker UI test (210,
     /// US3). Includes a diacritic name ("München Trip") so a folded-search assertion is
     /// meaningful, and varied years/counts so name/year/count search all narrow the list.
+    /// Names come from `stubAlbumPlaces`, one each, so every row is unique and none reads as
+    /// unfinished software; every fourth carries its own row's year, the way people really
+    /// label albums, and the year shown is the row's own so the two can never disagree.
     nonisolated static func manyAlbums() -> [Album] {
         func midYear(_ year: Int) -> Date {
             Date(timeIntervalSince1970: TimeInterval(year - 1970) * 31_557_600 + 15_552_000)
@@ -943,8 +963,10 @@ enum UITestSupport {
         ]
         for index in 1...59 {
             let year = 2018 + (index % 7) // 2018…2024
+            let place = stubAlbumPlaces[(index - 1) % stubAlbumPlaces.count]
+            let name = index % 4 == 0 ? "\(place) \(year)" : place
             albums.append(
-                Album(id: "album-\(index)", name: "Album \(index)", assetCount: index * 3,
+                Album(id: "album-\(index)", name: name, assetCount: index * 3,
                       startDate: midYear(year), endDate: midYear(year))
             )
         }

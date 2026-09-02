@@ -134,11 +134,38 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// means the device default.
     private static var textSizeArguments: [String] {
         let environment = ProcessInfo.processInfo.environment
-        guard let category = environment["SCREENSHOT_TEXT_SIZE"]
+        guard let requested = environment["SCREENSHOT_TEXT_SIZE"]
             ?? environment["TEST_RUNNER_SCREENSHOT_TEXT_SIZE"],
-              !category.isEmpty
+              !requested.isEmpty
         else { return [] }
-        return ["-UIPreferredContentSizeCategoryName", category]
+        return ["-UIPreferredContentSizeCategoryName", Self.contentSizeCategory(requested)]
+    }
+
+    /// The raw values UIKit actually accepts. The preference silently ignores anything else and
+    /// renders the whole run at the default size while still reporting success — a false green
+    /// this rig must not allow, because the resulting captures look plausible and are wrong.
+    /// The trap that cost a capture run: the accessibility categories end in `M`/`L`/`XL`, so
+    /// `UICTContentSizeCategoryAccessibilityMedium` is not a category at all.
+    private static let knownContentSizeCategories: Set<String> = [
+        "XS", "S", "M", "L", "XL", "XXL", "XXXL",
+        "AccessibilityM", "AccessibilityL", "AccessibilityXL",
+        "AccessibilityXXL", "AccessibilityXXXL",
+    ]
+
+    /// Accepts either a full `UICTContentSizeCategory…` value or its bare suffix (`XXL`,
+    /// `AccessibilityM`), and traps on anything UIKit would drop on the floor.
+    private static func contentSizeCategory(_ requested: String) -> String {
+        let prefix = "UICTContentSizeCategory"
+        let suffix = requested.hasPrefix(prefix) ? String(requested.dropFirst(prefix.count)) : requested
+        guard knownContentSizeCategories.contains(suffix) else {
+            preconditionFailure("""
+                SCREENSHOT_TEXT_SIZE=\(requested) is not a Dynamic Type category. UIKit would \
+                ignore it silently and capture at the default size. Use one of: \
+                \(knownContentSizeCategories.sorted().joined(separator: ", ")) — \
+                bare or prefixed with \(prefix).
+                """)
+        }
+        return prefix + suffix
     }
 
     @MainActor
