@@ -92,3 +92,9 @@ __pycache__/
 # xcodemake (XcodeBuildMCP incremental-build) artifacts
 /Makefile
 xcodemake_*.log
+
+# App Store working material: AI prerenders and Affinity sources. Only the
+# scenes that actually ship are kept, and those live in Design/AppStore/scenes/.
+# The findings from this folder (CATALOG.md, CUTOUT.md) ARE tracked.
+docs/design/appstore prerenders/*.png
+docs/design/appstore prerenders/*.afphoto
