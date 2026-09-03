@@ -23,6 +23,12 @@ the "id absent -> no crash" case and the two/three-line tspan-cloning rule), `--
 detection (one test per defect class from the spec's SC-9010-03 list), CLI exit codes, the PNG
 fact reader, and the hand-written sRGB chunk injector.
 
+Sections 9-14 cover the perspective pre-warp: reading the screen quad back out of the template's
+`<clipPath>`, the stdlib homography solver (asserted against hand-derived coefficients), the
+axis-aligned degenerate case that must skip the warp so straight-on slots stay byte-identical,
+the exact ImageMagick argv (captured via a monkeypatched `subprocess.run`, never executed), and
+the `--check` geometry rules for an off-canvas or out-of-box screen.
+
 Import mechanics: the module under test has a hyphenated filename, so it cannot be imported by
 name (`import render-store-screenshots` is a syntax error). It is loaded once, by absolute path,
 via `importlib.util.spec_from_file_location`. The real module guards all side effects behind
@@ -723,6 +729,403 @@ class TestSrgbInjection(unittest.TestCase):
         else:
             self.fail("no sRGB chunk found after injection")
 
+
+# --------------------------------------------------------------------------------------
+# 9. The screen quad: parsing it back out of the template (AP-3b)
+#
+# A `<clipPath>` only cuts; it never transforms, and SVG's own transforms are affine
+# (`matrix(a,b,c,d,e,f)`), so they cannot express perspective either. A capture destined for a
+# screen that was photographed at an angle therefore has to be pre-warped before it is embedded.
+# The quad it is warped ONTO already exists in the template, as the clipPath geometry — these
+# tests pin the parse that reads it back out, so the template stays the single source of truth.
+# --------------------------------------------------------------------------------------
+
+# The real slot-03 clip: an axis-aligned <rect>, deliberately bleeding off the 2752 bottom edge.
+FIXTURE_STRAIGHT_ON = f"""<svg xmlns="{SVG_NS}" width="2064" height="2752" viewBox="0 0 2064 2752">
+  <defs><clipPath id="screen-quad"><rect x="228" y="830" width="1608" height="2144" rx="44" ry="44"/></clipPath></defs>
+  <image id="scene" x="0" y="0" width="2064" height="2752" preserveAspectRatio="xMidYMid slice" href=""/>
+  <text id="headline" x="140" y="404" xml:space="preserve"><tspan x="140" dy="0">One</tspan><tspan x="140" dy="1.16em">Two</tspan></text>
+  <image id="screenshot" x="228" y="830" width="1608" height="2144" preserveAspectRatio="xMidYMid slice" clip-path="url(#screen-quad)" href=""/>
+</svg>"""
+
+# The measured cut-out of `docs/design/appstore prerenders/ipad-mit-freischnitt.png`, mapped onto
+# the 2064x2752 canvas with the CENTRED cover fit (CUTOUT.md section 5). BL.y = 2802.79 is 50.79 px
+# past the bottom edge — the off-canvas defect the crop offset exists to fix.
+MEASURED_QUAD_CENTRED = [
+    (284.04, 181.69), (1744.90, 317.69), (1828.16, 2721.66), (323.53, 2802.79),
+]
+# The same cut-out with CUTOUT.md's recommended crop_top = 573.93 instead of the centred 457.69.
+MEASURED_QUAD_OFFSET = [
+    (284.04, 65.45), (1744.90, 201.45), (1828.16, 2605.42), (323.53, 2686.55),
+]
+
+
+def _perspective_template(quad, *, box=None, canvas=(2064, 2752), clip="polygon") -> str:
+    """A slot-03-shaped template whose screen quad is a genuine perspective trapezoid."""
+    w, h = canvas
+    xs, ys = [p[0] for p in quad], [p[1] for p in quad]
+    bx, by, bw, bh = box if box else (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+    pts = " ".join(f"{x},{y}" for x, y in quad)
+    if clip == "polygon":
+        shape = f'<polygon points="{pts}"/>'
+    elif clip == "polyline":
+        shape = f'<polyline points="{pts}"/>'
+    else:
+        shape = f'<path d="M {quad[0][0]} {quad[0][1]} L {quad[1][0]} {quad[1][1]} Z"/>'
+    return f"""<svg xmlns="{SVG_NS}" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+  <defs><clipPath id="screen-quad">{shape}</clipPath></defs>
+  <image id="scene" x="0" y="0" width="{w}" height="{h}" preserveAspectRatio="xMidYMid slice" href=""/>
+  <text id="headline" x="140" y="404" xml:space="preserve"><tspan x="140" dy="0">One</tspan><tspan x="140" dy="1.16em">Two</tspan></text>
+  <image id="screenshot" x="{bx}" y="{by}" width="{bw}" height="{bh}" preserveAspectRatio="xMidYMid slice" clip-path="url(#screen-quad)" href=""/>
+</svg>"""
+
+
+class TestQuadFromTemplate(unittest.TestCase):
+    def _parse(self, xml_text):
+        import xml.etree.ElementTree as ET
+        return ET.fromstring(xml_text)
+
+    def test_rect_clip_yields_four_corners_clockwise_from_top_left(self):
+        quad = rss.template_screen_quad(self._parse(FIXTURE_STRAIGHT_ON))
+        self.assertEqual(quad, [(228.0, 830.0), (1836.0, 830.0), (1836.0, 2974.0), (228.0, 2974.0)])
+
+    def test_polygon_clip_yields_its_points_in_authored_order(self):
+        quad = rss.template_screen_quad(self._parse(_perspective_template(MEASURED_QUAD_CENTRED)))
+        for got, want in zip(quad, MEASURED_QUAD_CENTRED):
+            self.assertAlmostEqual(got[0], want[0], places=6)
+            self.assertAlmostEqual(got[1], want[1], places=6)
+
+    def test_polyline_clip_is_accepted_too(self):
+        quad = rss.template_screen_quad(
+            self._parse(_perspective_template(MEASURED_QUAD_CENTRED, clip="polyline")))
+        self.assertEqual(len(quad), 4)
+
+    def test_points_accept_comma_space_and_newline_separators(self):
+        self.assertEqual(
+            rss.parse_points("1,2 3,4\n  5 6,7,8"),
+            [(1.0, 2.0), (3.0, 4.0), (5.0, 6.0), (7.0, 8.0)],
+        )
+
+    def test_screenshot_without_clip_path_has_no_quad(self):
+        # The small shared fixture carries no clip-path at all: no quad, hence no warp, hence
+        # the byte-identical straight-on path stays available to templates that want it.
+        self.assertIsNone(rss.template_screen_quad(self._parse(FIXTURE_WITH_SCREENSHOT)))
+
+    def test_template_without_screenshot_element_has_no_quad(self):
+        self.assertIsNone(rss.template_screen_quad(self._parse(FIXTURE_NO_SCREENSHOT)))
+
+    def test_path_clip_is_a_named_error_not_a_crash(self):
+        with self.assertRaises(rss.GeometryError) as ctx:
+            rss.template_screen_quad(
+                self._parse(_perspective_template(MEASURED_QUAD_CENTRED, clip="path")))
+        self.assertIn("polygon", str(ctx.exception))
+
+    def test_image_box_read_from_the_screenshot_element(self):
+        root = self._parse(FIXTURE_STRAIGHT_ON)
+        self.assertEqual(rss.image_box(rss.by_id(root, "screenshot")), (228.0, 830.0, 1608.0, 2144.0))
+
+    def test_manifest_perspective_overrides_the_template_quad(self):
+        root = self._parse(FIXTURE_STRAIGHT_ON)
+        override = [[10, 20], [30, 21], [31, 60], [11, 59]]
+        quad = rss.screen_quad_for(root, {"id": "x", "perspective": override})
+        self.assertEqual(quad, [(10.0, 20.0), (30.0, 21.0), (31.0, 60.0), (11.0, 59.0)])
+
+    def test_absent_manifest_perspective_falls_back_to_the_template_quad(self):
+        root = self._parse(FIXTURE_STRAIGHT_ON)
+        self.assertEqual(rss.screen_quad_for(root, {"id": "x"}), rss.template_screen_quad(root))
+
+
+# --------------------------------------------------------------------------------------
+# 10. Degenerate-case detection: an axis-aligned rectangle must never be warped.
+#
+# This is the regression gate for FR-9010-30 and for the AP-2 spike's byte-identical output
+# (sha256 a48d6b8c... de / d99bb66f... en for slot 03): the moment slot-03 starts going through
+# ImageMagick, those hashes move. It must not.
+# --------------------------------------------------------------------------------------
+
+class TestAxisAlignedDetection(unittest.TestCase):
+    def test_real_slot_03_rect_is_axis_aligned(self):
+        quad = [(228.0, 830.0), (1836.0, 830.0), (1836.0, 2974.0), (228.0, 2974.0)]
+        self.assertTrue(rss.is_axis_aligned_rect(quad))
+        self.assertFalse(rss.needs_warp(quad))
+
+    def test_sub_tolerance_jitter_still_counts_as_axis_aligned(self):
+        quad = [(228.0, 830.2), (1836.1, 830.0), (1836.0, 2974.0), (228.2, 2973.9)]
+        self.assertTrue(rss.is_axis_aligned_rect(quad))
+
+    def test_measured_trapezoid_is_not_axis_aligned(self):
+        self.assertFalse(rss.is_axis_aligned_rect(MEASURED_QUAD_CENTRED))
+        self.assertTrue(rss.needs_warp(MEASURED_QUAD_CENTRED))
+
+    def test_rotated_rectangle_is_not_axis_aligned(self):
+        # A rotation IS expressible as an SVG transform, but it is not a rectangle in canvas
+        # space, so it takes the warp path too. Being conservative here is the safe direction.
+        quad = [(100.0, 100.0), (300.0, 140.0), (260.0, 340.0), (60.0, 300.0)]
+        self.assertFalse(rss.is_axis_aligned_rect(quad))
+
+    def test_no_quad_means_no_warp(self):
+        self.assertFalse(rss.needs_warp(None))
+
+
+# --------------------------------------------------------------------------------------
+# 11. The homography itself. Solved in stdlib Python (Gaussian elimination with partial
+# pivoting) rather than by numpy (FR-9010-25). ImageMagick recomputes the same map from the
+# four point pairs; solving it here buys the degeneracy check and a testable seam.
+# --------------------------------------------------------------------------------------
+
+UNIT_SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+
+
+class TestHomography(unittest.TestCase):
+    def assertCoeffs(self, got, want, places=9):
+        self.assertEqual(len(got), 8)
+        for i, (g, w) in enumerate(zip(got, want)):
+            self.assertAlmostEqual(g, w, places=places, msg=f"coefficient {i}")
+
+    def test_identity(self):
+        self.assertCoeffs(rss.homography(UNIT_SQUARE, UNIT_SQUARE), (1, 0, 0, 0, 1, 0, 0, 0))
+
+    def test_pure_scale_and_translate_has_no_perspective_terms(self):
+        dst = [(5.0, 7.0), (9.0, 7.0), (9.0, 13.0), (5.0, 13.0)]  # 4x wide, 6x tall, +(5,7)
+        self.assertCoeffs(rss.homography(UNIT_SQUARE, dst), (4, 0, 5, 0, 6, 7, 0, 0))
+
+    def test_shear_is_affine_so_g_and_h_stay_zero(self):
+        dst = [(0.0, 0.0), (1.0, 0.0), (1.5, 1.0), (0.5, 1.0)]  # a parallelogram
+        self.assertCoeffs(rss.homography(UNIT_SQUARE, dst), (1, 0.5, 0, 0, 1, 0, 0, 0))
+
+    def test_known_perspective_case_against_hand_derived_coefficients(self):
+        # Unit square -> (0,0),(1,0),(2,2),(0,1). Solving by hand with c=f=0 gives
+        # a = g+1, e = h+1, s = g+h+1 = 1/(p+q-1) with (p,q) = (2,2), so s = 1/3,
+        # g = h = ps-1 = -1/3, a = e = 2/3. Every coefficient below is that derivation.
+        dst = [(0.0, 0.0), (1.0, 0.0), (2.0, 2.0), (0.0, 1.0)]
+        self.assertCoeffs(rss.homography(UNIT_SQUARE, dst),
+                          (2 / 3, 0, 0, 0, 2 / 3, 0, -1 / 3, -1 / 3))
+
+    def test_apply_homography_reproduces_every_destination_corner(self):
+        src = [(0.0, 0.0), (2064.0, 0.0), (2064.0, 2752.0), (0.0, 2752.0)]
+        coeffs = rss.homography(src, MEASURED_QUAD_CENTRED)
+        for (sx, sy), (dx, dy) in zip(src, MEASURED_QUAD_CENTRED):
+            gx, gy = rss.apply_homography(coeffs, sx, sy)
+            self.assertAlmostEqual(gx, dx, places=6)
+            self.assertAlmostEqual(gy, dy, places=6)
+
+    def test_measured_trapezoid_really_carries_perspective_terms(self):
+        # CUTOUT.md rules the cut-out out as a parallelogram three ways. If g and h came back
+        # zero the map would be affine and this whole warp would be unnecessary.
+        src = [(0.0, 0.0), (2064.0, 0.0), (2064.0, 2752.0), (0.0, 2752.0)]
+        _a, _b, _c, _d, _e, _f, g, h = rss.homography(src, MEASURED_QUAD_CENTRED)
+        self.assertNotAlmostEqual(g, 0.0, places=9)
+        self.assertNotAlmostEqual(h, 0.0, places=9)
+
+    def test_collinear_destination_quad_is_a_clean_geometry_error(self):
+        collinear = [(0.0, 0.0), (1.0, 1.0), (2.0, 2.0), (3.0, 3.0)]
+        with self.assertRaises(rss.GeometryError):
+            rss.homography(UNIT_SQUARE, collinear)
+
+    def test_repeated_destination_points_are_a_clean_geometry_error(self):
+        degenerate = [(0.0, 0.0), (0.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+        with self.assertRaises(rss.GeometryError):
+            rss.homography(UNIT_SQUARE, degenerate)
+
+    def test_collinear_source_quad_is_a_clean_geometry_error(self):
+        with self.assertRaises(rss.GeometryError):
+            rss.homography([(0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (3.0, 0.0)], UNIT_SQUARE)
+
+    def test_geometry_error_is_a_value_error_so_callers_can_catch_either(self):
+        self.assertTrue(issubclass(rss.GeometryError, ValueError))
+
+
+# --------------------------------------------------------------------------------------
+# 12. The ImageMagick call. Verified against the installed binary's own spelling
+# (`magick -list distort` names `Perspective`; `-matte` warns "use -alpha Set" on IM 7.1.2),
+# but never actually invoked here — this file stays tool-free (see the module docstring).
+# --------------------------------------------------------------------------------------
+
+class TestPerspectiveControlPoints(unittest.TestCase):
+    def test_source_corners_are_the_capture_rectangle_clockwise_from_top_left(self):
+        got = rss.perspective_control_points((100, 140), [(1.0, 2.0), (3.0, 4.0), (5.0, 6.0), (7.0, 8.0)])
+        self.assertEqual(got, "0,0 1,2  100,0 3,4  100,140 5,6  0,140 7,8")
+
+    def test_fractional_destination_corners_are_preserved_not_rounded(self):
+        got = rss.perspective_control_points((2064, 2752), MEASURED_QUAD_CENTRED)
+        self.assertIn("284.04", got)
+        self.assertIn("2802.79", got)
+        self.assertTrue(got.startswith("0,0 284.04,181.69"))
+
+    def test_control_points_are_deterministic(self):
+        a = rss.perspective_control_points((2064, 2752), MEASURED_QUAD_CENTRED)
+        b = rss.perspective_control_points((2064, 2752), MEASURED_QUAD_CENTRED)
+        self.assertEqual(a, b)
+
+
+class TestWarpInvocation(ScratchTestCase):
+    """`warp_capture_perspective` shells out; the subprocess call is captured, never run."""
+
+    def _capture_argv(self, quad, box, *, capture_size=(2064, 2752)):
+        capture = self.work / "capture.png"
+        capture.write_bytes(_make_png(*capture_size))
+        seen = {}
+
+        def fake_run(cmd, **kwargs):
+            seen["cmd"] = cmd
+            Path(cmd[-1]).write_bytes(_make_png(4, 4))
+            class _R:
+                returncode = 0
+            return _R()
+
+        real_run = rss.subprocess.run
+        rss.subprocess.run = fake_run
+        try:
+            out = rss.warp_capture_perspective(capture, quad, box=box,
+                                                work_dir=self.work, tag="ipad-de-99")
+        finally:
+            rss.subprocess.run = real_run
+        return seen["cmd"], out
+
+    def test_measured_trapezoid_is_warped_with_the_right_corner_arguments(self):
+        box = (284.04, 181.69, 1544.12, 2621.10)
+        cmd, out = self._capture_argv(MEASURED_QUAD_CENTRED, box)
+        self.assertEqual(cmd[0], "magick")
+        self.assertIn("-distort", cmd)
+        self.assertEqual(cmd[cmd.index("-distort") + 1], "Perspective")
+        pairs = cmd[cmd.index("-distort") + 2]
+        self.assertEqual(
+            pairs,
+            "0,0 284.04,181.69  2064,0 1744.9,317.69  "
+            "2064,2752 1828.16,2721.66  0,2752 323.53,2802.79",
+        )
+        self.assertTrue(out.exists())
+
+    def test_alpha_and_virtual_pixel_flags_use_the_imagemagick_7_spelling(self):
+        # `-matte` still works on IM 7.1.2 but emits "option has been replaced" on stderr.
+        cmd, _ = self._capture_argv(MEASURED_QUAD_CENTRED, (284.04, 181.69, 1544.12, 2621.10))
+        self.assertNotIn("-matte", cmd)
+        self.assertEqual(cmd[cmd.index("-alpha") + 1], "set")
+        self.assertEqual(cmd[cmd.index("-virtual-pixel") + 1], "transparent")
+
+    def test_viewport_is_the_screenshot_image_box_so_quad_coords_stay_absolute(self):
+        cmd, _ = self._capture_argv(MEASURED_QUAD_CENTRED, (284.04, 181.69, 1544.12, 2621.10))
+        idx = cmd.index("option:distort:viewport")
+        self.assertEqual(cmd[idx + 1], "1544x2621+284+182")
+
+    def test_output_is_stripped_so_the_intermediate_is_byte_stable(self):
+        cmd, _ = self._capture_argv(MEASURED_QUAD_CENTRED, (284.04, 181.69, 1544.12, 2621.10))
+        self.assertIn("-strip", cmd)
+
+    def test_degenerate_quad_raises_before_imagemagick_is_ever_reached(self):
+        with self.assertRaises(rss.GeometryError):
+            self._capture_argv([(0.0, 0.0), (1.0, 1.0), (2.0, 2.0), (3.0, 3.0)],
+                               (0.0, 0.0, 10.0, 10.0))
+
+
+# --------------------------------------------------------------------------------------
+# 13. Warped substitution: the pre-warped bitmap is authored in the box's own units, so `fit`
+# has already been consumed by the homography and preserveAspectRatio must be `none`.
+# --------------------------------------------------------------------------------------
+
+class TestWarpedSubstitution(unittest.TestCase):
+    def _parse(self, xml_text):
+        import xml.etree.ElementTree as ET
+        return ET.fromstring(xml_text)
+
+    def test_warped_capture_forces_preserve_aspect_ratio_none(self):
+        root = self._parse(FIXTURE_WITH_SCREENSHOT)
+        rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover", lines=["A"],
+                        warped=True)
+        self.assertEqual(rss.by_id(root, "screenshot").get("preserveAspectRatio"), "none")
+
+    def test_unwarped_default_is_unchanged(self):
+        root = self._parse(FIXTURE_WITH_SCREENSHOT)
+        rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover", lines=["A"])
+        self.assertEqual(rss.by_id(root, "screenshot").get("preserveAspectRatio"),
+                          "xMidYMid slice")
+
+    def test_two_identical_substitutions_serialise_to_identical_bytes(self):
+        import xml.etree.ElementTree as ET
+        outs = []
+        for _ in range(2):
+            root = self._parse(_perspective_template(MEASURED_QUAD_OFFSET))
+            rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover",
+                            lines=["A", "B"], warped=True)
+            outs.append(ET.tostring(root, encoding="utf-8"))
+        self.assertEqual(outs[0], outs[1])
+
+
+# --------------------------------------------------------------------------------------
+# 14. `--check` on template geometry. "A scene whose screen falls off the canvas must be caught
+# by --check, not discovered by eye" — CUTOUT.md measured exactly that defect on the centred
+# cover fit of `ipad-mit-freischnitt.png` (BL.y = 2802.79 vs a 2752 canvas).
+# --------------------------------------------------------------------------------------
+
+class TestTemplateGeometryCheck(ScratchTestCase):
+    def _tree_with_template(self, svg_text, *, slot_overrides=None):
+        manifest = _small_manifest()
+        manifest["devices"] = {"ipad": {"label": "iPad", "width": 2064, "height": 2752}}
+        manifest["slots"] = manifest["slots"][:1]
+        if slot_overrides:
+            manifest["slots"][0].update(slot_overrides)
+        tree = self.work / "tree"
+        manifest_path = _write_manifest_tree(tree, manifest)
+        (tree / "Design" / "AppStore" / "templates" / "ipad" / "slot-01.svg").write_text(
+            svg_text, encoding="utf-8")
+        return manifest_path, tree
+
+    def test_off_canvas_perspective_quad_is_reported(self):
+        svg = _perspective_template(MEASURED_QUAD_CENTRED)
+        manifest_path, tree = self._tree_with_template(svg)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("off-canvas", out)
+        self.assertIn("2802.79", out)
+
+    def test_recommended_crop_offset_puts_the_same_quad_back_on_canvas(self):
+        svg = _perspective_template(MEASURED_QUAD_OFFSET)
+        manifest_path, tree = self._tree_with_template(svg)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 0, out + err)
+
+    def test_straight_on_template_may_bleed_off_the_bottom_edge(self):
+        # slot-03's device body bleeds off the canvas *by design*. The on-canvas rule applies to
+        # perspective quads (a screen photographed inside a scene) only — see the README.
+        manifest_path, tree = self._tree_with_template(FIXTURE_STRAIGHT_ON)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 0, out + err)
+
+    def test_quad_outside_the_screenshot_image_box_is_reported(self):
+        svg = _perspective_template(MEASURED_QUAD_OFFSET, box=(600, 600, 400, 400))
+        manifest_path, tree = self._tree_with_template(svg)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("outside", out)
+
+    def test_degenerate_template_quad_is_reported_not_crashed_on(self):
+        svg = _perspective_template([(100.0, 100.0), (200.0, 200.0), (300.0, 300.0), (400.0, 400.0)])
+        manifest_path, tree = self._tree_with_template(svg)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("degenerate", out.lower() + err.lower())
+
+    def test_path_clip_on_a_perspective_slot_is_reported(self):
+        svg = _perspective_template(MEASURED_QUAD_OFFSET, clip="path")
+        manifest_path, tree = self._tree_with_template(svg)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("polygon", out)
+
+    def test_unparseable_template_is_reported_not_crashed_on(self):
+        manifest_path, tree = self._tree_with_template("<svg><unclosed>")
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("slot-01.svg", out)
+
+    def test_manifest_perspective_override_is_checked_against_the_canvas_too(self):
+        manifest_path, tree = self._tree_with_template(
+            FIXTURE_STRAIGHT_ON,
+            slot_overrides={"perspective": [[10, 20], [3000, 21], [2990, 2700], [11, 2740]]},
+        )
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("off-canvas", out)
 
 def tearDownModule():
     shutil.rmtree(SCRATCH, ignore_errors=True)

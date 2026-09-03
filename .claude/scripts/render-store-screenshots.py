@@ -17,6 +17,10 @@ template contract (FR-9010-15/16) and must be re-specified, not improvised here.
 
 Traps this script exists to not re-learn (each one cost real time in the AP-2 spike):
 
+  * Perspective. A `<clipPath>` only cuts, and SVG transforms are affine, so neither can place a
+    capture onto a screen photographed at an angle. The capture is pre-warped with a homography
+    BEFORE it is embedded (see "The screen quad and the perspective pre-warp" below); a quad that
+    is an axis-aligned rectangle skips that path entirely and stays byte-identical.
   * Namespaces. `ET.register_namespace` for the SVG and xlink namespaces MUST run before any
     parsing/serialising happens, or `xml.etree.ElementTree` emits `ns0:` prefixes on output
     and Chrome renders nothing.
@@ -86,6 +90,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import shutil
 import signal
 import struct
@@ -132,6 +137,12 @@ class ExternalToolError(RuntimeError):
     """Chrome or ImageMagick failed, was not found, or produced no output (exit code 3)."""
 
 
+class GeometryError(ValueError):
+    """A template's screen quad cannot be turned into a homography, or is expressed in a shape
+    this renderer does not read back (exit code 1). Subclasses ValueError so a caller that only
+    wants "bad authoring input" can catch either."""
+
+
 class SlotPaths(NamedTuple):
     template: Path
     scene: Path
@@ -169,9 +180,15 @@ def preserve_aspect_ratio(fit: str) -> str:
 
 
 def substitute(root: ET.Element, *, scene_uri: str, screenshot_uri: str | None,
-               fit: str, lines: list[str]) -> None:
+               fit: str, lines: list[str], warped: bool = False) -> None:
     """Mutates `root` in place: sets `scene` (required), `screenshot` (only if the template
-    has one), and rebuilds `headline`'s <tspan> children from `lines` (FR-9010-16/22)."""
+    has one), and rebuilds `headline`'s <tspan> children from `lines` (FR-9010-16/22).
+
+    `warped=True` means the capture handed in has already been pre-warped onto the screen quad
+    and authored in the `screenshot` box's own units, so the <image> must map it 1:1 —
+    `preserveAspectRatio="none"`. Any other value would re-fit the bitmap inside the box and
+    slide the warp off the quad. `fit` is still validated either way, so a bad value is never
+    silently swallowed by a perspective slot; the homography has simply already consumed it."""
     scene_el = by_id(root, "scene")
     if scene_el is None:
         raise ValueError('template has no element id="scene"')
@@ -186,7 +203,8 @@ def substitute(root: ET.Element, *, scene_uri: str, screenshot_uri: str | None,
                 'template has an element id="screenshot" but no capture data was supplied'
             )
         screenshot_el.set("href", screenshot_uri)
-        screenshot_el.set("preserveAspectRatio", preserve_aspect_ratio(fit))
+        par = preserve_aspect_ratio(fit)
+        screenshot_el.set("preserveAspectRatio", "none" if warped else par)
     # else: scene-only template — do nothing. Never dereference an id the template lacks.
 
     text_el = by_id(root, "headline")
@@ -202,6 +220,303 @@ def substitute(root: ET.Element, *, scene_uri: str, screenshot_uri: str | None,
     for i, line in enumerate(lines):
         t = ET.SubElement(text_el, f"{{{SVG_NS}}}tspan", first_attrs if i == 0 else rest_attrs)
         t.text = line
+
+
+# --------------------------------------------------------------------------------------
+# The screen quad and the perspective pre-warp (FR-9010-23/26).
+#
+# Why this exists at all: a `<clipPath>` only CUTS, it never transforms, and SVG's own
+# transforms are affine (`matrix(a,b,c,d,e,f)`) — affine maps cannot express perspective. A
+# capture clipped into a screen that was photographed at an angle would therefore show the
+# wrong part of itself with the wrong geometry: its straight UI lines would stay parallel while
+# the frame around them converges. The fix is to pre-warp the capture with a homography onto
+# the target quad BEFORE it is embedded, so by the time the SVG sees it, it is already in the
+# scene's perspective and the clipPath is back to doing only what a clipPath can do — the edge
+# and the rounded corners.
+#
+# Where the quad comes from: the TEMPLATE, read back out of the `<clipPath>` the `screenshot`
+# element already points at. The quad has to exist there anyway (README, "screenshot is clipped,
+# not cropped"), so deriving the warp from it keeps ONE source of truth and needs no manifest
+# change. A per-slot key in content.json would be a second copy that can silently drift — and
+# drift here is invisible, the render just looks subtly wrong — and, decisively, a slot renders
+# against a DIFFERENT template per device class (`templates/ipad/slot-05.svg` vs
+# `templates/iphone/slot-05.svg`), so one per-slot quad cannot describe both geometries at all.
+# The manifest's `perspective` (FR-9010-23) is kept as an explicit per-slot OVERRIDE for the
+# case where the clip shape and the warp target must differ; absent, the template wins.
+# --------------------------------------------------------------------------------------
+
+# Canvas pixels. Anything this close to axis-aligned is treated as straight-on and is NOT
+# warped — that is the byte-identical path (FR-9010-30) every existing template takes today.
+QUAD_TOLERANCE = 0.5
+
+CORNER_NAMES = ("TL", "TR", "BR", "BL")
+
+
+def _fmt(value: float) -> str:
+    """Shortest exact-enough decimal for an ImageMagick control point or an error message.
+    `%g` would silently round 6 significant digits away from a canvas coordinate like
+    1828.1637; this keeps six decimal places and then trims the noise."""
+    text = f"{float(value):.6f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
+
+
+def parse_points(text: str) -> list[tuple[float, float]]:
+    """SVG `points` grammar: numbers separated by commas and/or whitespace, in x y pairs."""
+    numbers = [n for n in re.split(r"[,\s]+", (text or "").strip()) if n]
+    if len(numbers) % 2:
+        raise GeometryError(f"points list has an odd number of coordinates: {text!r}")
+    try:
+        values = [float(n) for n in numbers]
+    except ValueError as exc:
+        raise GeometryError(f"points list is not numeric: {text!r}") from exc
+    return list(zip(values[0::2], values[1::2]))
+
+
+def clip_path_id(element: ET.Element) -> str | None:
+    """`clip-path="url(#screen-quad)"` -> `screen-quad`."""
+    match = re.match(r"\s*url\(\s*#([^)\s]+)\s*\)\s*$", element.get("clip-path") or "")
+    return match.group(1) if match else None
+
+
+def quad_from_clip_shape(shape: ET.Element) -> list[tuple[float, float]]:
+    """The two clip shapes this renderer reads back, clockwise from top-left.
+
+    A `<path>` is deliberately NOT read: recovering four corners from a rounded-corner path
+    means intersecting the straight runs, and the arc endpoints are tangent points rather than
+    corners, so a naive read would be quietly wrong by a corner radius. CUTOUT.md's own note
+    applies — the sharp-corner polygon is safe to clip with, because the sliver it leaves
+    outside the true rounded corner falls on the opaque bezel of the scene photograph anyway.
+    """
+    tag = shape.tag.split("}")[-1]
+    if tag == "rect":
+        x, y = float(shape.get("x", 0)), float(shape.get("y", 0))
+        w, h = float(shape.get("width", 0)), float(shape.get("height", 0))
+        return [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    if tag in ("polygon", "polyline"):
+        points = parse_points(shape.get("points", ""))
+        if len(points) != 4:
+            raise GeometryError(
+                f"clipPath <{tag}> must carry exactly four points, got {len(points)}")
+        return points
+    raise GeometryError(
+        f"clipPath shape <{tag}> is not readable as a screen quad; "
+        "use a <rect> (straight-on) or a four-point <polygon> (perspective)")
+
+
+def template_screen_quad(root: ET.Element, *, element_id: str = "screenshot"
+                          ) -> list[tuple[float, float]] | None:
+    """The screen quad in canvas coordinates, or None when the template declares none (no
+    `screenshot` element, or one with no `clip-path`) — which means "straight-on, no warp"."""
+    element = by_id(root, element_id)
+    if element is None:
+        return None
+    ref = clip_path_id(element)
+    if ref is None:
+        return None
+    clip = by_id(root, ref)
+    if clip is None:
+        raise GeometryError(f'clip-path url(#{ref}) has no matching element in the template')
+    shapes = [child for child in clip if isinstance(child.tag, str)]
+    if len(shapes) != 1:
+        raise GeometryError(
+            f'clipPath id="{ref}" must hold exactly one shape, got {len(shapes)}')
+    return quad_from_clip_shape(shapes[0])
+
+
+def image_box(element: ET.Element) -> tuple[float, float, float, float]:
+    """`<image x y width height>` as floats — the box the warped bitmap is authored in."""
+    return (float(element.get("x", 0)), float(element.get("y", 0)),
+            float(element.get("width", 0)), float(element.get("height", 0)))
+
+
+def screen_quad_for(root: ET.Element, slot: dict) -> list[tuple[float, float]] | None:
+    """Manifest `perspective` wins if present and well-formed; otherwise the template's own
+    clipPath. `_perspective_problems` has already reported a malformed one to --check, so a
+    bad override falls through to the template rather than crashing the render."""
+    override = slot.get("perspective")
+    if isinstance(override, list) and len(override) == 4:
+        try:
+            return [(float(p[0]), float(p[1])) for p in override]
+        except (TypeError, ValueError, IndexError):
+            pass
+    return template_screen_quad(root)
+
+
+def is_axis_aligned_rect(quad, tol: float = QUAD_TOLERANCE) -> bool:
+    """True when the quad is an axis-aligned rectangle to within `tol` canvas px — the
+    degenerate case that must skip the warp entirely so straight-on slots keep rendering
+    byte-for-byte as they do today (slot 03's a48d6b8c… / d99bb66f… regression gate)."""
+    (tlx, tly), (trx, try_), (brx, bry), (blx, bly) = quad
+    return (abs(tly - try_) <= tol and abs(bly - bry) <= tol
+            and abs(tlx - blx) <= tol and abs(trx - brx) <= tol)
+
+
+def needs_warp(quad) -> bool:
+    return quad is not None and not is_axis_aligned_rect(quad)
+
+
+def quad_is_degenerate(quad, *, eps_scale: float = 1e-9) -> bool:
+    """No three of the four corners may be collinear (which also catches repeated corners) —
+    the standard existence condition for a four-point homography. The epsilon is scaled by the
+    quad's own extent so it means the same thing at unit-square and canvas scale."""
+    extent = max(
+        max(p[0] for p in quad) - min(p[0] for p in quad),
+        max(p[1] for p in quad) - min(p[1] for p in quad),
+        1.0,
+    )
+    eps = eps_scale * extent * extent
+    for i in range(4):
+        (ax, ay), (bx, by), (cx, cy) = quad[i], quad[(i + 1) % 4], quad[(i + 2) % 4]
+        if abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax)) <= eps:
+            return True
+    return False
+
+
+def _solve(matrix: list[list[float]], rhs: list[float]) -> list[float]:
+    """Gaussian elimination with partial pivoting. Stdlib only (FR-9010-25) — numpy is exactly
+    the kind of dependency this script exists without."""
+    n = len(rhs)
+    aug = [row[:] + [rhs[i]] for i, row in enumerate(matrix)]
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(aug[r][col]))
+        if abs(aug[pivot][col]) < 1e-12:
+            raise GeometryError("singular system: the four corners do not define a homography")
+        aug[col], aug[pivot] = aug[pivot], aug[col]
+        inv = 1.0 / aug[col][col]
+        for row in range(n):
+            if row == col:
+                continue
+            factor = aug[row][col] * inv
+            if factor:
+                for k in range(col, n + 1):
+                    aug[row][k] -= factor * aug[col][k]
+    return [aug[i][n] / aug[i][i] for i in range(n)]
+
+
+def homography(src, dst) -> tuple[float, ...]:
+    """The eight coefficients (a…h) of the projective map src -> dst:
+
+        X = (a·x + b·y + c) / (g·x + h·y + 1)
+        Y = (d·x + e·y + f) / (g·x + h·y + 1)
+
+    ImageMagick recomputes the very same map from the four point pairs; solving it here buys
+    two things a shell-out cannot: a degeneracy check that fails with a named error instead of
+    a subprocess crash, and a directly unit-testable seam. `g == h == 0` means the map came out
+    affine — i.e. no perspective, which is what a rectangle-to-parallelogram quad gives.
+    """
+    src, dst = list(src), list(dst)
+    if len(src) != 4 or len(dst) != 4:
+        raise GeometryError("a homography needs exactly four source and four destination points")
+    for label, quad in (("source", src), ("destination", dst)):
+        if quad_is_degenerate(quad):
+            raise GeometryError(
+                f"degenerate {label} quad: three of its four corners are collinear "
+                f"(or two coincide), so no homography exists")
+    matrix, rhs = [], []
+    for (x, y), (bigx, bigy) in zip(src, dst):
+        matrix.append([x, y, 1, 0, 0, 0, -x * bigx, -y * bigx])
+        rhs.append(bigx)
+        matrix.append([0, 0, 0, x, y, 1, -x * bigy, -y * bigy])
+        rhs.append(bigy)
+    return tuple(_solve(matrix, rhs))
+
+
+def apply_homography(coeffs, x: float, y: float) -> tuple[float, float]:
+    a, b, c, d, e, f, g, h = coeffs
+    w = g * x + h * y + 1.0
+    if abs(w) < 1e-12:
+        raise GeometryError(f"point ({x}, {y}) maps to the horizon line of this homography")
+    return ((a * x + b * y + c) / w, (d * x + e * y + f) / w)
+
+
+def perspective_control_points(src_size, dst_quad) -> str:
+    """The argument ImageMagick's `-distort Perspective` takes: four `sx,sy dx,dy` pairs. The
+    source corners are the capture's own rectangle, clockwise from top-left — the homography
+    maps the whole capture onto the quad, which is exactly the projective image a real screen
+    of that content would have. `fit` is therefore already consumed by the warp."""
+    w, h = src_size
+    src = [(0, 0), (w, 0), (w, h), (0, h)]
+    return "  ".join(
+        f"{_fmt(sx)},{_fmt(sy)} {_fmt(dx)},{_fmt(dy)}"
+        for (sx, sy), (dx, dy) in zip(src, dst_quad)
+    )
+
+
+def screen_quad_problems(label: str, quad, box, canvas) -> list[str]:
+    """--check rules that only apply once a quad actually needs warping.
+
+    A straight-on quad is exempt from the containment rules on purpose: slot 03's device body
+    (and its screen rect) bleeds off the bottom edge BY DESIGN, because the template draws that
+    device itself. A perspective quad is different in kind — it is the screen of a device that
+    lives inside the photograph, so a corner off the canvas means the scene's crop is wrong and
+    the frame is cut off. CUTOUT.md measured exactly that: under a centred cover fit the
+    bottom-left corner lands at y = 2802.79 on a 2752-tall canvas.
+    """
+    problems: list[str] = []
+    if not needs_warp(quad):
+        return problems
+
+    if quad_is_degenerate(quad):
+        problems.append(
+            f"{label}: degenerate screen quad {[(_fmt(x), _fmt(y)) for x, y in quad]} — three "
+            "corners are collinear (or two coincide), so no perspective warp exists")
+        return problems
+
+    cw, ch = canvas
+    for name, (x, y) in zip(CORNER_NAMES, quad):
+        if not (-QUAD_TOLERANCE <= x <= cw + QUAD_TOLERANCE
+                and -QUAD_TOLERANCE <= y <= ch + QUAD_TOLERANCE):
+            problems.append(
+                f"{label}: screen quad corner {name} ({_fmt(x)}, {_fmt(y)}) is off-canvas on a "
+                f"{cw}x{ch} artboard — the scene's framing cuts the screen off. Reframe the "
+                f'<image id="scene"> box (oversize it and offset y) instead of centring it.')
+
+    if box is not None:
+        bx, by, bw, bh = box
+        for name, (x, y) in zip(CORNER_NAMES, quad):
+            if not (bx - QUAD_TOLERANCE <= x <= bx + bw + QUAD_TOLERANCE
+                    and by - QUAD_TOLERANCE <= y <= by + bh + QUAD_TOLERANCE):
+                problems.append(
+                    f"{label}: screen quad corner {name} ({_fmt(x)}, {_fmt(y)}) is outside the "
+                    f'<image id="screenshot"> box ({_fmt(bx)}, {_fmt(by)}, {_fmt(bw)} x '
+                    f"{_fmt(bh)}) — the pre-warped capture is rendered into that box, so the "
+                    "warp would be silently clipped. Set the box to the quad's bounding box.")
+    return problems
+
+
+def template_geometry_problems(label: str, template: Path, slot: dict, *, canvas) -> list[str]:
+    """Parses one template and reports what --check can only learn from its geometry. Every
+    failure mode here is a report, never a traceback: a template is authored by hand."""
+    try:
+        root = ET.parse(template).getroot()
+    except ET.ParseError as exc:
+        return [f"{label}: cannot parse template {template}: {exc}"]
+    except OSError as exc:  # pragma: no cover — existence was checked by the caller
+        return [f"{label}: cannot read template {template}: {exc}"]
+    try:
+        quad = screen_quad_for(root, slot)
+    except GeometryError as exc:
+        return [f"{label}: {template.name}: {exc}"]
+    if quad is None:
+        return []
+    element = by_id(root, "screenshot")
+    try:
+        box = image_box(element) if element is not None else None
+    except (TypeError, ValueError):
+        box = None
+    return screen_quad_problems(label, quad, box, canvas)
+
+
+def canvas_for(manifest, device: str):
+    """(width, height) of a device class, or None when the manifest's own spec is unusable —
+    `manifest_problems` has already named that defect, so geometry checks just stand down."""
+    spec = (manifest.get("devices") or {}).get(device)
+    if not isinstance(spec, dict):
+        return None
+    w, h = spec.get("width"), spec.get("height")
+    if isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0:
+        return (w, h)
+    return None
 
 
 # --------------------------------------------------------------------------------------
@@ -411,13 +726,19 @@ def slot_paths_resolvable(slot) -> bool:
                for key in ("id", "template", "scene", "capture"))
 
 
-def combo_problems(device: str, locale: str, slot: dict, paths: SlotPaths) -> list[str]:
-    """Asset-existence checks for one (device, locale, slot) combination."""
+def combo_problems(device: str, locale: str, slot: dict, paths: SlotPaths,
+                    *, canvas=None) -> list[str]:
+    """Asset-existence checks for one (device, locale, slot) combination, plus — when the
+    device's canvas size is known — the template's own screen-quad geometry. The geometry pass
+    is here rather than in `manifest_problems` because it needs the template FILE, which is a
+    per-combination fact (`templates/<device>/<slot.template>`) and not a manifest one."""
     sid = slot.get("id", "?")
     label = f"slot {sid!r} device={device} locale={locale}"
     problems = []
     if not paths.template.is_file():
         problems.append(f"{label}: missing template {paths.template}")
+    elif canvas is not None:
+        problems.extend(template_geometry_problems(label, paths.template, slot, canvas=canvas))
     if not paths.scene.is_file():
         problems.append(f"{label}: missing scene {paths.scene}")
     if paths.capture is not None and not paths.capture.is_file():
@@ -527,20 +848,33 @@ def flatten(src: Path, dst: Path) -> None:
     dst.write_bytes(add_srgb_chunk(dst.read_bytes()))
 
 
-def warp_capture_perspective(capture: Path, perspective: list[list[float]], *,
-                              work_dir: Path, tag: str) -> Path:
-    """FR-9010-23/26: pre-warps the CAPTURE (never the scene) to the manifest's four
-    destination corners before it is embedded. Unexercised end-to-end today — no slot carries
-    `perspective` — but the manifest-side validation is unit-tested (_perspective_problems)."""
+def warp_capture_perspective(capture: Path, quad, *, box, work_dir: Path, tag: str) -> Path:
+    """FR-9010-23/26: pre-warps the CAPTURE (never the scene) onto the screen quad.
+
+    The four source points are the capture's own rectangle; the four destination points are the
+    quad, in absolute canvas coordinates. `distort:viewport` is what lets those stay absolute:
+    it fixes the output raster to the `screenshot` <image> box's own region of the canvas, so
+    the resulting bitmap drops straight into that box at `preserveAspectRatio="none"` with no
+    coordinate translation anywhere. Verified against the installed ImageMagick 7.1.2:
+    `-list distort` names `Perspective`, and `-matte` warns "option has been replaced, use
+    -alpha Set" — hence `-alpha set`. `-strip` keeps the intermediate byte-stable, so a repeat
+    run is identical all the way down the pipeline and not just at the flattened output.
+
+    The homography is solved here first, purely to fail with a named GeometryError on a
+    degenerate quad instead of handing ImageMagick a system it cannot solve either.
+    """
     facts = parse_png(capture.read_bytes())
     w, h = facts["width"], facts["height"]
-    src = [(0, 0), (w, 0), (w, h), (0, h)]
-    pairs = " ".join(f"{sx},{sy} {dx},{dy}" for (sx, sy), (dx, dy) in zip(src, perspective))
+    homography([(0, 0), (w, 0), (w, h), (0, h)], quad)
+    pairs = perspective_control_points((w, h), quad)
+    bx, by, bw, bh = box
+    viewport = f"{max(1, round(bw))}x{max(1, round(bh))}+{round(bx)}+{round(by)}"
     dst = work_dir / f"warp-{tag}.png"
     try:
         subprocess.run([
-            "magick", str(capture), "-matte", "-virtual-pixel", "transparent",
-            "-distort", "Perspective", pairs, str(dst),
+            "magick", str(capture), "-alpha", "set", "-virtual-pixel", "transparent",
+            "-background", "none", "-set", "option:distort:viewport", viewport,
+            "-distort", "Perspective", pairs, "-strip", str(dst),
         ], check=True, capture_output=True)
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         raise ExternalToolError(f"ImageMagick perspective warp failed for {capture}: {exc}") from exc
@@ -556,19 +890,28 @@ def render_combo(*, device: str, locale: str, slot: dict, paths: SlotPaths,
     tag = f"{device}-{locale}-{slot['id']}"
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    capture_for_embed = paths.capture
-    if slot.get("perspective") and capture_for_embed is not None:
-        capture_for_embed = warp_capture_perspective(
-            capture_for_embed, slot["perspective"], work_dir=work_dir, tag=tag,
-        )
-
     tree = ET.parse(paths.template)
     tree_root = tree.getroot()
+
+    # Perspective decision (see the screen-quad section): the quad comes out of the template's
+    # own clipPath unless the slot overrides it, and an axis-aligned quad skips ImageMagick
+    # entirely so every straight-on template keeps its byte-identical output.
+    capture_for_embed, warped = paths.capture, False
+    screenshot_el = by_id(tree_root, "screenshot")
+    if capture_for_embed is not None and screenshot_el is not None:
+        quad = screen_quad_for(tree_root, slot)
+        if needs_warp(quad):
+            capture_for_embed = warp_capture_perspective(
+                capture_for_embed, quad, box=image_box(screenshot_el),
+                work_dir=work_dir, tag=tag,
+            )
+            warped = True
+
     scene_uri = data_uri(paths.scene)
     screenshot_uri = data_uri(capture_for_embed) if capture_for_embed is not None else None
     lines = slot["headline"][locale]
     substitute(tree_root, scene_uri=scene_uri, screenshot_uri=screenshot_uri,
-               fit=slot["fit"], lines=lines)
+               fit=slot["fit"], lines=lines, warped=warped)
     svg_text = ET.tostring(tree_root, encoding="unicode")
 
     html_path = work_dir / f"{tag}.html"
@@ -669,7 +1012,7 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
         paths = resolve_slot_paths(root=root, capture_root=capture_root, device=d, locale=l,
                                     slot=s, scene_overrides=scene_overrides)
         combo_paths[(d, l, s.get("id"))] = paths
-        asset_problems.extend(combo_problems(d, l, s, paths))
+        asset_problems.extend(combo_problems(d, l, s, paths, canvas=canvas_for(manifest, d)))
 
     if args.list:
         for d, l, s in combos:
@@ -710,7 +1053,7 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
     for d, l, s in combos:
         sid = s.get("id")
         paths = combo_paths[(d, l, sid)]
-        problems = combo_problems(d, l, s, paths)
+        problems = combo_problems(d, l, s, paths, canvas=canvas_for(manifest, d))
         if problems:
             for p in problems:
                 print(f"skip: {p}", file=sys.stderr)
@@ -719,7 +1062,7 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
         try:
             dst = render_combo(device=d, locale=l, slot=s, paths=paths,
                                 device_spec=devices_spec[d], out_dir=out_dir, work_dir=work_dir)
-        except RenderAssertionError as exc:
+        except (RenderAssertionError, GeometryError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             skipped.append(f"{d}/{l}/{sid}")
             continue
