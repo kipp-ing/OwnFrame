@@ -26,26 +26,27 @@
 //  neither renders a photo thumbnail) comes from the hermetic sweep instead, which is
 //  faster, needs no network, and localizes for free. See docs/app-store-presentation.md.
 //
-//  The demo link and hero assets are the ones referenced in the App Review notes
-//  (docs/app-store-listing.md): album "2021-06-Island best of", 38 images.
+//  This rig's own demo link (`demoLink` below) is separate from the App Review demo link
+//  cited in docs/app-store-listing.md (album "2021-06-Island best of", Iceland2021) — that
+//  one must stay untouched; it expires 2027-07-11.
 //
 
 import XCTest
 
 final class AppStoreScreenshotUITests: XCTestCase {
 
-    private static let demoLink = "https://bilder.kippings.de/s/Iceland2021"
+    private static let demoLink = "https://bilder.kippings.de/s/framedemo"
 
     /// The photo slots of the store set, in capture order, each targeted by an asset-id
     /// oracle on `slideshow.image`. Asset ids are device- and locale-independent.
     ///
-    /// PLACEHOLDER PICKS: these are still the Iceland album's two heroes. The store set
-    /// needs four photographs from the curated everyday/family album (slots 1, 2, 5, 6) —
-    /// add the remaining ids here once that album's shared link exists, and point
-    /// `demoLink` at it. The rig captures however many entries this list holds.
+    /// STILL MISSING: slot 5 ("05-hero-new-photos") has no photograph yet — see
+    /// docs/handover-store-slots.md. All three heroes here are warm/orange-graded; the
+    /// open colour-monotony finding in that doc is not resolved by this set.
     private static let heroes: [(name: String, assetID: String)] = [
-        ("01-hero-drawer", "87b68d06-03e7-4d9d-a07d-dd00171af601"),   // DSC05546, red-roof chapel
-        ("02-hero-favourites", "a21c487a-802b-4be5-a1d5-62f3e41978dd"), // DJI_0371, iceberg drone shot
+        ("01-hero-drawer", "4cea99f3-abe4-47d1-baa8-8de2c2dcf802"),    // kinder.png, children hugging
+        ("02-hero-favourites", "32b82d07-7853-44bf-b658-13f1d8fc1e21"), // golden retriever
+        ("06-hero-closing", "6e960ea8-4e8b-439e-830e-ea18b32fd96e"),   // berge.png, couple at lake sunset
     ]
 
     /// English unless the runner asks for German. Mirrors GermanScreenshotSweepUITests.
