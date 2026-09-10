@@ -186,7 +186,8 @@ def _write_manifest_tree(root: Path, manifest: dict, *, with_assets: bool = True
             for device in manifest["devices"]:
                 svg = FIXTURE_WITH_SCREENSHOT if slot.get("capture") else FIXTURE_NO_SCREENSHOT
                 (design / "templates" / device / slot["template"]).write_text(svg, encoding="utf-8")
-                (design / "scenes" / device / slot["scene"]).write_bytes(_make_png(4, 4))
+                if slot.get("scene"):
+                    (design / "scenes" / device / slot["scene"]).write_bytes(_make_png(4, 4))
                 if slot.get("capture"):
                     for locale in manifest["locales"]:
                         (captures / device / locale / slot["capture"]).write_bytes(_make_png(4, 4))
@@ -1126,6 +1127,124 @@ class TestTemplateGeometryCheck(ScratchTestCase):
         code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=tree)
         self.assertEqual(code, 1, out + err)
         self.assertIn("off-canvas", out)
+
+# --------------------------------------------------------------------------------------
+# 15. Sceneless UI slots (FR-9010-03 amendment, 2026-09-10)
+#
+# The two slot archetypes: a photo slot composites its capture into a photographed room, a UI
+# slot drops the room entirely and stands the screen on the brand ground the template draws
+# itself. So `scene` becomes exactly as optional as `capture` already was — the renderer used
+# to demand a scene file for every slot and an id="scene" in every template, which is why the
+# first UI slots were built as rooms and looked it.
+#
+# The contract is symmetric in both directions, and both directions are asserted: declared but
+# absent is still an error, and supplied-but-unconsumable is an error too. `type` is what
+# decides requiredness, so `type` is validated against its vocabulary here for the first time.
+# --------------------------------------------------------------------------------------
+
+
+def _parse_svg(xml_text: str):
+    import xml.etree.ElementTree as ET
+    return ET.fromstring(xml_text)
+
+
+class TestScenelessUiSlots(ScratchTestCase):
+    FIXTURE_NO_SCENE = f"""<svg xmlns="{SVG_NS}" width="100" height="140" viewBox="0 0 100 140">
+  <rect x="0" y="0" width="100" height="140" fill="#000000"/>
+  <text id="headline" x="10" y="20" xml:space="preserve"><tspan x="10" dy="0">Headline line one</tspan><tspan x="10" dy="1.16em">Headline line two</tspan></text>
+  <image id="screenshot" x="12" y="40" width="70" height="90" preserveAspectRatio="xMidYMid slice" href=""/>
+</svg>"""
+
+    def test_template_without_scene_id_substitutes_when_no_scene_supplied(self):
+        root = _parse_svg(self.FIXTURE_NO_SCENE)
+        rss.substitute(root, scene_uri=None, screenshot_uri="data:image/png;base64,AAAA",
+                       fit="cover", lines=["One"])
+        self.assertEqual(rss.by_id(root, "screenshot").get("href"),
+                         "data:image/png;base64,AAAA")
+        self.assertIsNone(rss.by_id(root, "scene"))
+
+    def test_template_with_scene_id_but_no_scene_supplied_raises(self):
+        root = _parse_svg(FIXTURE_WITH_SCREENSHOT)
+        with self.assertRaises(ValueError) as ctx:
+            rss.substitute(root, scene_uri=None, screenshot_uri="data:image/png;base64,AAAA",
+                           fit="cover", lines=["One"])
+        self.assertIn("scene", str(ctx.exception))
+
+    def test_scene_supplied_but_template_has_no_scene_id_raises(self):
+        """The mirror of the screenshot rule: silently dropping a declared asset is how a slot
+        ships looking like nobody noticed."""
+        root = _parse_svg(self.FIXTURE_NO_SCENE)
+        with self.assertRaises(ValueError) as ctx:
+            rss.substitute(root, scene_uri="data:image/png;base64,AAAA",
+                           screenshot_uri="data:image/png;base64,AAAA",
+                           fit="cover", lines=["One"])
+        self.assertIn("scene", str(ctx.exception))
+
+    def test_slot_without_scene_key_resolves_to_no_scene_path(self):
+        slot = {"id": "03-ui", "type": "ui", "template": "slot-03.svg",
+                "capture": "03-ui.png", "fit": "cover", "headline": {"en": ["One"]}}
+        paths = rss.resolve_slot_paths(
+            root=self.work, capture_root=self.work / "captures", device="ipad", locale="en",
+            slot=slot, scene_overrides={},
+        )
+        self.assertIsNone(paths.scene)
+        self.assertIsNotNone(paths.capture)
+
+    def test_ui_slot_without_scene_key_is_not_reported_missing(self):
+        manifest = _small_manifest()
+        del manifest["slots"][0]["scene"]
+        manifest_path = _write_manifest_tree(self.work / "tree", manifest)
+        (self.work / "tree" / "Design" / "AppStore" / "templates" / "ipad"
+         / "slot-01.svg").write_text(self.FIXTURE_NO_SCENE, encoding="utf-8")
+        (self.work / "tree" / "Design" / "AppStore" / "templates" / "iphone"
+         / "slot-01.svg").write_text(self.FIXTURE_NO_SCENE, encoding="utf-8")
+        code, out, err = self.run_main(
+            ["--check", "--manifest", str(manifest_path)], root=self.work / "tree")
+        self.assertEqual(code, 0, out + err)
+        self.assertNotIn("missing scene", out)
+
+        # A green --check is not enough on its own: the slot could be green because it was
+        # silently dropped as unresolvable and never checked at all. Assert it actually resolves.
+        code, out, err = self.run_main(
+            ["--list", "--manifest", str(manifest_path)], root=self.work / "tree")
+        self.assertEqual(code, 0, out + err)
+        rows = [r for r in out.splitlines() if "01-alpha" in r]
+        self.assertTrue(rows, out)
+        for row in rows:
+            self.assertNotIn("unresolvable", row)
+            self.assertIn("slot-01.svg", row)
+
+    def test_scene_slot_without_scene_key_is_a_manifest_problem(self):
+        manifest = _small_manifest()
+        manifest["slots"][0]["type"] = "scene"
+        del manifest["slots"][0]["scene"]
+        problems = rss.manifest_problems(manifest)
+        self.assertTrue(any("scene" in p and "01-alpha" in p for p in problems), problems)
+
+    def test_declared_scene_that_does_not_exist_is_still_reported(self):
+        """Optional means "may be omitted", never "may be wrong"."""
+        manifest = _small_manifest()
+        manifest_path = _write_manifest_tree(self.work / "tree", manifest)
+        (self.work / "tree" / "Design" / "AppStore" / "scenes" / "ipad" / "01-alpha.jpg").unlink()
+        code, out, err = self.run_main(
+            ["--check", "--manifest", str(manifest_path)], root=self.work / "tree")
+        self.assertEqual(code, 1)
+        self.assertIn("missing scene", out)
+
+    def test_unknown_slot_type_is_a_manifest_problem(self):
+        manifest = _small_manifest()
+        manifest["slots"][0]["type"] = "diorama"
+        problems = rss.manifest_problems(manifest)
+        self.assertTrue(any("type" in p and "diorama" in p for p in problems), problems)
+
+    def test_both_shipped_slot_types_are_accepted(self):
+        for slot_type in ("scene", "ui"):
+            with self.subTest(type=slot_type):
+                manifest = _small_manifest()
+                manifest["slots"][0]["type"] = slot_type
+                problems = rss.manifest_problems(manifest)
+                self.assertEqual([p for p in problems if "type" in p], [])
+
 
 def tearDownModule():
     shutil.rmtree(SCRATCH, ignore_errors=True)

@@ -116,7 +116,13 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 # always an explicit authoring decision, never a silent one.
 PAR = {"cover": "xMidYMid slice", "contain": "xMidYMid meet", "fill": "none"}
 
-REQUIRED_SLOT_KEYS = ("id", "type", "template", "scene", "capture", "fit", "headline")
+REQUIRED_SLOT_KEYS = ("id", "type", "template", "capture", "fit", "headline")
+
+# The two slot archetypes (9010, FR-9010-03 amendment 2026-09-10). A `scene` slot composites its
+# capture into a photographed room; a `ui` slot drops the room and stands the screen on the
+# ground its own template draws. `type` is therefore load-bearing — it decides whether `scene`
+# is required — so it is validated against this vocabulary rather than merely being present.
+SLOT_TYPES = ("scene", "ui")
 
 HTML = """<!doctype html>
 <meta charset="utf-8">
@@ -145,7 +151,7 @@ class GeometryError(ValueError):
 
 class SlotPaths(NamedTuple):
     template: Path
-    scene: Path
+    scene: Path | None
     capture: Path | None
 
 
@@ -179,22 +185,31 @@ def preserve_aspect_ratio(fit: str) -> str:
         raise ValueError(f"unknown fit {fit!r} (expected one of {sorted(PAR)})") from None
 
 
-def substitute(root: ET.Element, *, scene_uri: str, screenshot_uri: str | None,
+def substitute(root: ET.Element, *, scene_uri: str | None, screenshot_uri: str | None,
                fit: str, lines: list[str], warped: bool = False) -> None:
-    """Mutates `root` in place: sets `scene` (required), `screenshot` (only if the template
-    has one), and rebuilds `headline`'s <tspan> children from `lines` (FR-9010-16/22).
+    """Mutates `root` in place: sets `scene` and `screenshot` (each only if the template has
+    one), and rebuilds `headline`'s <tspan> children from `lines` (FR-9010-16/22).
 
     `warped=True` means the capture handed in has already been pre-warped onto the screen quad
     and authored in the `screenshot` box's own units, so the <image> must map it 1:1 —
     `preserveAspectRatio="none"`. Any other value would re-fit the bitmap inside the box and
     slide the warp off the quad. `fit` is still validated either way, so a bad value is never
     silently swallowed by a perspective slot; the homography has simply already consumed it."""
+    # `scene` is optional in exactly the way `screenshot` is, and the two error cases are the
+    # mirror of each other: an id the manifest cannot feed, and an asset no id can consume.
+    # Both are authoring mistakes that would otherwise ship as a slot nobody noticed was wrong —
+    # a UI slot with a stray room, or a photo slot rendering onto bare ground.
     scene_el = by_id(root, "scene")
-    if scene_el is None:
-        raise ValueError('template has no element id="scene"')
-    scene_el.set("href", scene_uri)
-    # `fit` governs the capture only, never the scene (README) — scene's own
-    # preserveAspectRatio, baked into the template, is deliberately never touched here.
+    if scene_el is not None:
+        if scene_uri is None:
+            raise ValueError(
+                'template has an element id="scene" but no scene data was supplied'
+            )
+        scene_el.set("href", scene_uri)
+        # `fit` governs the capture only, never the scene (README) — scene's own
+        # preserveAspectRatio, baked into the template, is deliberately never touched here.
+    elif scene_uri is not None:
+        raise ValueError('a scene was supplied but the template has no element id="scene"')
 
     screenshot_el = by_id(root, "screenshot")
     if screenshot_el is not None:
@@ -550,9 +565,14 @@ def resolve_slot_paths(*, root: Path, capture_root: Path, device: str, locale: s
                         slot: dict, scene_overrides: dict[str, Path]) -> SlotPaths:
     template = root / "Design" / "AppStore" / "templates" / device / slot["template"]
     override = scene_overrides.get(slot.get("id"))
-    scene = override if override is not None else (
-        root / "Design" / "AppStore" / "scenes" / device / slot["scene"]
-    )
+    scene_name = slot.get("scene")
+    if override is not None:
+        scene = override
+    elif scene_name:
+        scene = root / "Design" / "AppStore" / "scenes" / device / scene_name
+    else:
+        # A sceneless UI slot (FR-9010-03 amendment): its template draws its own ground.
+        scene = None
     capture_name = slot.get("capture")
     capture = capture_root / device / locale / capture_name if capture_name else None
     return SlotPaths(template=template, scene=scene, capture=capture)
@@ -674,6 +694,16 @@ def manifest_problems(manifest) -> list[str]:
             if key not in slot:
                 problems.append(f"{label}: missing required key {key!r}")
 
+        # `scene` is required for, and only for, a `scene` slot. Omitting it on a UI slot is the
+        # archetype working as intended; omitting it on a photo slot is a slot that would render
+        # onto bare ground, which is precisely the defect this pair of rules exists to catch.
+        slot_type = slot.get("type")
+        if slot_type is not None and slot_type not in SLOT_TYPES:
+            problems.append(
+                f"{label}: type {slot_type!r} is not one of {sorted(SLOT_TYPES)}")
+        elif slot_type == "scene" and "scene" not in slot:
+            problems.append(f"{label}: missing required key 'scene' for a slot of type 'scene'")
+
         # Presence is not enough. A key whose value is the wrong TYPE used to sail through
         # --check and blow up later: `id: null` rendered to a file called `None.png`, a
         # non-string `template`/`scene`/`capture` raised a raw TypeError out of path building
@@ -722,8 +752,12 @@ def slot_paths_resolvable(slot) -> bool:
     pass skips it instead of dying and printing nothing (which is what it used to do)."""
     if not isinstance(slot, dict):
         return False
-    return all(isinstance(slot.get(key), str) and slot.get(key)
-               for key in ("id", "template", "scene", "capture"))
+    if not all(isinstance(slot.get(key), str) and slot.get(key)
+               for key in ("id", "template", "capture")):
+        return False
+    # `scene` may be absent (a sceneless UI slot). Present-but-not-a-usable-string is still
+    # unresolvable — omitted and wrong are different things, and only the first one is legal.
+    return "scene" not in slot or bool(isinstance(slot["scene"], str) and slot["scene"])
 
 
 def combo_problems(device: str, locale: str, slot: dict, paths: SlotPaths,
@@ -739,7 +773,7 @@ def combo_problems(device: str, locale: str, slot: dict, paths: SlotPaths,
         problems.append(f"{label}: missing template {paths.template}")
     elif canvas is not None:
         problems.extend(template_geometry_problems(label, paths.template, slot, canvas=canvas))
-    if not paths.scene.is_file():
+    if paths.scene is not None and not paths.scene.is_file():
         problems.append(f"{label}: missing scene {paths.scene}")
     if paths.capture is not None and not paths.capture.is_file():
         problems.append(f"{label}: missing capture {paths.capture}")
@@ -907,7 +941,7 @@ def render_combo(*, device: str, locale: str, slot: dict, paths: SlotPaths,
             )
             warped = True
 
-    scene_uri = data_uri(paths.scene)
+    scene_uri = data_uri(paths.scene) if paths.scene is not None else None
     screenshot_uri = data_uri(capture_for_embed) if capture_for_embed is not None else None
     lines = slot["headline"][locale]
     substitute(tree_root, scene_uri=scene_uri, screenshot_uri=screenshot_uri,
