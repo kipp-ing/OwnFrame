@@ -403,8 +403,9 @@ struct OwnFrameApp: App {
             // the fixed 60-minute refresh (FR-310-06) is deliberately not a setting, but a live
             // capture needs a genuine arrival inside a test's runtime. Compiled only into DEBUG
             // builds, so this lever cannot exist in a shipped Release binary regardless of what
-            // environment a device happens to carry. Set via `simctl … launchctl setenv`
-            // (reaches the app process, unlike a TEST_RUNNER_-prefixed xcodebuild argument).
+            // environment a device happens to carry. Set via `XCUIApplication.launchEnvironment`
+            // (a direct env override for the launched app process — unrelated to the
+            // TEST_RUNNER_-prefix trap, which is only about reaching the XCTest runner itself).
             if let raw = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_REFRESH_SECONDS"],
                let seconds = Double(raw), seconds > 0 {
                 config.refreshInterval = .seconds(seconds)
@@ -890,6 +891,15 @@ private struct RootView: View {
                 }
                 store.settings.clock = clock
             }
+            return store
+        }
+        // 9010 slot 5 live capture only (AppStoreScreenshotUITests, SCREENSHOT_CAPTURE=1): force
+        // the card on so that rig doesn't have to navigate the Settings sheet (no accessible
+        // Done button there — see testCaptureChromeAndSheets). DEBUG-only, env-var-gated; the
+        // shipped default (off) is untouched.
+        if ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD"] == "1" {
+            let store = UserDefaultsThemeStore()
+            store.settings.newPhotosCard = true
             return store
         }
         #endif

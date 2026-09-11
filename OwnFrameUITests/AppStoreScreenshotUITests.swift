@@ -37,6 +37,10 @@ final class AppStoreScreenshotUITests: XCTestCase {
 
     private static let demoLink = "https://bilder.kippings.de/s/framedemo"
 
+    /// Separate content album for 9010 slot 5 (310 FR-310-14) — kept apart from `demoLink` so
+    /// the arrival-toast capture's live content changes never touch the hero-photo material.
+    private static let newPhotosCardLink = "https://frame.kippings.de/s/framecontent"
+
     /// The photo slots of the store set, in capture order, each targeted by an asset-id
     /// oracle on `slideshow.image`. Asset ids are device- and locale-independent.
     ///
@@ -126,6 +130,38 @@ final class AppStoreScreenshotUITests: XCTestCase {
         attach(name: "22-settings")
     }
 
+    /// Slot 5's live capture (310 FR-310-14; 9010 Clarifications, 2026-09-11 session): the
+    /// arrival-toast card over a REAL photograph, not the hermetic sweep's synthetic stub (see
+    /// `GermanScreenshotSweepUITests.test55_newPhotosCard` for that regression coverage).
+    ///
+    /// Onboards through `newPhotosCardLink`, a separate content album from the hero-photo
+    /// `demoLink`. Two DEBUG-only, env-var-gated levers (never present in a Release build,
+    /// see `OwnFrameApp.makeThemeStore`/`makeSlideshow`) remove the two frictions a live
+    /// capture would otherwise hit: `SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD=1` turns the card on
+    /// without navigating the Settings sheet (no accessible Done button there — see
+    /// `testCaptureChromeAndSheets`), and `SCREENSHOT_CAPTURE_REFRESH_SECONDS` shortens
+    /// FR-310-06's fixed 60-minute interval so the wait below is measured in seconds.
+    ///
+    /// This test cannot make the arrival happen itself — there are no Immich credentials in
+    /// this repo, by design. It only WAITS for one. **Add the new photo to the
+    /// `newPhotosCardLink` album any time after starting this test** (a generous window is
+    /// given below); the shortened refresh picks it up as soon as it appears.
+    @MainActor
+    func testCaptureNewPhotosCard() throws {
+        let app = launch(environment: [
+            "SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD": "1",
+            "SCREENSHOT_CAPTURE_REFRESH_SECONDS": "5",
+        ])
+        _ = try startSlideshow(app, link: Self.newPhotosCardLink)
+
+        let card = app.descendants(matching: .any).matching(identifier: "slideshow.newPhotosCard").firstMatch
+        XCTAssertTrue(
+            card.waitForExistence(timeout: 180),
+            "no arrival seen within 180s — add the new photo to \(Self.newPhotosCardLink)'s album while this test is running"
+        )
+        attach(name: "05-slot-new-photos")
+    }
+
     // MARK: - Launch + onboarding
 
     /// See FR-9010-34: the shipped captures are taken at an enlarged Dynamic Type size so a
@@ -170,20 +206,23 @@ final class AppStoreScreenshotUITests: XCTestCase {
     }
 
     @MainActor
-    private func launch() -> XCUIApplication {
+    private func launch(environment: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
         let locale = Self.locale
         app.launchArguments = ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
             + Self.textSizeArguments
+        app.launchEnvironment = environment
         app.launch()
         XCUIDevice.shared.orientation = .portrait
         sleep(1)
         return app
     }
 
-    /// Fresh-install onboarding through the demo shared link, up to the first live image.
+    /// Fresh-install onboarding through a shared link, up to the first live image. Defaults to
+    /// the hero-photo demo link; `testCaptureNewPhotosCard` passes a separate content album so
+    /// nothing there touches the hero-photo material.
     @MainActor
-    private func startSlideshow(_ app: XCUIApplication) throws -> XCUIElement {
+    private func startSlideshow(_ app: XCUIApplication, link: String = AppStoreScreenshotUITests.demoLink) throws -> XCUIElement {
         let sharedLinkChoice = app.buttons["onboarding.choice.sharedLink"]
         XCTAssertTrue(sharedLinkChoice.waitForExistence(timeout: 10),
                       "expected the first-run choice screen — uninstall the app before capturing")
@@ -192,7 +231,7 @@ final class AppStoreScreenshotUITests: XCTestCase {
         let url = app.textFields["onboarding.sharedLink.url"]
         XCTAssertTrue(url.waitForExistence(timeout: 5))
         url.tap()
-        url.typeText(Self.demoLink)
+        url.typeText(link)
         dismissKeyboard(app)
         app.buttons["onboarding.sharedLink.start"].tap()
 
