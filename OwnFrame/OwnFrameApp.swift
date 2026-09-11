@@ -1377,8 +1377,14 @@ enum UITestNewPhotosCardSeam {
         lock.withLock { expanded = true }
     }
 
-    nonisolated static var isArmed: Bool {
-        lock.withLock { expanded }
+    /// Test-and-clear: an armed check disarms immediately, so only the one fetch that
+    /// actually observes it sees the expanded list — a second `.task` run in the same
+    /// process (e.g. a source switch) must not silently reuse a stale arm.
+    nonisolated static func consumeIfArmed() -> Bool {
+        lock.withLock {
+            defer { expanded = false }
+            return expanded
+        }
     }
 }
 
@@ -1433,7 +1439,7 @@ private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked S
         guard ProcessInfo.processInfo.arguments.contains("--uitest-new-photos-card") else {
             return baseAssets
         }
-        guard UITestNewPhotosCardSeam.isArmed else {
+        guard UITestNewPhotosCardSeam.consumeIfArmed() else {
             return baseAssets
         }
         return baseAssets + [

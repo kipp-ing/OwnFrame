@@ -186,16 +186,21 @@ struct SlideshowView: View {
             // fake gateway's plain 3-asset list, then arm the gateway (an explicit
             // switch, not a fetch count — see `UITestNewPhotosCardSeam`) and drive one
             // refresh that sees two more assets than `start()` did. A deterministic,
-            // hermetic arrival instead of waiting an hour.
+            // hermetic arrival instead of waiting an hour. DEBUG-only: `UITestNewPhotosCardSeam`
+            // itself only exists in DEBUG builds, and Release has no DEBUG flag defined.
+            #if DEBUG
             let seedingNewPhotosCard = ProcessInfo.processInfo.arguments.contains("--uitest-new-photos-card")
             if seedingNewPhotosCard {
                 themeStore.settings.newPhotosCard = true
             }
+            #endif
             await viewModel.start()
+            #if DEBUG
             if seedingNewPhotosCard {
                 UITestNewPhotosCardSeam.arm()
                 await viewModel.refreshNow()
             }
+            #endif
             await startCoordinator()
         }
         .onDisappear {
