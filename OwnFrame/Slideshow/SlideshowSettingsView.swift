@@ -236,6 +236,13 @@ struct SlideshowSettingsView: View {
                         }
                         .accessibilityIdentifier("settings.clock.date")
                     }
+
+                    // 310/9010: free, off by default — an undisturbed picture is the
+                    // product's whole value, so this is opt-in and never gated.
+                    Toggle(isOn: $themeStore.settings.newPhotosCard) {
+                        Label("New photos card", systemImage: "photo.badge.plus")
+                    }
+                    .accessibilityIdentifier("settings.newPhotosCard")
                 } header: {
                     Text("Display")
                 } footer: {

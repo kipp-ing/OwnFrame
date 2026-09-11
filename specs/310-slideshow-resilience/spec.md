@@ -5,7 +5,9 @@
 **Created**: 2026-07-09
 
 **Status**: Implemented + merged to main (2026-07-09) — was the pre-release gate before the App
-Store release. FR→test mapping in `docs/spec-traceability.md` (310 section).
+Store release. FR→test mapping in `docs/spec-traceability.md` (310 section). **Amended
+2026-09-11** (US4/FR-310-14/SC-310-07): an opt-in arrival signal for the periodic refresh, added
+to give 9010 store slot 5 a real capability to depict instead of an invented screen.
 
 **Input**: Sub-spec of `specs/300-slideshow`. A photo frame runs unattended for weeks: it must
 survive network loss without anyone touching it, and newly added photos must enter rotation
@@ -97,6 +99,32 @@ older than the interval; verify no refresh/retry timers fire while backgrounded.
 3. **Given** a retry was pending when the app was backgrounded, **Then** it resumes (or fires
    immediately if overdue) on foreground return.
 
+### User Story 4 - Seeing that new photos arrived (Priority: P3) *(added 2026-09-11)*
+
+User Story 2 already gets new photos into rotation invisibly. Some people want to *notice* that
+it happened — a small, transient card naming the source and how many photos just arrived, purely
+informational, off by default.
+
+**Why this priority**: Cosmetic, not core to the resilience story — hence P3, added after the
+2026-09-10 store-presentation session found slot 5 depicting exactly this and needing a real
+capability behind it rather than an invented screen (`docs/handover-store-slots.md`,
+9010 FR-9010-03/-04).
+
+**Independent Test**: With a fake `ImmichAPI` and injected scheduler: start playback, add assets,
+advance past the refresh interval, verify a count of the newly-added assets is published once and
+only once per genuine addition (a no-op or removal-only refresh publishes nothing new).
+
+**Acceptance Scenarios**:
+
+1. **Given** the `newPhotosCard` setting is on and a refresh added assets, **Then** a transient
+   card names the active source and the count of assets added, then fades after a few seconds.
+2. **Given** the setting is off (the default), **Then** no card ever appears, regardless of what a
+   refresh adds.
+3. **Given** a refresh adds nothing (no-op or removal-only), **Then** no card appears and any
+   previously-shown arrival is not re-shown.
+4. **Given** two refreshes each add assets, **Then** each is its own event — a second arrival
+   re-shows the card even if the count happens to match the first.
+
 ### Edge Cases
 
 - **Server unreachable at launch with saved setup**: calm state + auto-retry (US1 scenario 2) —
@@ -150,6 +178,16 @@ older than the interval; verify no refresh/retry timers fire while backgrounded.
   testability).
 - **FR-310-13**: Failure paths MUST NOT log secrets (API key, shared-link password, broker
   credentials) — consistent with FR-300-32.
+- **FR-310-14** *(added 2026-09-11, US4)*: A quiet refresh that adds assets MAY publish an
+  arrival signal — the count added and a fresh identity per genuine addition, never re-published
+  by a refresh that adds nothing. Surfacing it as a transient UI card is opt-in
+  (`ThemeSettings.newPhotosCard`, **default off**): FR-310-07's "no visible loading state"
+  guarantee is about the refresh mechanics, not about this separate, optional, after-the-fact
+  signal, but the product's calm-default spirit still applies — nothing appears unless a person
+  turns it on. The signal itself MUST NOT claim anything FR-310-06 does not already guarantee (no
+  instant or background arrival), MUST NOT show a `SourceKind` category word or any raw host, and
+  is never gated behind a purchase (free, like HA telemetry) — see 9010 FR-9010-06/07 for the
+  store-facing constraints this binds.
 
 ### Key Entities
 
@@ -159,6 +197,9 @@ older than the interval; verify no refresh/retry timers fire while backgrounded.
   return" trigger; tracks the last successful refresh with a monotonic reference.
 - **Rotation Reconciliation**: The diff between the playing asset list and a freshly fetched one
   — additions, removals, and the rule for the currently displayed asset.
+- **Arrival Signal** *(added 2026-09-11)*: The count of assets a single reconciliation actually
+  added, paired with a fresh identity so a repeat arrival with the same count is still a new
+  event; nil/absent when nothing was added.
 
 ### Roadmap / Deferred (not yet built)
 
@@ -185,6 +226,10 @@ older than the interval; verify no refresh/retry timers fire while backgrounded.
   reset, no visible stall or flicker).
 - **SC-310-06**: A simulated long run (injected clock, repeated network flaps and refreshes)
   ends with the slideshow still advancing and memory within the existing cache bounds.
+- **SC-310-07** *(added 2026-09-11, US4)*: A refresh that adds N assets publishes an arrival
+  signal carrying exactly N, once; a refresh that adds nothing publishes no new signal (a prior
+  one, if any, is left untouched); two separate arrivals publish two distinct identities even
+  when their counts match.
 
 ## Assumptions
 

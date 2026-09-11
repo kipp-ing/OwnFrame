@@ -85,6 +85,10 @@ public final class UserDefaultsThemeStore: ThemeSettingsStore {
             settings.clock.showDate = defaults.bool(forKey: Keys.clockShowDate)
         }
 
+        if defaults.object(forKey: Keys.newPhotosCard) != nil {
+            settings.newPhotosCard = defaults.bool(forKey: Keys.newPhotosCard)
+        }
+
         return settings
     }
 
@@ -104,6 +108,7 @@ public final class UserDefaultsThemeStore: ThemeSettingsStore {
         defaults.set(settings.clock.place.rawValue, forKey: Keys.clockCorner)
         defaults.set(settings.clock.size.rawValue, forKey: Keys.clockSize)
         defaults.set(settings.clock.showDate, forKey: Keys.clockShowDate)
+        defaults.set(settings.newPhotosCard, forKey: Keys.newPhotosCard)
     }
 
     private static func seconds(from duration: Duration) -> Double {
@@ -133,5 +138,6 @@ public final class UserDefaultsThemeStore: ThemeSettingsStore {
         static let clockStyle = "theme.clock.style"
         static let clockSize = "theme.clock.size"
         static let clockShowDate = "theme.clock.showDate"
+        static let newPhotosCard = "theme.newPhotosCard"
     }
 }

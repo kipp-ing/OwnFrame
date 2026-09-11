@@ -548,6 +548,21 @@ final class GermanScreenshotSweepUITests: XCTestCase {
         attach("54-sources-photo-library")
     }
 
+    /// The optional new-photos arrival card (310, FR-310-14; depicted by 9010 store slot
+    /// 5). `--uitest-new-photos-card` forces the setting on and drives one hermetic extra
+    /// fetch so the card has a real arrival to show, without waiting an hour. Captured with
+    /// the Photos-library source active, same reasoning as test54 — the card shows only the
+    /// source's own label, never a `SourceKind` subtitle, so no shared-link host can leak.
+    /// No `--uitest-chrome`: the card only renders while the chrome is hidden, same rule as
+    /// the clock overlay.
+    @MainActor
+    func test55_newPhotosCard() throws {
+        let app = launch("--uitest-slideshow", "--uitest-photos-source", "--uitest-photos-auth=full",
+                          "--uitest-new-photos-card", "--uitest-reset-theme")
+        try require(app, "slideshow.newPhotosCard", screen: "55-new-photos-card")
+        attach("55-new-photos-card")
+    }
+
     // MARK: - 60…63 Broker / Home Assistant
 
     @MainActor
