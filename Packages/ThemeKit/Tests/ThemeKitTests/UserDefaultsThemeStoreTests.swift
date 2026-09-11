@@ -15,7 +15,8 @@ import ThemeKit
         kenBurns: true,
         fit: .fill,
         quality: .original,
-        clock: ClockSettings(isOn: true, place: .topLeading, showDate: true)
+        clock: ClockSettings(isOn: true, place: .topLeading, showDate: true),
+        newPhotosCard: true
     )
 
     let relaunchedStore = UserDefaultsThemeStore(defaults: fixture.defaults)
@@ -28,6 +29,7 @@ import ThemeKit
     #expect(relaunchedStore.settings.clock.isOn == true)
     #expect(relaunchedStore.settings.clock.place == .topLeading)
     #expect(relaunchedStore.settings.clock.showDate == true)
+    #expect(relaunchedStore.settings.newPhotosCard == true)
 }
 
 @MainActor

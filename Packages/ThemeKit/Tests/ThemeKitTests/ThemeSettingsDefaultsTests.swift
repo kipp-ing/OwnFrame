@@ -15,6 +15,9 @@ import ThemeKit
     #expect(settings.clock.isOn == false)
     #expect(settings.clock.place == .bottomTrailing)
     #expect(settings.clock.showDate == false)
+    // FR-310-14: an undisturbed picture is the product's whole value, so the transient
+    // arrival card defaults off — a person opts in, it never surprises anyone unasked.
+    #expect(settings.newPhotosCard == false)
 }
 
 @Test func themeSettingsDurationRangeMatchesDisplayOptionsSpec() {

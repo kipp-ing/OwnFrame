@@ -29,6 +29,9 @@ struct SlideshowView: View {
     // 900 US3: the active source is a Photos-library source — switches the error state's
     // auth copy/fix to the photo-access wording and the iOS Settings path.
     var isPhotoLibrarySource = false
+    // The active source's own display name, e.g. "Family" (310, FR-310-14) — read for the
+    // optional new-photos card only; nil hides the source line without hiding the card.
+    var activeSourceLabel: String?
     // FR-700-23: modal surfaces the HOST presents over this view (the incoming-link sheet
     // and the album-reselect sheet live on RootView, not here). They must count as "the
     // slideshow surface is covered" exactly like this view's own sheets — "any other
@@ -136,6 +139,15 @@ struct SlideshowView: View {
                     chromeVisible: chromeVisible
                 )
             }
+            // 310/9010: free, opt-in, ambient like the clock — never gated (FR-9010-07 only
+            // binds Ken Burns and the clock overlay).
+            if themeStore.settings.newPhotosCard, viewModel.phase == .playing {
+                NewPhotosOverlayView(
+                    arrival: viewModel.recentArrival,
+                    sourceLabel: activeSourceLabel,
+                    chromeVisible: chromeVisible
+                )
+            }
             if chromeVisible {
                 chromeOverlay
                     .transition(.opacity)
@@ -170,7 +182,20 @@ struct SlideshowView: View {
             // Entering the slideshow: keep the display awake while it runs in the
             // foreground (FR-001). Idle timer is normalized again on disappear.
             powerManager.activate()
+            // 310/9010 slot 5 capture seam: force the card on, let `start()` see the
+            // fake gateway's plain 3-asset list, then arm the gateway (an explicit
+            // switch, not a fetch count — see `UITestNewPhotosCardSeam`) and drive one
+            // refresh that sees two more assets than `start()` did. A deterministic,
+            // hermetic arrival instead of waiting an hour.
+            let seedingNewPhotosCard = ProcessInfo.processInfo.arguments.contains("--uitest-new-photos-card")
+            if seedingNewPhotosCard {
+                themeStore.settings.newPhotosCard = true
+            }
             await viewModel.start()
+            if seedingNewPhotosCard {
+                UITestNewPhotosCardSeam.arm()
+                await viewModel.refreshNow()
+            }
             await startCoordinator()
         }
         .onDisappear {

@@ -622,6 +622,81 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(clock.sleeperCount == 1)
 }
 
+// MARK: - recentArrival (310, FR-310-14 — the store's arrival-signal card, 9010 slot 5)
+//
+// A quiet reconcile that actually adds something publishes a new `recentArrival` — count plus
+// a fresh id, so a view keyed on the id can re-show even for a repeat arrival. A refresh that
+// adds nothing (no-op or a removal only) MUST NOT publish a new id: nothing arrived, so nothing
+// should re-trigger a transient UI.
+
+@MainActor
+@Test func refreshNowThatAddsAssetsPublishesTheirCount() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([
+        SourceAsset(id: "image-a", kind: .image),
+        SourceAsset(id: "image-c", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("image-a".utf8), for: "image-a", fidelity: .preview)
+    source.setImageData(Data("image-c".utf8), for: "image-c", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+    #expect(model.recentArrival == nil)
+
+    source.setAssets([
+        SourceAsset(id: "image-a", kind: .image),
+        SourceAsset(id: "image-b", kind: .image),
+        SourceAsset(id: "image-c", kind: .image),
+        SourceAsset(id: "image-d", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("image-b".utf8), for: "image-b", fidelity: .preview)
+    source.setImageData(Data("image-d".utf8), for: "image-d", fidelity: .preview)
+
+    await model.refreshNow()
+
+    let firstArrival = model.recentArrival
+    #expect(firstArrival?.count == 2)
+
+    // A refresh that adds nothing leaves the previous value untouched — no new id.
+    await model.refreshNow()
+    #expect(model.recentArrival == firstArrival)
+
+    // A second real arrival publishes a distinct id, even though the count matches.
+    source.setAssets([
+        SourceAsset(id: "image-a", kind: .image),
+        SourceAsset(id: "image-b", kind: .image),
+        SourceAsset(id: "image-c", kind: .image),
+        SourceAsset(id: "image-d", kind: .image),
+        SourceAsset(id: "image-e", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("image-e".utf8), for: "image-e", fidelity: .preview)
+
+    await model.refreshNow()
+    #expect(model.recentArrival?.count == 1)
+    #expect(model.recentArrival?.id != firstArrival?.id)
+}
+
+@MainActor
+@Test func refreshNowThatOnlyRemovesAssetsDoesNotPublishAnArrival() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([
+        SourceAsset(id: "image-a", kind: .image),
+        SourceAsset(id: "image-b", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("image-a".utf8), for: "image-a", fidelity: .preview)
+    source.setImageData(Data("image-b".utf8), for: "image-b", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+
+    source.setAssets([SourceAsset(id: "image-a", kind: .image)], for: "album")
+    await model.refreshNow()
+
+    #expect(model.recentArrival == nil)
+}
+
 // MARK: - Decode-ahead preparer seam (Ken Burns smoothness: no lazy decode at the swap)
 
 @MainActor

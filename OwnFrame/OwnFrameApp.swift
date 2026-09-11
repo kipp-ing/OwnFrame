@@ -658,6 +658,7 @@ private struct RootView: View {
             if let slideshow, let powerManager, let remoteAdapter {
                 SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
                               isPhotoLibrarySource: activeSourceIsPhotoLibrary,
+                              activeSourceLabel: activeSourceLabel,
                               // FR-700-23 "any other sheet/full-screen surface": these two
                               // sheets are presented by THIS view over the running
                               // slideshow, so they must count as a modal cover exactly
@@ -748,6 +749,12 @@ private struct RootView: View {
     private var activeSourceIsPhotoLibrary: Bool {
         if case .photoLibrary = factories.loadLibrary().active?.kind { return true }
         return false
+    }
+
+    /// The active source's own display name (310, FR-310-14 — the optional new-photos
+    /// card). Read the same live way as `activeSourceIsPhotoLibrary`.
+    private var activeSourceLabel: String? {
+        factories.loadLibrary().active?.label
     }
 
     /// Rebuild the slideshow view model (and the API client) from the updated stores and
@@ -1333,6 +1340,24 @@ private struct UITestSharedLinkResolver: SharedLinkResolving {
 // `requestAuthorization()` grants full (the "Allow" path) — so "access is requested at
 // that moment" (FR-900-04) is exactly what the picker UITest drives. Collections and
 // assets are deterministic; images render as real PNGs so the engine plays them.
+/// 310/9010 slot 5 capture seam: an explicit, process-wide arm switch rather than counting
+/// `fetchAssets` calls — a count is ambiguous about which call is "the refresh" the moment
+/// anything else in the pipeline fetches once more or less than expected. SlideshowView arms
+/// it right before the one `refreshNow()` it drives under `--uitest-new-photos-card`, so the
+/// fetch inside that specific call — and only that one — sees the expanded list.
+enum UITestNewPhotosCardSeam {
+    private nonisolated(unsafe) static let lock = NSLock()
+    private nonisolated(unsafe) static var expanded = false
+
+    nonisolated static func arm() {
+        lock.withLock { expanded = true }
+    }
+
+    nonisolated static var isArmed: Bool {
+        lock.withLock { expanded }
+    }
+}
+
 private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked Sendable {
     private let lock = NSLock()
     private var hasRequested = false
@@ -1376,10 +1401,20 @@ private final class UITestPhotoLibraryGateway: PhotoLibraryGateway, @unchecked S
         if ProcessInfo.processInfo.arguments.contains("--uitest-photos-vanish") {
             throw PhotoLibraryGatewayError.collectionNotFound
         }
-        return [
+        let baseAssets = [
             SourceAsset(id: "pl-asset-1", kind: .image),
             SourceAsset(id: "pl-asset-2", kind: .image),
             SourceAsset(id: "pl-asset-3", kind: .image),
+        ]
+        guard ProcessInfo.processInfo.arguments.contains("--uitest-new-photos-card") else {
+            return baseAssets
+        }
+        guard UITestNewPhotosCardSeam.isArmed else {
+            return baseAssets
+        }
+        return baseAssets + [
+            SourceAsset(id: "pl-asset-4", kind: .image),
+            SourceAsset(id: "pl-asset-5", kind: .image),
         ]
     }
 

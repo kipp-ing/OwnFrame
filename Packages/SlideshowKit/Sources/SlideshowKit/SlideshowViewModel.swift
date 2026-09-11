@@ -26,6 +26,23 @@ public final class SlideshowViewModel {
     /// Mutable so Home-Assistant/remote control can switch sources at runtime (see
     /// `switchAlbum(_:)`). Also the snapshot/cache scoping key.
     public private(set) var albumID: String
+
+    /// A quiet refresh (310, US2) that actually added assets — count plus a fresh id, so a
+    /// view keyed on the id can re-show its transient arrival card even for a repeat arrival
+    /// with the same count. A refresh that adds nothing (no-op or a removal only) leaves the
+    /// previous value in place: nothing arrived, so nothing re-triggers the UI (FR-310-14,
+    /// 9010 store slot 5).
+    public struct NewArrival: Equatable, Sendable {
+        public let count: Int
+        public let id: UUID
+
+        public init(count: Int, id: UUID = UUID()) {
+            self.count = count
+            self.id = id
+        }
+    }
+
+    public private(set) var recentArrival: NewArrival?
     private let source: any PhotoSourceProviding
     private let ticker: any SlideshowTicker
     /// Monotonic clock for retry backoff and refresh staleness (310, FR-310-12).
@@ -490,6 +507,11 @@ public final class SlideshowViewModel {
             order: order, currentAssetID: currentAssetID,
             rng: &rng
         )
+        let oldIDs = Set(imageAssets.map(\.id))
+        let addedCount = assets.filter { !oldIDs.contains($0.id) }.count
+        if addedCount > 0 {
+            recentArrival = NewArrival(count: addedCount)
+        }
         imageAssets = assets
         playOrder = result.playOrder
         cursor = result.cursor
