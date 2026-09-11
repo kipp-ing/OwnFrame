@@ -397,6 +397,19 @@ struct OwnFrameApp: App {
                 return viewModel
             }
             guard let resolved = await resolveActiveSource() else { return nil }
+            var config = SlideshowConfig.default
+            #if DEBUG
+            // 9010 slot 5 live capture only (AppStoreScreenshotUITests, SCREENSHOT_CAPTURE=1):
+            // the fixed 60-minute refresh (FR-310-06) is deliberately not a setting, but a live
+            // capture needs a genuine arrival inside a test's runtime. Compiled only into DEBUG
+            // builds, so this lever cannot exist in a shipped Release binary regardless of what
+            // environment a device happens to carry. Set via `simctl … launchctl setenv`
+            // (reaches the app process, unlike a TEST_RUNNER_-prefixed xcodebuild argument).
+            if let raw = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_REFRESH_SECONDS"],
+               let seconds = Double(raw), seconds > 0 {
+                config.refreshInterval = .seconds(seconds)
+            }
+            #endif
             // The engine consumes the neutral source protocol; ImmichClient is one
             // conformer, PhotoLibraryProvider (above) the other.
             return SlideshowViewModel(
@@ -405,6 +418,7 @@ struct OwnFrameApp: App {
                 ticker: RealTicker(),
                 diskCache: diskCache,
                 snapshots: snapshotStore,
+                config: config,
                 settingsStore: settingsStore,
                 preparer: DecodedImageStore.displayStore()
             )
