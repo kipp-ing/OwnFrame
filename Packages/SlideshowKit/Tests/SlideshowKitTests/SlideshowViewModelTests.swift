@@ -697,6 +697,58 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(model.recentArrival == nil)
 }
 
+/// A stale arrival from album A must not resurface for album B: `switchAlbum` calls `start()`
+/// on the same live view-model, and nothing in album B's fresh load just "arrived".
+@MainActor
+@Test func switchAlbumClearsAStaleRecentArrivalFromThePreviousAlbum() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([SourceAsset(id: "a-1", kind: .image)], for: "album-a")
+    source.setImageData(Data("a-1".utf8), for: "a-1", fidelity: .preview)
+    source.setAssets([SourceAsset(id: "b-1", kind: .image)], for: "album-b")
+    source.setImageData(Data("b-1".utf8), for: "b-1", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album-a", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+
+    source.setAssets([
+        SourceAsset(id: "a-1", kind: .image),
+        SourceAsset(id: "a-2", kind: .image)
+    ], for: "album-a")
+    source.setImageData(Data("a-2".utf8), for: "a-2", fidelity: .preview)
+    await model.refreshNow()
+    #expect(model.recentArrival?.count == 1)
+
+    await model.switchAlbum("album-b")
+
+    #expect(model.recentArrival == nil)
+}
+
+/// A fresh fetch that contains the same new id twice (e.g. a server-side pagination overlap)
+/// must count it once — the number of distinct assets that arrived, not the number of times
+/// a new id happens to appear in the raw list.
+@MainActor
+@Test func refreshNowDedupesARepeatedNewIDWithinTheSameFetch() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([SourceAsset(id: "a-1", kind: .image)], for: "album")
+    source.setImageData(Data("a-1".utf8), for: "a-1", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+
+    source.setAssets([
+        SourceAsset(id: "a-1", kind: .image),
+        SourceAsset(id: "a-2", kind: .image),
+        SourceAsset(id: "a-2", kind: .image)
+    ], for: "album")
+    source.setImageData(Data("a-2".utf8), for: "a-2", fidelity: .preview)
+
+    await model.refreshNow()
+
+    #expect(model.recentArrival?.count == 1)
+}
+
 // MARK: - Decode-ahead preparer seam (Ken Burns smoothness: no lazy decode at the swap)
 
 @MainActor

@@ -148,6 +148,9 @@ public final class SlideshowViewModel {
         retryPolicy.reset()
         isPaused = false
         phase = .loading
+        // A fresh start (including switchAlbum, which calls this) has nothing that "just
+        // arrived" yet — a stale card from the previous source/session must not resurface.
+        recentArrival = nil
 
         do {
             // R10: the source's readiness precondition (Immich = 130 FR-130-05/06 server-version
@@ -508,7 +511,7 @@ public final class SlideshowViewModel {
             rng: &rng
         )
         let oldIDs = Set(imageAssets.map(\.id))
-        let addedCount = assets.filter { !oldIDs.contains($0.id) }.count
+        let addedCount = Set(assets.map(\.id)).subtracting(oldIDs).count
         if addedCount > 0 {
             recentArrival = NewArrival(count: addedCount)
         }
