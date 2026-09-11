@@ -465,7 +465,11 @@ extension SlideshowRemoteControlAdapter: SettingsControlling {
         guard let themeStore else { return }
         suppressSettingsCallback = true
         defer { suppressSettingsCallback = false }
-        themeStore.settings = Self.themeSettings(from: settings)
+        // newPhotosCard (310, FR-310-14) isn't part of the HA snapshot (FR-710-01 predates
+        // it), so it must ride through untouched rather than reset to the snapshot's default.
+        var updated = Self.themeSettings(from: settings)
+        updated.newPhotosCard = themeStore.settings.newPhotosCard
+        themeStore.settings = updated
     }
 
     // The 11-field mapping bridges via raw values so HAControlKit stays free of a
