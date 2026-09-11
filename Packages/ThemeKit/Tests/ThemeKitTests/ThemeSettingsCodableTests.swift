@@ -63,6 +63,35 @@ func nonDefaultClockConfigsRoundTrip(clock: ClockSettings) throws {
     #expect(decoded.clock == clock)
 }
 
+/// A payload from an older device that predates a field (e.g. `newPhotosCard`, added 310
+/// FR-310-14) is missing that key entirely. Additive Codable means this MUST still decode,
+/// falling back to the field's default, rather than throwing and discarding every other
+/// synced setting.
+@Test func decodingPayloadMissingANewerFieldFallsBackToItsDefault() throws {
+    let original = ThemeSettings(
+        order: .sequential,
+        duration: .seconds(42),
+        transition: .dissolve,
+        kenBurns: true,
+        fit: .fill,
+        quality: .original,
+        clock: ClockSettings(isOn: true, style: .analog, place: .topCenter, size: .cozy, showDate: true),
+        newPhotosCard: true
+    )
+    var object = try #require(
+        try JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any]
+    )
+    object.removeValue(forKey: "newPhotosCard")
+    let data = try JSONSerialization.data(withJSONObject: object)
+
+    let decoded = try JSONDecoder().decode(ThemeSettings.self, from: data)
+
+    #expect(decoded.newPhotosCard == false)
+    #expect(decoded.order == .sequential)
+    #expect(decoded.kenBurns == true)
+    #expect(decoded.clock.style == .analog)
+}
+
 /// Each RawRepresentable enum encodes to its raw string, so the JSON is stable across
 /// versions and shares a wire shape with the UserDefaults raws.
 @Test func clockPlaceEncodesToRawString() throws {

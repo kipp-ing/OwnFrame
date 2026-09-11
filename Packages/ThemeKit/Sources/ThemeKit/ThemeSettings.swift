@@ -49,6 +49,22 @@ public struct ThemeSettings: Sendable, Equatable, Codable {
         self.clock = clock
         self.newPhotosCard = newPhotosCard
     }
+
+    // Custom decoding keeps this Codable conformance additive (see
+    // ThemeSettingsCodableTests.swift): a payload from an older app version that predates a
+    // field must still decode, falling back to that field's default, rather than throwing
+    // keyNotFound and discarding every other synced setting.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        order = try container.decode(PlayOrder.self, forKey: .order)
+        duration = try container.decode(Duration.self, forKey: .duration)
+        transition = try container.decode(Transition.self, forKey: .transition)
+        kenBurns = try container.decode(Bool.self, forKey: .kenBurns)
+        fit = try container.decode(ImageFit.self, forKey: .fit)
+        quality = try container.decode(ImageQuality.self, forKey: .quality)
+        clock = try container.decode(ClockSettings.self, forKey: .clock)
+        newPhotosCard = try container.decodeIfPresent(Bool.self, forKey: .newPhotosCard) ?? false
+    }
 }
 
 public enum PlayOrder: String, Sendable, Equatable, CaseIterable, Codable {
