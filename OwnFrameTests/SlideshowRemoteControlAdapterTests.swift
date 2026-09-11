@@ -84,6 +84,23 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(settings.clock.showDate == true)
     }
 
+    /// `newPhotosCard` (310, FR-310-14) is not part of the 11-field HA snapshot (FR-710-01
+    /// predates it), so any HA-triggered `apply()` — e.g. toggling Ken Burns via Home
+    /// Assistant — must not silently reset it to its default.
+    @Test func applyPreservesNewPhotosCardWhichIsNotPartOfTheHASnapshot() throws {
+        let fixture = try makeAdapter(suite: "adapter.preservesNewPhotosCard")
+        defer { fixture.cleanUp() }
+
+        fixture.store.settings.newPhotosCard = true
+
+        var snapshot = fixture.adapter.themeSettings
+        snapshot.kenBurns = true
+        fixture.adapter.apply(snapshot)
+
+        #expect(fixture.store.settings.newPhotosCard == true)
+        #expect(fixture.store.settings.kenBurns == true)
+    }
+
     @Test func applyDoesNotFireOnSettingsChange() async throws {
         let fixture = try makeAdapter(suite: "adapter.applySuppressed")
         defer { fixture.cleanUp() }
