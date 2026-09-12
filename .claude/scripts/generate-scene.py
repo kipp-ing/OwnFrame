@@ -376,7 +376,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     prompt_group = parser.add_mutually_exclusive_group()
     prompt_group.add_argument("--prompt", help="the scene prompt, inline")
-    prompt_group.add_argument("--prompt-file", help="read the scene prompt from this file")
+    prompt_group.add_argument("--prompt-file", action="append", metavar="PATH",
+                              help="read the scene prompt from this file; repeatable, and the "
+                                   "parts are joined in the order given (shared block first, "
+                                   "then the room)")
     parser.add_argument("--out", required=True, help="where the finished, keyed scene PNG lands")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--quality", default=DEFAULT_QUALITY, choices=QUALITIES)
@@ -397,11 +400,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _read_prompt(args) -> str:
+    """Join every --prompt-file, in the order given, with a blank line between parts.
+
+    Repeatable on purpose: the six scene prompts share one technical block (camera, device
+    completeness, the flat-magenta contract, the quiet bands) and differ only in the room. Six
+    copies of that block drifted the first time the framing changed, so it lives in one file and
+    each room file carries its setting alone. Each part is stripped before joining, so a part
+    that ends in blank lines — or is blank altogether — never widens the seam.
+    """
     if args.prompt_file:
-        try:
-            return Path(args.prompt_file).expanduser().read_text(encoding="utf-8").strip()
-        except OSError as exc:
-            raise InvocationError(f"cannot read --prompt-file {args.prompt_file!r}: {exc}") from exc
+        parts = []
+        for name in args.prompt_file:
+            try:
+                text = Path(name).expanduser().read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise InvocationError(f"cannot read --prompt-file {name!r}: {exc}") from exc
+            if text:
+                parts.append(text)
+        return "\n\n".join(parts)
     return (args.prompt or "").strip()
 
 
