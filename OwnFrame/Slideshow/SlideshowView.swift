@@ -200,18 +200,33 @@ struct SlideshowView: View {
                 UITestNewPhotosCardSeam.arm()
                 await viewModel.refreshNow()
             }
-            // 9010 slot 5 live capture only: forces the arrival card directly over
-            // whatever REAL photo the source already has playing — no reconciler, no
-            // server-side content change, no timing race (see
-            // SlideshowViewModel.debugForceArrival and docs/handover-store-slots.md).
-            // DEBUG-only, env-var-gated; unreachable in a Release binary.
-            if let raw = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT"],
-               let count = Int(raw), count > 0 {
-                viewModel.debugForceArrival(count: count)
-            }
             #endif
             await startCoordinator()
         }
+        // 9010 slot 5 live capture only: holds the arrival card up over whatever REAL photo
+        // the source has playing — no reconciler, no server-side content change, no timing
+        // race (see SlideshowViewModel.debugForceArrival and docs/handover-store-slots.md).
+        //
+        // It re-publishes rather than forcing once. Forcing once sufficed only while the
+        // capture happened immediately after `start()`; the card fades itself out after
+        // `NewPhotosOverlayView.displayDuration`, so as soon as the rig had to walk to a
+        // CHOSEN asset first, a single arrival was long gone by the time it got there. Each
+        // call publishes a fresh `NewArrival.id`, which restarts the card's own display task,
+        // so on an interval shorter than the fade the card simply never goes down.
+        //
+        // Its own `.task` so SwiftUI cancels the loop when the slideshow disappears, and so an
+        // unbounded loop can never sit in front of `startCoordinator()`.
+        // DEBUG-only, env-var-gated; unreachable in a Release binary.
+        #if DEBUG
+        .task {
+            guard let raw = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT"],
+                  let count = Int(raw), count > 0 else { return }
+            while !Task.isCancelled {
+                viewModel.debugForceArrival(count: count)
+                try? await Task.sleep(for: NewPhotosOverlayView.forcedArrivalRepublishInterval)
+            }
+        }
+        #endif
         .onDisappear {
             autoHideTask?.cancel()
             // FR-700-23: on the live iOS 17 frame, presenting ANY sheet over the
