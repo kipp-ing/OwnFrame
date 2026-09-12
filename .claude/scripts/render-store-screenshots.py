@@ -725,6 +725,9 @@ def manifest_problems(manifest) -> list[str]:
         if "fit" in slot and slot["fit"] not in PAR:
             problems.append(f"{label}: fit {slot['fit']!r} is not one of {sorted(PAR)}")
 
+        if "captureCrop" in slot:
+            problems.extend(capture_crop_problems(label, slot["captureCrop"]))
+
         headline = slot.get("headline")
         if isinstance(headline, dict):
             for loc in locales:
@@ -882,6 +885,104 @@ def flatten(src: Path, dst: Path) -> None:
     dst.write_bytes(add_srgb_chunk(dst.read_bytes()))
 
 
+CROP_KEYS = ("x", "y", "width", "height")
+
+
+def capture_crop_problems(label: str, crop) -> list[str]:
+    """Validate an optional `captureCrop` rect. Fractions of the capture, not pixels.
+
+    Fractions deliberately: capture size varies by rig (1488x2266 on an iPad mini vs 2064x2752
+    on a 13-inch), so a pixel rect authored against one device silently mis-crops on another.
+
+    Unknown keys are an error rather than ignored — a `hieght` typo would otherwise leave the
+    slot rendering full-frame while --check reported everything clean, which is the same
+    "green means nothing happened" failure class this script already guards elsewhere.
+    """
+    if not isinstance(crop, dict):
+        return [f"{label}: captureCrop must be an object with {list(CROP_KEYS)}, got {crop!r}"]
+
+    problems = []
+    unknown = sorted(set(crop) - set(CROP_KEYS))
+    if unknown:
+        problems.append(f"{label}: captureCrop has unknown key(s) {unknown}; "
+                        f"expected exactly {list(CROP_KEYS)}")
+    for key in CROP_KEYS:
+        if key not in crop:
+            problems.append(f"{label}: captureCrop is missing required key {key!r}")
+            continue
+        value = crop[key]
+        # bool is an int subclass; `true` must not read as 1.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            problems.append(
+                f"{label}: captureCrop.{key} must be a number in 0..1, got {value!r}")
+            continue
+        if key in ("x", "y") and not 0 <= value <= 1:
+            problems.append(f"{label}: captureCrop.{key} must be in 0..1, got {value!r}")
+        if key in ("width", "height") and not 0 < value <= 1:
+            problems.append(
+                f"{label}: captureCrop.{key} must be greater than 0 and at most 1, got {value!r}")
+
+    if problems:
+        return problems
+
+    if crop["x"] + crop["width"] > 1:
+        problems.append(f"{label}: captureCrop x+width is {crop['x'] + crop['width']}, "
+                        "which runs past the right edge of the capture")
+    if crop["y"] + crop["height"] > 1:
+        problems.append(f"{label}: captureCrop y+height is {crop['y'] + crop['height']}, "
+                        "which runs past the bottom edge of the capture")
+    return problems
+
+
+def crop_capture(capture: Path, crop: dict, *, work_dir: Path, tag: str) -> Path:
+    """Zoom a capture into its own content before it is composited.
+
+    The app uses a centred content column (FR-9000-17), so a full-screen iPad capture carries
+    large dead margins. Compositing the whole frame reproduces that emptiness faithfully, and at
+    App Store carousel width the UI slots then read as black tiles. Cropping to the content
+    roughly doubles apparent text size with no new material and no re-capture.
+
+    `+repage` is load-bearing, not decoration: without it the cropped PNG keeps the original
+    canvas geometry, and `warp_capture_perspective` would then read the FULL frame back out of
+    the header and map that onto the quad — silently undoing the zoom while looking like it
+    worked. `-strip` keeps the intermediate byte-stable so FR-9010-30 still holds.
+    """
+    facts = parse_png(capture.read_bytes())
+    cw, ch = facts["width"], facts["height"]
+    x = min(round(crop["x"] * cw), cw - 1)
+    y = min(round(crop["y"] * ch), ch - 1)
+    w = max(1, min(round(crop["width"] * cw), cw - x))
+    h = max(1, min(round(crop["height"] * ch), ch - y))
+    dst = work_dir / f"crop-{tag}.png"
+    try:
+        subprocess.run([
+            "magick", str(capture), "-crop", f"{w}x{h}+{x}+{y}", "+repage",
+            "-strip", str(dst),
+        ], check=True, capture_output=True)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        raise ExternalToolError(f"ImageMagick failed cropping {capture}: {exc}") from exc
+    return dst
+
+
+def prepare_capture(capture: Path, *, crop, quad, box, work_dir: Path, tag: str
+                     ) -> tuple[Path, bool]:
+    """Crop then (only if the quad demands it) warp. Returns the capture to embed, and whether
+    it was warped — `substitute` needs that to drop `preserveAspectRatio`.
+
+    Order is load-bearing. The homography maps the capture's OWN rectangle onto the screen quad,
+    so cropping AFTER the warp would cut the already-placed screen instead of zooming it.
+
+    A slot with no `captureCrop` and a straight-on quad passes through untouched, so every
+    existing template keeps its byte-identical output (FR-9010-30).
+    """
+    src = capture
+    if crop is not None:
+        src = crop_capture(src, crop, work_dir=work_dir, tag=tag)
+    if needs_warp(quad):
+        return warp_capture_perspective(src, quad, box=box, work_dir=work_dir, tag=tag), True
+    return src, False
+
+
 def warp_capture_perspective(capture: Path, quad, *, box, work_dir: Path, tag: str) -> Path:
     """FR-9010-23/26: pre-warps the CAPTURE (never the scene) onto the screen quad.
 
@@ -933,13 +1034,13 @@ def render_combo(*, device: str, locale: str, slot: dict, paths: SlotPaths,
     capture_for_embed, warped = paths.capture, False
     screenshot_el = by_id(tree_root, "screenshot")
     if capture_for_embed is not None and screenshot_el is not None:
-        quad = screen_quad_for(tree_root, slot)
-        if needs_warp(quad):
-            capture_for_embed = warp_capture_perspective(
-                capture_for_embed, quad, box=image_box(screenshot_el),
-                work_dir=work_dir, tag=tag,
-            )
-            warped = True
+        capture_for_embed, warped = prepare_capture(
+            capture_for_embed,
+            crop=slot.get("captureCrop"),
+            quad=screen_quad_for(tree_root, slot),
+            box=image_box(screenshot_el),
+            work_dir=work_dir, tag=tag,
+        )
 
     scene_uri = data_uri(paths.scene) if paths.scene is not None else None
     screenshot_uri = data_uri(capture_for_embed) if capture_for_embed is not None else None
