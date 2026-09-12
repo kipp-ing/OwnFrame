@@ -213,6 +213,36 @@ regression. Only a running test catches those.
 Each of these has burned at least one debugging cycle. Check here before concluding a
 red test means a real regression, or that a green one means success.
 
+### Simulator identity and state (App Store capture rig)
+
+Both of these cost a full debugging cycle on 2026-09-12, and neither announces itself —
+the failure they cause is a plausible-looking "uninstall the app before capturing".
+
+- **`simulatorName` is not a unique selector, and XcodeBuildMCP re-resolves it.** This
+  machine has THREE simulators called "iPad Pro 13-inch (M4)" on different runtimes. Setting
+  session defaults by name pins a UDID that a later background refresh can re-resolve to a
+  different one of them, so `simctl erase`/`uninstall` can cheerfully reset a device the test
+  run never touches. Symptom: onboarding state that survives an erase, forever.
+  **Read the UDID back out of the run's own build log** before believing you reset the right
+  device:
+
+      grep -oE "[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}" <build log> | sort -u
+
+- **`simctl uninstall` does not clear the simulator keychain; `simctl erase` does.** The
+  onboarded source lives partly in the keychain (constitution: API key never in UserDefaults),
+  which outlives an app uninstall. The capture rig asserts it sees the first-run choice screen,
+  so a second capture run on the same device fails unless the device is erased.
+
+- **…but an erased simulator injects Apple's own first-run notification into your capture.**
+  A freshly erased device shows the "Bereit für Apple Intelligence" banner (in the SYSTEM
+  locale, i.e. German here) a few seconds after first launch — which is exactly when the
+  capture happens. It lands in the screenshot, in the wrong language, at the top of the frame.
+  Always crop-and-check the top ~15% of a fresh capture before shipping it:
+
+      magick <capture>.png -crop 2064x420+0+0 +repage -resize 700x /tmp/banner-check.png
+
+  The safe order is: erase, run once and throw that capture away, then run again for the keeper.
+
 ### False greens (a pass that proves nothing)
 
 - **Never `-only-testing` a single Swift Testing `@Test`.** The identifier doesn't match
