@@ -45,6 +45,12 @@ DEFAULT_MANIFEST = ROOT / "Design" / "AppStore" / "content.json"
 DEFAULT_OUT_DIR = ROOT / "tmp" / "store-contact-sheet"
 
 TILE_WIDTH = 420
+
+# `--strip` renders at the width a browsing human actually sees on an App Store product page.
+# Every defect that matters there — illegible UI, a duplicated subject, a tile that reads as a
+# black rectangle — is invisible at full resolution and obvious here.
+STRIP_WIDTH = 230
+STRIP_GROUND = "#f2f2f7"
 LABEL_HEIGHT = 90
 COLUMNS = 3
 # ImageMagick's own font config resolves nothing on this machine (`magick -list font` is empty,
@@ -126,6 +132,36 @@ def placeholder_command(dst: Path, *, label: str, reason: str) -> list[str]:
     ]
 
 
+def strip_tile_command(src: Path, dst: Path) -> list[str]:
+    """One carousel tile: resized, unlabelled, nothing added.
+
+    No caption on purpose — at 230px a label is physically bigger than the headline inside the
+    slot and completely rewires what the eye does. The strip has to look like the App Store,
+    not like a contact sheet with smaller pictures.
+    """
+    return ["magick", str(src), "-resize", f"{STRIP_WIDTH}x", str(dst)]
+
+
+def strip_montage_command(tiles: list[Path], *, out: Path) -> list[str]:
+    # One row always: the App Store scrolls horizontally, and wrapping to a second row would
+    # hide exactly the fall-off-the-edge behaviour the strip exists to show.
+    return [
+        "magick", "montage", *[str(t) for t in tiles],
+        "-tile", f"{len(tiles)}x1", "-geometry", "+6+6",
+        "-background", STRIP_GROUND, "-font", LABEL_FONT, "-label", "",
+        str(out),
+    ]
+
+
+def strip_sources(slots: list[dict], rendered: dict[str, Path]) -> list[Path]:
+    """Rendered slots only, in manifest order.
+
+    Unlike the contact sheet, a missing slot is skipped rather than drawn as a grey card: the
+    App Store would not show a placeholder, so one cannot be judged alongside real tiles.
+    """
+    return [rendered[slot["id"]] for slot in slots if slot["id"] in rendered]
+
+
 def montage_command(tiles: list[Path], *, columns: int, out: Path) -> list[str]:
     # `-label ""` suppresses montage's own default per-tile filename caption (which needs a
     # font just like our own annotate calls do) — every tile already carries its own label,
@@ -189,6 +225,10 @@ def make_montage(tiles: list[Path], *, columns: int, out: Path) -> None:
     subprocess.run(montage_command(tiles, columns=columns, out=out), check=True)
 
 
+def run(cmd: list[str]) -> None:
+    subprocess.run(cmd, check=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Render every App Store slot and tile the result into one contact sheet PNG."
@@ -199,6 +239,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--capture-root", help="override the manifest's captureRoot")
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
     parser.add_argument("--columns", type=int, default=COLUMNS)
+    parser.add_argument(
+        "--strip", action="store_true",
+        help="also emit <device>-<locale>-strip.png: the rendered slots in one row at true "
+             "App Store carousel width (230px), unlabelled, on a light store-like ground. "
+             "This is the view that decides whether the set works — judge here, not at full "
+             "resolution.",
+    )
     return parser
 
 
@@ -236,6 +283,18 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
             done = sum(1 for slot in slots if slot["id"] in rendered)
             print(f"{device}/{locale}: {done}/{len(slots)} rendered -> {sheet_path}")
             sheets.append(sheet_path)
+
+            if args.strip:
+                sources = strip_sources(slots, rendered)
+                if sources:
+                    strip_tiles = []
+                    for index, src in enumerate(sources):
+                        dst = work_dir / f"strip-{index:02d}.png"
+                        run(strip_tile_command(src, dst))
+                        strip_tiles.append(dst)
+                    strip_path = out_dir / f"{device}-{locale}-strip.png"
+                    run(strip_montage_command(strip_tiles, out=strip_path))
+                    print(f"{device}/{locale}: carousel strip -> {strip_path}")
 
     return 0
 
