@@ -200,6 +200,15 @@ struct SlideshowView: View {
                 UITestNewPhotosCardSeam.arm()
                 await viewModel.refreshNow()
             }
+            // 9010 slot 5 live capture only: forces the arrival card directly over
+            // whatever REAL photo the source already has playing — no reconciler, no
+            // server-side content change, no timing race (see
+            // SlideshowViewModel.debugForceArrival and docs/handover-store-slots.md).
+            // DEBUG-only, env-var-gated; unreachable in a Release binary.
+            if let raw = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT"],
+               let count = Int(raw), count > 0 {
+                viewModel.debugForceArrival(count: count)
+            }
             #endif
             await startCoordinator()
         }
