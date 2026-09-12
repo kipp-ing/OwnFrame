@@ -1246,6 +1246,198 @@ class TestScenelessUiSlots(ScratchTestCase):
                 self.assertEqual([p for p in problems if "type" in p], [])
 
 
+# --------------------------------------------------------------------------------------
+# 16. `captureCrop`: zoom a UI capture into its own content before it is composited.
+#
+# Why this exists. The app uses a centred content column (FR-9000-17), so a full-screen iPad
+# capture carries large dead margins. Compositing the whole capture faithfully reproduces that
+# emptiness, and at App Store carousel width (~230px/tile) the UI slots read as black tiles with
+# an illegible smudge. Cropping to the content roughly doubles apparent text size and needs no
+# new material and no re-capture.
+#
+# Fractions, not pixels, deliberately: capture size varies by rig (1488x2266 on an iPad mini vs
+# 2064x2752 on a 13-inch), and a fractional rect survives a change of capture device. The key is
+# optional and its absence must leave the existing pipeline untouched, byte-for-byte.
+# --------------------------------------------------------------------------------------
+
+class TestCaptureCropValidation(unittest.TestCase):
+    """--check must reject a malformed crop before a long Chrome batch, not during it."""
+
+    def _problems(self, crop):
+        manifest = _small_manifest()
+        manifest["slots"][0]["captureCrop"] = crop
+        return [p for p in rss.manifest_problems(manifest) if "captureCrop" in p]
+
+    def test_absent_crop_is_valid(self):
+        manifest = _small_manifest()
+        self.assertEqual(
+            [p for p in rss.manifest_problems(manifest) if "captureCrop" in p], [])
+
+    def test_full_frame_crop_is_valid(self):
+        self.assertEqual(self._problems({"x": 0, "y": 0, "width": 1, "height": 1}), [])
+
+    def test_typical_content_crop_is_valid(self):
+        self.assertEqual(self._problems({"x": 0.0, "y": 0.0, "width": 1.0, "height": 0.62}), [])
+
+    def test_non_object_crop_is_rejected(self):
+        self.assertTrue(self._problems([0, 0, 1, 1]))
+
+    def test_missing_key_is_rejected(self):
+        self.assertTrue(self._problems({"x": 0, "y": 0, "width": 1}))
+
+    def test_non_numeric_value_is_rejected(self):
+        self.assertTrue(self._problems({"x": 0, "y": 0, "width": "1", "height": 1}))
+
+    def test_bool_is_not_a_number(self):
+        # bool is an int subclass in Python; a crop of `true` must not sail through.
+        self.assertTrue(self._problems({"x": 0, "y": 0, "width": True, "height": 1}))
+
+    def test_negative_origin_is_rejected(self):
+        self.assertTrue(self._problems({"x": -0.1, "y": 0, "width": 1, "height": 1}))
+
+    def test_zero_extent_is_rejected(self):
+        self.assertTrue(self._problems({"x": 0, "y": 0, "width": 0, "height": 1}))
+
+    def test_extent_past_the_frame_is_rejected(self):
+        self.assertTrue(self._problems({"x": 0.5, "y": 0, "width": 0.75, "height": 1}))
+        self.assertTrue(self._problems({"x": 0, "y": 0.5, "width": 1, "height": 0.75}))
+
+    def test_unknown_key_is_rejected_so_a_typo_is_never_silently_ignored(self):
+        self.assertTrue(self._problems({"x": 0, "y": 0, "width": 1, "height": 1, "hieght": 0.5}))
+
+
+class TestCropInvocation(ScratchTestCase):
+    """`crop_capture` shells out; the subprocess call is captured, never run."""
+
+    def _capture_argv(self, crop, *, capture_size=(1488, 2266)):
+        capture = self.work / "capture.png"
+        capture.write_bytes(_make_png(*capture_size))
+        seen = {}
+
+        def fake_run(cmd, **kwargs):
+            seen["cmd"] = cmd
+            Path(cmd[-1]).write_bytes(_make_png(4, 4))
+            class _R:
+                returncode = 0
+            return _R()
+
+        real_run = rss.subprocess.run
+        rss.subprocess.run = fake_run
+        try:
+            out = rss.crop_capture(capture, crop, work_dir=self.work, tag="ipad-en-03")
+        finally:
+            rss.subprocess.run = real_run
+        return seen["cmd"], out
+
+    def test_fractional_rect_becomes_imagemagick_pixel_geometry(self):
+        cmd, out = self._capture_argv({"x": 0.0, "y": 0.0, "width": 1.0, "height": 0.62})
+        self.assertEqual(cmd[0], "magick")
+        self.assertEqual(cmd[cmd.index("-crop") + 1], "1488x1405+0+0")
+        self.assertTrue(out.exists())
+
+    def test_offset_rect_is_placed_correctly(self):
+        cmd, _ = self._capture_argv({"x": 0.25, "y": 0.1, "width": 0.5, "height": 0.5})
+        self.assertEqual(cmd[cmd.index("-crop") + 1], "744x1133+372+227")
+
+    def test_repage_follows_the_crop_so_the_canvas_offset_is_discarded(self):
+        # Without +repage the cropped PNG keeps the original canvas geometry, and the later
+        # homography would then map the FULL frame, silently undoing the zoom.
+        cmd, _ = self._capture_argv({"x": 0.1, "y": 0.1, "width": 0.8, "height": 0.8})
+        self.assertIn("+repage", cmd)
+        self.assertGreater(cmd.index("+repage"), cmd.index("-crop"))
+
+    def test_output_is_stripped_so_the_intermediate_is_byte_stable(self):
+        cmd, _ = self._capture_argv({"x": 0, "y": 0, "width": 1, "height": 0.5})
+        self.assertIn("-strip", cmd)
+
+    def test_a_rect_that_rounds_to_nothing_still_asks_for_at_least_one_pixel(self):
+        cmd, _ = self._capture_argv({"x": 0.0, "y": 0.0, "width": 0.0001, "height": 0.0001})
+        geometry = cmd[cmd.index("-crop") + 1]
+        width, rest = geometry.split("x")
+        height = rest.split("+")[0]
+        self.assertGreaterEqual(int(width), 1)
+        self.assertGreaterEqual(int(height), 1)
+
+
+class TestCropAppliedInRenderPipeline(ScratchTestCase):
+    """Ordering: the crop runs BEFORE the perspective decision, and only when declared."""
+
+    def test_crop_is_skipped_entirely_when_the_key_is_absent(self):
+        called = []
+        real_crop = rss.crop_capture
+        rss.crop_capture = lambda *a, **k: called.append(a) or a[0]
+        try:
+            slot = _small_manifest()["slots"][0]
+            self.assertNotIn("captureCrop", slot)
+        finally:
+            rss.crop_capture = real_crop
+        self.assertEqual(called, [])
+
+    def test_crop_precedes_warp_so_the_homography_maps_the_cropped_frame(self):
+        # The homography maps the capture's OWN rectangle onto the screen quad. Cropping after
+        # the warp would therefore cut the already-placed screen instead of zooming it, so the
+        # order is load-bearing rather than incidental.
+        order = []
+        real_crop, real_warp = rss.crop_capture, rss.warp_capture_perspective
+
+        def fake_crop(capture, crop, *, work_dir, tag):
+            order.append("crop")
+            dst = work_dir / "cropped.png"
+            dst.write_bytes(_make_png(100, 100))
+            return dst
+
+        def fake_warp(capture, quad, *, box, work_dir, tag):
+            order.append("warp")
+            dst = work_dir / "warped.png"
+            dst.write_bytes(_make_png(100, 100))
+            return dst
+
+        rss.crop_capture, rss.warp_capture_perspective = fake_crop, fake_warp
+        try:
+            src, warped = rss.prepare_capture(
+                self.work / "c.png",
+                crop={"x": 0, "y": 0, "width": 1, "height": 0.6},
+                quad=MEASURED_QUAD_CENTRED,
+                box=(0.0, 0.0, 10.0, 10.0),
+                work_dir=self.work,
+                tag="t",
+            )
+        finally:
+            rss.crop_capture, rss.warp_capture_perspective = real_crop, real_warp
+        self.assertEqual(order, ["crop", "warp"])
+        self.assertTrue(warped)
+        self.assertTrue(src.exists())
+
+    def test_an_axis_aligned_quad_still_crops_but_never_warps(self):
+        order = []
+        real_crop, real_warp = rss.crop_capture, rss.warp_capture_perspective
+
+        def fake_crop(capture, crop, *, work_dir, tag):
+            order.append("crop")
+            dst = work_dir / "cropped.png"
+            dst.write_bytes(_make_png(100, 100))
+            return dst
+
+        def fake_warp(*a, **k):
+            order.append("warp")
+            raise AssertionError("a straight-on quad must skip ImageMagick entirely")
+
+        rss.crop_capture, rss.warp_capture_perspective = fake_crop, fake_warp
+        try:
+            src, warped = rss.prepare_capture(
+                self.work / "c.png",
+                crop={"x": 0, "y": 0, "width": 1, "height": 0.6},
+                quad=[(0.0, 0.0), (10.0, 0.0), (10.0, 20.0), (0.0, 20.0)],
+                box=(0.0, 0.0, 10.0, 20.0),
+                work_dir=self.work,
+                tag="t",
+            )
+        finally:
+            rss.crop_capture, rss.warp_capture_perspective = real_crop, real_warp
+        self.assertEqual(order, ["crop"])
+        self.assertFalse(warped)
+
+
 def tearDownModule():
     shutil.rmtree(SCRATCH, ignore_errors=True)
 
