@@ -807,6 +807,64 @@ class TestGenerateCli(ScratchTestCase):
         self.assertEqual(seen["prompt"], "a lovely room")
 
 
+class TestPromptFileIsRepeatable(unittest.TestCase):
+    """--prompt-file more than once, joined in the order given.
+
+    Why this exists: the six scene prompts share an identical technical block — camera, device
+    completeness, the flat-magenta contract, the quiet top and bottom bands — and it was
+    copy-pasted into all six. The 2026-09-12 handover called that out as certain to drift, and
+    it did, the first time the framing changed. One shared file plus a per-room file removes
+    the duplication without adding any machinery to the caller beyond a second flag.
+    """
+
+    def setUp(self):
+        self.work = SCRATCH / "prompt-parts"
+        self.work.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.work, ignore_errors=True)
+
+    def _read(self, *names):
+        args = gs.build_parser().parse_args(
+            [a for n in names for a in ("--prompt-file", str(self.work / n))]
+            + ["--out", str(self.work / "o.png")])
+        return gs._read_prompt(args)
+
+    def _write(self, name, text):
+        (self.work / name).write_text(text, encoding="utf-8")
+
+    def test_a_single_file_still_reads_exactly_as_before(self):
+        self._write("one.txt", "a lovely room\n")
+        self.assertEqual(self._read("one.txt"), "a lovely room")
+
+    def test_two_files_are_joined_in_the_order_given(self):
+        self._write("shared.txt", "Technical block.\n")
+        self._write("room.txt", "Setting: a kitchen.\n")
+        got = self._read("shared.txt", "room.txt")
+        self.assertEqual(got, "Technical block.\n\nSetting: a kitchen.")
+
+    def test_order_is_the_caller_order_not_sorted(self):
+        self._write("shared.txt", "Technical block.")
+        self._write("room.txt", "Setting: a kitchen.")
+        self.assertTrue(self._read("room.txt", "shared.txt").startswith("Setting:"))
+
+    def test_each_part_is_stripped_so_joining_never_doubles_blank_lines(self):
+        self._write("a.txt", "\n\nfirst\n\n\n")
+        self._write("b.txt", "\n\nsecond\n\n")
+        self.assertEqual(self._read("a.txt", "b.txt"), "first\n\nsecond")
+
+    def test_an_empty_part_does_not_leave_a_stray_separator(self):
+        self._write("a.txt", "first")
+        self._write("blank.txt", "   \n")
+        self.assertEqual(self._read("a.txt", "blank.txt"), "first")
+
+    def test_an_unreadable_part_names_that_part_not_the_first_one(self):
+        self._write("a.txt", "first")
+        with self.assertRaises(gs.InvocationError) as caught:
+            self._read("a.txt", "missing.txt")
+        self.assertIn("missing.txt", str(caught.exception))
+
+
 class TestQualityDefaultIsCheap(unittest.TestCase):
     """Jan's workflow, 2026-09-12: "wir iterieren mit LOW ... DANN generieren wir die in HIGH."
 
