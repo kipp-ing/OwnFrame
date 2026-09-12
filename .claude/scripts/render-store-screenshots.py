@@ -185,10 +185,34 @@ def preserve_aspect_ratio(fit: str) -> str:
         raise ValueError(f"unknown fit {fit!r} (expected one of {sorted(PAR)})") from None
 
 
+def fill_text_lines(text_el: ET.Element, lines: list[str], *, element_id: str) -> None:
+    """Rebuild a text element's <tspan> children from `lines`, keeping the template's own
+    attributes: tspan[0]'s for the first line, tspan[1]'s for every line after it (so the
+    template owns x and the line spacing, and the manifest owns only the words)."""
+    tspans = [c for c in list(text_el) if c.tag == f"{{{SVG_NS}}}tspan"]
+    if len(tspans) < 2:
+        raise ValueError(f'template {element_id} id="{element_id}" must ship at least two '
+                          "<tspan> children")
+    first_attrs, rest_attrs = dict(tspans[0].attrib), dict(tspans[1].attrib)
+    for child in list(text_el):
+        text_el.remove(child)
+    text_el.text = None
+    for i, line in enumerate(lines):
+        t = ET.SubElement(text_el, f"{{{SVG_NS}}}tspan", first_attrs if i == 0 else rest_attrs)
+        t.text = line
+
+
 def substitute(root: ET.Element, *, scene_uri: str | None, screenshot_uri: str | None,
-               fit: str, lines: list[str], warped: bool = False) -> None:
+               fit: str, lines: list[str], warped: bool = False,
+               subline_lines: list[str] | None = None) -> None:
     """Mutates `root` in place: sets `scene` and `screenshot` (each only if the template has
     one), and rebuilds `headline`'s <tspan> children from `lines` (FR-9010-16/22).
+
+    `subline` is the optional second text block (Jan, 2026-09-12: "text bottom AND top"), filled
+    from the manifest exactly as the headline is — store copy lives in content.json and nowhere
+    else (FR-9010-20), so a template never carries a sentence of its own. Element and copy must
+    agree: an element with no copy, and copy with no element, are both authoring mistakes that
+    would otherwise ship silently, the same policy the scene/screenshot pair already enforces.
 
     `warped=True` means the capture handed in has already been pre-warped onto the screen quad
     and authored in the `screenshot` box's own units, so the <image> must map it 1:1 —
@@ -225,16 +249,17 @@ def substitute(root: ET.Element, *, scene_uri: str | None, screenshot_uri: str |
     text_el = by_id(root, "headline")
     if text_el is None:
         raise ValueError('template has no element id="headline"')
-    tspans = [c for c in list(text_el) if c.tag == f"{{{SVG_NS}}}tspan"]
-    if len(tspans) < 2:
-        raise ValueError('template headline id="headline" must ship at least two <tspan> children')
-    first_attrs, rest_attrs = dict(tspans[0].attrib), dict(tspans[1].attrib)
-    for child in list(text_el):
-        text_el.remove(child)
-    text_el.text = None
-    for i, line in enumerate(lines):
-        t = ET.SubElement(text_el, f"{{{SVG_NS}}}tspan", first_attrs if i == 0 else rest_attrs)
-        t.text = line
+    fill_text_lines(text_el, lines, element_id="headline")
+
+    subline_el = by_id(root, "subline")
+    if subline_el is not None:
+        if not subline_lines:
+            raise ValueError(
+                'template has an element id="subline" but the manifest slot has no subline copy'
+            )
+        fill_text_lines(subline_el, subline_lines, element_id="subline")
+    elif subline_lines:
+        raise ValueError('subline copy was supplied but the template has no element id="subline"')
 
 
 # --------------------------------------------------------------------------------------
@@ -742,6 +767,23 @@ def manifest_problems(manifest) -> list[str]:
         elif "headline" in slot:
             problems.append(f"{label}: headline must be an object keyed by locale")
 
+        # `subline` (the optional second text block) is per-slot optional but, once present,
+        # required in EVERY locale: a slot carrying it only in `de` renders fine in English and
+        # then dies mid-run on the German pass, which is the expensive way to find a typo.
+        subline = slot.get("subline")
+        if isinstance(subline, dict):
+            for loc in locales:
+                lines = subline.get(loc)
+                if lines is None:
+                    problems.append(f"{label}: subline missing locale {loc!r}")
+                elif not isinstance(lines, list) or len(lines) == 0:
+                    problems.append(f"{label}: subline[{loc!r}] must be a non-empty array of lines")
+                elif not all(isinstance(line, str) for line in lines):
+                    problems.append(
+                        f"{label}: subline[{loc!r}] must contain only strings, got {lines!r}")
+        elif "subline" in slot:
+            problems.append(f"{label}: subline must be an object keyed by locale")
+
         if "perspective" in slot:
             problems.extend(_perspective_problems(label, slot["perspective"]))
 
@@ -1045,8 +1087,10 @@ def render_combo(*, device: str, locale: str, slot: dict, paths: SlotPaths,
     scene_uri = data_uri(paths.scene) if paths.scene is not None else None
     screenshot_uri = data_uri(capture_for_embed) if capture_for_embed is not None else None
     lines = slot["headline"][locale]
+    subline = slot.get("subline") or {}
     substitute(tree_root, scene_uri=scene_uri, screenshot_uri=screenshot_uri,
-               fit=slot["fit"], lines=lines, warped=warped)
+               fit=slot["fit"], lines=lines, warped=warped,
+               subline_lines=subline.get(locale))
     svg_text = ET.tostring(tree_root, encoding="unicode")
 
     html_path = work_dir / f"{tag}.html"

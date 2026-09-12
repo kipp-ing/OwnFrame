@@ -88,6 +88,13 @@ FIXTURE_NO_SCREENSHOT = f"""<svg xmlns="{SVG_NS}" width="100" height="140" viewB
   <text id="headline" x="10" y="20" xml:space="preserve"><tspan x="10" dy="0">Headline line one</tspan><tspan x="10" dy="1.16em">Headline line two</tspan></text>
 </svg>"""
 
+FIXTURE_WITH_SUBLINE = f"""<svg xmlns="{SVG_NS}" width="100" height="140" viewBox="0 0 100 140">
+  <image id="scene" x="0" y="0" width="100" height="140" preserveAspectRatio="xMidYMid slice" href=""/>
+  <text id="headline" x="10" y="20" xml:space="preserve"><tspan x="10" dy="0">Headline line one</tspan><tspan x="10" dy="1.16em">Headline line two</tspan></text>
+  <image id="screenshot" x="12" y="40" width="70" height="90" preserveAspectRatio="xMidYMid slice" href=""/>
+  <text id="subline" x="10" y="130" xml:space="preserve"><tspan x="10" dy="0">Subline line one</tspan><tspan x="10" dy="1.3em">Subline line two</tspan></text>
+</svg>"""
+
 
 def _png_chunk(tag: bytes, payload: bytes) -> bytes:
     return (
@@ -429,6 +436,38 @@ class TestIdSubstitution(unittest.TestCase):
         self.assertEqual(tspans[0].get("dy"), "0")
         self.assertEqual(tspans[1].get("dy"), "1.16em")
 
+    def test_subline_lines_are_substituted_when_the_template_has_one(self):
+        """Jan, 2026-09-12: "text bottom AND top". The second text block is filled from the
+        manifest exactly like the headline — store copy lives in content.json and nowhere else
+        (FR-9010-20), so a template must never carry a baked-in sentence of its own."""
+        root = self._parse(FIXTURE_WITH_SUBLINE)
+        rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover",
+                        lines=["A"], subline_lines=["Sub one", "Sub two"])
+        text = rss.by_id(root, "subline")
+        tspans = [c for c in list(text) if c.tag == f"{{{SVG_NS}}}tspan"]
+        self.assertEqual([t.text for t in tspans], ["Sub one", "Sub two"])
+        self.assertEqual(tspans[0].get("dy"), "0")
+        self.assertEqual(tspans[1].get("dy"), "1.3em")
+
+    def test_subline_element_without_manifest_copy_raises(self):
+        root = self._parse(FIXTURE_WITH_SUBLINE)
+        with self.assertRaises(ValueError):
+            rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover",
+                            lines=["A"], subline_lines=None)
+
+    def test_subline_copy_without_a_template_element_raises(self):
+        """The mirror error: copy nobody can render is as wrong as an element nobody can feed —
+        same policy the scene/screenshot pair already enforces."""
+        root = self._parse(FIXTURE_WITH_SCREENSHOT)
+        with self.assertRaises(ValueError):
+            rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover",
+                            lines=["A"], subline_lines=["orphan"])
+
+    def test_a_template_without_a_subline_still_renders(self):
+        root = self._parse(FIXTURE_WITH_SCREENSHOT)
+        rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover", lines=["A"])
+        self.assertIsNone(rss.by_id(root, "subline"))
+
     def test_three_line_headline_third_tspan_clones_second_attrs(self):
         root = self._parse(FIXTURE_WITH_SCREENSHOT)
         rss.substitute(root, scene_uri="u", screenshot_uri="v", fit="cover", lines=["A", "B", "C"])
@@ -511,6 +550,33 @@ class TestCheckDetection(ScratchTestCase):
         self.assertIn("01-alpha", out)
         self.assertIn("en", out)
         self.assertIn("headline", out)
+
+    def test_subline_with_a_missing_locale_detected(self):
+        """`subline` is optional per slot, but a slot that HAS one must have it in every locale —
+        otherwise the German run dies mid-render on a template whose element it cannot feed,
+        after the English one rendered fine."""
+        manifest = _small_manifest()
+        manifest["slots"][0]["subline"] = {"de": ["nur deutsch"]}
+        manifest_path = _write_manifest_tree(self.work / "tree", manifest)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=self.work / "tree")
+        self.assertEqual(code, 1)
+        self.assertIn("01-alpha", out)
+        self.assertIn("subline", out)
+        self.assertIn("en", out)
+
+    def test_subline_that_is_not_keyed_by_locale_detected(self):
+        manifest = _small_manifest()
+        manifest["slots"][0]["subline"] = ["a bare list, not a locale map"]
+        manifest_path = _write_manifest_tree(self.work / "tree", manifest)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=self.work / "tree")
+        self.assertEqual(code, 1)
+        self.assertIn("subline", out)
+
+    def test_a_slot_without_a_subline_is_still_clean(self):
+        manifest = _small_manifest()
+        manifest_path = _write_manifest_tree(self.work / "tree", manifest)
+        code, out, err = self.run_main(["--check", "--manifest", str(manifest_path)], root=self.work / "tree")
+        self.assertNotIn("subline", out)
 
     def test_empty_headline_line_list_detected(self):
         manifest = _small_manifest()
