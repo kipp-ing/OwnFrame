@@ -521,6 +521,18 @@ public final class SlideshowViewModel {
         prefetchImages()
     }
 
+    #if DEBUG
+    /// 9010 slot 5 live capture only: publishes an arrival directly, bypassing
+    /// `RotationReconciler` and the source entirely. A pre-populated album has no delta for the
+    /// reconciler to notice and choreographing a genuine server-side change during a capture run
+    /// is impractical (see docs/handover-store-slots.md), so the capture rig forces the card
+    /// over whatever REAL photo the source already has playing — the toast is forced, the photo
+    /// never is. Compiled only into DEBUG builds; never reachable from a Release binary.
+    public func debugForceArrival(count: Int) {
+        recentArrival = NewArrival(count: count)
+    }
+    #endif
+
     // MARK: - Periodic refresh (310, US2)
 
     /// Stamp the successful list fetch and (re)arm the next hourly refresh —

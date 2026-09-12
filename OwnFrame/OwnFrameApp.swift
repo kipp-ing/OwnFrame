@@ -769,7 +769,19 @@ private struct RootView: View {
     /// The active source's own display name (310, FR-310-14 — the optional new-photos
     /// card). Read the same live way as `activeSourceIsPhotoLibrary`.
     private var activeSourceLabel: String? {
-        factories.loadLibrary().active?.label
+        #if DEBUG
+        // 9010 slot 5 live capture only: a shared-link source added through the low-
+        // friction onboarding path (no label field, by design — see SharedLinkSetupView)
+        // defaults its label to the link's raw host (SourceLibraryViewModel.uniqueLabel).
+        // That is fine for a real user's own frame, but this capture's real host
+        // (frame.kippings.de) must never appear on a public store screenshot — the exact
+        // hostname-leak trap docs/handover-store-slots.md flags for this card. DEBUG-only,
+        // env-var-gated; display-time only, never persisted, never reachable in Release.
+        if let override = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_SOURCE_LABEL"] {
+            return override
+        }
+        #endif
+        return factories.loadLibrary().active?.label
     }
 
     /// Rebuild the slideshow view model (and the API client) from the updated stores and

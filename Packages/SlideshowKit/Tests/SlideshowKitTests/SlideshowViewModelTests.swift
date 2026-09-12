@@ -749,6 +749,51 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
     #expect(model.recentArrival?.count == 1)
 }
 
+// MARK: - debugForceArrival (9010 slot 5 live capture — 2026-09-11 handover decision)
+//
+// The live capture rig cannot manufacture a genuine server-side arrival deterministically (see
+// docs/handover-store-slots.md): a pre-populated album has no delta to notice, and choreographing
+// a real content change during a test run is impractical. `debugForceArrival` bypasses
+// `RotationReconciler` entirely and publishes a `NewArrival` directly, so the capture rig can
+// force the card over an already-playing REAL photo with no server-side content change and no
+// timing coordination.
+
+@MainActor
+@Test func debugForceArrivalPublishesAnArrivalWithoutTouchingAssetsOrSource() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([SourceAsset(id: "a-1", kind: .image)], for: "album")
+    source.setImageData(Data("a-1".utf8), for: "a-1", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+    #expect(model.recentArrival == nil)
+
+    model.debugForceArrival(count: 3)
+
+    #expect(model.recentArrival?.count == 3)
+    #expect(model.currentAssetID == "a-1", "forcing an arrival must not touch the current photo")
+}
+
+@MainActor
+@Test func debugForceArrivalPublishesAFreshIDOnEachCall() async {
+    let source = StubPhotoSource()
+    let ticker = ManualTicker()
+    source.setAssets([SourceAsset(id: "a-1", kind: .image)], for: "album")
+    source.setImageData(Data("a-1".utf8), for: "a-1", fidelity: .preview)
+
+    let model = SlideshowViewModel(source: source, collectionID: "album", ticker: ticker, settingsStore: sequentialThemeStore())
+    await model.start()
+
+    model.debugForceArrival(count: 2)
+    let first = model.recentArrival
+
+    model.debugForceArrival(count: 2)
+    let second = model.recentArrival
+
+    #expect(first?.id != second?.id)
+}
+
 // MARK: - Decode-ahead preparer seam (Ken Burns smoothness: no lazy decode at the swap)
 
 @MainActor

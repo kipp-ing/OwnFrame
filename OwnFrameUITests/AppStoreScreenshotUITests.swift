@@ -44,9 +44,9 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// The photo slots of the store set, in capture order, each targeted by an asset-id
     /// oracle on `slideshow.image`. Asset ids are device- and locale-independent.
     ///
-    /// STILL MISSING: slot 5 ("05-hero-new-photos") has no photograph yet — see
-    /// docs/handover-store-slots.md. All three heroes here are warm/orange-graded; the
-    /// open colour-monotony finding in that doc is not resolved by this set.
+    /// Slot 5 is not one of these — it is the UI-archetype arrival card captured separately by
+    /// `testCaptureNewPhotosCard` below. All three heroes here are warm/orange-graded; the open
+    /// colour-monotony finding in docs/handover-store-slots.md is not resolved by this set.
     private static let heroes: [(name: String, assetID: String)] = [
         ("01-hero-drawer", "4cea99f3-abe4-47d1-baa8-8de2c2dcf802"),    // kinder.png, children hugging
         ("02-hero-favourites", "32b82d07-7853-44bf-b658-13f1d8fc1e21"), // golden retriever
@@ -135,30 +135,37 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// `GermanScreenshotSweepUITests.test55_newPhotosCard` for that regression coverage).
     ///
     /// Onboards through `newPhotosCardLink`, a separate content album from the hero-photo
-    /// `demoLink`. Two DEBUG-only, env-var-gated levers (never present in a Release build,
-    /// see `OwnFrameApp.makeThemeStore`/`makeSlideshow`) remove the two frictions a live
-    /// capture would otherwise hit: `SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD=1` turns the card on
-    /// without navigating the Settings sheet (no accessible Done button there — see
-    /// `testCaptureChromeAndSheets`), and `SCREENSHOT_CAPTURE_REFRESH_SECONDS` shortens
-    /// FR-310-06's fixed 60-minute interval so the wait below is measured in seconds.
+    /// `demoLink`. Two DEBUG-only, env-var-gated levers (never present in a Release build, see
+    /// `OwnFrameApp.makeThemeStore`/`SlideshowView.body`) remove the frictions a live capture
+    /// would otherwise hit: `SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD=1` turns the card on without
+    /// navigating the Settings sheet (no accessible Done button there — see
+    /// `testCaptureChromeAndSheets`), and `SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT` calls
+    /// `SlideshowViewModel.debugForceArrival(count:)` right after `start()`, publishing the
+    /// arrival directly instead of waiting on `RotationReconciler` to notice a real delta.
     ///
-    /// This test cannot make the arrival happen itself — there are no Immich credentials in
-    /// this repo, by design. It only WAITS for one. **Add the new photo to the
-    /// `newPhotosCardLink` album any time after starting this test** (a generous window is
-    /// given below); the shortened refresh picks it up as soon as it appears.
+    /// A prior session's attempt polled up to 180s for a genuine server-side arrival and never
+    /// saw one: `newPhotosCardLink`'s album is static, so a reconciler diff against an unchanging
+    /// source can never look like an arrival, no matter how long the wait or how short the
+    /// refresh interval (see docs/handover-store-slots.md, "a live-capture rig was built, then
+    /// Jan called it"). The forced trigger below makes this deterministic — the photo is real
+    /// (a genuine live source), only the card itself is forced.
+    ///
+    /// `SCREENSHOT_CAPTURE_SOURCE_LABEL` overrides the card's source label. Onboarding through
+    /// `newPhotosCardLink` has no label field (the low-friction shared-link path, by design), so
+    /// it would otherwise default to the link's raw host — `frame.kippings.de`, Jan's real
+    /// private domain, which must never reach a public store screenshot. A friendly, plausible
+    /// name a real user could have typed sidesteps that without touching onboarding itself.
     @MainActor
     func testCaptureNewPhotosCard() throws {
         let app = launch(environment: [
             "SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD": "1",
-            "SCREENSHOT_CAPTURE_REFRESH_SECONDS": "5",
+            "SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT": "3",
+            "SCREENSHOT_CAPTURE_SOURCE_LABEL": "Family Photos",
         ])
         _ = try startSlideshow(app, link: Self.newPhotosCardLink)
 
         let card = app.descendants(matching: .any).matching(identifier: "slideshow.newPhotosCard").firstMatch
-        XCTAssertTrue(
-            card.waitForExistence(timeout: 180),
-            "no arrival seen within 180s — add the new photo to \(Self.newPhotosCardLink)'s album while this test is running"
-        )
+        XCTAssertTrue(card.waitForExistence(timeout: 10), "the forced arrival should show the card immediately")
         attach(name: "05-slot-new-photos")
     }
 
