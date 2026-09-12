@@ -203,12 +203,29 @@ def build_tiles(
     return tiles
 
 
-def run_renderer(*, manifest: Path, device: str, locale: str, out_dir: Path,
-                  capture_root: str | None) -> tuple[dict[str, Path], dict[str, list[str]]]:
+def renderer_command(*, manifest: Path, device: str, locale: str, out_dir: Path,
+                      capture_root: str | None, scenes: list[str]) -> list[str]:
+    """The wrapped renderer's argv. Pure, so a test can assert on it without running Chrome.
+
+    `--scene SLOT_ID=PATH` is passed straight through: it is how a *generated* scene gets judged
+    in a real composite before anyone decides it is good enough to live in
+    `Design/AppStore/scenes/`. Without the passthrough the only way to preview one is to copy an
+    unfinished asset into `Design/`, against this repo's "nothing in Design/ is a placeholder"
+    rule."""
     cmd = [sys.executable, str(RENDERER), "--manifest", str(manifest),
            "--device", device, "--locale", locale, "--out", str(out_dir)]
     if capture_root:
         cmd += ["--capture-root", capture_root]
+    for scene in scenes:
+        cmd += ["--scene", scene]
+    return cmd
+
+
+def run_renderer(*, manifest: Path, device: str, locale: str, out_dir: Path,
+                  capture_root: str | None, scenes: list[str] | None = None
+                  ) -> tuple[dict[str, Path], dict[str, list[str]]]:
+    cmd = renderer_command(manifest=manifest, device=device, locale=locale, out_dir=out_dir,
+                            capture_root=capture_root, scenes=scenes or [])
     result = subprocess.run(cmd, capture_output=True, text=True)
     return parse_renderer_output(result.stdout, result.stderr)
 
@@ -237,6 +254,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", action="append", help="repeatable; default is every declared device")
     parser.add_argument("--locale", action="append", help="repeatable; default is every declared locale")
     parser.add_argument("--capture-root", help="override the manifest's captureRoot")
+    parser.add_argument(
+        "--scene", action="append", default=[], metavar="SLOT_ID=PATH",
+        help="repeatable; passed straight to the renderer. Use a scene file that is not (yet) "
+             "in Design/AppStore/scenes/ — how a freshly generated scene gets judged in a real "
+             "composite before it is promoted.",
+    )
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
     parser.add_argument("--columns", type=int, default=COLUMNS)
     parser.add_argument(
@@ -272,7 +295,7 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT) -> int:
             render_out = work_dir / "rendered"
             rendered, missing = run_renderer(
                 manifest=manifest_path, device=device, locale=locale,
-                out_dir=render_out, capture_root=args.capture_root,
+                out_dir=render_out, capture_root=args.capture_root, scenes=args.scene,
             )
             tiles = build_tiles(
                 slots, rendered=rendered, missing=missing, locale=locale, work_dir=work_dir,
