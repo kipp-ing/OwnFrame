@@ -19,7 +19,10 @@ re-derive or "correct" these from an old tutorial; re-check `/v1/images/generati
 model changes):
 
   * `POST https://api.openai.com/v1/images/generations`, `Authorization: Bearer <key>`.
-  * `model` defaults to `gpt-image-2` (a `--model` flag exists for whatever comes next).
+  * `model` defaults to `gpt-image-2.5-flare` (a `--model` flag reaches every other id). There is
+    no plain `gpt-image-2.5` — the live `/v1/models` listing shows the 2.5 family as `-flare`
+    (fast, high-quality everyday generation) and `-sunburst` (editing precision); this tool does
+    plain text-to-image, so flare is the default. Token rates match `gpt-image-2`.
   * `size` is `WIDTHxHEIGHT`: both multiples of 16, aspect ratio between 1:3 and 3:1, neither
     edge above 3840, and total pixels between 655,360 and 8,294,400. This tool's own target,
     2064x3040 (aspect 0.679, 6,274,560 px), sits inside every one of those limits but above the
@@ -46,6 +49,10 @@ Traps this script exists to not re-learn:
     binary keep-or-key-out decision per pixel; there is no antialiasing pass afterwards to
     reintroduce a soft edge. This is what keeps `measure-scene-cutout.py`'s hard-edge check
     happy for free, rather than as something this script has to work at.
+  * **The model paints NEAR the requested colour, not on it.** Measured: a prompt demanding
+    `#FF00FF` came back as `#E91DC9`, ~14% away in RGB — past the old 12% fuzz default, which
+    keyed 26 pixels instead of a screen. Hence `DEFAULT_FUZZ = 24%`. Sample each new raw before
+    trusting a key: `magick <raw> -scale 10% -colors 8 -format "%c" histogram:info:`.
   * **The API key is never on the command line and never printed.** It is read from
     `$OPENAI_API_KEY` or, failing that, `~/.config/openai/api-key` (whitespace-stripped). Every
     error message that can fire before a key is found names both places to look, never a value.
@@ -93,7 +100,12 @@ import urllib.request
 from pathlib import Path
 
 API_ENDPOINT = "https://api.openai.com/v1/images/generations"
-DEFAULT_MODEL = "gpt-image-2"
+# GPT Image 2.5, per Jan's call (2026-09-12). Verified against the live `/v1/models` listing, not
+# a tutorial: there is no plain `gpt-image-2.5` id. The family ships as `-flare` ("fast,
+# high-quality everyday image generation") and `-sunburst` (positioned on editing precision);
+# scene generation is plain text-to-image, so flare is the default. Both bill at GPT Image 2's
+# token rates, so this buys a better picture at the same price.
+DEFAULT_MODEL = "gpt-image-2.5-flare"
 # Deliberately the cheapest tier. The prompt loop is fighting COMPOSITION — whole device in
 # frame, top quarter empty, screen a flat magenta — and all three are judgeable at `low`. Paying
 # for fidelity while the composition is still wrong is waste, and at 6.27M pixels per image that
@@ -101,7 +113,13 @@ DEFAULT_MODEL = "gpt-image-2"
 # for the keeper. A forgotten flag should cost cents, never the other way round.
 DEFAULT_QUALITY = "low"
 DEFAULT_SIZE = "2064x3040"
-DEFAULT_FUZZ = "12%"
+# Wide on purpose. Measured on the first real generation: the prompt asks for #FF00FF and the
+# model painted #E91DC9 — ~14% away in RGB, past the old 12% default, so the first real key found
+# 26 pixels instead of a screen. The free sweep over that raw (via --skip-generate) read 12%: no
+# screen · 16%: 73 regions/72 stray · 20%: 2/1 · 24%: 1 region, 0 stray, hard edges. Expect every
+# generation to land NEAR the requested colour rather than on it. A scene containing genuinely
+# magenta-ish objects needs a narrower --fuzz typed explicitly.
+DEFAULT_FUZZ = "24%"
 DEFAULT_OUTPUT_FORMAT = "png"
 CHROMA_KEY = "#FF00FF"
 
@@ -367,7 +385,9 @@ def build_parser() -> argparse.ArgumentParser:
                          help="format requested from the API for the RAW generated image; the "
                               "keyed --out file is always PNG regardless of this flag")
     parser.add_argument("--fuzz", default=DEFAULT_FUZZ,
-                         help="ImageMagick -fuzz tolerance for the chroma key (default 12%%)")
+                         help="ImageMagick -fuzz tolerance for the chroma key (default 24%%, wide "
+                              "enough for the ~14%% drift between the requested magenta and the "
+                              "one the model actually paints)")
     parser.add_argument("--raw-out", help="keep the unkeyed generated image at this path")
     parser.add_argument("--skip-generate", metavar="PATH",
                          help="skip the API call; key this already-generated raw image instead")

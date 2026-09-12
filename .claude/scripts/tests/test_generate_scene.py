@@ -546,7 +546,7 @@ class TestDryRunCli(ScratchTestCase):
             restore_net()
             restore_run()
         self.assertEqual(code, 0, err)
-        self.assertIn('"model": "gpt-image-2"', out)
+        self.assertIn('"model": "gpt-image-2.5-flare"', out)
         self.assertIn('"prompt": "test"', out)
         self.assertIn('"size": "2064x3040"', out)
         self.assertIn("magick", out)
@@ -832,6 +832,57 @@ class TestQualityDefaultIsCheap(unittest.TestCase):
                 args = gs.build_parser().parse_args(
                     ["--prompt", "x", "--out", "/tmp/x.png", "--quality", tier])
                 self.assertEqual(args.quality, tier)
+
+
+class TestFuzzDefaultMatchesWhatTheModelActuallyPaints(unittest.TestCase):
+    """Measured on the first real generation (2026-09-12): asked for #FF00FF, the model painted
+    #E91DC9 — about 14% away in RGB, i.e. just past the old 12% default, so the very first real
+    use keyed 26 pixels instead of a screen. The sweep over that raw image (free, via
+    --skip-generate): 12% found no screen at all, 16% gave 73 regions / 72 stray, 20% gave 2 / 1,
+    24% gave 1 region / 0 stray / hard edges / 0.00 partial px.
+
+    So the default has to clear the gap between "the colour we asked for" and "the colour an image
+    model paints", not the gap between two shades of the same swatch. A default that fails on the
+    first real use is a trap for whoever comes next.
+
+    The cost of the wider tolerance is that a scene containing genuinely magenta-ish objects could
+    key out with the screen — pass a narrower --fuzz there; the flag is unchanged.
+    """
+
+    def test_default_fuzz_clears_the_measured_model_drift(self):
+        self.assertEqual(gs.DEFAULT_FUZZ, "24%")
+
+    def test_parser_default_matches(self):
+        args = gs.build_parser().parse_args(["--prompt", "x", "--out", "/tmp/x.png"])
+        self.assertEqual(args.fuzz, "24%")
+
+    def test_a_narrower_fuzz_is_still_reachable_for_a_pink_room(self):
+        args = gs.build_parser().parse_args(
+            ["--prompt", "x", "--out", "/tmp/x.png", "--fuzz", "8%"])
+        self.assertEqual(args.fuzz, "8%")
+
+
+class TestDefaultModelIsCurrent(unittest.TestCase):
+    """Jan's call, 2026-09-12: generate against GPT Image 2.5.
+
+    Verified against the live `/v1/models` listing rather than a tutorial: there is no plain
+    `gpt-image-2.5` id — the family ships as `gpt-image-2.5-flare` ("fast, high-quality everyday
+    image generation") and `gpt-image-2.5-sunburst` (positioned on editing precision). Scene
+    generation is plain text-to-image, so the default is flare. Both bill at GPT Image 2's token
+    rates, so this changes the picture, not the price.
+    """
+
+    def test_default_model_is_gpt_image_2_5_flare(self):
+        self.assertEqual(gs.DEFAULT_MODEL, "gpt-image-2.5-flare")
+
+    def test_parser_default_matches(self):
+        args = gs.build_parser().parse_args(["--prompt", "x", "--out", "/tmp/x.png"])
+        self.assertEqual(args.model, "gpt-image-2.5-flare")
+
+    def test_an_older_model_is_still_reachable_explicitly(self):
+        args = gs.build_parser().parse_args(
+            ["--prompt", "x", "--out", "/tmp/x.png", "--model", "gpt-image-2"])
+        self.assertEqual(args.model, "gpt-image-2")
 
 
 if __name__ == "__main__":
