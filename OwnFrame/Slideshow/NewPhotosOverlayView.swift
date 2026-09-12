@@ -25,7 +25,15 @@ struct NewPhotosOverlayView: View {
 
     @State private var visible = false
 
-    private static let displayDuration: Duration = .seconds(5)
+    static let displayDuration: Duration = .seconds(5)
+
+    /// 9010 slot 5 capture seam only: how often `SlideshowView` re-publishes a forced arrival
+    /// so the card stays continuously up while the capture rig walks to its chosen asset.
+    /// Must stay well inside `displayDuration` — the card fades itself out after that, and a
+    /// re-publish landing in the gap gives the screenshot an empty tile. Lives here, beside
+    /// the duration it is defined against, because that relationship is the whole point;
+    /// `NewPhotosCardCaptureTimingTests` holds the two to it.
+    static let forcedArrivalRepublishInterval: Duration = .seconds(2)
 
     var body: some View {
         ZStack(alignment: .bottom) {

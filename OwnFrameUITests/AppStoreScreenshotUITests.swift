@@ -41,6 +41,16 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// the arrival-toast capture's live content changes never touch the hero-photo material.
     private static let newPhotosCardLink = "https://frame.kippings.de/s/framecontent"
 
+    /// Slot 5's photograph, chosen rather than inherited (Jan, 2026-09-12: "the holiday shot
+    /// for the cooler [tile] is there").
+    ///
+    /// Without this the capture landed on the golden retriever, because the retriever is
+    /// `frameContent`'s ALBUM THUMBNAIL and so the first thing the slideshow plays — and slot 2
+    /// already carries that same dog, which at the new framing is the most visible duplicate in
+    /// the set. The beach is also the only cool-toned asset in the album; the other three are
+    /// warm/orange-graded, which is the colour-monotony finding noted on `heroes` below.
+    private static let newPhotosCardAssetID = "721664ff-cd62-4302-948a-21d19fc08321"
+
     /// The photo slots of the store set, in capture order, each targeted by an asset-id
     /// oracle on `slideshow.image`. Asset ids are device- and locale-independent.
     ///
@@ -162,10 +172,14 @@ final class AppStoreScreenshotUITests: XCTestCase {
             "SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT": "3",
             "SCREENSHOT_CAPTURE_SOURCE_LABEL": "Family Photos",
         ])
-        _ = try startSlideshow(app, link: Self.newPhotosCardLink)
+        let image = try startSlideshow(app, link: Self.newPhotosCardLink)
+        // Walk to the chosen photo BEFORE waiting on the card. The card survives the walk
+        // because the seam re-publishes the arrival (see SlideshowView) — a single forced
+        // arrival would have faded out somewhere around the second swipe.
+        advance(image, to: Self.newPhotosCardAssetID)
 
         let card = app.descendants(matching: .any).matching(identifier: "slideshow.newPhotosCard").firstMatch
-        XCTAssertTrue(card.waitForExistence(timeout: 10), "the forced arrival should show the card immediately")
+        XCTAssertTrue(card.waitForExistence(timeout: 10), "the re-published arrival should keep the card up")
         attach(name: "05-slot-new-photos")
     }
 
