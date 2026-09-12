@@ -88,6 +88,7 @@ import argparse
 import base64
 import hashlib
 import json
+import math
 import mimetypes
 import os
 import re
@@ -393,6 +394,65 @@ def is_axis_aligned_rect(quad, tol: float = QUAD_TOLERANCE) -> bool:
 
 def needs_warp(quad) -> bool:
     return quad is not None and not is_axis_aligned_rect(quad)
+
+
+def quad_aspect(quad) -> float:
+    """The width/height ratio the perspective warp effectively squeezes the capture into.
+
+    A quad has no single aspect ratio — it has two top/bottom edges and two left/right ones —
+    but the homography maps the capture's whole rectangle onto it, so what a viewer reads as
+    "stretched" is the ratio of the MEAN opposing edges. For an axis-aligned rectangle this is
+    exactly width/height, which is what makes it the right number to crop a capture against.
+    """
+    (tlx, tly), (trx, try_), (brx, bry), (blx, bly) = quad
+    width = (math.hypot(trx - tlx, try_ - tly) + math.hypot(brx - blx, bry - bly)) / 2.0
+    height = (math.hypot(blx - tlx, bly - tly) + math.hypot(brx - trx, bry - try_)) / 2.0
+    if height <= 0.0:
+        raise GeometryError(
+            f"screen quad {[(_fmt(x), _fmt(y)) for x, y in quad]} has zero height — it has no "
+            "aspect ratio to fit a capture to")
+    return width / height
+
+
+# Below this much relative skew the correction is not worth a re-encode: half a percent of
+# stretch is invisible at store-listing size, and a crop that changes nothing but the file's
+# bytes would break the byte-stability every other step of this pipeline works to keep.
+ASPECT_TOLERANCE = 0.005
+
+
+def aspect_cover_crop(width: int, height: int, target_aspect: float,
+                      *, tolerance: float = ASPECT_TOLERANCE) -> dict | None:
+    """The centred fractional rect that makes a `width`x`height` capture match `target_aspect`.
+
+    This is what `fit: cover` has always meant — preserve the content's proportions, crop the
+    overflow — applied on the one path where `preserveAspectRatio` cannot reach it, because a
+    warped capture is embedded at `preserveAspectRatio="none"` by construction. Returns None
+    when the capture is already within `tolerance` of the target, so the common case costs
+    nothing and stays byte-identical.
+    """
+    source_aspect = width / height
+    if abs(source_aspect / target_aspect - 1.0) <= tolerance:
+        return None
+    if source_aspect > target_aspect:      # capture too wide for the screen -> trim the sides
+        fraction = target_aspect / source_aspect
+        return {"x": (1.0 - fraction) / 2.0, "y": 0.0, "width": fraction, "height": 1.0}
+    fraction = source_aspect / target_aspect   # capture too tall -> trim top and bottom
+    return {"x": 0.0, "y": (1.0 - fraction) / 2.0, "width": 1.0, "height": fraction}
+
+
+def compose_crops(outer: dict, inner: dict) -> dict:
+    """One rect doing the work of two: `inner` is expressed relative to the frame `outer`
+    already cropped out, and the result is relative to the original capture.
+
+    Composing rather than cropping twice keeps a single ImageMagick call — one re-encode, one
+    intermediate — and keeps the pipeline's "crop, then warp" order literally true.
+    """
+    return {
+        "x": outer["x"] + inner["x"] * outer["width"],
+        "y": outer["y"] + inner["y"] * outer["height"],
+        "width": inner["width"] * outer["width"],
+        "height": inner["height"] * outer["height"],
+    }
 
 
 def quad_is_degenerate(quad, *, eps_scale: float = 1e-9) -> bool:
@@ -1006,7 +1066,7 @@ def crop_capture(capture: Path, crop: dict, *, work_dir: Path, tag: str) -> Path
     return dst
 
 
-def prepare_capture(capture: Path, *, crop, quad, box, work_dir: Path, tag: str
+def prepare_capture(capture: Path, *, crop, quad, box, fit: str, work_dir: Path, tag: str
                      ) -> tuple[Path, bool]:
     """Crop then (only if the quad demands it) warp. Returns the capture to embed, and whether
     it was warped — `substitute` needs that to drop `preserveAspectRatio`.
@@ -1014,12 +1074,32 @@ def prepare_capture(capture: Path, *, crop, quad, box, work_dir: Path, tag: str
     Order is load-bearing. The homography maps the capture's OWN rectangle onto the screen quad,
     so cropping AFTER the warp would cut the already-placed screen instead of zooming it.
 
-    A slot with no `captureCrop` and a straight-on quad passes through untouched, so every
-    existing template keeps its byte-identical output (FR-9010-30).
+    `fit` reaches here for the warped path only, and it is not decoration: a warped capture is
+    embedded at `preserveAspectRatio="none"` by construction, so `cover` cannot be honoured
+    downstream the way it is on every straight-on slot. It is honoured HERE, by cropping the
+    capture to the quad's own aspect first. The defect that bought this: generated scene 05's
+    screen measures 8.4% wider than 3:4, and the photo warped onto it came out visibly squashed
+    (Jan, 2026-09-12). `fill` keeps stretching, because stretching is what `fill` means.
+
+    The aspect rect is composed with any declared `captureCrop` into a single crop, so a slot
+    that needs both still pays for exactly one ImageMagick pass.
+
+    A slot with no `captureCrop`, a straight-on quad and no aspect skew passes through
+    untouched, so every existing template keeps its byte-identical output (FR-9010-30).
     """
+    rect = crop
+    if fit == "cover" and needs_warp(quad):
+        facts = parse_png(capture.read_bytes())
+        width, height = facts["width"], facts["height"]
+        if rect is not None:
+            width, height = width * rect["width"], height * rect["height"]
+        aspect_rect = aspect_cover_crop(width, height, quad_aspect(quad))
+        if aspect_rect is not None:
+            rect = aspect_rect if rect is None else compose_crops(rect, aspect_rect)
+
     src = capture
-    if crop is not None:
-        src = crop_capture(src, crop, work_dir=work_dir, tag=tag)
+    if rect is not None:
+        src = crop_capture(src, rect, work_dir=work_dir, tag=tag)
     if needs_warp(quad):
         return warp_capture_perspective(src, quad, box=box, work_dir=work_dir, tag=tag), True
     return src, False
@@ -1081,6 +1161,7 @@ def render_combo(*, device: str, locale: str, slot: dict, paths: SlotPaths,
             crop=slot.get("captureCrop"),
             quad=screen_quad_for(tree_root, slot),
             box=image_box(screenshot_el),
+            fit=slot["fit"],
             work_dir=work_dir, tag=tag,
         )
 

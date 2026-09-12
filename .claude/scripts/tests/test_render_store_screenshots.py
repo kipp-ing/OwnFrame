@@ -44,6 +44,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import math
 import shutil
 import struct
 import unittest
@@ -1465,6 +1466,7 @@ class TestCropAppliedInRenderPipeline(ScratchTestCase):
                 crop={"x": 0, "y": 0, "width": 1, "height": 0.6},
                 quad=MEASURED_QUAD_CENTRED,
                 box=(0.0, 0.0, 10.0, 10.0),
+                fit="fill",
                 work_dir=self.work,
                 tag="t",
             )
@@ -1495,6 +1497,7 @@ class TestCropAppliedInRenderPipeline(ScratchTestCase):
                 crop={"x": 0, "y": 0, "width": 1, "height": 0.6},
                 quad=[(0.0, 0.0), (10.0, 0.0), (10.0, 20.0), (0.0, 20.0)],
                 box=(0.0, 0.0, 10.0, 20.0),
+                fit="fill",
                 work_dir=self.work,
                 tag="t",
             )
@@ -1502,6 +1505,181 @@ class TestCropAppliedInRenderPipeline(ScratchTestCase):
             rss.crop_capture, rss.warp_capture_perspective = real_crop, real_warp
         self.assertEqual(order, ["crop"])
         self.assertFalse(warped)
+
+
+# Sheared rectangles: a real photographed tablet is never perfectly axis-aligned, and a quad
+# within QUAD_TOLERANCE of axis-aligned skips the warp entirely — so an axis-aligned fixture
+# would silently test nothing on the aspect path. Shearing the top edge sideways keeps the
+# horizontal edge lengths exact and lengthens the sides, which is the knob these two use to hit
+# a chosen mean-edge aspect.
+#
+# BEDROOM_QUAD reproduces generated scene 05: mean-edge aspect 0.8127, 8.4% wider than 3:4.
+BEDROOM_QUAD = [(34.7, 0.0), (1255.7, 0.0), (1221.0, 1502.0), (0.0, 1502.0)]
+# The same shape of tilt at a screen that IS 3:4, so `cover` has nothing to correct.
+FOUR_BY_THREE_TILTED_QUAD = [(40.0, 0.0), (1540.0, 0.0), (1500.0, 1999.6), (0.0, 1999.6)]
+
+
+class TestQuadAspect(unittest.TestCase):
+    """The aspect a capture has to match so the homography does not stretch its content.
+
+    A perspective quad is not a rectangle, so it has no single aspect ratio. The one that
+    matters is the ratio the warp effectively squeezes the source into: mean top/bottom edge
+    over mean left/right edge. For an axis-aligned rectangle that is exactly width/height.
+    """
+
+    def test_rectangle_aspect_is_width_over_height(self):
+        quad = [(0.0, 0.0), (300.0, 0.0), (300.0, 400.0), (0.0, 400.0)]
+        self.assertAlmostEqual(rss.quad_aspect(quad), 0.75, places=9)
+
+    def test_trapezoid_uses_the_mean_of_opposing_edges(self):
+        # Top edge 200 wide, bottom edge 300 wide -> mean 250. The sides SLOPE, so they are
+        # hypot(50, 500) = 502.49 long each, not 500 — edge lengths, never bounding boxes.
+        quad = [(50.0, 0.0), (250.0, 0.0), (300.0, 500.0), (0.0, 500.0)]
+        side = math.hypot(50.0, 500.0)
+        self.assertAlmostEqual(rss.quad_aspect(quad), 250.0 / side, places=6)
+
+    def test_the_measured_generated_bedroom_quad_is_wider_than_four_by_three(self):
+        # The real defect this section exists for: scene 05's generated screen measures 8.4%
+        # wider than the 3:4 capture, which stretched the photo on it sideways.
+        quad = BEDROOM_QUAD
+        self.assertGreater(rss.quad_aspect(quad), 0.75 * 1.08)
+
+    def test_degenerate_height_is_a_named_geometry_error_not_a_zero_division(self):
+        quad = [(0.0, 0.0), (100.0, 0.0), (100.0, 0.0), (0.0, 0.0)]
+        with self.assertRaises(rss.GeometryError):
+            rss.quad_aspect(quad)
+
+
+class TestAspectCoverCrop(unittest.TestCase):
+    """`fit: cover` means "preserve the aspect, crop the overflow" — including under a warp.
+
+    Before this existed, `cover` was honoured by `preserveAspectRatio` on every straight-on
+    slot and silently ignored on every warped one, because the homography maps the capture's
+    whole rectangle onto the quad whatever shape that rectangle is. The result was a photo
+    stretched to whatever shape the generated tablet happened to have.
+    """
+
+    def test_matching_aspect_needs_no_crop_at_all(self):
+        self.assertIsNone(rss.aspect_cover_crop(2064, 2752, 0.75))
+
+    def test_a_quad_wider_than_the_capture_crops_the_capture_vertically(self):
+        # Target 0.8127 (scene 05) against a 0.75 capture: keep full width, trim top and bottom.
+        crop = rss.aspect_cover_crop(2064, 2752, 0.8127)
+        self.assertAlmostEqual(crop["x"], 0.0, places=9)
+        self.assertAlmostEqual(crop["width"], 1.0, places=9)
+        self.assertAlmostEqual(crop["height"], (2064 / 0.8127) / 2752, places=6)
+        self.assertLess(crop["height"], 1.0)
+
+    def test_a_quad_narrower_than_the_capture_crops_the_capture_horizontally(self):
+        crop = rss.aspect_cover_crop(2064, 2752, 0.6399)
+        self.assertAlmostEqual(crop["y"], 0.0, places=9)
+        self.assertAlmostEqual(crop["height"], 1.0, places=9)
+        self.assertAlmostEqual(crop["width"], (2752 * 0.6399) / 2064, places=6)
+        self.assertLess(crop["width"], 1.0)
+
+    def test_the_crop_is_centred_on_both_axes(self):
+        crop = rss.aspect_cover_crop(2064, 2752, 0.8127)
+        self.assertAlmostEqual(crop["y"], (1.0 - crop["height"]) / 2.0, places=9)
+        crop = rss.aspect_cover_crop(2064, 2752, 0.6399)
+        self.assertAlmostEqual(crop["x"], (1.0 - crop["width"]) / 2.0, places=9)
+
+    def test_the_cropped_frame_has_exactly_the_target_aspect(self):
+        for target in (0.6399, 0.6694, 0.7573, 0.8127):
+            crop = rss.aspect_cover_crop(2064, 2752, target)
+            got = (2064 * crop["width"]) / (2752 * crop["height"])
+            self.assertAlmostEqual(got, target, places=6, msg=f"target {target}")
+
+    def test_a_mismatch_under_the_tolerance_is_left_alone(self):
+        # Half a percent of skew is invisible and a crop would only cost a re-encode.
+        self.assertIsNone(rss.aspect_cover_crop(2064, 2752, 0.75 * 1.002))
+
+    def test_a_mismatch_over_the_tolerance_is_corrected(self):
+        self.assertIsNotNone(rss.aspect_cover_crop(2064, 2752, 0.75 * 1.02))
+
+
+class TestAspectCropComposesWithAnExplicitCrop(unittest.TestCase):
+    """captureCrop and the aspect correction must become ONE ImageMagick crop, not two.
+
+    Two crops would mean two re-encodes and a second lossy generation of the same bitmap; the
+    composed rect is also what makes the existing "crop precedes warp" ordering test still
+    describe the whole truth.
+    """
+
+    def test_composition_is_relative_to_the_already_cropped_frame(self):
+        outer = {"x": 0.0, "y": 0.1, "width": 1.0, "height": 0.8}
+        inner = {"x": 0.0, "y": 0.25, "width": 1.0, "height": 0.5}
+        got = rss.compose_crops(outer, inner)
+        self.assertAlmostEqual(got["x"], 0.0, places=9)
+        self.assertAlmostEqual(got["width"], 1.0, places=9)
+        self.assertAlmostEqual(got["y"], 0.1 + 0.25 * 0.8, places=9)
+        self.assertAlmostEqual(got["height"], 0.5 * 0.8, places=9)
+
+    def test_composing_with_the_full_frame_is_the_identity(self):
+        inner = {"x": 0.2, "y": 0.3, "width": 0.5, "height": 0.4}
+        got = rss.compose_crops({"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}, inner)
+        for key, value in inner.items():
+            self.assertAlmostEqual(got[key], value, places=9, msg=key)
+
+
+class TestAspectCorrectionInPreparePipeline(ScratchTestCase):
+    """End of the chain: `fit` finally reaches `prepare_capture`, and only `cover` corrects."""
+
+    def _run(self, *, fit, quad, crop=None, capture_size=(2064, 2752)):
+        capture = self.work / "c.png"
+        capture.write_bytes(_make_png(*capture_size))
+        seen = {}
+        real_crop, real_warp = rss.crop_capture, rss.warp_capture_perspective
+
+        def fake_crop(cap, rect, *, work_dir, tag):
+            seen.setdefault("crops", []).append(rect)
+            dst = work_dir / "cropped.png"
+            dst.write_bytes(_make_png(100, 100))
+            return dst
+
+        def fake_warp(cap, q, *, box, work_dir, tag):
+            seen["warped_from"] = cap
+            dst = work_dir / "warped.png"
+            dst.write_bytes(_make_png(100, 100))
+            return dst
+
+        rss.crop_capture, rss.warp_capture_perspective = fake_crop, fake_warp
+        try:
+            rss.prepare_capture(capture, crop=crop, quad=quad,
+                                box=(0.0, 0.0, 10.0, 10.0), fit=fit,
+                                work_dir=self.work, tag="t")
+        finally:
+            rss.crop_capture, rss.warp_capture_perspective = real_crop, real_warp
+        return seen
+
+    def test_cover_crops_the_capture_to_the_quad_aspect_before_warping(self):
+        seen = self._run(fit="cover", quad=BEDROOM_QUAD)
+        self.assertEqual(len(seen["crops"]), 1)
+        rect = seen["crops"][0]
+        self.assertLess(rect["height"], 1.0)
+        self.assertAlmostEqual(rect["width"], 1.0, places=9)
+
+    def test_fill_keeps_stretching_because_that_is_what_fill_means(self):
+        seen = self._run(fit="fill", quad=BEDROOM_QUAD)
+        self.assertNotIn("crops", seen)
+
+    def test_a_straight_on_slot_is_never_aspect_cropped(self):
+        # No warp, no distortion: preserveAspectRatio already honours `cover` there, and
+        # cropping as well would zoom the capture for no reason (FR-9010-30).
+        quad = [(0.0, 0.0), (10.0, 0.0), (10.0, 20.0), (0.0, 20.0)]
+        seen = self._run(fit="cover", quad=quad)
+        self.assertNotIn("crops", seen)
+
+    def test_a_quad_already_matching_the_capture_is_left_untouched(self):
+        seen = self._run(fit="cover", quad=FOUR_BY_THREE_TILTED_QUAD)
+        self.assertNotIn("crops", seen)
+
+    def test_capture_crop_and_aspect_correction_collapse_into_one_call(self):
+        seen = self._run(fit="cover", quad=BEDROOM_QUAD,
+                         crop={"x": 0.0, "y": 0.0, "width": 1.0, "height": 0.62})
+        self.assertEqual(len(seen["crops"]), 1)
+        rect = seen["crops"][0]
+        # The composed rect is inside the declared captureCrop, never wider than it.
+        self.assertLessEqual(rect["height"], 0.62 + 1e-9)
 
 
 def tearDownModule():
