@@ -807,5 +807,32 @@ class TestGenerateCli(ScratchTestCase):
         self.assertEqual(seen["prompt"], "a lovely room")
 
 
+class TestQualityDefaultIsCheap(unittest.TestCase):
+    """Jan's workflow, 2026-09-12: "wir iterieren mit LOW ... DANN generieren wir die in HIGH."
+
+    Composition is what the prompt loop is actually fighting — is the whole device in frame, is
+    the top quarter empty, is the screen a flat magenta — and all three are judgeable at `low`.
+    Paying for fidelity while the composition is still wrong is pure waste, and at 6.27M pixels
+    per image that waste is real money over a prompt loop.
+
+    So the default is the cheap one and `high` has to be typed. A forgotten flag should cost
+    cents, never the other way round.
+    """
+
+    def test_default_quality_is_low_so_a_forgotten_flag_is_cheap(self):
+        self.assertEqual(gs.DEFAULT_QUALITY, "low")
+
+    def test_parser_default_matches(self):
+        args = gs.build_parser().parse_args(["--prompt", "x", "--out", "/tmp/x.png"])
+        self.assertEqual(args.quality, "low")
+
+    def test_the_expensive_tiers_are_still_reachable_explicitly(self):
+        for tier in ("high", "xhigh", "max"):
+            with self.subTest(tier=tier):
+                args = gs.build_parser().parse_args(
+                    ["--prompt", "x", "--out", "/tmp/x.png", "--quality", tier])
+                self.assertEqual(args.quality, tier)
+
+
 if __name__ == "__main__":
     unittest.main()
