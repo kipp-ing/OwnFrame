@@ -679,8 +679,31 @@ def edge_angle(corners, i) -> float:
 # Cover fit — and solving the crop offset instead of merely reporting it
 # --------------------------------------------------------------------------------------
 
-def solve_cover_fit(image_w, image_h, canvas_w, canvas_h, corners) -> dict:
+def max_zoom_without_upscaling(image_w, image_h, canvas_w, canvas_h) -> float:
+    """How far past a plain cover fit this scene can be zoomed before a pixel is invented.
+
+    A cover fit uses the SMALLEST scale that fills the canvas, so a scene generated larger than
+    the canvas is thrown away down to that scale. The surplus is real, already-paid-for detail,
+    and spending it on a closer crop costs nothing: at this zoom the scale is exactly 1.0 and
+    the scene is used pixel for pixel. Above it, `solve_cover_fit` refuses — see "Never
+    upscale" in generate-scene.py, the same rule from the other end of the pipeline.
+    """
+    return 1.0 / max(canvas_w / image_w, canvas_h / image_h)
+
+
+def solve_cover_fit(image_w, image_h, canvas_w, canvas_h, corners,
+                    *, zoom: float = 1.0, min_footroom_px: float = 0.0) -> dict:
     """Scale the scene to cover the canvas, then choose a crop offset that keeps the quad on it.
+
+    `zoom` multiplies the cover scale: 1.0 is the plain cover fit, and anything above it crops
+    further in, which is the only lever that actually brings the device closer. The image model
+    saturates at ~30-35% screen share however the prompt is phrased (measured over two rounds,
+    2026-09-12), so the framing gain has to come from generating LARGER than the canvas and
+    cropping, not from asking for a bigger tablet. `max_zoom_without_upscaling` is the ceiling;
+    past it this raises rather than inventing pixels.
+
+    `min_footroom_px` reserves a band of canvas below the screen for the subline. Zero keeps the
+    historical max-headroom policy exactly, which is what every existing scene still gets.
 
     A centred cover crop is what everyone reaches for and it is wrong here often enough to
     matter: on the reference scene the screen sits low in the frame, so a symmetric top/bottom
@@ -701,7 +724,16 @@ def solve_cover_fit(image_w, image_h, canvas_w, canvas_h, corners) -> dict:
     When the range is empty the scene cannot be cover-fitted at this aspect at all, and the
     error says by how many pixels it misses rather than fudging a value.
     """
-    scale = max(canvas_w / image_w, canvas_h / image_h)
+    ceiling = max_zoom_without_upscaling(image_w, image_h, canvas_w, canvas_h)
+    # zoom=1.0 is the plain cover fit and is always allowed, even for a scene smaller than the
+    # canvas — such a scene is already upscaled by the cover fit itself, which is a property of
+    # the scene, not of this knob. The ceiling only governs asking for MORE than cover.
+    if zoom > max(1.0, ceiling) + 1e-9:
+        raise UnusableSceneError(
+            f"zoom {zoom:.4f} would upscale this {image_w}x{image_h} scene onto a "
+            f"{canvas_w}x{canvas_h} canvas: it has only {ceiling:.4f} of zoom to give before "
+            f"the scale passes 1:1. Generate the scene larger, or zoom less")
+    scale = max(canvas_w / image_w, canvas_h / image_h) * zoom
     scaled_w, scaled_h = image_w * scale, image_h * scale
     overflow_x = max(0.0, scaled_w - canvas_w)
     overflow_y = max(0.0, scaled_h - canvas_h)
@@ -727,7 +759,14 @@ def solve_cover_fit(image_w, image_h, canvas_w, canvas_h, corners) -> dict:
     centered_x, centered_y = overflow_x / 2.0, overflow_y / 2.0
 
     crop_x = min(max(centered_x, lo_x), hi_x)
-    crop_y = lo_y                                  # low end of the range == maximum headroom
+    if min_footroom_px > 0.0:
+        # Crop far enough off the top to leave the requested band below the screen, but never
+        # past the feasible range — the clamp is what keeps the screen on canvas, and the
+        # shortfall it causes is reported rather than swallowed.
+        wanted_y = max(ys) - (canvas_h - min_footroom_px)
+        crop_y = min(max(wanted_y, lo_y), hi_y)
+    else:
+        crop_y = lo_y                              # low end of the range == maximum headroom
 
     headroom = min(ys) - crop_y
     footroom = canvas_h - (max(ys) - crop_y)
@@ -744,9 +783,16 @@ def solve_cover_fit(image_w, image_h, canvas_w, canvas_h, corners) -> dict:
         "y_centered": centered_y,
         "x_range": [lo_x, hi_x],
         "y_range": [lo_y, hi_y],
-        "policy": "max-headroom",
+        "zoom": zoom,
+        "zoom_max": ceiling,
+        "policy": "reserved-footroom" if min_footroom_px > 0.0 else "max-headroom",
         "y_end_of_range": "low",
+        "min_footroom_px": min_footroom_px,
+        "footroom_short_px": max(0.0, min_footroom_px - footroom),
         "policy_reason": (
+            f"vertical crop solved to leave {min_footroom_px:.0f} px of canvas below the "
+            "screen for the subline, clamped into the range that keeps the screen on canvas"
+            if min_footroom_px > 0.0 else
             "vertical crop pinned to the low end of the feasible range: the smallest crop off "
             "the top leaves the screen as low on the canvas as it can go, which is the most "
             "headroom the headline can have without the bottom of the screen leaving the canvas"),
@@ -943,7 +989,8 @@ def _empty_report(source, alpha_map, histogram, regions, errors) -> dict:
     }
 
 
-def analyse_alpha(alpha_map: AlphaMap, *, device: str = "ipad", source: str = "<memory>") -> dict:
+def analyse_alpha(alpha_map: AlphaMap, *, device: str = "ipad", source: str = "<memory>",
+                  zoom: float = 1.0, min_footroom_px: float = 0.0) -> dict:
     """Measure the cut-out and return the full report. Never raises for a bad *image* — image
     problems come back as `errors` with `exit_code` 2 — but does raise `InvocationError` for a
     bad *request*, because an unknown device is the caller's bug, not the scene's."""
@@ -1026,7 +1073,8 @@ def analyse_alpha(alpha_map: AlphaMap, *, device: str = "ipad", source: str = "<
     canvas = None
     svg = None
     try:
-        fit = solve_cover_fit(alpha_map.width, alpha_map.height, canvas_w, canvas_h, corners)
+        fit = solve_cover_fit(alpha_map.width, alpha_map.height, canvas_w, canvas_h, corners,
+                              zoom=zoom, min_footroom_px=min_footroom_px)
     except UnusableSceneError as exc:
         errors.append(_warn(
             "off-canvas", str(exc),
@@ -1043,7 +1091,8 @@ def analyse_alpha(alpha_map: AlphaMap, *, device: str = "ipad", source: str = "<
             "crop": {k: fit[k] for k in (
                 "x", "y", "x_centered", "y_centered", "x_range", "y_range", "policy",
                 "y_end_of_range", "policy_reason", "centered_feasible", "headroom_px",
-                "headroom_fraction", "footroom_px", "headroom_range_px")},
+                "headroom_fraction", "footroom_px", "headroom_range_px",
+                "zoom", "zoom_max", "min_footroom_px", "footroom_short_px")},
             "corners_px": {name: list(c) for name, c in zip(CORNER_NAMES, canvas_corners)},
             "bbox_px": {
                 "x": min(c[0] for c in canvas_corners), "y": min(c[1] for c in canvas_corners),
@@ -1095,8 +1144,10 @@ def analyse_alpha(alpha_map: AlphaMap, *, device: str = "ipad", source: str = "<
     }
 
 
-def analyse_file(path, *, device: str = "ipad") -> dict:
-    return analyse_alpha(read_alpha(path), device=device, source=path)
+def analyse_file(path, *, device: str = "ipad", zoom: float = 1.0,
+                 min_footroom_px: float = 0.0) -> dict:
+    return analyse_alpha(read_alpha(path), device=device, source=path,
+                         zoom=zoom, min_footroom_px=min_footroom_px)
 
 
 # --------------------------------------------------------------------------------------
@@ -1206,13 +1257,40 @@ def build_parser() -> argparse.ArgumentParser:
                         help=f"store canvas to map onto: {', '.join(sorted(DEVICE_CANVASES))}")
     parser.add_argument("--json", action="store_true",
                         help="emit the full measurement as JSON on stdout and nothing else")
+    parser.add_argument("--zoom", default="1.0", metavar="FACTOR|max",
+                        help="multiply the cover scale to crop further in, bringing the device "
+                             "closer. `max` spends all the surplus the scene has, using it "
+                             "pixel for pixel; above that this refuses rather than upscale")
+    parser.add_argument("--min-footroom", type=float, default=0.0, metavar="PX",
+                        help="reserve this many canvas pixels below the screen for the subline "
+                             "(default 0 = the max-headroom policy)")
     return parser
+
+
+def parse_zoom(text: str, image_w: int, image_h: int, canvas_w: int, canvas_h: int) -> float:
+    """`--zoom max` needs the scene's own size to resolve, so it is resolved after the read."""
+    if (text or "").strip().lower() == "max":
+        return max(1.0, max_zoom_without_upscaling(image_w, image_h, canvas_w, canvas_h))
+    try:
+        value = float(text)
+    except (TypeError, ValueError):
+        raise InvocationError(f"--zoom must be a number or `max`, got {text!r}") from None
+    if value <= 0.0:
+        raise InvocationError(f"--zoom must be positive, got {value}")
+    return value
 
 
 def main(argv: list | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        report = analyse_file(Path(args.image), device=args.device)
+        if args.device not in DEVICE_CANVASES:
+            raise InvocationError(
+                f"unknown device {args.device!r}; known: {', '.join(sorted(DEVICE_CANVASES))}")
+        alpha_map = read_alpha(Path(args.image))
+        canvas_w, canvas_h = DEVICE_CANVASES[args.device]
+        zoom = parse_zoom(args.zoom, alpha_map.width, alpha_map.height, canvas_w, canvas_h)
+        report = analyse_alpha(alpha_map, device=args.device, source=Path(args.image),
+                               zoom=zoom, min_footroom_px=args.min_footroom)
     except InvocationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

@@ -549,6 +549,95 @@ class CoverFitTests(unittest.TestCase):
         bl_centered = corners[3][1] * scale - fit["y_centered"]
         self.assertGreater(bl_centered, 2752)
 
+    # ---------------------------------------------------------------------------------
+    # Zoom: a scene generated LARGER than the canvas has room to crop in, not just fit.
+    # ---------------------------------------------------------------------------------
+
+    def test_zoom_one_is_the_plain_cover_fit(self):
+        a = msc.solve_cover_fit(2400, 3424, 2064, 2752, AXIS_QUAD)
+        b = msc.solve_cover_fit(2400, 3424, 2064, 2752, AXIS_QUAD, zoom=1.0)
+        self.assertEqual(a, b)
+
+    def test_zoom_above_one_scales_the_scene_up_beyond_the_cover_minimum(self):
+        corners = [(476.6, 648.9), (1884.2, 648.3), (1908.8, 2550.1), (476.6, 2552.3)]
+        cover = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners)
+        zoomed = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners, zoom=1.1)
+        self.assertAlmostEqual(zoomed["scale"], cover["scale"] * 1.1, places=9)
+        self.assertGreater(zoomed["scaled_width"], cover["scaled_width"])
+
+    def test_zoom_is_capped_so_the_scene_is_never_upscaled_past_its_own_pixels(self):
+        # The whole point of generating at 2400x3424 is to spend real pixels on a closer
+        # crop. Scaling past 1:1 would spend invented ones — the softness trap the scene
+        # tooling exists to avoid — so the cap is a hard refusal, not a silent clamp.
+        with self.assertRaises(msc.UnusableSceneError) as ctx:
+            msc.solve_cover_fit(2400, 3424, 2064, 2752, AXIS_QUAD, zoom=1.5)
+        self.assertIn("upscale", str(ctx.exception).lower())
+
+    def test_max_zoom_reports_the_headroom_a_one_to_one_crop_would_give(self):
+        # 2400 -> 2064 is a 0.86 cover scale, so 1/0.86 = 1.1628 is the most zoom this
+        # scene has to give before a single pixel would have to be invented.
+        self.assertAlmostEqual(
+            msc.max_zoom_without_upscaling(2400, 3424, 2064, 2752), 2400 / 2064, places=9)
+
+    def test_max_zoom_is_one_when_the_scene_only_just_covers(self):
+        self.assertAlmostEqual(msc.max_zoom_without_upscaling(2064, 2752, 2064, 2752), 1.0,
+                               places=9)
+
+    def test_zoom_at_the_cap_uses_the_scene_pixel_for_pixel(self):
+        corners = [(476.6, 648.9), (1884.2, 648.3), (1908.8, 2550.1), (476.6, 2552.3)]
+        zoom = msc.max_zoom_without_upscaling(2400, 3424, 2064, 2752)
+        fit = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners, zoom=zoom)
+        self.assertAlmostEqual(fit["scale"], 1.0, places=9)
+        self.assertAlmostEqual(fit["scaled_width"], 2400.0, places=6)
+
+    def test_zooming_in_makes_the_screen_a_bigger_share_of_the_canvas(self):
+        corners = [(476.6, 648.9), (1884.2, 648.3), (1908.8, 2550.1), (476.6, 2552.3)]
+        cover = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners)
+        zoomed = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners,
+                                     zoom=msc.max_zoom_without_upscaling(2400, 3424, 2064, 2752))
+        def area(fit):
+            xs = [c[0] for c in fit["corners"]]
+            ys = [c[1] for c in fit["corners"]]
+            return (max(xs) - min(xs)) * (max(ys) - min(ys))
+        self.assertGreater(area(zoomed), area(cover) * 1.25)
+
+    # ---------------------------------------------------------------------------------
+    # Reserved footroom: the bottom band the subline lives in (the two-band treatment).
+    # ---------------------------------------------------------------------------------
+
+    def test_min_footroom_zero_is_the_historical_max_headroom_policy(self):
+        corners = [(129.50, 291.50), (795.52, 353.51), (833.48, 1449.50), (147.50, 1486.49)]
+        a = msc.solve_cover_fit(941, 1672, 2064, 2752, corners)
+        b = msc.solve_cover_fit(941, 1672, 2064, 2752, corners, min_footroom_px=0.0)
+        self.assertEqual(a, b)
+
+    def test_min_footroom_pushes_the_screen_up_to_reserve_the_band(self):
+        corners = [(476.6, 648.9), (1884.2, 648.3), (1908.8, 2550.1), (476.6, 2552.3)]
+        fit = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners, zoom=msc.max_zoom_without_upscaling(2400, 3424, 2064, 2752),
+                                  min_footroom_px=400.0)
+        self.assertAlmostEqual(fit["footroom_px"], 400.0, delta=0.5)
+        self.assertEqual(fit["policy"], "reserved-footroom")
+
+    def test_reserved_footroom_never_leaves_the_feasible_range(self):
+        # Asking for more bottom band than the scene can give crops as far as it legally can
+        # and says so, rather than sliding the screen off the top of the canvas.
+        corners = [(476.6, 648.9), (1884.2, 648.3), (1908.8, 2550.1), (476.6, 2552.3)]
+        fit = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners, zoom=msc.max_zoom_without_upscaling(2400, 3424, 2064, 2752),
+                                  min_footroom_px=2000.0)
+        lo, hi = fit["y_range"]
+        self.assertLessEqual(fit["y"], hi + 1e-9)
+        self.assertGreaterEqual(fit["y"], lo - 1e-9)
+        self.assertLess(fit["footroom_px"], 2000.0)
+        self.assertTrue(fit["footroom_short_px"] > 0)
+
+    def test_reserved_footroom_still_keeps_every_corner_on_canvas(self):
+        corners = [(476.6, 648.9), (1884.2, 648.3), (1908.8, 2550.1), (476.6, 2552.3)]
+        fit = msc.solve_cover_fit(2400, 3424, 2064, 2752, corners, zoom=msc.max_zoom_without_upscaling(2400, 3424, 2064, 2752),
+                                  min_footroom_px=400.0)
+        for x, y in fit["corners"]:
+            self.assertGreaterEqual(y, -1e-9)
+            self.assertLessEqual(y, 2752 + 1e-9)
+
     def test_quad_too_wide_for_canvas_raises(self):
         # A 400x200 source cover-fits to 5504x2752; a quad spanning 360 source px spans
         # 4954 canvas px, so no horizontal offset can keep it on a 2064-wide canvas.
