@@ -25,8 +25,10 @@ model changes):
     2064x3040 (aspect 0.679, 6,274,560 px), sits inside every one of those limits but above the
     2560x1440 area the API calls "experimental" — permitted, just flagged, so `experimental_note`
     prints an informational line rather than failing anything.
-  * `quality` is one of low/medium/high/xhigh/max/auto (default here: `high`, per this tool's
-    own default — the API's own default is `auto`).
+  * `quality` is one of low/medium/high/xhigh/max/auto. The API's own default is `auto`; **this
+    tool defaults to `low` on purpose**. The prompt loop is fighting composition, which is fully
+    judgeable at `low`, so iterate cheap and spend `--quality high` once on the keeper. See the
+    two-phase workflow under "Iterating on a scene" below.
   * The response has **no download URL** for these options: the image comes back as base64 in
     `data[0].b64_json` and has to be decoded locally.
 
@@ -53,6 +55,23 @@ Traps this script exists to not re-learn:
     step of that same iteration loop: re-run only the keying pass on an already-generated raw
     image, so a prompt/keying tweak doesn't have to pay for a fresh generation.
 
+Iterating on a scene — the two-phase workflow (Jan's call, 2026-09-12):
+
+  1. **Iterate at `low`** (the default, so this needs no flag). What the prompt loop is actually
+     fighting is composition — is the whole device in frame, is the top quarter quiet enough to
+     carry white text, is the screen a flat unbroken magenta — and every one of those is
+     judgeable at the cheapest tier. Run `measure-scene-cutout.py` on each candidate; it exits 0
+     when the cut-out is clean, and that is the loop's pass/fail signal.
+  2. **Then regenerate the keeper at `--quality high`** (or `xhigh`/`max`) with the prompt that
+     won.
+
+  **Re-key and re-measure the high-quality image; never assume it inherits the low run's
+  verdict.** Same prompt and same seed-less API mean a genuinely different picture, and a
+  higher-fidelity render is *more* likely to invent a reflection or a gradient across the screen
+  — exactly what the chroma key depends on not being there. A high-quality generation that keys
+  badly is the expensive failure, so it gets the same `measure-scene-cutout.py` gate as every
+  cheap one.
+
 Exit codes (mirrors `render-store-screenshots.py`'s convention): 0 clean · 1 the generated (or
 supplied) raw image does not match the requested `--size` — never upscaled, refused instead · 2
 bad invocation (bad `--size`, no prompt given, missing API key, `--skip-generate` path does not
@@ -75,7 +94,12 @@ from pathlib import Path
 
 API_ENDPOINT = "https://api.openai.com/v1/images/generations"
 DEFAULT_MODEL = "gpt-image-2"
-DEFAULT_QUALITY = "high"
+# Deliberately the cheapest tier. The prompt loop is fighting COMPOSITION — whole device in
+# frame, top quarter empty, screen a flat magenta — and all three are judgeable at `low`. Paying
+# for fidelity while the composition is still wrong is waste, and at 6.27M pixels per image that
+# waste is real money over a loop. Iterate at `low`; pass `--quality high` (or xhigh/max) once,
+# for the keeper. A forgotten flag should cost cents, never the other way round.
+DEFAULT_QUALITY = "low"
 DEFAULT_SIZE = "2064x3040"
 DEFAULT_FUZZ = "12%"
 DEFAULT_OUTPUT_FORMAT = "png"
