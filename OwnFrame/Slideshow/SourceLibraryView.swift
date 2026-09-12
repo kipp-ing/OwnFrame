@@ -51,7 +51,6 @@ struct SourceLibraryView: View {
                         } label: {
                             Label("Rename", systemImage: "pencil")
                         }
-                        .tint(.blue)
                     }
                 }
                 .onMove { viewModel.move(from: $0, to: $1) }
