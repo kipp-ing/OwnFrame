@@ -117,6 +117,53 @@ class TestLabels(unittest.TestCase):
 # 3. ImageMagick argv construction — never executed, only asserted.
 # --------------------------------------------------------------------------------------
 
+class TestRendererCommand(unittest.TestCase):
+    """The wrapped renderer's own invocation. It grew a `--scene SLOT_ID=PATH` override for
+    judging generated scenes before they are promoted into `Design/AppStore/scenes/`; without
+    passing that through, the only way to preview one here is to copy an unfinished scene into
+    Design/, which is exactly the "nothing in Design/ is a placeholder" rule this repo keeps."""
+
+    def test_base_command_names_manifest_device_locale_and_out(self):
+        cmd = rcs.renderer_command(
+            manifest=Path("/repo/content.json"), device="ipad", locale="en",
+            out_dir=Path("/work/rendered"), capture_root=None, scenes=[],
+        )
+        self.assertIn(str(rcs.RENDERER), cmd)
+        self.assertEqual(cmd[cmd.index("--manifest") + 1], str(Path("/repo/content.json")))
+        self.assertEqual(cmd[cmd.index("--device") + 1], "ipad")
+        self.assertEqual(cmd[cmd.index("--locale") + 1], "en")
+        self.assertEqual(cmd[cmd.index("--out") + 1], str(Path("/work/rendered")))
+        self.assertNotIn("--capture-root", cmd)
+        self.assertNotIn("--scene", cmd)
+
+    def test_capture_root_is_passed_through_when_given(self):
+        cmd = rcs.renderer_command(
+            manifest=Path("/repo/content.json"), device="ipad", locale="en",
+            out_dir=Path("/work/rendered"), capture_root="/captures", scenes=[],
+        )
+        self.assertEqual(cmd[cmd.index("--capture-root") + 1], "/captures")
+
+    def test_every_scene_override_is_passed_through_in_order(self):
+        cmd = rcs.renderer_command(
+            manifest=Path("/repo/content.json"), device="ipad", locale="en",
+            out_dir=Path("/work/rendered"), capture_root=None,
+            scenes=["01-drawer=/tmp/a.png", "06-closing=/tmp/b.png"],
+        )
+        self.assertEqual(
+            [cmd[i + 1] for i, part in enumerate(cmd) if part == "--scene"],
+            ["01-drawer=/tmp/a.png", "06-closing=/tmp/b.png"],
+        )
+
+    def test_parser_collects_repeated_scene_flags(self):
+        args = rcs.build_parser().parse_args(
+            ["--scene", "01-drawer=/tmp/a.png", "--scene", "06-closing=/tmp/b.png"])
+        self.assertEqual(args.scene, ["01-drawer=/tmp/a.png", "06-closing=/tmp/b.png"])
+
+    def test_parser_defaults_to_no_scene_overrides(self):
+        args = rcs.build_parser().parse_args([])
+        self.assertIn(args.scene, ([], None))
+
+
 class TestArgvConstruction(unittest.TestCase):
     def test_thumbnail_command_resizes_and_labels(self):
         cmd = rcs.thumbnail_command(
