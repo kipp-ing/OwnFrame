@@ -262,12 +262,26 @@ final class AppStoreScreenshotUITests: XCTestCase {
         return prefix + suffix
     }
 
+    /// `SCREENSHOT_FIT=fill` captures the photos filling the screen instead of letterboxed. A phone's
+    /// 16:9 screen puts black bars above and below a 3:4 photo under the default Fit, which reads
+    /// as a switched-off screen on a store tile. `-theme.fit` is a plain NSUserDefaults override in
+    /// the argument domain, read by the capture path's `.standard` theme store — no app change.
+    private static var fitArguments: [String] {
+        let environment = ProcessInfo.processInfo.environment
+        guard let requested = environment["SCREENSHOT_FIT"] ?? environment["TEST_RUNNER_SCREENSHOT_FIT"],
+              !requested.isEmpty
+        else { return [] }
+        precondition(["fit", "fill"].contains(requested),
+                     "SCREENSHOT_FIT=\(requested) is not an ImageFit raw value; use fit or fill")
+        return ["-theme.fit", requested]
+    }
+
     @MainActor
     private func launch(environment: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
         let locale = Self.locale
         app.launchArguments = ["-AppleLanguages", locale.language, "-AppleLocale", locale.locale]
-            + Self.textSizeArguments
+            + Self.textSizeArguments + Self.fitArguments
         app.launchEnvironment = environment
         app.launch()
         XCUIDevice.shared.orientation = .portrait
