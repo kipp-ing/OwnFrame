@@ -99,37 +99,57 @@ BAND_AIR = 60.0
 DEFAULT_HEADROOM_NEEDED = 560.0
 DEFAULT_FOOTROOM_NEEDED = 470.0
 
-# ---- The "AI generated" disclosure mark (Jan, 2026-09-13) ----
+# ---- The "AI generated" disclosure mark (Jan, 2026-09-13; quieted 2026-09-13 pm) ----
 # The room photograph behind the device is AI-generated; only the capture on the iPad's screen
-# is a real app screenshot. This is that disclosure: a small grey pill, bottom-left, carrying the
+# is a real app screenshot. This is that disclosure: a small grey pill, bottom-RIGHT, carrying the
 # four-point sparkle glyph the platforms (Meta/TikTok/YouTube) use for "AI-generated" labels —
 # never an emoji (font fallback would break it) and never the Content Credentials "CR" pin, which
 # is reserved for images that actually carry C2PA credentials.
 #
-# Its vertical geometry is derived from the SAME constants the subline uses — the free strip is
-# bounded above by the subline's own last-line ink bottom (SUBLINE_LAST_BASELINE_FROM_BOTTOM minus
-# the descender it already reserves) and below by the canvas edge — so the mark can never drift
-# into the subline no matter how many lines a slot's copy runs, and there is nothing to keep in
-# sync by hand.
+# Jan's review of the first pass ("shout it"): bottom-left, one line, 36px, 85% white on 50%
+# grey — too loud. Moved to bottom-right, two lines, smaller type, quieter fills:
+#   "the 'ai generated' mark: two lines. bottom right. less intrusive. no need to shout it,
+#    just to flag as low as possible."
+#
+# Geometry is now anchored from the canvas's bottom-right CORNER, not from the subline's zone —
+# the pill's right edge sits AI_MARK_RIGHT_INSET from the right edge (tighter than the 140px
+# text margin, since it no longer has to clear text of its own width) and its bottom edge sits
+# AI_MARK_BOTTOM_INSET from the bottom edge. This is deliberately independent of `subline_lines`:
+# the subline is left-anchored at MARGIN_X and never reaches the right margin (README: no line is
+# wider than canvas minus its side margins), so a mark anchored to the right corner cannot share
+# an x-range with it regardless of copy length. The non-overlap guarantee the tests assert is
+# vertical instead: the subline's last-line ink bottom sits SUBLINE_INK_BOTTOM_FROM_EDGE above the
+# canvas edge, invariant to `subline_lines` (the subline is anchored on its LAST line for exactly
+# this reason — see the subline comment above), and the pill is short enough (64.8px against the
+# ~99.8px of slack available) that its own top edge still lands BELOW that ink bottom. So the two
+# never occupy the same row of pixels, for any copy length. Kept from the first pass because it is
+# still correct and still free: SUBLINE_INK_BOTTOM_FROM_EDGE is unchanged.
 SUBLINE_INK_BOTTOM_FROM_EDGE = SUBLINE_LAST_BASELINE_FROM_BOTTOM - SUBLINE_DESCENDER_RATIO * SUBLINE_SIZE  # ~139.84
-AI_MARK_HEIGHT = 56.0
-AI_MARK_FONT_SIZE = 36
+AI_MARK_RIGHT_INSET = 60.0          # pill's right edge from the canvas right edge
+AI_MARK_BOTTOM_INSET = 40.0         # pill's bottom edge from the canvas bottom edge
+AI_MARK_FONT_SIZE = 26.0            # down from 36 — "less intrusive"
 AI_MARK_FONT_WEIGHT = "500"
 AI_MARK_TRACKING = 0.4
-AI_MARK_FILL = "#57606F"           # neutral grey with a slight cool/blue bias — not pure #808080
-AI_MARK_FILL_OPACITY = "0.5"       # 45-55% opaque, per brief
-AI_MARK_TEXT = "AI generated"
-AI_MARK_TEXT_OPACITY = "0.85"      # both the glyph and the label use this white
-AI_MARK_PAD_LEFT = 18.0
-AI_MARK_PAD_RIGHT = 20.0
-AI_MARK_GLYPH_SIZE = 26.0          # about the text's cap height (0.722 x 36 ~= 26)
-AI_MARK_GLYPH_GAP = 13.0           # roughly half the glyph width, per brief
+AI_MARK_LINE_HEIGHT_EM = 1.15
+AI_MARK_FILL = "#57606F"           # same neutral grey, a slight cool/blue bias — not pure #808080
+AI_MARK_FILL_OPACITY = "0.38"      # down from 0.5 — quieter pill
+AI_MARK_LINE1_TEXT = "AI"          # line 1: glyph + "AI"
+AI_MARK_LINE2_TEXT = "generated"   # line 2: "generated", aligned under "AI"
+AI_MARK_TEXT_OPACITY = "0.7"       # down from 0.85 — both the glyph and the label use this white
+AI_MARK_PAD_X = 10.0                # down from 18/20 — horizontal pill padding
+AI_MARK_PAD_Y = 6.0                 # vertical pill padding
+AI_MARK_CORNER_RADIUS = 14.0        # down from 28 (was height/2, a full stadium pill)
+# Cap-height and descender ratios reused from the headline/subline measurement (see above) so the
+# glyph scales with the mark's own type instead of carrying a second hand-picked number.
+AI_MARK_GLYPH_SIZE = round(HEADLINE_CAP_RATIO * AI_MARK_FONT_SIZE, 2)  # ~18.77
+AI_MARK_GLYPH_GAP = round(AI_MARK_GLYPH_SIZE / 2, 2)                   # roughly half the glyph width
 AI_MARK_GLYPH_WAIST = 0.33         # how far the concave sides are pulled toward the glyph centre
 # A static template cannot measure real glyph widths (that needs a browser, see
-# tmp/story-d/measure-text.py) — this is a deliberately generous estimate for "AI generated" at
-# 36px SF Pro so the pill background does not undershoot the live text. Verified against the
-# actual render; widen this if a future label text overflows it.
-AI_MARK_TEXT_WIDTH_ESTIMATE = 258.0
+# tmp/story-d/measure-text.py) — these are deliberately generous per-line estimates at 26px SF
+# Pro Medium so the pill background does not undershoot the live text. Verified against the
+# actual render; widen whichever one if a future label text overflows it.
+AI_MARK_LINE1_TEXT_WIDTH_ESTIMATE = 34.0    # "AI"
+AI_MARK_LINE2_TEXT_WIDTH_ESTIMATE = 150.0   # "generated"
 
 
 class InvocationError(Exception):
@@ -191,25 +211,36 @@ def band_warnings(measurement: dict, *, headroom_needed: float = DEFAULT_HEADROO
     return warnings
 
 
-def _ai_mark_group(height: float) -> str:
-    """The static `ai-mark` group: a grey pill, bottom-left, sparkle glyph + "AI generated".
+def _ai_mark_group(width: float, height: float) -> str:
+    """The static `ai-mark` group: a grey pill, bottom-right, sparkle glyph + two-line label.
 
-    Centred in the free strip between the subline's last-line ink bottom and the canvas edge —
-    see the constants block above for why that strip is invariant to `subline_lines`. The glyph
-    is a four-point sparkle drawn as a single closed cubic-free path (four tips at N/E/S/W joined
-    by quadratic curves pulled toward the centre), not a font glyph, so there is no emoji fallback
-    to break.
+    Anchored to the canvas's bottom-right corner (AI_MARK_RIGHT_INSET / AI_MARK_BOTTOM_INSET) —
+    see the constants block above for why that placement never shares an x-range with the
+    left-anchored subline, and why the pill's height keeps it clear vertically too. The glyph is
+    a four-point sparkle drawn as a single closed cubic-free path (four tips at N/E/S/W joined by
+    quadratic curves pulled toward the centre), not a font glyph, so there is no emoji fallback to
+    break. Layout reads as a small lockup: the glyph and "AI" on the first line, "generated" on
+    the second, left-aligned under "AI" — not flush with the pill's own left padding — so the two
+    words visually belong to one phrase.
     """
-    zone_top = height - SUBLINE_INK_BOTTOM_FROM_EDGE
-    pill_x = MARGIN_X
-    pill_y = (zone_top + height - AI_MARK_HEIGHT) / 2
-    pill_cy = pill_y + AI_MARK_HEIGHT / 2
-    pill_width = (AI_MARK_PAD_LEFT + AI_MARK_GLYPH_SIZE + AI_MARK_GLYPH_GAP
-                  + AI_MARK_TEXT_WIDTH_ESTIMATE + AI_MARK_PAD_RIGHT)
+    line_height_px = AI_MARK_FONT_SIZE * AI_MARK_LINE_HEIGHT_EM
+    cap = HEADLINE_CAP_RATIO * AI_MARK_FONT_SIZE
+    descender = SUBLINE_DESCENDER_RATIO * AI_MARK_FONT_SIZE
+    pill_height = AI_MARK_PAD_Y + cap + line_height_px + descender + AI_MARK_PAD_Y
+
+    text_block_width = AI_MARK_GLYPH_SIZE + AI_MARK_GLYPH_GAP + max(
+        AI_MARK_LINE1_TEXT_WIDTH_ESTIMATE, AI_MARK_LINE2_TEXT_WIDTH_ESTIMATE)
+    pill_width = AI_MARK_PAD_X + text_block_width + AI_MARK_PAD_X
+
+    pill_x = width - AI_MARK_RIGHT_INSET - pill_width
+    pill_y = height - AI_MARK_BOTTOM_INSET - pill_height
+
+    line1_baseline = pill_y + AI_MARK_PAD_Y + cap
+    line2_baseline = line1_baseline + line_height_px
 
     glyph_r = AI_MARK_GLYPH_SIZE / 2
-    glyph_cx = pill_x + AI_MARK_PAD_LEFT + glyph_r
-    glyph_cy = pill_cy
+    glyph_cx = pill_x + AI_MARK_PAD_X + glyph_r
+    glyph_cy = line1_baseline - cap / 2
     tips = {
         "n": (glyph_cx, glyph_cy - glyph_r),
         "e": (glyph_cx + glyph_r, glyph_cy),
@@ -233,19 +264,19 @@ def _ai_mark_group(height: float) -> str:
         f"Q{_fmt(wn[0])},{_fmt(wn[1])} {_fmt(n[0])},{_fmt(n[1])} Z"
     )
 
-    text_x = pill_x + AI_MARK_PAD_LEFT + AI_MARK_GLYPH_SIZE + AI_MARK_GLYPH_GAP
-    text_baseline = pill_cy + AI_MARK_FONT_SIZE * 0.33
+    text_x = pill_x + AI_MARK_PAD_X + AI_MARK_GLYPH_SIZE + AI_MARK_GLYPH_GAP
 
     return f"""  <g id="ai-mark">
     <rect x="{_fmt(pill_x)}" y="{_fmt(pill_y)}" width="{_fmt(pill_width)}" \
-height="{_fmt(AI_MARK_HEIGHT)}" rx="{_fmt(AI_MARK_HEIGHT / 2)}" \
+height="{_fmt(pill_height)}" rx="{_fmt(AI_MARK_CORNER_RADIUS)}" \
 fill="{AI_MARK_FILL}" fill-opacity="{AI_MARK_FILL_OPACITY}"/>
     <path d="{glyph_path}" fill="#FFFFFF" fill-opacity="{AI_MARK_TEXT_OPACITY}"/>
-    <text x="{_fmt(text_x)}" y="{_fmt(text_baseline)}"
-          font-family="{FONT_STACK}"
-          font-size="{AI_MARK_FONT_SIZE}" font-weight="{AI_MARK_FONT_WEIGHT}" \
+    <text font-family="{FONT_STACK}"
+          font-size="{_fmt(AI_MARK_FONT_SIZE)}" font-weight="{AI_MARK_FONT_WEIGHT}" \
 letter-spacing="{AI_MARK_TRACKING}"
-          fill="#FFFFFF" fill-opacity="{AI_MARK_TEXT_OPACITY}">{AI_MARK_TEXT}</text>
+          fill="#FFFFFF" fill-opacity="{AI_MARK_TEXT_OPACITY}"><tspan x="{_fmt(text_x)}" \
+y="{_fmt(line1_baseline)}">{AI_MARK_LINE1_TEXT}</tspan><tspan x="{_fmt(text_x)}" \
+y="{_fmt(line2_baseline)}">{AI_MARK_LINE2_TEXT}</tspan></text>
   </g>
 """
 
@@ -266,7 +297,7 @@ def slot_template_svg(measurement: dict, *, slot: str, scene: str,
     subline_baseline = round(height - SUBLINE_LAST_BASELINE_FROM_BOTTOM
                              - (max(1, subline_lines) - 1) * SUBLINE_SIZE * SUBLINE_LINE_HEIGHT_EM)
     bottom_scrim_y = height - BOTTOM_SCRIM_HEIGHT
-    ai_mark = _ai_mark_group(height)
+    ai_mark = _ai_mark_group(width, height)
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" \
 viewBox="0 0 {width} {height}">
