@@ -63,6 +63,14 @@ final class AppStoreScreenshotUITests: XCTestCase {
         ("06-hero-closing", "6e960ea8-4e8b-439e-830e-ea18b32fd96e"),   // berge.png, couple at lake sunset
     ]
 
+    /// An extra hero photograph that does NOT live in `demoLink`. The holiday beach shot was
+    /// uploaded to the `newPhotosCardLink` content album (it is the same asset slot 5's arrival
+    /// card plays over, `newPhotosCardAssetID`), and it is the only cool-toned photograph either
+    /// album holds — which is exactly why it is wanted as a hero against the warm `heroes` set.
+    /// Onboarding can only carry one link per launch, so it needs its own capture pass rather
+    /// than an entry in `heroes`.
+    private static let holidayHero = (name: "06-hero-holiday", assetID: newPhotosCardAssetID)
+
     /// English unless the runner asks for German. Mirrors GermanScreenshotSweepUITests.
     private static var locale: (language: String, locale: String) {
         let environment = ProcessInfo.processInfo.environment
@@ -96,6 +104,18 @@ final class AppStoreScreenshotUITests: XCTestCase {
             advance(image, to: hero.assetID)
             attach(name: hero.name)
         }
+    }
+
+    /// The holiday hero, captured on its own because its photograph lives in the content album
+    /// rather than in `demoLink` (see `holidayHero`). Same rig and framing as
+    /// `testCaptureHeroPhotos`: full screen, no chrome, asset-id oracle.
+    @MainActor
+    func testCaptureHolidayHero() throws {
+        let app = launch()
+        let image = try startSlideshow(app, link: Self.newPhotosCardLink)
+
+        advance(image, to: Self.holidayHero.assetID)
+        attach(name: Self.holidayHero.name)
     }
 
     /// Chrome, photo-info overlay and settings sheet over a live photo. Not part of the
