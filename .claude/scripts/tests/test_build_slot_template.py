@@ -182,6 +182,40 @@ class TestTextBands(unittest.TestCase):
         self.assertTrue(all(i > scene_at for i in scrim_at))
 
 
+class TestAIMark(unittest.TestCase):
+    """The 'AI generated' disclosure mark — bottom-left pill, glyph + label, never overlapping
+    the subline however many lines the slot's copy runs."""
+
+    @staticmethod
+    def _subline_ink_bottom(height: float = 2752) -> float:
+        return (height - bst.SUBLINE_LAST_BASELINE_FROM_BOTTOM
+                + bst.SUBLINE_SIZE * bst.SUBLINE_DESCENDER_RATIO)
+
+    def test_ai_mark_group_carries_the_glyph_path_and_the_label(self):
+        root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
+        group = by_id(root, "ai-mark")
+        self.assertEqual(group.tag, f"{{{SVG_NS}}}g")
+        path = group.find(f"{{{SVG_NS}}}path")
+        self.assertIsNotNone(path, "ai-mark has no glyph <path>")
+        self.assertTrue((path.get("d") or "").strip(), "glyph path has no data")
+        text = group.find(f"{{{SVG_NS}}}text")
+        self.assertIsNotNone(text)
+        self.assertEqual((text.text or "").strip(), "AI generated")
+
+    def test_ai_mark_sits_below_the_sublines_ink_regardless_of_line_count(self):
+        for lines in (1, 2, 3):
+            with self.subTest(lines=lines):
+                root = parse(bst.slot_template_svg(measurement(), slot="02",
+                                                    scene="02-kitchen.png", subline_lines=lines))
+                mark_rect = by_id(root, "ai-mark").find(f"{{{SVG_NS}}}rect")
+                self.assertGreaterEqual(float(mark_rect.get("y")), self._subline_ink_bottom())
+
+    def test_ai_mark_left_edge_sits_at_the_side_margin(self):
+        root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
+        mark_rect = by_id(root, "ai-mark").find(f"{{{SVG_NS}}}rect")
+        self.assertAlmostEqual(float(mark_rect.get("x")), bst.MARGIN_X, places=2)
+
+
 class TestHeadroomWarning(unittest.TestCase):
     """Zooming in buys screen share out of the text bands, so the squeeze has to be visible."""
 
