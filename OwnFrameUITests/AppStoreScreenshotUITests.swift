@@ -41,15 +41,21 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// the arrival-toast capture's live content changes never touch the hero-photo material.
     private static let newPhotosCardLink = "https://frame.kippings.de/s/framecontent"
 
-    /// Slot 5's photograph, chosen rather than inherited (Jan, 2026-09-12: "the holiday shot
-    /// for the cooler [tile] is there").
+    /// Slot 5's photograph, chosen rather than inherited: the grandmother-and-granddaughter
+    /// portrait Jan added to `frameContent` on 2026-09-13, taking the slot over from the holiday
+    /// beach shot (which now serves `06-hero-holiday` alone — see `holidayHeroAssetID`).
     ///
-    /// Without this the capture landed on the golden retriever, because the retriever is
+    /// Without an explicit id the capture lands on the golden retriever, because the retriever is
     /// `frameContent`'s ALBUM THUMBNAIL and so the first thing the slideshow plays — and slot 2
     /// already carries that same dog, which at the new framing is the most visible duplicate in
-    /// the set. The beach is also the only cool-toned asset in the album; the other three are
-    /// warm/orange-graded, which is the colour-monotony finding noted on `heroes` below.
-    private static let newPhotosCardAssetID = "721664ff-cd62-4302-948a-21d19fc08321"
+    /// the set. People, not scenery, is what the arrival card's "new photos" promise reads best
+    /// over, and the portrait's cool grey keeps it clear of the warm `heroes` palette.
+    private static let newPhotosCardAssetID = "6910fa60-adb6-47a4-a627-56862de06c75"
+
+    /// The holiday beach shot, the only cool-toned landscape either album holds. It was slot 5's
+    /// photograph until 2026-09-13, which is why `holidayHero` used to alias
+    /// `newPhotosCardAssetID`; the two parted ways and each now names its own asset.
+    private static let holidayHeroAssetID = "721664ff-cd62-4302-948a-21d19fc08321"
 
     /// The photo slots of the store set, in capture order, each targeted by an asset-id
     /// oracle on `slideshow.image`. Asset ids are device- and locale-independent.
@@ -64,12 +70,12 @@ final class AppStoreScreenshotUITests: XCTestCase {
     ]
 
     /// An extra hero photograph that does NOT live in `demoLink`. The holiday beach shot was
-    /// uploaded to the `newPhotosCardLink` content album (it is the same asset slot 5's arrival
-    /// card plays over, `newPhotosCardAssetID`), and it is the only cool-toned photograph either
-    /// album holds — which is exactly why it is wanted as a hero against the warm `heroes` set.
+    /// uploaded to the `newPhotosCardLink` content album (`holidayHeroAssetID`, which slot 5's
+    /// arrival card also played over until 2026-09-13), and it is the only cool-toned landscape
+    /// either album holds — which is exactly why it is wanted as a hero against the warm `heroes` set.
     /// Onboarding can only carry one link per launch, so it needs its own capture pass rather
     /// than an entry in `heroes`.
-    private static let holidayHero = (name: "06-hero-holiday", assetID: newPhotosCardAssetID)
+    private static let holidayHero = (name: "06-hero-holiday", assetID: holidayHeroAssetID)
 
     /// English unless the runner asks for German. Mirrors GermanScreenshotSweepUITests.
     private static var locale: (language: String, locale: String) {
@@ -189,7 +195,7 @@ final class AppStoreScreenshotUITests: XCTestCase {
     func testCaptureNewPhotosCard() throws {
         let app = launch(environment: [
             "SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD": "1",
-            "SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT": "3",
+            "SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT": "1",
             "SCREENSHOT_CAPTURE_SOURCE_LABEL": "Family Photos",
         ])
         let image = try startSlideshow(app, link: Self.newPhotosCardLink)
