@@ -237,8 +237,9 @@ struct SlideshowSettingsView: View {
                         .accessibilityIdentifier("settings.clock.date")
                     }
 
-                    // 310/9010: free, off by default — an undisturbed picture is the
-                    // product's whole value, so this is opt-in and never gated.
+                    // 310/9010: free, on by default (amended 2026-09-13, Jan: the card is
+                    // the visible proof of the refresh) — a person can still turn it off,
+                    // and it is never gated.
                     Toggle(isOn: $themeStore.settings.newPhotosCard) {
                         Label("New photos card", systemImage: "photo.badge.plus")
                     }

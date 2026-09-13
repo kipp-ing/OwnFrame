@@ -6,10 +6,11 @@ public struct ThemeSettings: Sendable, Equatable, Codable {
     public var fit: ImageFit
     public var quality: ImageQuality
     public var clock: ClockSettings
-    /// The transient "N new photos" card a quiet refresh can show (310, FR-310-14). Off by
-    /// default: an undisturbed picture is the product's whole value, so this is opt-in, never
-    /// a surprise. Free — informational like HA telemetry, not gated (9010, FR-9010-07 only
-    /// binds Ken Burns and the clock overlay).
+    /// The transient "N new photos" card a quiet refresh can show (310, FR-310-14). On by
+    /// default (amended 2026-09-13, Jan: the card is the visible proof of the refresh, and the
+    /// store set depicts it) — a person can still turn it off in Settings. Free —
+    /// informational like HA telemetry, not gated (9010, FR-9010-07 only binds Ken Burns and
+    /// the clock overlay).
     public var newPhotosCard: Bool
 
     public static let durationRange: ClosedRange<Duration> = .seconds(3)...(.seconds(600))
@@ -38,7 +39,7 @@ public struct ThemeSettings: Sendable, Equatable, Codable {
         fit: ImageFit = .fit,
         quality: ImageQuality = .preview,
         clock: ClockSettings = .off,
-        newPhotosCard: Bool = false
+        newPhotosCard: Bool = true
     ) {
         self.order = order
         self.duration = duration
@@ -63,7 +64,7 @@ public struct ThemeSettings: Sendable, Equatable, Codable {
         fit = try container.decode(ImageFit.self, forKey: .fit)
         quality = try container.decode(ImageQuality.self, forKey: .quality)
         clock = try container.decode(ClockSettings.self, forKey: .clock)
-        newPhotosCard = try container.decodeIfPresent(Bool.self, forKey: .newPhotosCard) ?? false
+        newPhotosCard = try container.decodeIfPresent(Bool.self, forKey: .newPhotosCard) ?? true
     }
 }
 

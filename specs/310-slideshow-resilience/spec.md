@@ -17,6 +17,14 @@ requirements: **auto-retry with backoff** (was FR-300-11) and **periodic source 
 300's Roadmap; a user-facing setting for the refresh interval (fixed default here, see
 Assumptions); retry/refresh state as HA diagnostics entities (roadmap note below).
 
+## Clarifications
+
+### Session 2026-09-13
+
+- Q: Should `newPhotosCard` (FR-310-14) default on or off? → A: **On.** The card is the visible
+  proof of the refresh, and the 9010 store set depicts it; a person can still turn it off in
+  Settings.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Unattended recovery from network loss (Priority: P1)
@@ -103,7 +111,8 @@ older than the interval; verify no refresh/retry timers fire while backgrounded.
 
 User Story 2 already gets new photos into rotation invisibly. Some people want to *notice* that
 it happened — a small, transient card naming the source and how many photos just arrived, purely
-informational, off by default.
+informational, on by default *(amended 2026-09-13, Jan: default on — the card is the visible
+proof of the refresh, and the store set depicts it)*.
 
 **Why this priority**: Cosmetic, not core to the resilience story — hence P3, added after the
 2026-09-10 store-presentation session found slot 5 depicting exactly this and needing a real
@@ -116,10 +125,11 @@ only once per genuine addition (a no-op or removal-only refresh publishes nothin
 
 **Acceptance Scenarios**:
 
-1. **Given** the `newPhotosCard` setting is on and a refresh added assets, **Then** a transient
-   card names the active source and the count of assets added, then fades after a few seconds.
-2. **Given** the setting is off (the default), **Then** no card ever appears, regardless of what a
-   refresh adds.
+1. **Given** the `newPhotosCard` setting is on (the default) and a refresh added assets, **Then**
+   a transient card names the active source and the count of assets added, then fades after a
+   few seconds.
+2. **Given** the setting is off (a person turned it off), **Then** no card ever appears,
+   regardless of what a refresh adds.
 3. **Given** a refresh adds nothing (no-op or removal-only), **Then** no card appears and any
    previously-shown arrival is not re-shown.
 4. **Given** two refreshes each add assets, **Then** each is its own event — a second arrival
@@ -180,14 +190,15 @@ only once per genuine addition (a no-op or removal-only refresh publishes nothin
   credentials) — consistent with FR-300-32.
 - **FR-310-14** *(added 2026-09-11, US4)*: A quiet refresh that adds assets MAY publish an
   arrival signal — the count added and a fresh identity per genuine addition, never re-published
-  by a refresh that adds nothing. Surfacing it as a transient UI card is opt-in
-  (`ThemeSettings.newPhotosCard`, **default off**): FR-310-07's "no visible loading state"
-  guarantee is about the refresh mechanics, not about this separate, optional, after-the-fact
-  signal, but the product's calm-default spirit still applies — nothing appears unless a person
-  turns it on. The signal itself MUST NOT claim anything FR-310-06 does not already guarantee (no
-  instant or background arrival), MUST NOT show a `SourceKind` category word or any raw host, and
-  is never gated behind a purchase (free, like HA telemetry) — see 9010 FR-9010-06/07 for the
-  store-facing constraints this binds.
+  by a refresh that adds nothing. Surfacing it as a transient UI card
+  (`ThemeSettings.newPhotosCard`) is **default on** *(amended 2026-09-13, Jan: default on — the
+  card is the visible proof of the refresh, and the store set depicts it)*: FR-310-07's "no
+  visible loading state" guarantee is about the refresh mechanics, not about this separate,
+  optional, after-the-fact signal. A person can still turn the card off in Settings; nothing
+  else about the refresh mechanism depends on it. The signal itself MUST NOT claim anything
+  FR-310-06 does not already guarantee (no instant or background arrival), MUST NOT show a
+  `SourceKind` category word or any raw host, and is never gated behind a purchase (free, like
+  HA telemetry) — see 9010 FR-9010-06/07 for the store-facing constraints this binds.
 
 ### Key Entities
 

@@ -15,9 +15,9 @@ import ThemeKit
     #expect(settings.clock.isOn == false)
     #expect(settings.clock.place == .bottomTrailing)
     #expect(settings.clock.showDate == false)
-    // FR-310-14: an undisturbed picture is the product's whole value, so the transient
-    // arrival card defaults off — a person opts in, it never surprises anyone unasked.
-    #expect(settings.newPhotosCard == false)
+    // FR-310-14 (amended 2026-09-13, Jan: default on — the card is the visible proof of
+    // the refresh, and the store set depicts it). A person can still turn it off in Settings.
+    #expect(settings.newPhotosCard == true)
 }
 
 @Test func themeSettingsDurationRangeMatchesDisplayOptionsSpec() {
