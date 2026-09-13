@@ -110,6 +110,26 @@ simulator, and UI/preview via XcodeBuildMCP.
 6. **HAControl** — MQTT over **TLS** to the existing broker. HA discovery (light/select/switch +
    LWT availability). Remotely controls brightness, album, pause/play.
 
+## Repo Split (2026-09-13)
+
+This working copy is the **full private repo** — source + App Store/marketing material — backed
+up to `origin` = `kipp-ing/OwnFrame-private` (private). `git push`/`git pull` with no arguments
+already target it.
+
+`public` = `kipp-ing/OwnFrame` (public, open source): **source code only.** It's produced by
+filtering local `main` through `git-filter-repo` and force-pushing — it does **not** get plain
+`git push`. Excluded paths: `Design/AppStore/`, `Design/Reference/`, `docs/design/`,
+`docs/app-store-listing.md`, `docs/store-story.md`, `docs/where-the-money-goes.md`,
+`docs/handover-store-slots.md`, `docs/release-1.1-handout.md`,
+`docs/presentation-overhaul-plan.md`, `specs/9010-store-presentation/`. `Design/AppIcon/` stays
+public (it ships in the app).
+
+To publish new source-code commits to the public mirror: `.claude/scripts/publish-public.sh`. It
+clones `main` to a scratch dir, filters it, and force-pushes — never touches this working repo.
+Because it's a force-push, the public repo's commit hashes change on every run (issues aren't
+tied to commits, so the 15 open ones survive that fine). Add a new marketing/App-Store-only path
+to the script's `EXCLUDE_PATHS` (and this list) before it's ever committed here, not after.
+
 ## Constraints (hard limits, don't design against them)
 - An iOS app **cannot physically turn off the display** — only dim brightness toward ~0.
 - Brightness/idle timer only take effect **in the foreground**. Once the app goes to the
