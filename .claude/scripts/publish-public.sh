@@ -14,7 +14,8 @@ trap 'rm -rf "$SCRATCH"' EXIT
 EXCLUDE_PATHS=(
   "Design/AppStore"
   "Design/Reference"
-  "docs/design"
+  "docs/design/appstore prerenders"
+  "docs/design/scene-brief.md"
   "docs/app-store-listing.md"
   "docs/store-story.md"
   "docs/where-the-money-goes.md"
@@ -32,6 +33,36 @@ for p in "${EXCLUDE_PATHS[@]}"; do
   filter_args+=(--path "$p")
 done
 git filter-repo "${filter_args[@]}" --invert-paths
+
+# Mirror-only fix: local main's links to the excluded paths are valid there
+# (the files exist locally), but dangling once those paths are filtered out.
+# De-link them here rather than in local main, where they're correct as-is.
+python3 - <<'PY'
+path = "specs/9000-design-language/spec.md"
+s = open(path).read()
+s = s.replace(
+    "Work-package narrative:\n[`docs/presentation-overhaul-plan.md`](../../docs/presentation-overhaul-plan.md) (AP-U, AP-0).\nDirectional input, explicitly **not** a target:\n[`Design/Reference/README.md`](../../Design/Reference/README.md).",
+    "Work-package narrative and directional input (AP-U, AP-0) live in the private App Store/marketing\nmirror, not this repo."
+)
+s = s.replace(
+    "- **FR-9000-36**: Store copy is governed by this spec through its sub-spec\n  [`9010-store-presentation`](../9010-store-presentation/spec.md). A term retired here is retired in\n  the listing; a term introduced in the listing MUST exist in the app.",
+    "- **FR-9000-36**: Store copy is governed by this spec through its sub-spec `9010-store-presentation`\n  (kept in the private App Store/marketing mirror, not this repo). A term retired here is retired in\n  the listing; a term introduced in the listing MUST exist in the app."
+)
+s = s.replace(
+    "- **[9010-store-presentation](../9010-store-presentation/spec.md)** — the sub-spec that applies this\n  language to the App Store asset set.",
+    "- **9010-store-presentation** — the sub-spec that applies this language to the App Store asset\n  set (private App Store/marketing mirror, not this repo)."
+)
+open(path, "w").write(s)
+
+path = "docs/spec-overview.md"
+lines = open(path).read().split("\n")
+lines = [l for l in lines if not l.startswith("| 9010 |")]
+open(path, "w").write("\n".join(lines))
+PY
+git add specs/9000-design-language/spec.md docs/spec-overview.md
+if ! git diff --cached --quiet; then
+  git commit -q -m "docs: delink specs kept in the private App Store/marketing mirror"
+fi
 
 echo "Checking for dangling references to excluded paths..."
 if grep -rnF -f <(printf '%s\n' "${EXCLUDE_PATHS[@]}") . --include='*.md'; then
