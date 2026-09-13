@@ -196,7 +196,7 @@ final class AppStoreScreenshotUITests: XCTestCase {
         let app = launch(environment: [
             "SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD": "1",
             "SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT": "1",
-            "SCREENSHOT_CAPTURE_SOURCE_LABEL": "Family Photos",
+            "SCREENSHOT_CAPTURE_SOURCE_LABEL": Self.sourceLabel,
         ])
         let image = try startSlideshow(app, link: Self.newPhotosCardLink)
         // Walk to the chosen photo BEFORE waiting on the card. The card survives the walk
@@ -207,6 +207,16 @@ final class AppStoreScreenshotUITests: XCTestCase {
         let card = app.descendants(matching: .any).matching(identifier: "slideshow.newPhotosCard").firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10), "the re-published arrival should keep the card up")
         attach(name: "05-slot-new-photos")
+    }
+
+    /// The card's source label. Swift literals are English-only (FR-9000-32), so a German run
+    /// passes its label in from the runner environment instead (`SCREENSHOT_SOURCE_LABEL`, plain
+    /// or `TEST_RUNNER_`-prefixed, like the other seams). Defaults to the English name.
+    private static var sourceLabel: String {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["SCREENSHOT_SOURCE_LABEL"]
+            ?? environment["TEST_RUNNER_SCREENSHOT_SOURCE_LABEL"]
+            ?? "Family Photos"
     }
 
     // MARK: - Launch + onboarding
