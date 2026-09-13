@@ -1,0 +1,1305 @@
+# OwnFrame — what the app does and does not do.
+# Authority: Jan's decisions > current specs. Code is only the check (implementation:).
+# verdict:        does | does_not | partial | deferred | planned
+# implementation: verified (build matches the fact) | mismatch (build differs from intent) |
+#                 unverified (not confirmed in code, or needs a device) | n/a (nothing to build)
+# evidence paths are repo-relative; ":n" suffixes are line numbers at commit 7867732.
+schema: 1
+updated: 2026-09-13
+verified_commit: 7867732
+purpose: "OwnFrame turns an iPad or iPhone you already own into a digital photo frame that is easy to set up, needs no fiddling, and picks up new photos from an album on its own. The whole core frame is free; one optional one-time purchase adds extras."
+audience:
+  - "People looking for a digital photo frame who have a spare iPad or iPhone (for example an old one in a drawer)"
+  - "People whose photos live in Apple Photos / iCloud, with no server of their own (expected to be the majority)"
+  - "Immich users who want an Immich album or an Immich link on a frame"
+  - "Families who set up a frame for someone else (a grandparent, say) and keep it fed from a shared album"
+  - "Home Assistant users who want to see and control the frame from their smart home"
+not_for:
+  - "Anyone who needs the screen to switch off, sleep or wake on its own schedule"
+  - "Anyone who wants the slideshow to keep running while another app is in front, or in the background"
+  - "Video, or Live Photos with motion"
+  - "Photos stored in Google Photos, Dropbox, OneDrive, Nextcloud, a NAS share or local files"
+  - "Showing a whole photo library, people, places or memories rather than an album"
+  - "Devices that cannot run iOS / iPadOS 17"
+  - "Immich servers older than v3, or servers with self-signed certificates or plain HTTP"
+principles:
+  - id: P-01
+    principle: "OwnFrame only shows photos. It never adds, uploads, removes, edits or reorders photos, and never creates or changes albums. Album content is managed in Immich or Apple Photos, outside the app."
+    facts: [SRC-19]
+    intent: ["decision 2026-09-13", "FR-900-03"]
+  - id: P-02
+    principle: "Easy setup, no fiddling, and new photos that arrive on their own are why the app exists."
+    facts: [SRC-01, PLAY-02, UNATT-05]
+    intent: ["J-01"]
+  - id: P-03
+    principle: "The free app is the complete frame, and nothing that was free is ever moved behind a purchase."
+    facts: [PAY-01, PAY-09]
+    intent: ["J-11", "FR-1100-01", "FR-1100-13"]
+  - id: P-04
+    principle: "Paid extras are one optional one-time purchase; never a subscription."
+    facts: [PAY-02, PAY-03]
+    intent: ["J-10", "J-12", "FR-1100-05"]
+  - id: P-05
+    principle: "Secrets live only in the keychain, TLS is never disabled, no data is collected, and there is no extra cloud between the photos and the frame."
+    facts: [PRIV-01, PRIV-03, PRIV-04, PRIV-06]
+    intent: ["J-18", "J-35"]
+  - id: P-06
+    principle: "Calm by default: the photo comes first and effects are opt-in."
+    facts: [LOOK-01]
+    intent: ["J-29"]
+facts:
+
+  # ------------------------------------------------------------------ SRC — photo sources & setup
+  - id: SRC-19    # principle P-01 — listed first on purpose
+    fact: "Adds, uploads, removes, edits, reorders or comments on photos, or creates or changes albums, in Immich or Apple Photos."
+    verdict: does_not
+    principle: P-01
+    limits:
+      - "OwnFrame only shows photos. Album content is managed in Immich or Apple Photos, outside the app; a new photo reaches the frame because someone added it there, on their own device."
+      - "Access is read-only, for display."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["decision 2026-09-13", "FR-900-03", "FR-710-01"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:116,127", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:128,132", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift"]
+
+  - id: SRC-01
+    fact: "First-run setup offers three paths, easiest first: an iCloud album, an Immich link (paste or QR), and an Immich server with an API key. Picking an iCloud album goes straight to the running slideshow."
+    verdict: does
+    limits:
+      - "Order on the welcome screen: 'Use an iCloud album', 'Use a shared link', 'Connect to a server'."
+      - "No account and no purchase prompt anywhere in setup."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-01", "J-03", "J-05", "FR-220-01", "FR-220-02", "FR-220-08", "FR-1100-01"]
+    implementation: verified
+    evidence: ["OwnFrame/Onboarding/OnboardingChoiceView.swift:38,45,52"]
+
+  - id: SRC-02
+    fact: "Plays albums from the device's Apple Photos library, including iCloud Photos albums and iCloud Shared Albums, with no server."
+    verdict: partial
+    limits:
+      - "Needs FULL photo-library access to list or play an album."
+      - "Only regular albums and iCloud Shared Albums; smart albums (Favorites, Recents, Screenshots), People, Memories and folders are not offered."
+      - "Works through the Photos framework, not an iCloud connection."
+      - "Apple caps iCloud Shared Album photos at about 2048 px on the long edge (panoramas up to 5400 px); Original quality cannot exceed that."
+      - "Display only: no contributing, commenting or uploading to the shared album."
+      - "iOS 27 'upgraded' shared albums may not be visible to the app (unverified); such an album shows a calm 'unavailable' state."
+      - "Not available on Apple TV."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-03", "J-05", "FR-900-02", "FR-900-03", "FR-900-04", "FR-900-15", "FR-900-16"]
+    implementation: verified
+    evidence: ["Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:66-81", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PhotoLibraryProvider.swift:72-102"]
+
+  - id: SRC-03
+    fact: "Under limited photo access the only playable Photos source is 'Selected Photos' (the photos the person granted), not an album."
+    verdict: partial
+    limits:
+      - "No albums, including iCloud Shared Albums, under limited access; the UI says so."
+      - "The 'Selected Photos' pool does update when the person changes their selection; photos someone else adds to an iCloud Shared Album never arrive under limited access."
+      - "A full-access album source that is downgraded to limited access stops playing."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-900-04", "FR-9010-06"]
+    implementation: verified
+    evidence: ["Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/SelectedPhotosSource.swift:25-43", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:117-123", "OwnFrame/Onboarding/PhotoAlbumPickerView.swift:164"]
+
+  - id: SRC-04
+    fact: "Plays an Immich link (an Immich shared album link) without an Immich account or API key."
+    verdict: partial
+    limits:
+      - "Immich links only: https://<host>/s/<slug> or /share/<key>. No other kind of link works."
+      - "Album shares only; an Immich share of individual photos (no album) fails."
+      - "The server must run Immich v3 or newer and have a valid HTTPS certificate."
+      - "Malformed, expired or removed, wrong-password and unreachable links each get their own error; nothing is saved on failure."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["J-02", "J-04", "FR-110-01", "FR-210-02", "FR-210-03", "FR-210-07", "FR-210-08", "FR-210-09", "FR-130-12"]
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkURL.swift:7-41", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:39-53,72-88,117-135"]
+
+  - id: SRC-05
+    fact: "Asks for an Immich link's password only after the server says the link needs one, and stores that password only in the keychain."
+    verdict: does
+    limits:
+      - "No always-visible optional password field; the same behaviour applies in setup and in Settings."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-02", "FR-210-06", "FR-210-10", "FR-210-11", "FR-130-03"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:137-143,166-173", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39"]
+
+  - id: SRC-06
+    fact: "An Immich link can be added by scanning the QR code Immich shows for a shared album, in first-run setup and in Settings."
+    verdict: partial
+    limits:
+      - "Only Immich shared-album QR codes; the code decodes to the same link a person would paste."
+      - "Needs camera permission; typing or pasting the link always remains available, also when camera access is denied."
+      - "The camera only reads the code; no photo is captured or stored."
+      - "End-to-end camera scanning on a real device is still an open manual check (SC-220-07)."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-02", "FR-220-04", "FR-220-05", "FR-220-06", "FR-120-12"]
+    implementation: verified
+    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:46-71", "OwnFrame/Onboarding/SharedLinkSetupView.swift:94,132", "OwnFrame/Onboarding/SharedLinkAddForm.swift:51", "Packages/OnboardingKit/Sources/OnboardingKit/ScannedShareLink.swift:32-50"]
+
+  - id: SRC-07
+    fact: "OwnFrame appears in the iOS Share Sheet: an Immich link shared into it is resolved and becomes the playing source (asking for a password once if needed), or opens pre-filled setup on a fresh install."
+    verdict: partial
+    limits:
+      - "iPhone and iPad only; one web link per share."
+      - "The extension passes only the link, never a password."
+      - "The app does not come to the front after sharing, and cannot: iOS lets only Today and iMessage extensions open their host app. The person has to switch to OwnFrame, which then picks up the link (it survives a cold start)."
+      - "A link already in the library is switched to, not duplicated."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-02", "FR-210-12", "FR-210-13", "FR-210-14", "FR-210-15", "FR-210-16", "FR-210-18", "SC-210-02"]
+    implementation: mismatch
+    evidence: ["OwnFrameShareExtension/ShareViewController.swift:24-26,36,68-71", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:651,655-658,661", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6"]
+    mismatch: "Spec 210 US2 scenario 2 ('the app opens into setup'), SC-210-02 (slideshow starts within two taps of choosing the app) and Jan's hook (J-02) cannot be met by a Share extension on iOS. The extension calls extensionContext.open(immichslideshow://shared), which is a no-op for Share extensions; no URL scheme is registered either, and registering one would not help. FR-210-18 (survives a cold start) is met."
+    candidate_issue: "#65 — Share Extension: remove the dead immichslideshow:// open call and the false comments (ShareViewController.swift:24-26, IncomingLinkSheet.swift:5-6) and make the extension's confirmation tell the person to open OwnFrame to finish. Spec 210 US2 scenario 2 / SC-210-02 to be reworded (decided 2026-09-13, D-09)."
+
+  - id: SRC-08
+    fact: "Connects to a person's own Immich server with the server address and an API key, and plays a chosen album from that account."
+    verdict: partial
+    limits:
+      - "HTTPS with a valid certificate only; plain HTTP is rejected."
+      - "The advanced option, last on the welcome screen."
+      - "One server address and API key per install; Immich links from other servers still work alongside it."
+      - "The API key is stored only in the keychain and never displayed."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["J-03", "FR-100-01", "FR-100-02", "FR-100-03", "FR-200-03", "FR-200-08"]
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/ConnectionURL.swift:8-11", "Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:21-25,117-118", "Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:21-27", "Packages/OnboardingKit/Sources/OnboardingKit/ConfigStore.swift:21-24"]
+
+  - id: SRC-09
+    fact: "The Immich album picker has a search field (album name, date, photo count), a list that scrolls on its own under a pinned confirm button, and adds one or more albums per pass; it is the same picker in setup and in Settings."
+    verdict: does
+    limits:
+      - "Albums without date or count metadata are searchable by name only."
+      - "With no server configured, the album tab shows an 'add a server' prompt instead of an error."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-210-19", "FR-210-20", "FR-210-21", "FR-210-22", "FR-210-27", "FR-210-28"]
+    implementation: unverified
+    evidence: []
+
+  - id: SRC-10
+    fact: "Requires Immich v3 or newer; an older server gets a 'needs Immich v3 or newer' notice with the detected version and does not play."
+    verdict: does
+    limits:
+      - "No compatibility path for Immich v2 or older."
+      - "The notice is final: no automatic retry."
+      - "Only a clearly parsed major version below 3 triggers it; an unreadable version is not treated as 'too old'."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-130-01", "FR-130-04", "FR-130-05", "FR-130-06", "FR-130-07", "FR-130-09"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ServerVersionGate.swift:10,23-26,33-37", "Packages/SlideshowKit/Sources/SlideshowKit/RetryPolicy.swift:33-36"]
+
+  - id: SRC-11
+    fact: "Keeps a library of saved sources (Immich albums, Immich links, Photos albums); exactly one plays at a time, and sources can be switched, renamed and removed in Settings."
+    verdict: partial
+    limits:
+      - "One active source at a time; sources are never combined into one slideshow."
+      - "Every source is checked before it is saved."
+      - "Reordering is specified (FR-120-03) but was not confirmed in the code check."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-120-01", "FR-120-03", "FR-120-04", "FR-120-06", "FR-120-09", "FR-120-11"]
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23", "OwnFrame/Slideshow/SourceLibraryView.swift:7,42-50,84-87", "OwnFrame/OwnFrameApp.swift:446-455"]
+
+  - id: SRC-12
+    fact: "The Immich server address and API key can be changed later in Settings and are checked before saving; a reset clears the connection and returns to setup."
+    verdict: does
+    limits:
+      - "A failed check keeps the previous connection active."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-200-12", "FR-200-19", "FR-200-24", "FR-210-29"]
+    implementation: unverified
+    evidence: []
+
+  - id: SRC-13
+    fact: "Combines several albums or sources into one slideshow."
+    verdict: deferred
+    limits:
+      - "Roadmap item only; named as a possible future Supporter Unlock feature."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-120-11", "FR-1100-02"]
+    implementation: n/a
+    evidence: []
+
+  - id: SRC-14
+    fact: "Plays a whole photo library (all photos in Apple Photos or a whole Immich account)."
+    verdict: does_not
+    limits:
+      - "Every source is a single album (or the limited-access 'Selected Photos' pool)."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-900-03"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:43-61", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:66-81"]
+
+  - id: SRC-15
+    fact: "Plays Immich people, places, favorites, memories, tags or recently added, or Photos smart albums and Memories."
+    verdict: deferred
+    limits:
+      - "Roadmap items in the Immich and Photos specs; none is specified."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-900-03"]
+    implementation: n/a
+    evidence: []
+
+  - id: SRC-16
+    fact: "Plays photos from services other than Immich and Apple Photos (Google Photos, Dropbox, OneDrive, Flickr, Synology, Nextcloud, SMB/WebDAV)."
+    verdict: does_not
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23"]
+
+  - id: SRC-17
+    fact: "Plays local files or folders (Files app, USB drives, on-device folders)."
+    verdict: does_not
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23"]
+
+  - id: SRC-18
+    fact: "Connects to servers with self-signed or private-CA certificates, or over plain HTTP."
+    verdict: does_not
+    limits:
+      - "Recorded as possibly coming later; no spec plans it."
+      - "Applies to the MQTT broker too."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-35", "FR-100-12"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/HTTPTransport.swift:7-10", "Packages/OnboardingKit/Sources/OnboardingKit/ConnectionURL.swift:8-11"]
+
+  - id: SRC-20
+    fact: "Reads an Immich server address or API key from a QR code."
+    verdict: deferred
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-220-04"]
+    implementation: n/a
+    evidence: []
+
+  # ------------------------------------------------------------------ PLAY — playback
+  - id: PLAY-01
+    fact: "Plays a fullscreen slideshow, one photo at a time, advancing on its own and looping forever, with no controls, clock, info or status bar visible until the screen is tapped."
+    verdict: does
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-300-01", "FR-300-03", "FR-300-33"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:176-177"]
+
+  - id: PLAY-02
+    fact: "Once set up, every launch goes straight into the slideshow of the active source without repeating setup."
+    verdict: does
+    limits:
+      - "Someone (or Guided Access / device management) still has to open the app; it cannot start itself."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-01", "FR-200-01", "FR-200-02", "FR-210-04"]
+    implementation: verified
+    evidence: ["OwnFrame/OwnFrameApp.swift:311", "Packages/OnboardingKit/Sources/OnboardingKit/StartupGate.swift"]
+
+  - id: PLAY-03
+    fact: "Offers two photo orders: shuffle (default) and sequential, which follows the album's own date order."
+    verdict: partial
+    limits:
+      - "Shuffle shows every photo once per cycle, then reshuffles without an immediate repeat."
+      - "Sequential for an Immich album or Immich link is meant to follow the album's own sort setting (newest or oldest first; default newest first); the current build always plays newest first."
+      - "Sequential for a Photos album follows the Photos album order; 'Selected Photos' plays oldest first."
+      - "Sequential is date order, not a hand-arranged order."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-500-03", "FR-500-06", "FR-130-02"]
+    implementation: mismatch
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:41-52", "Packages/ImmichClient/Sources/ImmichClient/Models.swift:87-94", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:114,121", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:711-720"]
+    mismatch: "Spec 130 (research §2, the v3 API contract, task T018 marked done) passes the album's own order (AlbumResponseDto.order) to the metadata search. The build always sends 'desc', the Album model does not decode `order`, and MetadataSearchTests pins the literal, so an album set to oldest-first plays newest-first. Same for Immich links."
+    candidate_issue: "#62 — Immich sequential order ignores the album's sort setting: decode Album.order and pass it to /api/search/metadata (spec 130 T018) for API-key albums and Immich links; update MetadataSearchTests and the misleading comments at ImmichClient.swift:41-42 and Models.swift:87-89."
+
+  - id: PLAY-04
+    fact: "The time each photo stays on screen is adjustable; the default is 15 seconds."
+    verdict: partial
+    limits:
+      - "In the app: presets 5 s, 10 s, 15 s, 30 s, 60 s and 5 min; no free entry."
+      - "Home Assistant (Supporter Unlock) accepts any whole value from 3 to 600 s; out-of-range values are clamped."
+      - "A change applies from the next photo."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-500-03", "FR-500-07", "FR-710-03"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:16-32,36", "OwnFrame/Slideshow/SlideshowSettingsView.swift:151-156", "Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift:43-47"]
+
+  - id: PLAY-05
+    fact: "Offers four transitions, all free: crossfade (default), slide, dissolve and none."
+    verdict: does
+    limits:
+      - "No other transitions exist."
+      - "Dissolve renders as a crossfade while Ken Burns motion is on."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["J-11", "FR-500-03", "FR-500-08", "FR-1100-01"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:76-81", "Packages/SlideshowKit/Sources/SlideshowKit/TransitionDescriptor.swift:27-29"]
+
+  - id: PLAY-06
+    fact: "Offers Ken Burns motion (a slow pan and zoom on each photo)."
+    verdict: does
+    limits:
+      - "Requires the Supporter Unlock."
+      - "Off by default."
+      - "With Fill it pans and zooms; with Fit it only zooms slowly from the centre, keeping the whole photo visible."
+      - "An unlock or refund takes effect at the next photo, not mid-photo."
+      - "Perceived smoothness on real hardware is still a device check."
+    gated: supporter
+    platforms: [ios, ipados, tvos]
+    intent: ["J-12", "J-29", "FR-500-09", "FR-500-20", "FR-1100-02"]
+    implementation: verified
+    evidence: ["Packages/PurchaseKit/Sources/PurchaseKit/AmbienceGate.swift:43-45", "OwnFrame/Slideshow/SlideshowView.swift:596-598", "OwnFrame/Slideshow/SlideshowSettingsView.swift:170-175"]
+
+  - id: PLAY-07
+    fact: "Offers Fit (default: the whole photo, with bars) or Fill (fills the screen, cropping the photo)."
+    verdict: does
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-500-03", "FR-500-10"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:39,83-86", "OwnFrame/Slideshow/SlideshowSettingsView.swift:177-179"]
+
+  - id: PLAY-08
+    fact: "Offers image quality Preview (default, a downscaled image) or Original (the full original file)."
+    verdict: partial
+    limits:
+      - "Preview is the Immich server's preview size, or about 2048 px for Photos."
+      - "Original cannot exceed what the source holds (iCloud Shared Albums stay near 2048 px); no upscaling."
+      - "iCloud-only originals are downloaded on demand and need a network."
+      - "A change applies to photos loaded afterwards; the photo on screen is not reloaded."
+      - "RAW/DNG originals are not explicitly handled or tested."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-500-11", "FR-100-05", "FR-900-15"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:40,88-91", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:154-169", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:792-835"]
+
+  - id: PLAY-09
+    fact: "A tap shows controls (pause/play, previous, next, photo info, albums, settings) that hide again after 4.5 seconds; a sideways swipe changes the photo without showing controls."
+    verdict: does
+    limits:
+      - "Automatic advance only goes forward; going back is manual."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-300-15", "FR-300-16", "FR-300-17", "FR-300-18", "FR-300-19"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:113,162-168,472-483"]
+
+  - id: PLAY-10
+    fact: "For an Immich server connected with an API key, an album browser (from the controls) shows the server's albums and photo thumbnails; tapping a photo returns to fullscreen at that photo."
+    verdict: does
+    limits:
+      - "A feature for albums on your own Immich server only: not offered for Immich links (by design, decided 2026-09-13) or for Photos sources."
+      - "Browser thumbnails are not kept in the offline cache."
+    detail: "With an Immich-link source the Albums button is still reachable and shows a load error, because Immich does not list albums for a link key; this is outside the feature's scope, not a defect (D-13)."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["decision 2026-09-13", "FR-300-20", "FR-300-21", "FR-300-22"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:494-510", "OwnFrame/Slideshow/AlbumBrowserView.swift:26,103-111", "OwnFrame/OwnFrameApp.swift:427-432", "Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:21-22,112-115"]
+
+  - id: PLAY-11
+    fact: "An optional photo info overlay shows the photo's capture date and time and, where known, its place."
+    verdict: partial
+    limits:
+      - "Never shows file names or album names."
+      - "Place (city, country) only for Immich photos; Photos-library photos show the date only, because the app does no geocoding."
+      - "Shows nothing when the photo has neither."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-300-24", "FR-300-25", "FR-900-10"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/PhotoInfoView.swift:60-68", "Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-85"]
+
+  - id: PLAY-12
+    fact: "A single broken photo is skipped without stopping the show; an empty source or failed load shows a calm message with a Retry button instead of a blank screen."
+    verdict: does
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-300-09", "FR-300-10", "FR-310-09"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:398-421,768-790"]
+
+  - id: PLAY-13
+    fact: "Display settings apply to the running slideshow without a restart and are remembered across launches."
+    verdict: partial
+    limits:
+      - "Image quality applies only to photos loaded after the change."
+      - "Screen brightness is not a remembered setting (see UNATT-02)."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-500-04", "FR-500-05", "FR-500-16"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:695-711", "Packages/ThemeKit/Sources/ThemeKit/UserDefaultsThemeStore.swift:95-97"]
+
+  - id: PLAY-14
+    fact: "Plays videos."
+    verdict: does_not
+    limits:
+      - "Videos are skipped silently, not shown as a still."
+      - "Video playback is only named as a possible future Supporter Unlock feature."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-300-13", "FR-900-08", "FR-1100-02"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:47-53", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:160,470"]
+
+  - id: PLAY-15
+    fact: "Live Photos are shown as their still image; the motion is never played."
+    verdict: partial
+    limits:
+      - "Photos-library Live Photos show their key frame."
+      - "Immich Live Photos also show their still image."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-900-08", "FR-300-13"]
+    implementation: mismatch
+    evidence: ["Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:136-144"]
+    mismatch: "FR-300-13 (the older Immich-era text) says Live Photos are skipped; the build shows the still for Immich Live Photos, as FR-900-08 does for Photos. Looks like stale spec text, not a bug."
+
+  - id: PLAY-16
+    fact: "Offers a weather overlay, extra 'premium' transitions or burn-in protection."
+    verdict: deferred
+    limits:
+      - "Named only as possible future Supporter Unlock features; none has a spec."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-1100-02"]
+    implementation: n/a
+    evidence: []
+
+  # ------------------------------------------------------------------ LOOK — appearance
+  - id: LOOK-01
+    fact: "Out of the box the slideshow is calm: no clock, no Ken Burns motion, no photo info; effects are opt-in."
+    verdict: partial
+    limits:
+      - "The new-photos card is on by default (UNATT-08; decided 2026-09-13, D-15: a transient notice, not an overlay)."
+      - "The calm default is the same for free and paid users."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-29", "J-30", "FR-500-03", "FR-500-15"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:35-42,67"]
+
+  - id: LOOK-02
+    fact: "Offers a clock overlay in three styles (Digits, Pill, Analog), six positions or Random, two sizes (Room, Cozy) and an optional date line."
+    verdict: does
+    limits:
+      - "Requires the Supporter Unlock."
+      - "Off by default."
+      - "Analog has no date line."
+      - "Random moves only when the photo changes, at most about every 6 minutes."
+      - "Hidden while the controls are showing."
+      - "iPhone and iPad only; not on Apple TV."
+    gated: supporter
+    platforms: [ios, ipados]
+    intent: ["J-12", "FR-500-12", "FR-500-17", "FR-510-01", "FR-510-02", "FR-510-03", "FR-510-05", "FR-1100-02"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:93-141", "Packages/ThemeKit/Sources/ThemeKit/ClockPlacement.swift:51", "OwnFrame/Slideshow/SlideshowView.swift:134-140,602-604"]
+
+  - id: LOOK-03
+    fact: "Slideshow controls use Liquid Glass on iOS 26 and later and a material fallback on earlier versions, readable over any photo."
+    verdict: does
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-300-15", "FR-300-34"]
+    implementation: unverified
+    evidence: []
+
+  - id: LOOK-04
+    fact: "Uses a dark appearance on every app-drawn screen, regardless of the system setting."
+    verdict: planned
+    limits:
+      - "System-drawn UI (permission alerts, share sheet, system photo picker) follows the system setting."
+      - "Decided 2026-09-13 (D-10); constitution VII's 'light' is to be amended to mean calm and lightweight."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-28", "decision 2026-09-13", "FR-9000-05", "FR-9000-06"]
+    implementation: mismatch
+    evidence: []
+    mismatch: "The current build forces no appearance (no preferredColorScheme anywhere in the app or packages); it follows the system light/dark setting."
+    candidate_issue: "Force the dark appearance app-wide per FR-9000-05 (#70)."
+
+  - id: LOOK-05
+    fact: "The app's accent colour is brass (#E3A857)."
+    verdict: does
+    limits:
+      - "Filled accent controls must carry near-black labels (FR-9000-14)."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-28", "FR-9000-13", "FR-9000-14"]
+    implementation: verified
+    evidence: ["OwnFrame/Assets.xcassets/AccentColor.colorset/Contents.json"]
+
+  - id: LOOK-06
+    fact: "Redesigned, less technical screens: plain first-run vocabulary without 'API key', 'server address', 'instance' or 'Add a source'; one name for the Photos source; a 640-720 pt content column; album-picker rows with cover photos."
+    verdict: planned
+    limits:
+      - "Shipped screens still use 'API key', 'server address' and three names for the Photos source."
+      - "Album covers need a model field that does not exist yet."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-28", "FR-9000-09", "FR-9000-20", "FR-9000-23", "FR-9000-26"]
+    implementation: n/a
+    evidence: []
+
+  - id: LOOK-07
+    fact: "The user interface is available in English and German; other device languages get English."
+    verdict: does
+    limits:
+      - "Includes the Siri / Shortcuts phrases."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-21", "J-34", "FR-300-30", "FR-9000-32"]
+    implementation: verified
+    evidence: ["OwnFrame/Localizable.xcstrings", "OwnFrame/AppShortcuts.xcstrings", "Packages/PurchaseKit/Sources/PurchaseKit/Localizable.xcstrings"]
+
+  - id: LOOK-08
+    fact: "The Immich shared album link has one name in the app and the store: 'Immich link' / 'Immich-Link'."
+    verdict: planned
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-04", "decision 2026-09-13", "FR-9000-26", "FR-9000-36"]
+    implementation: mismatch
+    evidence: ["OwnFrame/Onboarding/OnboardingChoiceView.swift:45", "OwnFrame/Localizable.xcstrings"]
+    mismatch: "The shipped UI says 'Use a shared link' / 'Geteilten Link verwenden', 'Shared link' / 'Geteilter Link', and 'Immich share link' / 'Immich-Freigabelink'."
+    candidate_issue: "Rename 'shared link' to 'Immich link' / 'Immich-Link' in the String Catalogs, then retake the store captures (#68)."
+
+  - id: LOOK-09
+    fact: "The Apple Photos source has one name in the app and the store: 'iCloud album' / 'iCloud-Album'."
+    verdict: planned
+    limits:
+      - "The description may explain it once as 'albums from your Photos library, including iCloud Shared Albums'; never 'connects to iCloud'."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-05", "decision 2026-09-13", "FR-9000-26", "FR-9010-10"]
+    implementation: mismatch
+    evidence: ["OwnFrame/Onboarding/OnboardingChoiceView.swift:38", "OwnFrame/Slideshow/SourceLibraryView.swift:159,324"]
+    mismatch: "The shipped UI uses several names for this source ('iCloud album', 'Photos album', 'Photos', and Photos-library wording in Settings)."
+    candidate_issue: "Unify the Photos source name to 'iCloud album' / 'iCloud-Album' across onboarding, the source library and Settings (#68)."
+
+  # ------------------------------------------------------------------ UNATT — the unattended frame
+  - id: UNATT-01
+    fact: "Keeps the screen from auto-locking while the slideshow is in the foreground, and gives normal auto-lock back when the slideshow is left."
+    verdict: partial
+    limits:
+      - "Foreground only; iOS takes control back when the app is in the background."
+      - "Opening Settings or other in-app sheets over the slideshow does not re-enable auto-lock (FR-700-23 fix, merged)."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-32", "FR-400-01", "FR-400-02", "FR-400-03", "FR-400-04", "FR-700-23"]
+    implementation: verified
+    evidence: ["Packages/PowerKit/Sources/PowerKit/PowerManager.swift:32-39,83-89", "OwnFrame/Slideshow/UIScreenController.swift:43-46", "OwnFrame/Slideshow/SlideshowView.swift:184"]
+
+  - id: UNATT-02
+    fact: "An in-app brightness slider dims the screen gradually, including software dimming below the hardware minimum toward near black."
+    verdict: partial
+    limits:
+      - "Foreground only."
+      - "Built-in screen only."
+      - "Near black is not off; the display stays on."
+    detail: "The chosen level is not persisted yet: after a relaunch, or on leaving the slideshow, the screen returns to the system brightness, and the level is not re-applied when the app returns to the foreground (for example after lock and unlock). If the app is force-quit, the earlier brightness may not be restored."
+    todo: "Persist the brightness level and re-apply it on slideshow start/foreground (#67)"
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-32", "FR-400-05", "FR-400-07", "FR-400-08", "FR-400-09", "FR-400-11"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/UIScreenController.swift:28-41", "OwnFrame/Slideshow/SlideshowSettingsView.swift:62,114,129-140", "Packages/PowerKit/Sources/PowerKit/PowerManager.swift:32-39,84-107"]
+
+  - id: UNATT-03
+    fact: "Turns the display off or puts the device to sleep."
+    verdict: does_not
+    limits:
+      - "iOS does not allow it; the app can only dim toward near black."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-32", "FR-400-08"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/UIScreenController.swift:35-37"]
+
+  - id: UNATT-04
+    fact: "Keeps working in the background."
+    verdict: does_not
+    limits:
+      - "When OwnFrame is not the frontmost app, the slideshow timer, refresh, retries, keep-awake, brightness and the Home Assistant connection all stop."
+      - "An unattended frame relies on the app staying in front (for example with Guided Access)."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-32", "FR-300-14", "FR-310-10", "FR-400-03", "FR-400-09", "FR-9010-06"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:278-310", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:623-632"]
+
+  - id: UNATT-05
+    fact: "Checks the active source for added and removed photos every 60 minutes, without interrupting the photo on screen."
+    verdict: partial
+    limits:
+      - "Fixed 60-minute interval from the last successful check; not a setting."
+      - "Foreground only; an overdue check runs immediately when the app returns to the foreground."
+      - "A failed check keeps the current photos playing."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["J-01", "J-32", "FR-310-06", "FR-310-07", "FR-310-10", "FR-9010-06"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowConfig.swift:21", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:544-570,626-651"]
+
+  - id: UNATT-06
+    fact: "A Photos album source also updates when the Photos library reports a change and whenever the app returns to the foreground."
+    verdict: partial
+    limits:
+      - "Only while the app is running in the foreground."
+      - "Photos someone else adds to an iCloud Shared Album arrive only after iOS has synced that album; no timing is guaranteed."
+      - "Under limited access only the 'Selected Photos' pool plays; it updates when the person changes their selection, but album sources are unavailable."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-900-09", "FR-9010-06"]
+    implementation: verified
+    evidence: ["OwnFrame/OwnFrameApp.swift:390-397", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:253-278", "OwnFrame/Slideshow/SlideshowView.swift:289-291"]
+
+  - id: UNATT-07
+    fact: "A newly found photo joins the rotation; it is not necessarily shown right away."
+    verdict: partial
+    limits:
+      - "Shuffle: inserted at a random point in the rest of the current cycle."
+      - "Sequential: takes its place in the order, so a newest Immich photo waits until the next cycle starts."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-310-07", "FR-310-08"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/RotationReconciler.swift:63-89,127-136"]
+
+  - id: UNATT-08
+    fact: "When a check finds new photos, a small card shows the source's name and how many photos arrived ('+1 new photo', 'Updated automatically'), then fades."
+    verdict: does
+    limits:
+      - "On by default; can be turned off in Settings."
+      - "Shows for about 5 seconds, only after a check that found additions while the slideshow was playing, so up to 60 minutes after the upload."
+      - "Shows the source's own label only, never a source-type word or server name."
+      - "Hidden while the controls are showing."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-30", "FR-310-14", "FR-9010-06"]
+    implementation: verified
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28,58-94", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
+
+  - id: UNATT-09
+    fact: "Shows new photos instantly or via push when they are added."
+    verdict: does_not
+    limits:
+      - "Arrival is bound to the 60-minute foreground check (UNATT-05), or a Photos library change event (UNATT-06)."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-9010-06"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowConfig.swift:21"]
+
+  - id: UNATT-10
+    fact: "Recovers from network and server outages on its own: retries start after about 1 second and double up to a 5-minute cap, with jitter, and never give up while in the foreground."
+    verdict: partial
+    limits:
+      - "Authentication failures (revoked API key, changed link) retry only at the 5-minute cap and show a message when nothing can be displayed."
+      - "An Immich server that is too old, and a deleted Photos album, are final: no automatic retry."
+      - "Foreground only; Retry by hand always works."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-310-01", "FR-310-02", "FR-310-04", "FR-310-05", "FR-900-16"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/RetryPolicy.swift:36,60-63,80-101"]
+
+  - id: UNATT-11
+    fact: "Keeps playing when the network drops: the photo on screen stays and the slideshow keeps moving."
+    verdict: does
+    detail: "During an outage the rotation continues over the photos held in memory or in the on-device cache (UNATT-12)."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["J-32", "FR-310-03", "FR-310-09"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:398-421,768-790"]
+
+  - id: UNATT-12
+    fact: "Keeps every photo it has shown or prefetched in an on-device cache, so those photos keep rotating without a network."
+    verdict: partial
+    detail: "Only photos already shown or prefetched (the next 2) are cached; the album is not downloaded ahead."
+    limits:
+      - "Maximum size: 100 MB, 250 MB, 500 MB (default), 1 GB or 2 GB; least recently used photos are removed first; Clear in Settings."
+      - "Cached separately per quality setting."
+      - "Stored in the app's cache area, which iOS may clear; excluded from backup; never leaves the device."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-32", "FR-320-01", "FR-320-03", "FR-320-04", "FR-320-05", "FR-320-08", "FR-320-10"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/CacheBudget.swift:16-20", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:792-820,868-927", "OwnFrame/Slideshow/SlideshowSettingsView.swift:393-420"]
+
+  - id: UNATT-13
+    fact: "Opened without a network, the app resumes the active source from its remembered photo list and cached photos, and switches back to live data when the network returns."
+    verdict: partial
+    detail: "Works only if that source has played before and iOS has not cleared the cache; otherwise it shows the calm error with automatic retry."
+    limits:
+      - "Not for a Photos source whose access was revoked, or an Immich server that is too old."
+      - "The app still has to be opened."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-32", "FR-320-06", "FR-320-07"]
+    implementation: verified
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:182-221", "OwnFrame/OwnFrameApp.swift:288-291,379"]
+
+  - id: UNATT-14
+    fact: "Downloads a whole album ahead of time for offline use."
+    verdict: deferred
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-320-01"]
+    implementation: n/a
+    evidence: []
+
+  - id: UNATT-15
+    fact: "Starts by itself: at boot, after a crash, on a schedule, or remotely from Home Assistant."
+    verdict: does_not
+    limits:
+      - "Six of the seven Shortcuts actions can bring an already-installed app to the front on the same device (SHORTCUT-01)."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-800-04"]
+    implementation: verified
+    evidence: ["OwnFrame/Intents/FrameIntents.swift:66,81,96,111,126,150,168"]
+
+  - id: UNATT-16
+    fact: "Has a built-in schedule, night mode or quiet hours that dims, pauses or wakes the frame at set times."
+    verdict: does_not
+    limits:
+      - "Spec 400 rules out an in-app scheduler."
+      - "Timed dimming or pausing is possible only through Shortcuts automations or Home Assistant, both with the Supporter Unlock and with the app in the foreground."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-32", "FR-400-09", "FR-700-15"]
+    implementation: verified
+    evidence: []
+
+  - id: UNATT-17
+    fact: "Sleeps and wakes based on presence through Home Assistant."
+    verdict: deferred
+    limits:
+      - "Reserved as sub-spec 730; not specified or built."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-700-15"]
+    implementation: n/a
+    evidence: []
+
+  - id: UNATT-18
+    fact: "Detects people in the room, motion, or ambient light."
+    verdict: does_not
+    limits:
+      - "The camera is used only for QR scanning."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:46-71"]
+
+  # ------------------------------------------------------------------ REMOTE — Home Assistant over MQTT
+  - id: REMOTE-01
+    fact: "Connects to the person's own MQTT broker over TLS and registers itself in Home Assistant through MQTT discovery."
+    verdict: partial
+    limits:
+      - "Needs a broker with a valid TLS certificate (system trust store), a username and a password; MQTT 3.1.1; suggested port 8883."
+      - "No anonymous brokers, self-signed certificates, certificate pinning, broker auto-discovery or multiple brokers."
+      - "Home Assistant needs its MQTT integration with discovery enabled."
+      - "Connected only while the app is in the foreground; the slideshow keeps running if the broker is unreachable."
+    gated: free
+    platforms: [ios, ipados, tvos]
+    intent: ["J-33", "FR-600-01", "FR-600-02", "FR-700-01", "FR-700-03", "FR-1100-03a"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlMQTT/NIOMQTTTransport.swift:31-62", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/BrokerSetupViewModel.swift:5", "Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift:10-20"]
+
+  - id: REMOTE-02
+    fact: "Sends free read-only status to Home Assistant: availability, current photo, slideshow phase, photo count, app version, frame status (running/inactive) and, on battery devices, battery level and charging."
+    verdict: partial
+    limits:
+      - "Only while the app is in the foreground on the slideshow."
+      - "Photo metadata, including place names where available, goes to the person's broker by design."
+      - "Live Home Assistant verification on a device is still open."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-12", "J-33", "FR-710-05", "FR-710-06", "FR-710-23", "FR-710-24", "FR-1100-03a"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAEntityState.swift:37-53", "Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift:156-178,208-211"]
+
+  - id: REMOTE-03
+    fact: "Reports the current photo's date and place to Home Assistant."
+    verdict: partial
+    limits:
+      - "Immich album via server + API key: date and city/state/country."
+      - "Photos source: date only."
+      - "Immich link as the active source, current build: no date or place when no API key is configured, and unreliable (often empty) when one is, because the lookup goes to the API-key server instead of the link's server."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-710-05", "FR-710-06", "FR-900-11"]
+    implementation: mismatch
+    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:283-297,337-346", "OwnFrame/OwnFrameApp.swift:474-480"]
+    mismatch: "Spec 710 US2 expects current-photo metadata for every source. The adapter's Immich client is always the API-key server client, whatever source is active. With no API key an Immich link publishes no date, place or image. With an API key it looks up the link's asset ids on the API-key server, which fails for links on another host or albums that user cannot see, and it sends the link's asset ids to that server."
+    candidate_issue: "#64 — HA current-photo metadata and image use the API-key server client regardless of the active source (OwnFrameApp.swift:474-480). Route Immich-link sources through the engine's source-neutral metadata/image path, already used for Photos (SlideshowRemoteControlAdapter.swift:337-346)."
+
+  - id: REMOTE-04
+    fact: "Can optionally publish the current photo itself to Home Assistant as an image."
+    verdict: partial
+    limits:
+      - "Opt-in, off by default, free."
+      - "Thumbnail by default or preview size, capped at 512 KB, not retained on the broker."
+      - "The image entity needs Home Assistant 2023.7 or newer."
+      - "Unreliable for Immich-link sources in the current build (same cause as REMOTE-03)."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-710-07", "FR-710-15", "FR-900-12"]
+    implementation: mismatch
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-21", "OwnFrame/OwnFrameApp.swift:518-520"]
+    mismatch: "Same root cause as REMOTE-03: the image is requested from the API-key server, so Immich-link sources get none or a failed lookup."
+    candidate_issue: "#64 (same issue as REMOTE-03)."
+
+  - id: REMOTE-05
+    fact: "Home Assistant can control the frame: pause/play, brightness, which saved source plays, every display setting (order, duration, transition, Ken Burns, fit, quality, clock on/position/style/size/date), and next/previous; changes echo back to Home Assistant."
+    verdict: partial
+    limits:
+      - "Requires the Supporter Unlock; without it the controls are not published, earlier ones are removed, and commands are ignored."
+      - "Commands work only while the app is in the foreground on the frame."
+      - "The source control switches between saved sources; Home Assistant cannot add sources."
+      - "The new-photos card setting is not controllable."
+    gated: supporter
+    platforms: [ios, ipados, tvos]
+    intent: ["J-12", "J-33", "FR-700-07", "FR-700-08", "FR-710-01", "FR-710-02", "FR-710-03", "FR-120-07", "FR-1100-03"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAEntityState.swift:3-31,48-58", "Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:24-75", "Packages/HAControlKit/Sources/HAControlKit/HAControlCoordinator.swift:156-199", "OwnFrame/Slideshow/AutomationCoordinatorGate.swift:47-54"]
+
+  - id: REMOTE-06
+    fact: "Home Assistant shows the frame offline when the app leaves the foreground, quits, or loses its connection, and online again after reconnecting; opening Settings or other in-app sheets does not mark it offline."
+    verdict: does
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-33", "FR-700-04", "FR-700-05", "FR-700-23", "FR-710-24"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAEntityState.swift:37-53"]
+
+  - id: REMOTE-07
+    fact: "The frame keeps the same Home Assistant device and entities across deleting and reinstalling the app, can be renamed without breaking dashboards, and several frames stay separate devices."
+    verdict: does
+    limits:
+      - "Default name 'OwnFrame'; the identity is kept in the keychain."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["FR-700-16", "FR-700-21", "FR-700-22"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:3-22", "OwnFrame/OwnFrameApp.swift:269-274"]
+
+  - id: REMOTE-08
+    fact: "Works directly with Apple Home / HomeKit."
+    verdict: does_not
+    limits:
+      - "Only indirectly, if Home Assistant's own HomeKit Bridge re-exposes the entities; which entity types survive that bridge is not verified."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-800-10"]
+    implementation: verified
+    evidence: []
+
+  - id: REMOTE-09
+    fact: "Offers a web interface, a REST API, or remote control without Home Assistant or Shortcuts."
+    verdict: does_not
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:24-75"]
+
+  - id: REMOTE-10
+    fact: "Home Assistant can start or quit the app, upload photos, add sources, or read server version, refresh state or cache usage."
+    verdict: does_not
+    limits:
+      - "Start/quit, upload and adding sources are out of scope; the extra diagnostics are roadmap items."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-710-01"]
+    implementation: n/a
+    evidence: []
+
+  # ------------------------------------------------------------------ SHORTCUT — Siri / Shortcuts / App Intents
+  - id: SHORTCUT-01
+    fact: "Seven Shortcuts / Siri actions control the frame: pause, resume, next photo, previous photo, set brightness (0-100 %), choose a saved source, and read the frame's state."
+    verdict: partial
+    limits:
+      - "Requires the Supporter Unlock; without it the actions stay listed and fail with a message saying so."
+      - "Six actions bring OwnFrame to the front on the device that runs them; 'Get Frame State' does not, and fails if the frame is not open."
+      - "Act on the same device only; no control of another device."
+      - "Siri phrases in English and German; out-of-range brightness is rejected."
+      - "Siri and Shortcuts discovery on a real device is not yet verified."
+    gated: supporter
+    platforms: [ios, ipados]
+    intent: ["J-12", "J-34", "FR-800-01", "FR-800-03", "FR-800-04", "FR-800-08", "FR-1100-03"]
+    implementation: verified
+    evidence: ["OwnFrame/Intents/FrameIntents.swift:63-185", "OwnFrame/Intents/FrameAppShortcuts.swift:15-59", "OwnFrame/Intents/FrameIntentContext.swift:38-40", "OwnFrame/AppShortcuts.xcstrings"]
+
+  - id: SHORTCUT-02
+    fact: "The actions can run in Shortcuts personal automations on the frame device (for example dim and pause at night, brighten and play in the morning) triggered by time of day, charger, NFC or Focus."
+    verdict: partial
+    limits:
+      - "Requires the Supporter Unlock."
+      - "The app must be (or be brought) in the foreground on the frame device."
+      - "HomeKit accessory events and home hubs cannot run these actions."
+      - "An overnight automation run on a real device is not yet verified."
+    gated: supporter
+    platforms: [ios, ipados]
+    intent: ["FR-800-05", "SC-800-02"]
+    implementation: unverified
+    evidence: []
+
+  - id: SHORTCUT-03
+    fact: "'Get Frame State' returns only playback state, brightness, the active source's name, and the current photo's date and coarse location."
+    verdict: does
+    limits:
+      - "Never credentials, server addresses, file names or image data."
+    gated: supporter
+    platforms: [ios, ipados]
+    intent: ["FR-800-07"]
+    implementation: unverified
+    evidence: []
+
+  - id: SHORTCUT-04
+    fact: "Controls the frame silently in the background through Shortcuts."
+    verdict: does_not
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-800-04"]
+    implementation: verified
+    evidence: ["OwnFrame/Intents/FrameIntents.swift:66,81,96,111,126,150,168"]
+
+  - id: SHORTCUT-05
+    fact: "Offers Shortcuts actions for display settings, Control Center or Lock Screen controls, widgets, or a photo preview in Siri."
+    verdict: deferred
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-800-01"]
+    implementation: n/a
+    evidence: []
+
+  # ------------------------------------------------------------------ PRIV — privacy & security
+  - id: PRIV-01
+    fact: "Stores the Immich API key, Immich link passwords, and the MQTT username and password only in the keychain, and never displays a stored secret."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-35", "FR-200-08", "FR-210-10", "FR-120-08", "FR-600-04", "FR-600-12"]
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:13-56", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/KeychainBrokerSettingsStore.swift:14-56"]
+
+  - id: PRIV-02
+    fact: "Keeps non-secret configuration in the app's own settings storage: server address, the saved source list (including each Immich link's path token), broker host and port, frame name, display settings and the cached unlock status."
+    verdict: partial
+    limits:
+      - "What is stored is the path part of the Immich link the person pasted (the /s/ slug or /share/ key); FR-120-08 classes it as non-secret and allows it outside the keychain. The key Immich resolves from it is never stored; it is looked up again on each start."
+      - "The Share Extension holds a shared link in the App Group settings only until the app picks it up."
+      - "Decided 2026-09-13 (D-14): the stored link token is not a secret; constitution III is to be clarified to match FR-120-08."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-35", "FR-120-08", "FR-210-13"]
+    implementation: verified
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryStore.swift:11,43-49", "Packages/OnboardingKit/Sources/OnboardingKit/PendingSharedLinkStore.swift:9-25", "Packages/OnboardingKit/Sources/OnboardingKit/ActiveSourceResolver.swift:47-51", "Packages/PurchaseKit/Sources/PurchaseKit/EntitlementSnapshotCache.swift:8-9"]
+
+  - id: PRIV-03
+    fact: "Never disables TLS certificate checks, for Immich or for MQTT."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-35", "FR-100-12", "FR-700-01"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/HTTPTransport.swift:7-10", "Packages/HAControlKit/Sources/HAControlMQTT/NIOMQTTTransport.swift:31-62"]
+
+  - id: PRIV-04
+    fact: "Contains no analytics, advertising, tracking or crash-reporting code, and its privacy manifest declares no tracking and no collected data."
+    verdict: does
+    limits:
+      - "Only third-party dependency: mqtt-nio with Apple's swift-nio family."
+      - "Local diagnostics use the system log without secrets."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-35", "FR-900-14"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Package.swift:13-14", "OwnFrame/PrivacyInfo.xcprivacy"]
+
+  - id: PRIV-05
+    fact: "The app's own network connections go only to endpoints the person sets up: the Immich server, the server behind each added Immich link, and the MQTT broker. Purchases (App Store) and iCloud-stored Photos originals go through Apple's system services."
+    verdict: does
+    limits:
+      - "No developer-operated server and no account."
+      - "No geocoding service is used."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-18", "J-35", "FR-900-14", "FR-1100-07"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:104-121", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:117-135", "Packages/PurchaseKit/Sources/PurchaseKit/StoreKitClient.swift:42-129", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:155"]
+
+  - id: PRIV-06
+    fact: "Puts no extra cloud between the photos and the frame: photos come straight from Apple Photos/iCloud or the Immich server to the device."
+    verdict: does
+    limits:
+      - "Photos can still come from remote places (iCloud, a remote Immich server); 'no extra cloud' does not mean 'all local'."
+      - "The iPad-to-Apple-TV setup sync is switched off in the current build; if it is switched on it would use the person's own iCloud (PLAT-09)."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-18", "J-35"]
+    implementation: verified
+    evidence: ["Packages/ConfigSyncKit/Sources/ConfigSyncKit/SecretSyncStoreFactory.swift:14-27", "OwnFrame/OwnFrame.entitlements"]
+
+  - id: PRIV-07
+    fact: "Photos-library content leaves the device only through the person's own Home Assistant opt-ins."
+    verdict: partial
+    limits:
+      - "With a broker configured, the current photo's date goes to Home Assistant."
+      - "The photo image goes only when image publishing is switched on."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-900-12", "FR-900-14"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:289-291", "Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-16"]
+
+  - id: PRIV-08
+    fact: "Asks for Photos access only when a Photos source is chosen, camera access only for QR scanning, and local-network access for Immich servers on the local network."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-900-04", "FR-220-05"]
+    implementation: verified
+    evidence: ["OwnFrame.xcodeproj/project.pbxproj:677-679"]
+
+  - id: PRIV-09
+    fact: "Is an independent app that uses Immich only as a data source through its public REST API; it is not a fork of, and contains no code from, the official Immich app."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-35"]
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift"]
+
+  - id: PRIV-10
+    fact: "The source code is public under the Functional Source License (FSL-1.1-MIT), which becomes MIT after two years; it is Fair Source, not an OSI open-source licence."
+    verdict: does
+    limits:
+      - "App Store marketing material is not part of the public source."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-15", "J-41"]
+    implementation: verified
+    evidence: ["LICENSE"]
+
+  # ------------------------------------------------------------------ PAY — free core and the Supporter Unlock
+  - id: PAY-01
+    fact: "The free app is the complete frame, permanently: every source, the whole slideshow with all transitions, order, duration, fit, quality, brightness, keep-awake, photo info, album browser, offline cache, automatic retry and hourly updates, the new-photos card, and read-only Home Assistant status including image publishing."
+    verdict: does
+    limits:
+      - "No account, no trial, and no purchase prompt unless a locked feature is tapped."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["J-11", "FR-1100-01", "FR-1100-03a", "FR-1100-09"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:586-604", "OwnFrame/Slideshow/SlideshowSettingsView.swift:174,197,316-350,510"]
+
+  - id: PAY-02
+    fact: "One optional in-app purchase, the Supporter Unlock, adds Ken Burns motion, the clock overlay, Home Assistant control and the Shortcuts/Siri actions, and nothing else."
+    verdict: does
+    limits:
+      - "A single one-time purchase; no tiers and no bundle."
+      - "Works without restarting; effects switch on at the next photo."
+      - "Future paid features join the same unlock at no extra charge."
+      - "The App Store products and sandbox purchase/restore checks are still pending (1100 T042)."
+    gated: supporter
+    platforms: [ios, ipados, tvos]
+    intent: ["J-12", "FR-1100-02", "FR-1100-03", "FR-1100-04"]
+    implementation: verified
+    evidence: ["Packages/PurchaseKit/Sources/PurchaseKit/ProductCatalog.swift:9-37", "Packages/PurchaseKit/Sources/PurchaseKit/Entitlement.swift:7-14", "Packages/PurchaseKit/Sources/PurchaseKit/AmbienceGate.swift:43-45", "OwnFrame/Slideshow/AutomationCoordinatorGate.swift:47-49", "OwnFrame/Intents/FrameIntentContext.swift:38-40"]
+
+  - id: PAY-03
+    fact: "Uses subscriptions, trials, rentals, expiring access or ads."
+    verdict: does_not
+    limits:
+      - "Paid features are one-time purchases only; the app never calls a purchase 'lifetime'."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-10", "FR-1100-05"]
+    implementation: verified
+    evidence: ["Packages/PurchaseKit/Sources/PurchaseKit/ProductCatalog.swift:9-14"]
+
+  - id: PAY-04
+    fact: "The Supporter Unlock is shared through Family Sharing, and one purchase covers iPhone, iPad and Apple TV."
+    verdict: partial
+    limits:
+      - "Configured in App Store Connect; not provable from code and not yet sandbox-tested (T042)."
+      - "Tips are not family-shared."
+      - "The Apple TV app is not released (deferred), so the Apple TV part has no effect yet."
+    gated: supporter
+    platforms: [ios, ipados, tvos]
+    intent: ["J-12", "J-36", "FR-1100-06", "FR-1100-07"]
+    implementation: unverified
+    evidence: ["Packages/PurchaseKit/Sources/PurchaseKit/UI/UnlockScreenView.swift:388"]
+
+  - id: PAY-05
+    fact: "Once bought, the unlock keeps working offline indefinitely; it survives restarts and never needs the store to confirm it again."
+    verdict: does
+    limits:
+      - "A refund or revocation reported by the store relocks at the next photo or foreground after a successful check; settings are kept."
+      - "Only the purchase itself needs a network."
+    gated: supporter
+    platforms: [ios, ipados, tvos]
+    intent: ["J-12", "J-32", "FR-1100-10", "FR-1100-12", "FR-1100-16"]
+    implementation: verified
+    evidence: ["Packages/PurchaseKit/Sources/PurchaseKit/EntitlementSnapshotCache.swift:8-9,40-49", "Packages/PurchaseKit/Sources/PurchaseKit/EntitlementStore.swift:42-54"]
+
+  - id: PAY-06
+    fact: "Restore Purchases is available in Settings and on the unlock screen."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-1100-11"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowSettingsView.swift:355-368"]
+
+  - id: PAY-07
+    fact: "Locked features stay visible with a lock and open one unlock screen when tapped; there are no nag screens, countdowns or purchase prompts during the slideshow."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-11", "FR-1100-09"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowSettingsView.swift:174,197"]
+
+  - id: PAY-08
+    fact: "An optional tip jar with three one-time tips is reachable only from Settings; tips unlock nothing and the app never asks for one."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-1100-08"]
+    implementation: verified
+    evidence: ["Packages/PurchaseKit/Sources/PurchaseKit/ProductCatalog.swift:24,33-35", "OwnFrame/Slideshow/SlideshowSettingsView.swift:369-375"]
+
+  - id: PAY-09
+    fact: "Nothing that was free in a public release is ever moved behind the unlock, and a locked frame keeps all its paid-feature settings (including broker credentials), so buying later needs no re-entry."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["J-11", "FR-1100-13", "FR-1100-14"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowSettingsView.swift:316-350"]
+
+  - id: PAY-10
+    fact: "The first publicly released version already contains the purchase gate; the earlier ungated build is never released."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["FR-1100-17"]
+    implementation: n/a
+    evidence: []
+
+  # ------------------------------------------------------------------ PLAT — platforms
+  - id: PLAT-01
+    fact: "Runs on iPad (primary) and iPhone with iOS / iPadOS 17 or later."
+    verdict: partial
+    limits:
+      - "Devices whose last supported system is older than iOS / iPadOS 17 cannot install it, so not every old device in a drawer qualifies."
+      - "Liquid Glass controls appear only on iOS 26 and later."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-07", "J-36", "J-37"]
+    implementation: verified
+    evidence: ["OwnFrame.xcodeproj/project.pbxproj:690,707"]
+
+  - id: PLAT-02
+    fact: "Works in all four orientations; the frame is not locked to portrait or landscape."
+    verdict: does
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: ["J-25"]
+    implementation: verified
+    evidence: ["OwnFrame.xcodeproj/project.pbxproj:689"]
+
+  - id: PLAT-03
+    fact: "Integrates with StandBy, or offers widgets or Live Activities."
+    verdict: does_not
+    limits:
+      - "On an iPhone at the bedside the slideshow must be the foreground app, not StandBy."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["OwnFrame.xcodeproj/project.pbxproj"]
+
+  - id: PLAT-04
+    fact: "Is a native Mac app (Mac Catalyst)."
+    verdict: does_not
+    limits:
+      - "Whether it is offered as a 'Designed for iPad' app on Apple silicon Macs is an App Store Connect setting, not checked."
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["OwnFrame.xcodeproj/project.pbxproj:701"]
+
+  - id: PLAT-05
+    fact: "Runs on Apple Vision Pro (visionOS)."
+    verdict: does_not
+    gated: n/a
+    platforms: []
+    intent: []
+    implementation: verified
+    evidence: ["OwnFrame.xcodeproj/project.pbxproj:700"]
+
+  - id: PLAT-06
+    fact: "Shows the slideshow on an external display or via AirPlay as a dedicated screen."
+    verdict: does_not
+    gated: n/a
+    platforms: [ios, ipados]
+    intent: []
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/UIScreenController.swift:17-26"]
+
+  - id: PLAT-07
+    fact: "An Apple TV app plays Immich albums and Immich links with the same slideshow, transitions and Ken Burns motion."
+    verdict: deferred
+    limits:
+      - "Deferred by testing policy (2026-07-21): it builds and is simulator-checked, but real-hardware checks are on hold and it is not released."
+      - "No Photos/iCloud source, no Share Sheet or QR entry, no clock overlay."
+      - "Brightness on Apple TV is a software dim; it cannot switch the TV off."
+    gated: n/a
+    platforms: [tvos]
+    intent: ["J-36", "FR-1000-09", "FR-1000-10"]
+    implementation: n/a
+    evidence: ["OwnFrameTV/TVSettingsView.swift"]
+
+  - id: PLAT-08
+    fact: "Setting up the iPhone/iPad app copies the configuration to the Apple TV app through the person's iCloud (non-secret settings via iCloud key-value storage, secrets via end-to-end-encrypted CloudKit fields)."
+    verdict: deferred
+    limits:
+      - "Switched off in the current build (no iCloud entitlements; secret sync compiled out); Apple TV setup is manual."
+      - "Deferred with the rest of tvOS."
+    gated: n/a
+    platforms: [ios, ipados, tvos]
+    intent: ["FR-1000-05", "FR-1000-06", "FR-1000-12"]
+    implementation: n/a
+    evidence: ["Packages/ConfigSyncKit/Sources/ConfigSyncKit/SecretSyncStoreFactory.swift:14-27", "OwnFrame/CompanionSync.swift:43-96"]

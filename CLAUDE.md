@@ -6,6 +6,20 @@ Immich serves only as a data source via the REST API. Bundle IDs
 (`ing.kipp.Immich-Slideshow`) are deliberately unchanged to preserve the App Store record,
 Keychain items, and the app group; only the human-readable names were changed to OwnFrame.
 
+## What the App Does — read `product-facts.yaml` first (binding)
+
+**`product-facts.yaml` (repo root) is the machine-readable truth of what OwnFrame does and does
+not do.** Authority: Jan's decisions > current specs; code is only the check (`implementation:`).
+Read it **before** writing or judging any store copy, description, promo text, onboarding copy
+or any claim about the app — never re-derive capabilities from code or from old copy.
+- Its `principles:` are hard rules. First one: OwnFrame only **shows** photos — it never adds,
+  removes, edits or reorders album content; that happens in Immich or Apple Photos.
+- Store wording rules (banned claims, vocabulary, money, voice) live in the private
+  `Design/AppStore/copy-rules.yaml`. **Every store claim cites fact ids and keeps their `limits`.**
+- `.claude/scripts/check-facts.py` validates both files and warns when code cited as evidence
+  changed since `verified_commit` — re-verify those facts, then bump `verified_commit`.
+- A product change that alters a fact updates the fact in the same commit.
+
 ## Quick Reference
 - Platform: iPadOS/iOS 17+ deployment floor, built against the current SDK (iPad-first, iPhone optional)
 - Language: Swift 6
