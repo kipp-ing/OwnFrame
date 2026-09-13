@@ -93,7 +93,7 @@ struct SlideshowErrorView: View {
             if isPhotoLibrarySource {
                 return "Photo access for this app is missing or was reduced, so this source can't play. Allow full photo access in Settings."
             }
-            return "Check your connection settings — the API key or shared link may have expired. Retrying automatically in the background."
+            return "Check your connection settings — the API key or Immich link may have expired. Retrying automatically in the background."
         case .notFound:
             // 900 FR-900-16: terminal vanish state — deleted, unshared, or migrated out of
             // this device's view (an owner-upgraded album on the new iCloud format is

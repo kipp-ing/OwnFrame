@@ -609,6 +609,8 @@ struct OwnFrameApp: App {
             RootView(onboarding: onboarding, factories: factories)
                 // 1100: every gate reads this from the environment at its point of effect.
                 .environment(entitlements)
+                // FR-9000-05/-06: dark on every app-drawn screen, declared once at the root.
+                .preferredColorScheme(.dark)
         }
     }
 }

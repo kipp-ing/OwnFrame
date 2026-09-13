@@ -85,7 +85,7 @@ struct PhotoAlbumPickerView: View {
         .task { await requestAndLoad() }
     }
 
-    /// FR-900-04: access is requested here — the moment the user chooses "Photos album" —
+    /// FR-900-04: access is requested here — the moment the user chooses "iCloud album" —
     /// and the album list requires the full grant (limited cannot enumerate albums, R9).
     /// Limited access offers the single Selected-Photos pool instead of an album list
     /// (US3-2); denied gets the calm Settings path (US3-1).

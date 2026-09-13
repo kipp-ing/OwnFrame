@@ -68,7 +68,7 @@ final class SourceOnboardingUITests: XCTestCase {
 
         // Switch the source kind to a shared link and fill the form.
         XCTAssertTrue(app.buttons["onboarding.album.a1"].waitForExistence(timeout: 5))
-        app.buttons["Shared link"].tap()
+        app.buttons["Immich link"].tap()
 
         let url = app.textFields["onboarding.sharedLink.url"]
         XCTAssertTrue(url.waitForExistence(timeout: 3))

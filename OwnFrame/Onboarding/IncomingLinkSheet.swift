@@ -29,7 +29,7 @@ struct IncomingLinkSheet: View {
                     Section {
                         HStack {
                             ProgressView()
-                            Text("Adding shared link…")
+                            Text("Adding Immich link…")
                                 .padding(.leading, 8)
                         }
                         .accessibilityIdentifier("incomingLink.resolving")
@@ -41,7 +41,7 @@ struct IncomingLinkSheet: View {
                 case .resolved:
                     // Activation + dismissal happen in `onChange`; show a brief confirmation.
                     Section {
-                        Label("Switching to the shared link…", systemImage: "checkmark.circle")
+                        Label("Switching to the Immich link…", systemImage: "checkmark.circle")
                             .accessibilityIdentifier("incomingLink.resolved")
                     }
 
@@ -57,7 +57,7 @@ struct IncomingLinkSheet: View {
                     }
                 }
             }
-            .navigationTitle("Shared link")
+            .navigationTitle("Immich link")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -91,7 +91,7 @@ struct IncomingLinkSheet: View {
             } header: {
                 Text("Password required")
             } footer: {
-                Text("This shared link is password-protected. Enter the password to continue.")
+                Text("This Immich link is password-protected. Enter the password to continue.")
             }
 
             Section {

@@ -274,7 +274,7 @@ struct SlideshowSettingsView: View {
                     } header: {
                         Text("Slideshow")
                     } footer: {
-                        Text("Manage albums and shared links and choose the active source.")
+                        Text("Manage albums and Immich links and choose the active source.")
                     }
                 }
 

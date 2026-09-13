@@ -52,7 +52,7 @@ final class OnboardingDescriptionsUITests: XCTestCase {
 
         // Friction order, top to bottom: iCloud (easiest), then shared link, then server.
         XCTAssertLessThan(photoLibrary.frame.minY, sharedLink.frame.minY, "iCloud should sit above the shared-link option")
-        XCTAssertLessThan(sharedLink.frame.minY, server.frame.minY, "shared link should sit above the server option")
+        XCTAssertLessThan(sharedLink.frame.minY, server.frame.minY, "the Immich link should sit above the server option")
 
         // Each option exposes helper text beyond a bare title — asserted by length rather than
         // exact copy so light rewording of the description doesn't break this test. A title

@@ -35,7 +35,7 @@ struct AlbumPickerView: View {
                 ContentUnavailableView {
                     Label("No albums on this server", systemImage: "photo.on.rectangle")
                 } description: {
-                    Text("Add a shared link instead.")
+                    Text("Add an Immich link instead.")
                 }
                 .frame(maxHeight: .infinity)
             } else if filteredAlbums.isEmpty {

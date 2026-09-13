@@ -143,10 +143,10 @@ final class SourceLibraryUITests: XCTestCase {
 
         let picker = app.segmentedControls["sources.add.type"]
         XCTAssertTrue(picker.waitForExistence(timeout: 3), "add-source type picker should exist")
-        picker.buttons["Shared link"].tap()
+        picker.buttons["Immich link"].tap()
 
         XCTAssertTrue(app.buttons["sources.add.scan"].waitForExistence(timeout: 3),
-                      "Settings → Sources → Shared link should offer Scan QR")
+                      "Settings → Sources → Immich link should offer Scan QR")
         XCTAssertTrue(app.textFields["sources.add.url"].exists,
                       "manual link entry must remain available alongside scanning")
         XCTAssertTrue(app.textFields["sources.add.label"].exists,

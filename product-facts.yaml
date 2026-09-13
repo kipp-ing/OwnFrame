@@ -530,17 +530,15 @@ facts:
 
   - id: LOOK-04
     fact: "Uses a dark appearance on every app-drawn screen, regardless of the system setting."
-    verdict: planned
+    verdict: does
     limits:
       - "System-drawn UI (permission alerts, share sheet, system photo picker) follows the system setting."
       - "Decided 2026-09-13 (D-10); constitution VII's 'light' is to be amended to mean calm and lightweight."
     gated: n/a
     platforms: [ios, ipados]
     intent: ["J-28", "decision 2026-09-13", "FR-9000-05", "FR-9000-06"]
-    implementation: mismatch
-    evidence: []
-    mismatch: "The current build forces no appearance (no preferredColorScheme anywhere in the app or packages); it follows the system light/dark setting."
-    candidate_issue: "Force the dark appearance app-wide per FR-9000-05 (#70)."
+    implementation: verified
+    evidence: ["OwnFrame/OwnFrameApp.swift:613", "OwnFrameTV/TVRootView.swift:73", "OwnFrameTests/AppearanceRootTests.swift:1"]
 
   - id: LOOK-05
     fact: "The app's accent colour is brass (#E3A857)."
@@ -578,27 +576,23 @@ facts:
 
   - id: LOOK-08
     fact: "The Immich shared album link has one name in the app and the store: 'Immich link' / 'Immich-Link'."
-    verdict: planned
+    verdict: does
     gated: n/a
     platforms: [ios, ipados]
     intent: ["J-04", "decision 2026-09-13", "FR-9000-26", "FR-9000-36"]
-    implementation: mismatch
-    evidence: ["OwnFrame/Onboarding/OnboardingChoiceView.swift:45", "OwnFrame/Localizable.xcstrings"]
-    mismatch: "The shipped UI says 'Use a shared link' / 'Geteilten Link verwenden', 'Shared link' / 'Geteilter Link', and 'Immich share link' / 'Immich-Freigabelink'."
-    candidate_issue: "Rename 'shared link' to 'Immich link' / 'Immich-Link' in the String Catalogs, then retake the store captures (#68)."
+    implementation: verified
+    evidence: ["OwnFrame/Onboarding/OnboardingChoiceView.swift:45", "Packages/OnboardingKit/Tests/OnboardingKitTests/SourceVocabularyCatalogTests.swift:1"]
 
   - id: LOOK-09
     fact: "The Apple Photos source has one name in the app and the store: 'iCloud album' / 'iCloud-Album'."
-    verdict: planned
+    verdict: does
     limits:
       - "The description may explain it once as 'albums from your Photos library, including iCloud Shared Albums'; never 'connects to iCloud'."
     gated: n/a
     platforms: [ios, ipados]
     intent: ["J-05", "decision 2026-09-13", "FR-9000-26", "FR-9010-10"]
-    implementation: mismatch
-    evidence: ["OwnFrame/Onboarding/OnboardingChoiceView.swift:38", "OwnFrame/Slideshow/SourceLibraryView.swift:159,324"]
-    mismatch: "The shipped UI uses several names for this source ('iCloud album', 'Photos album', 'Photos', and Photos-library wording in Settings)."
-    candidate_issue: "Unify the Photos source name to 'iCloud album' / 'iCloud-Album' across onboarding, the source library and Settings (#68)."
+    implementation: verified
+    evidence: ["OwnFrame/Onboarding/SourceStepView.swift:44", "Packages/OnboardingKit/Tests/OnboardingKitTests/SourceVocabularyCatalogTests.swift:1"]
 
   # ------------------------------------------------------------------ UNATT — the unattended frame
   - id: UNATT-01

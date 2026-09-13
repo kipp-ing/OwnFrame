@@ -33,7 +33,7 @@ struct SharedLinkSetupView: View {
     var body: some View {
         Form {
             Section {
-                Text("Set up a slideshow from just a shared link — no account or API key needed.")
+                Text("Set up a slideshow from just an Immich link — no account or API key needed.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("onboarding.sharedLink.description")
@@ -55,9 +55,9 @@ struct SharedLinkSetupView: View {
                 .disabled(isResolving)
                 .accessibilityIdentifier("onboarding.sharedLink.scan")
             } header: {
-                Text("Shared link")
+                Text("Immich link")
             } footer: {
-                Text("Paste the Immich share link someone sent you, or scan its QR code. You'll only be asked for a password if the link needs one.")
+                Text("Paste the Immich link someone sent you, or scan its QR code. You'll only be asked for a password if the link needs one.")
             }
 
             if !showPasswordPrompt, case let .error(message) = sourceLibrary.addState {
@@ -84,7 +84,7 @@ struct SharedLinkSetupView: View {
                 .accessibilityIdentifier("onboarding.sharedLink.start")
             }
         }
-        .navigationTitle("Shared link")
+        .navigationTitle("Immich link")
         .onAppear { sourceLibrary.resetSharedLinkAdd() }
         .sheet(isPresented: $showPasswordPrompt, onDismiss: { passwordText = "" }) {
             passwordPrompt
@@ -170,7 +170,7 @@ struct SharedLinkSetupView: View {
                 } header: {
                     Text("Password required")
                 } footer: {
-                    Text("This shared link is password-protected. Enter the password to continue.")
+                    Text("This Immich link is password-protected. Enter the password to continue.")
                 }
 
                 if case let .error(message) = sourceLibrary.addState {

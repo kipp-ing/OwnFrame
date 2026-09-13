@@ -29,7 +29,7 @@ struct SourceStepView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Add at least one source to play — an Immich album, a shared link, or an album from your Photos library. The first source you add starts the slideshow.")
+            Text("Add at least one source to play — an Immich album, an Immich link, or an album from your Photos library. The first source you add starts the slideshow.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -40,8 +40,8 @@ struct SourceStepView: View {
 
             Picker("Source type", selection: $kind) {
                 Text("Album").tag(Kind.album)
-                Text("Shared link").tag(Kind.sharedLink)
-                Text("Photos album").tag(Kind.photoLibrary)
+                Text("Immich link").tag(Kind.sharedLink)
+                Text("iCloud album").tag(Kind.photoLibrary)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)

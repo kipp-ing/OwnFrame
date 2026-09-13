@@ -164,7 +164,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
     @MainActor
     private func openSharedLinkTab(_ app: XCUIApplication) {
         XCTAssertTrue(app.buttons["onboarding.album.a1"].waitForExistence(timeout: 5))
-        app.buttons["Shared link"].tap()
+        app.buttons["Immich link"].tap()
     }
 
     @MainActor
@@ -183,7 +183,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         sources.tap()
 
         app.buttons["sources.add"].tap()
-        app.buttons["Shared link"].tap()
+        app.buttons["Immich link"].tap()
     }
 
     @MainActor

@@ -272,6 +272,11 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
   bare "Photos" (`Slideshow/SourceLibraryView.swift:324`). Exactly one MUST survive, used everywhere
   including the store listing. Where the underlying capability is PhotoKit, copy MUST say "albums
   from your Photos library, including iCloud Shared Albums" and MUST NOT say "connects to iCloud".
+  *(Resolved 2026-09-13, Jan, decisions D-03/D-04: the surviving name is **"iCloud album"** /
+  "iCloud-Album". The same one-name rule covers the Immich shared-album link source, whose single
+  name is **"Immich link"** / "Immich-Link" — "shared link", "Immich share link" and
+  "Freigabelink" retire. The long PhotoKit form above stays allowed once, in the description.
+  Issue #68.)*
 - **FR-9000-27**: **Screen titles MUST name the user's goal, not the system's operation.** The
   mechanical half: each of the titles named below MUST change, and its replacement MUST appear as a
   row in the vocabulary table (FR-9000-29) before it ships. Today's

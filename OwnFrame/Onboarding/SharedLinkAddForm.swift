@@ -63,7 +63,7 @@ struct SharedLinkAddForm: View {
             .disabled(isResolving)
             .accessibilityIdentifier("\(idPrefix).scan")
         } header: {
-            Text("Shared link")
+            Text("Immich link")
         } footer: {
             footer
         }
@@ -167,7 +167,7 @@ struct SharedLinkAddForm: View {
                 } header: {
                     Text("Password required")
                 } footer: {
-                    Text("This shared link is password-protected. Enter the password to continue.")
+                    Text("This Immich link is password-protected. Enter the password to continue.")
                 }
 
                 if case let .error(message) = sourceLibrary.addState {

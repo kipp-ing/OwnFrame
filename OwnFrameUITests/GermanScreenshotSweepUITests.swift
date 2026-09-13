@@ -539,7 +539,7 @@ final class GermanScreenshotSweepUITests: XCTestCase {
     /// the real Sources screen with a Photos-library source active. Deliberately NOT a
     /// shared-link source — `SourceKind.subtitle` shows a shared link's raw host
     /// (`SourceLibraryView.swift:321`), which would leak a private server hostname onto a
-    /// public App Store screenshot. The Photos-library kind's subtitle is just "Photos".
+    /// public App Store screenshot. The Photos-library kind's subtitle is just "iCloud album".
     @MainActor
     func test54_sourcesPhotoLibrary() throws {
         let app = launch("--uitest-slideshow", "--uitest-chrome", "--uitest-sources",

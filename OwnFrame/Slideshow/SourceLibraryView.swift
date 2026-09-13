@@ -56,7 +56,7 @@ struct SourceLibraryView: View {
                 .onMove { viewModel.move(from: $0, to: $1) }
             } footer: {
                 if viewModel.sources.isEmpty {
-                    Text("No source yet. Add an album or a shared link.")
+                    Text("No source yet. Add an album or an Immich link.")
                 } else {
                     Text("Tap a source to make it active.")
                 }
@@ -154,8 +154,8 @@ private struct AddSourceView: View {
             VStack(spacing: 0) {
                 Picker("Type", selection: $kind) {
                     Text("Album").tag(Kind.album)
-                    Text("Shared link").tag(Kind.sharedLink)
-                    Text("Photos album").tag(Kind.photoLibrary)
+                    Text("Immich link").tag(Kind.sharedLink)
+                    Text("iCloud album").tag(Kind.photoLibrary)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -245,7 +245,7 @@ private struct AddAlbumPicker: View {
                 ContentUnavailableView {
                     Label("Add a server or check your connection", systemImage: "server.rack")
                 } description: {
-                    Text("Listing albums needs an Immich server. Add one to browse albums, or add a shared link instead.")
+                    Text("Listing albums needs an Immich server. Add one to browse albums, or add an Immich link instead.")
                 } actions: {
                     if let onAddServer {
                         Button("Add a server", action: onAddServer)
@@ -257,7 +257,7 @@ private struct AddAlbumPicker: View {
                 ContentUnavailableView {
                     Label("Couldn't load albums", systemImage: "wifi.exclamationmark")
                 } description: {
-                    Text("Add a shared link instead.")
+                    Text("Add an Immich link instead.")
                 }
                 .frame(maxHeight: .infinity)
             case .loaded:
@@ -317,10 +317,10 @@ private extension SourceKind {
         case .album:
             String(localized: "Album")
         case let .sharedLink(baseURL, _):
-            baseURL.host ?? String(localized: "Shared link")
+            baseURL.host ?? String(localized: "Immich link")
         case .photoLibrary:
             // 900: a device Apple Photos / iCloud album.
-            String(localized: "Photos")
+            String(localized: "iCloud album")
         }
     }
 }

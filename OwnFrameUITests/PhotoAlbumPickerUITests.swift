@@ -43,16 +43,16 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         // Entry point: the add-source sheet offers a Photos-album kind next to Album and
         // Shared link. Choosing it triggers the access request (US1 acceptance 1); the
         // scripted full grant lets the album list load.
-        let photosTab = app.buttons["Photos album"]
+        let photosTab = app.buttons["iCloud album"]
         XCTAssertTrue(photosTab.waitForExistence(timeout: 3),
-                      "the add-source sheet should offer a Photos album tab")
+                      "the add-source sheet should offer an iCloud album tab")
         photosTab.tap()
 
         // Full access: the fake gateway's collections appear in the same searchable picker
         // pattern the Immich album picker uses (US1 acceptance 2).
         let search = app.textFields["sources.photos.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5),
-                      "the Photos album picker should show a search field")
+                      "the iCloud album picker should show a search field")
 
         let family = app.buttons["sources.photos.pl-family"]
         let holiday = app.buttons["sources.photos.pl-holiday"]
@@ -78,7 +78,7 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         // The chosen album is saved into the source library (US1 acceptance 3)…
         let newRow = app.buttons["Family"]
         XCTAssertTrue(newRow.waitForExistence(timeout: 5),
-                      "the selected Photos album should appear as a source row")
+                      "the selected iCloud album should appear as a source row")
 
         // …and activating it restarts the slideshow from the Photos source. Cross-backend
         // switches use the rebuild strategy, which recreates the SlideshowView — the
@@ -109,9 +109,9 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         app.launch()
 
         // The source step offers the Photos-album kind.
-        let photosTab = app.buttons["Photos album"]
+        let photosTab = app.buttons["iCloud album"]
         XCTAssertTrue(photosTab.waitForExistence(timeout: 5),
-                      "onboarding should offer a Photos album tab")
+                      "onboarding should offer an iCloud album tab")
         photosTab.tap()
 
         // Full access granted: the fake gateway's albums appear in the searchable picker.
@@ -123,7 +123,7 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         family.tap()
         let continueButton = app.buttons["onboarding.source.continue"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 3),
-                      "adding a Photos album should surface the Continue bar")
+                      "adding an iCloud album should surface the Continue bar")
         continueButton.tap()
 
         // Confirm lists the new source as active; Start plays the slideshow.
@@ -188,7 +188,7 @@ final class PhotoAlbumPickerUITests: XCTestCase {
 
         openSources(in: app)
         app.buttons["sources.add"].tap()
-        app.buttons["Photos album"].tap()
+        app.buttons["iCloud album"].tap()
 
         // The single offerable source, not an album list (and not a bare unavailable state).
         let selectedRow = app.buttons["sources.photos.selected-photos"]
@@ -230,7 +230,7 @@ final class PhotoAlbumPickerUITests: XCTestCase {
 
         openSources(in: app)
         app.buttons["sources.add"].tap()
-        app.buttons["Photos album"].tap()
+        app.buttons["iCloud album"].tap()
 
         let denied = app.descendants(matching: .any).matching(identifier: "sources.photos.denied").firstMatch
         XCTAssertTrue(denied.waitForExistence(timeout: 5),

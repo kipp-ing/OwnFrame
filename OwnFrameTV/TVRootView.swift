@@ -69,6 +69,8 @@ struct ImmichSlideshowTVApp: App {
                 .task { await model.start() }
                 // 1100: the TV gates read this at their point of effect.
                 .environment(entitlements)
+                // FR-9000-05/-06: dark on every app-drawn screen, declared once at the root.
+                .preferredColorScheme(.dark)
         }
     }
 }

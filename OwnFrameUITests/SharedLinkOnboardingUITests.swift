@@ -22,7 +22,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         MainActor.assumeIsolated { XCUIDevice.shared.orientation = .portrait }
     }
 
-    /// Happy path: choice → "Use a shared link" → paste a non-protected link → Start →
+    /// Happy path: choice → "Use an Immich link" → paste a non-protected link → Start →
     /// the slideshow plays (a2 → asset-4…6). No connection step, so no API key was entered.
     @MainActor
     func testSharedLinkOnlyChoiceReachesSlideshowWithoutAPIKey() throws {
@@ -118,7 +118,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
     @MainActor
     private func assertSlideshowPlays(_ app: XCUIApplication, assets: [String]) {
         let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
-        XCTAssertTrue(image.waitForExistence(timeout: 30), "the shared link should route to the running slideshow")
+        XCTAssertTrue(image.waitForExistence(timeout: 30), "the Immich link should route to the running slideshow")
         let plays = NSPredicate(format: "value IN %@", assets)
         expectation(for: plays, evaluatedWith: image)
         waitForExpectations(timeout: 5)

@@ -57,7 +57,7 @@ struct AlbumBrowserView: View {
             ContentUnavailableView {
                 Label("Add a server or check your connection", systemImage: "server.rack")
             } description: {
-                Text("Listing albums needs an Immich server. Add one to browse albums, or add a shared link instead.")
+                Text("Listing albums needs an Immich server. Add one to browse albums, or add an Immich link instead.")
             } actions: {
                 if let onAddServer {
                     Button("Add a server", action: onAddServer)

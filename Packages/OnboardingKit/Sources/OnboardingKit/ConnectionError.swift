@@ -11,13 +11,13 @@ public enum ConnectionError {
         case .invalidResponse:
             String(localized: "Unexpected response from the server.", bundle: .module)
         case .invalidShareLink:
-            String(localized: "This shared link is invalid or has been removed.", bundle: .module)
+            String(localized: "This Immich link is invalid or has been removed.", bundle: .module)
         case .shareLinkExpired:
-            String(localized: "This shared link has expired.", bundle: .module)
+            String(localized: "This Immich link has expired.", bundle: .module)
         case .wrongPassword:
-            String(localized: "Incorrect password for this shared link.", bundle: .module)
+            String(localized: "Incorrect password for this Immich link.", bundle: .module)
         case .passwordRequired:
-            String(localized: "This shared link requires a password.", bundle: .module)
+            String(localized: "This Immich link requires a password.", bundle: .module)
         case let .serverTooOld(version):
             String(
                 localized: "This app requires Immich v3 or newer. This server is running \(version) — please update Immich.",

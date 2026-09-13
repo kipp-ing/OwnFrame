@@ -42,8 +42,8 @@ struct OnboardingChoiceView: View {
                 ) { viewModel.choosePath(.photoLibrary) }
 
                 ChoiceRow(
-                    title: "Use a shared link",
-                    description: "Paste an Immich share link — no account or API key needed.",
+                    title: "Use an Immich link",
+                    description: "Paste an Immich link — no account or API key needed.",
                     systemImage: "link",
                     identifier: "onboarding.choice.sharedLink"
                 ) { viewModel.choosePath(.sharedLink) }

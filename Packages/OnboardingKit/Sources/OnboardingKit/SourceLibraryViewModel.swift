@@ -258,7 +258,7 @@ public final class SourceLibraryViewModel {
     }
 
     private static var invalidURLMessage: String {
-        String(localized: "Please enter a valid shared-link address.", bundle: .module)
+        String(localized: "Please enter a valid Immich link.", bundle: .module)
     }
 
     private static var unexpectedResponseMessage: String {
@@ -271,7 +271,7 @@ public final class SourceLibraryViewModel {
         switch reason {
         case .notAURL, .notHTTPS, .notAShareLink:
             return String(
-                localized: "That code isn't an Immich shared link — check the QR code, or type the link instead.",
+                localized: "That code isn't an Immich link — check the QR code, or type the link instead.",
                 bundle: .module
             )
         }
