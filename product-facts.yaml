@@ -6,7 +6,7 @@
 # evidence paths are repo-relative; ":n" suffixes are line numbers at commit 7867732.
 schema: 1
 updated: 2026-09-13
-verified_commit: 7867732
+verified_commit: 73ff5f0
 purpose: "OwnFrame turns an iPad or iPhone you already own into a digital photo frame that is easy to set up, needs no fiddling, and picks up new photos from an album on its own. The whole core frame is free; one optional one-time purchase adds extras."
 audience:
   - "People looking for a digital photo frame who have a spare iPad or iPhone (for example an old one in a drawer)"
@@ -67,7 +67,7 @@ facts:
     fact: "First-run setup offers three paths, easiest first: an iCloud album, an Immich link (paste or QR), and an Immich server with an API key. Picking an iCloud album goes straight to the running slideshow."
     verdict: does
     limits:
-      - "Order on the welcome screen: 'Use an iCloud album', 'Use a shared link', 'Connect to a server'."
+      - "Order on the welcome screen: 'Use an iCloud album', 'Use an Immich link', 'Connect to a server'."
       - "No account and no purchase prompt anywhere in setup."
     gated: free
     platforms: [ios, ipados]
@@ -156,7 +156,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-02", "FR-210-12", "FR-210-13", "FR-210-14", "FR-210-15", "FR-210-16", "FR-210-18", "SC-210-02"]
     implementation: mismatch
-    evidence: ["OwnFrameShareExtension/ShareViewController.swift:24-26,36,68-71", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:651,655-658,661", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6"]
+    evidence: ["OwnFrameShareExtension/ShareViewController.swift:24-26,36,68-71", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:653,657-660,663", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6"]
     mismatch: "Spec 210 US2 scenario 2 ('the app opens into setup'), SC-210-02 (slideshow starts within two taps of choosing the app) and Jan's hook (J-02) cannot be met by a Share extension on iOS. The extension calls extensionContext.open(immichslideshow://shared), which is a no-op for Share extensions; no URL scheme is registered either, and registering one would not help. FR-210-18 (survives a cold start) is met."
     candidate_issue: "#65 — Share Extension: remove the dead immichslideshow:// open call and the false comments (ShareViewController.swift:24-26, IncomingLinkSheet.swift:5-6) and make the extension's confirmation tell the person to open OwnFrame to finish. Spec 210 US2 scenario 2 / SC-210-02 to be reworded (decided 2026-09-13, D-09)."
 
@@ -200,7 +200,7 @@ facts:
     evidence: ["Packages/ImmichClient/Sources/ImmichClient/ServerVersionGate.swift:10,23-26,33-37", "Packages/SlideshowKit/Sources/SlideshowKit/RetryPolicy.swift:33-36"]
 
   - id: SRC-11
-    fact: "Keeps a library of saved sources (Immich albums, Immich links, Photos albums); exactly one plays at a time, and sources can be switched, renamed and removed in Settings."
+    fact: "Keeps a library of saved sources (Immich albums, Immich links, iCloud albums); exactly one plays at a time, and sources can be switched, renamed and removed in Settings."
     verdict: partial
     limits:
       - "One active source at a time; sources are never combined into one slideshow."
@@ -1010,7 +1010,7 @@ facts:
     verdict: partial
     limits:
       - "What is stored is the path part of the Immich link the person pasted (the /s/ slug or /share/ key); FR-120-08 classes it as non-secret and allows it outside the keychain. The key Immich resolves from it is never stored; it is looked up again on each start."
-      - "The Share Extension holds a shared link in the App Group settings only until the app picks it up."
+      - "The Share Extension holds an Immich link in the App Group settings only until the app picks it up."
       - "Decided 2026-09-13 (D-14): the stored link token is not a secret; constitution III is to be clarified to match FR-120-08."
     gated: n/a
     platforms: [ios, ipados]
