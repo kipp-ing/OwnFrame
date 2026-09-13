@@ -28,7 +28,7 @@ in (`--zoom`, the lever that actually brings the device closer) crops horizontal
 a hardcoded zero then slides the room sideways out from under its own screen cut-out.
 
     build-slot-template.py <scene.png> --slot 02 --out templates/ipad/slot-02.svg \\
-        [--device ipad] [--zoom max] [--min-footroom 380]
+        [--device ipad] [--zoom max] [--min-footroom 500] [--subline-lines 2]
 
 Exit codes: 0 clean · 1 the template was written but a text band is tighter than the type
 needs · 2 bad invocation · 3 measure-scene-cutout.py failed.
@@ -46,28 +46,58 @@ TOOL = "build-slot-template"
 MEASURE = Path(__file__).resolve().parent / "measure-scene-cutout.py"
 
 # ---- The approved treatment (Jan, 2026-09-12: "text bottom AND top", "light, apple style") ----
-# These are a look that was reviewed and accepted, so they are constants rather than flags. The
-# headline is anchored to its FIRST line, so every tile's top edge of type lines up; the subline
-# sits on a fixed baseline near the bottom. Both are in canvas pixels.
+# These are a look that was reviewed and accepted, so they are constants rather than flags.
+#
+# Both blocks are anchored from the canvas edge they sit against, at the same distance as the
+# side margin: the headline's CAP TOP sits MARGIN_X from the top edge, the subline's LAST
+# baseline sits so its ink clears the bottom edge by MARGIN_X. One number, four margins, and
+# the type occupies the same rectangle on every tile in the set.
+#
+# 2026-09-13, after Jan's "text placement is way off": the old numbers anchored the headline at
+# baseline 300 (cap top 209, 69 px lower than the side margin) and the subline at a FIRST-line
+# baseline 180 px off the bottom — so a two-line subline grew DOWN to 68 px off the edge, the
+# exact trap Design/AppStore/README.md names, and a three-line one ran off the canvas. Measured
+# on the round-1 render: top margin 209, bottom margin 68, against a 140 px side margin.
 MARGIN_X = 140
-HEADLINE_BASELINE = 300
 HEADLINE_SIZE = 126
 HEADLINE_WEIGHT = "300"          # SF Pro Display Light. The 700 bold this replaced was "a disgrace".
 HEADLINE_TRACKING = -1
 HEADLINE_LINE_HEIGHT = "1.18em"
-SUBLINE_BASELINE_FROM_BOTTOM = 180
+# Measured in this repo's own render (Chrome 151, SF Pro Display Light): the cap top of a line
+# sits 0.722 x font-size above its baseline, and a descender reaches 0.16 x below it.
+HEADLINE_CAP_RATIO = 0.722
+SUBLINE_DESCENDER_RATIO = 0.16
+HEADLINE_BASELINE = round(MARGIN_X + HEADLINE_CAP_RATIO * HEADLINE_SIZE)   # 231
 SUBLINE_SIZE = 76
 SUBLINE_WEIGHT = "400"
 SUBLINE_OPACITY = "0.92"
-SUBLINE_LINE_HEIGHT = "1.3em"
+SUBLINE_LINE_HEIGHT_EM = 1.3
+SUBLINE_LINE_HEIGHT = f"{SUBLINE_LINE_HEIGHT_EM}em"
+# Distance from the canvas bottom to the LAST subline baseline, so that the lowest ink lands
+# MARGIN_X above the edge however many lines the manifest supplies.
+SUBLINE_LAST_BASELINE_FROM_BOTTOM = round(MARGIN_X + SUBLINE_DESCENDER_RATIO * SUBLINE_SIZE)  # 152
+DEFAULT_SUBLINE_LINES = 2
 TOP_SCRIM_HEIGHT = 780
 BOTTOM_SCRIM_HEIGHT = 760
 FONT_STACK = "system-ui, BlinkMacSystemFont, sans-serif"
 
-# A two-line headline occupies the baseline plus one line of leading, and wants a little air
-# under it before it reaches the device. Below this much headroom the type starts sitting on the
-# bezel — legible, because the scrim is dark and so is the bezel, but no longer deliberate.
-DEFAULT_HEADROOM_NEEDED = 400.0
+# What each band actually needs, in canvas px, measured rather than guessed.
+#
+# A two-line headline's ink runs from MARGIN_X down to ~401; a two-line subline's ink is ~166 px
+# tall and ends MARGIN_X above the bottom edge, so it starts ~306 px up from the edge. The
+# measurement these thresholds are compared against is to the SCREEN QUAD, but the thing type
+# must not touch is the DEVICE — and its bezel stands 40-155 px proud of the screen on the six
+# story scenes (measured off the round-1 renders, 2026-09-13). So each threshold carries a
+# 100 px bezel allowance plus ~60 px of air. It is a floor, not a guarantee: a close-up scene
+# with a fat bezel can pass this and still print type on the aluminium. Look at the render.
+#
+# The old DEFAULT_HEADROOM_NEEDED of 400 was the number this treatment was NOT built against:
+# the headline's own ink already reached 470, so "400 is enough" silently licensed three of the
+# six tiles to set their second line across the iPad's top bezel.
+BEZEL_ALLOWANCE = 100.0
+BAND_AIR = 60.0
+DEFAULT_HEADROOM_NEEDED = 560.0
+DEFAULT_FOOTROOM_NEEDED = 470.0
 
 
 class InvocationError(Exception):
@@ -102,23 +132,48 @@ def measure_scene(scene: Path, *, device: str, zoom: str, min_footroom: float) -
         raise MeasurementError(f"measure-scene-cutout.py did not return JSON: {exc}") from exc
 
 
-def band_warnings(measurement: dict, *, headroom_needed: float = DEFAULT_HEADROOM_NEEDED
-                   ) -> list[str]:
-    """Zoom buys screen share out of the text bands. Say so when the trade has gone too far."""
-    headroom = measurement["canvas"]["crop"]["headroom_px"]
-    if headroom >= headroom_needed:
-        return []
-    return [f"headroom is {headroom:.0f} px but a two-line headline wants about "
+def band_warnings(measurement: dict, *, headroom_needed: float = DEFAULT_HEADROOM_NEEDED,
+                  footroom_needed: float | None = None) -> list[str]:
+    """Zoom buys screen share out of the text bands. Say so when the trade has gone too far.
+
+    Both bands are checked against the SCREEN QUAD, which is all the measurement knows about;
+    the device's bezel stands proud of it, so these thresholds carry a bezel allowance and are
+    still only a floor. `footroom_needed=None` skips the bottom band (the headline-only callers
+    that predate the subline).
+    """
+    crop = measurement["canvas"]["crop"]
+    warnings = []
+    headroom = crop["headroom_px"]
+    if headroom < headroom_needed:
+        warnings.append(
+            f"headroom is {headroom:.0f} px but a two-line headline wants about "
             f"{headroom_needed:.0f} px — the second line will sit on the device. Zoom less, or "
-            f"reserve less footroom"]
+            f"reserve less footroom")
+    if footroom_needed is not None:
+        footroom = crop["footroom_px"]
+        if footroom < footroom_needed:
+            warnings.append(
+                f"footroom is {footroom:.0f} px but a two-line subline wants about "
+                f"{footroom_needed:.0f} px — it will sit on the device's bottom bezel. Zoom "
+                f"less, or reserve more footroom")
+    return warnings
 
 
-def slot_template_svg(measurement: dict, *, slot: str, scene: str) -> str:
-    """The slot template this measurement implies. Pure string formatting, no I/O."""
+def slot_template_svg(measurement: dict, *, slot: str, scene: str,
+                      subline_lines: int = DEFAULT_SUBLINE_LINES) -> str:
+    """The slot template this measurement implies. Pure string formatting, no I/O.
+
+    `subline_lines` is how many lines of subline the manifest will pour in. Lines flow
+    DOWNWARD from the <text> element's y, so the element is placed for the LAST of them
+    (Design/AppStore/README.md, "The <tspan> pattern"): otherwise a two-line subline ends
+    up one line closer to the canvas edge than a one-line one, the bottom margin wanders
+    tile to tile, and a three-line one runs off the canvas.
+    """
     canvas = measurement["canvas"]
     width, height = canvas["width"], canvas["height"]
     crop, bbox = canvas["crop"], canvas["bbox_px"]
-    subline_baseline = height - SUBLINE_BASELINE_FROM_BOTTOM
+    subline_baseline = round(height - SUBLINE_LAST_BASELINE_FROM_BOTTOM
+                             - (max(1, subline_lines) - 1) * SUBLINE_SIZE * SUBLINE_LINE_HEIGHT_EM)
     bottom_scrim_y = height - BOTTOM_SCRIM_HEIGHT
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" \
@@ -189,6 +244,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="canvas pixels reserved below the screen for the subline")
     parser.add_argument("--headroom-needed", type=float, default=DEFAULT_HEADROOM_NEEDED,
                         metavar="PX", help="warn below this much room above the screen")
+    parser.add_argument("--footroom-needed", type=float, default=DEFAULT_FOOTROOM_NEEDED,
+                        metavar="PX", help="warn below this much room below the screen")
+    parser.add_argument("--subline-lines", type=int, default=DEFAULT_SUBLINE_LINES,
+                        metavar="N", help="how many lines of subline the manifest supplies "
+                             "for this slot; the block is anchored on its LAST line so the "
+                             "bottom margin is the same whatever N is")
     return parser
 
 
@@ -207,7 +268,8 @@ def main(argv: list[str] | None = None) -> int:
 
     out = Path(args.out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(slot_template_svg(measurement, slot=args.slot, scene=scene.name),
+    out.write_text(slot_template_svg(measurement, slot=args.slot, scene=scene.name,
+                                     subline_lines=args.subline_lines),
                    encoding="utf-8")
 
     crop = measurement["canvas"]["crop"]
@@ -218,7 +280,8 @@ def main(argv: list[str] | None = None) -> int:
           f"screen {bbox['width'] * bbox['height'] / canvas_area * 100:.1f}% of canvas  "
           f"headroom {crop['headroom_px']:.0f}px  footroom {crop['footroom_px']:.0f}px")
 
-    warnings = band_warnings(measurement, headroom_needed=args.headroom_needed)
+    warnings = band_warnings(measurement, headroom_needed=args.headroom_needed,
+                             footroom_needed=args.footroom_needed)
     for warning in warnings:
         print(f"  WARNING {warning}", file=sys.stderr)
     return 1 if warnings else 0
