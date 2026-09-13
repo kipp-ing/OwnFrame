@@ -99,6 +99,38 @@ BAND_AIR = 60.0
 DEFAULT_HEADROOM_NEEDED = 560.0
 DEFAULT_FOOTROOM_NEEDED = 470.0
 
+# ---- The "AI generated" disclosure mark (Jan, 2026-09-13) ----
+# The room photograph behind the device is AI-generated; only the capture on the iPad's screen
+# is a real app screenshot. This is that disclosure: a small grey pill, bottom-left, carrying the
+# four-point sparkle glyph the platforms (Meta/TikTok/YouTube) use for "AI-generated" labels —
+# never an emoji (font fallback would break it) and never the Content Credentials "CR" pin, which
+# is reserved for images that actually carry C2PA credentials.
+#
+# Its vertical geometry is derived from the SAME constants the subline uses — the free strip is
+# bounded above by the subline's own last-line ink bottom (SUBLINE_LAST_BASELINE_FROM_BOTTOM minus
+# the descender it already reserves) and below by the canvas edge — so the mark can never drift
+# into the subline no matter how many lines a slot's copy runs, and there is nothing to keep in
+# sync by hand.
+SUBLINE_INK_BOTTOM_FROM_EDGE = SUBLINE_LAST_BASELINE_FROM_BOTTOM - SUBLINE_DESCENDER_RATIO * SUBLINE_SIZE  # ~139.84
+AI_MARK_HEIGHT = 56.0
+AI_MARK_FONT_SIZE = 36
+AI_MARK_FONT_WEIGHT = "500"
+AI_MARK_TRACKING = 0.4
+AI_MARK_FILL = "#57606F"           # neutral grey with a slight cool/blue bias — not pure #808080
+AI_MARK_FILL_OPACITY = "0.5"       # 45-55% opaque, per brief
+AI_MARK_TEXT = "AI generated"
+AI_MARK_TEXT_OPACITY = "0.85"      # both the glyph and the label use this white
+AI_MARK_PAD_LEFT = 18.0
+AI_MARK_PAD_RIGHT = 20.0
+AI_MARK_GLYPH_SIZE = 26.0          # about the text's cap height (0.722 x 36 ~= 26)
+AI_MARK_GLYPH_GAP = 13.0           # roughly half the glyph width, per brief
+AI_MARK_GLYPH_WAIST = 0.33         # how far the concave sides are pulled toward the glyph centre
+# A static template cannot measure real glyph widths (that needs a browser, see
+# tmp/story-d/measure-text.py) — this is a deliberately generous estimate for "AI generated" at
+# 36px SF Pro so the pill background does not undershoot the live text. Verified against the
+# actual render; widen this if a future label text overflows it.
+AI_MARK_TEXT_WIDTH_ESTIMATE = 258.0
+
 
 class InvocationError(Exception):
     """Bad CLI usage (exit code 2)."""
@@ -159,6 +191,65 @@ def band_warnings(measurement: dict, *, headroom_needed: float = DEFAULT_HEADROO
     return warnings
 
 
+def _ai_mark_group(height: float) -> str:
+    """The static `ai-mark` group: a grey pill, bottom-left, sparkle glyph + "AI generated".
+
+    Centred in the free strip between the subline's last-line ink bottom and the canvas edge —
+    see the constants block above for why that strip is invariant to `subline_lines`. The glyph
+    is a four-point sparkle drawn as a single closed cubic-free path (four tips at N/E/S/W joined
+    by quadratic curves pulled toward the centre), not a font glyph, so there is no emoji fallback
+    to break.
+    """
+    zone_top = height - SUBLINE_INK_BOTTOM_FROM_EDGE
+    pill_x = MARGIN_X
+    pill_y = (zone_top + height - AI_MARK_HEIGHT) / 2
+    pill_cy = pill_y + AI_MARK_HEIGHT / 2
+    pill_width = (AI_MARK_PAD_LEFT + AI_MARK_GLYPH_SIZE + AI_MARK_GLYPH_GAP
+                  + AI_MARK_TEXT_WIDTH_ESTIMATE + AI_MARK_PAD_RIGHT)
+
+    glyph_r = AI_MARK_GLYPH_SIZE / 2
+    glyph_cx = pill_x + AI_MARK_PAD_LEFT + glyph_r
+    glyph_cy = pill_cy
+    tips = {
+        "n": (glyph_cx, glyph_cy - glyph_r),
+        "e": (glyph_cx + glyph_r, glyph_cy),
+        "s": (glyph_cx, glyph_cy + glyph_r),
+        "w": (glyph_cx - glyph_r, glyph_cy),
+    }
+
+    def waist(a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
+        # The midpoint of two adjacent tips, pulled toward the glyph centre by AI_MARK_GLYPH_WAIST
+        # — this is what makes the sides concave instead of a plain diamond.
+        return (glyph_cx + (a[0] + b[0] - 2 * glyph_cx) / 2 * AI_MARK_GLYPH_WAIST,
+                glyph_cy + (a[1] + b[1] - 2 * glyph_cy) / 2 * AI_MARK_GLYPH_WAIST)
+
+    n, e, s, w = tips["n"], tips["e"], tips["s"], tips["w"]
+    ne, es, sw, wn = waist(n, e), waist(e, s), waist(s, w), waist(w, n)
+    glyph_path = (
+        f"M{_fmt(n[0])},{_fmt(n[1])} "
+        f"Q{_fmt(ne[0])},{_fmt(ne[1])} {_fmt(e[0])},{_fmt(e[1])} "
+        f"Q{_fmt(es[0])},{_fmt(es[1])} {_fmt(s[0])},{_fmt(s[1])} "
+        f"Q{_fmt(sw[0])},{_fmt(sw[1])} {_fmt(w[0])},{_fmt(w[1])} "
+        f"Q{_fmt(wn[0])},{_fmt(wn[1])} {_fmt(n[0])},{_fmt(n[1])} Z"
+    )
+
+    text_x = pill_x + AI_MARK_PAD_LEFT + AI_MARK_GLYPH_SIZE + AI_MARK_GLYPH_GAP
+    text_baseline = pill_cy + AI_MARK_FONT_SIZE * 0.33
+
+    return f"""  <g id="ai-mark">
+    <rect x="{_fmt(pill_x)}" y="{_fmt(pill_y)}" width="{_fmt(pill_width)}" \
+height="{_fmt(AI_MARK_HEIGHT)}" rx="{_fmt(AI_MARK_HEIGHT / 2)}" \
+fill="{AI_MARK_FILL}" fill-opacity="{AI_MARK_FILL_OPACITY}"/>
+    <path d="{glyph_path}" fill="#FFFFFF" fill-opacity="{AI_MARK_TEXT_OPACITY}"/>
+    <text x="{_fmt(text_x)}" y="{_fmt(text_baseline)}"
+          font-family="{FONT_STACK}"
+          font-size="{AI_MARK_FONT_SIZE}" font-weight="{AI_MARK_FONT_WEIGHT}" \
+letter-spacing="{AI_MARK_TRACKING}"
+          fill="#FFFFFF" fill-opacity="{AI_MARK_TEXT_OPACITY}">{AI_MARK_TEXT}</text>
+  </g>
+"""
+
+
 def slot_template_svg(measurement: dict, *, slot: str, scene: str,
                       subline_lines: int = DEFAULT_SUBLINE_LINES) -> str:
     """The slot template this measurement implies. Pure string formatting, no I/O.
@@ -175,6 +266,7 @@ def slot_template_svg(measurement: dict, *, slot: str, scene: str,
     subline_baseline = round(height - SUBLINE_LAST_BASELINE_FROM_BOTTOM
                              - (max(1, subline_lines) - 1) * SUBLINE_SIZE * SUBLINE_LINE_HEIGHT_EM)
     bottom_scrim_y = height - BOTTOM_SCRIM_HEIGHT
+    ai_mark = _ai_mark_group(height)
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" \
 viewBox="0 0 {width} {height}">
@@ -225,7 +317,8 @@ letter-spacing="{HEADLINE_TRACKING}"
         fill="#FFFFFF" fill-opacity="{SUBLINE_OPACITY}" xml:space="preserve">\
 <tspan x="{MARGIN_X}" dy="0">Subline line one</tspan>\
 <tspan x="{MARGIN_X}" dy="{SUBLINE_LINE_HEIGHT}">Subline line two</tspan></text>
-</svg>
+
+{ai_mark}</svg>
 """
 
 
