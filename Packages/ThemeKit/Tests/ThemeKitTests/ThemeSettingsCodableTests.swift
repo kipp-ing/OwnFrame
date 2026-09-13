@@ -65,8 +65,10 @@ func nonDefaultClockConfigsRoundTrip(clock: ClockSettings) throws {
 
 /// A payload from an older device that predates a field (e.g. `newPhotosCard`, added 310
 /// FR-310-14) is missing that key entirely. Additive Codable means this MUST still decode,
-/// falling back to the field's default, rather than throwing and discarding every other
-/// synced setting.
+/// falling back to the field's default (on, amended 2026-09-13), rather than throwing and
+/// discarding every other synced setting. `original` sets the field to `false` — the opposite
+/// of the fallback — so a pass here proves the decoder truly falls back to the default rather
+/// than coincidentally matching `original`'s own value.
 @Test func decodingPayloadMissingANewerFieldFallsBackToItsDefault() throws {
     let original = ThemeSettings(
         order: .sequential,
@@ -76,7 +78,7 @@ func nonDefaultClockConfigsRoundTrip(clock: ClockSettings) throws {
         fit: .fill,
         quality: .original,
         clock: ClockSettings(isOn: true, style: .analog, place: .topCenter, size: .cozy, showDate: true),
-        newPhotosCard: true
+        newPhotosCard: false
     )
     var object = try #require(
         try JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any]
@@ -86,7 +88,7 @@ func nonDefaultClockConfigsRoundTrip(clock: ClockSettings) throws {
 
     let decoded = try JSONDecoder().decode(ThemeSettings.self, from: data)
 
-    #expect(decoded.newPhotosCard == false)
+    #expect(decoded.newPhotosCard == true)
     #expect(decoded.order == .sequential)
     #expect(decoded.kenBurns == true)
     #expect(decoded.clock.style == .analog)

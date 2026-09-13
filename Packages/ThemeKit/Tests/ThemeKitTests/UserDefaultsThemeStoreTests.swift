@@ -57,6 +57,9 @@ import ThemeKit
     let store = UserDefaultsThemeStore(defaults: fixture.defaults)
 
     #expect(store.settings == ThemeSettings())
+    // FR-310-14 (amended 2026-09-13): a fresh install has no persisted key, so this must
+    // read the property default (on), not fall through a bare `bool(forKey:)` to false.
+    #expect(store.settings.newPhotosCard == true)
 }
 
 @MainActor

@@ -6,10 +6,10 @@
 //  spec; depicted by 9010 store slot 5). Pure ambience like the clock overlay: never
 //  interactive, gone from the tree whenever the chrome is up. Keyed on the refresh's
 //  `NewArrival.id` (not just its count) so a repeat arrival with the same count still
-//  re-shows and re-starts its own fade timer. Off by default
-//  (`ThemeSettings.newPhotosCard`) and free — an undisturbed picture is the product's
-//  whole value, so this is opt-in, never gated (9010, FR-9010-07 only binds Ken Burns
-//  and the clock overlay).
+//  re-shows and re-starts its own fade timer. On by default
+//  (`ThemeSettings.newPhotosCard`, amended 2026-09-13, Jan: the card is the visible proof
+//  of the refresh) and free — a person can still turn it off, and it is never gated (9010,
+//  FR-9010-07 only binds Ken Burns and the clock overlay).
 //
 
 import SlideshowKit

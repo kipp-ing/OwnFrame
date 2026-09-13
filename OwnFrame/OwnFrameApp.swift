@@ -907,8 +907,9 @@ private struct RootView: View {
         }
         // 9010 slot 5 live capture only (AppStoreScreenshotUITests, SCREENSHOT_CAPTURE=1): force
         // the card on so that rig doesn't have to navigate the Settings sheet (no accessible
-        // Done button there — see testCaptureChromeAndSheets). DEBUG-only, env-var-gated; the
-        // shipped default (off) is untouched.
+        // Done button there — see testCaptureChromeAndSheets). DEBUG-only, env-var-gated.
+        // The shipped default is on since 2026-09-13 too, but this seam still sets it
+        // explicitly so capture stays deterministic regardless of what a prior run persisted.
         if ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_NEW_PHOTOS_CARD"] == "1" {
             let store = UserDefaultsThemeStore()
             store.settings.newPhotosCard = true
