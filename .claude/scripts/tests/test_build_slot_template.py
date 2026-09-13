@@ -183,15 +183,26 @@ class TestTextBands(unittest.TestCase):
 
 
 class TestAIMark(unittest.TestCase):
-    """The 'AI generated' disclosure mark — bottom-left pill, glyph + label, never overlapping
-    the subline however many lines the slot's copy runs."""
+    """The 'AI generated' disclosure mark — bottom-right pill, glyph + two-line label, never
+    overlapping the subline however many lines the slot's copy runs.
+
+    Jan's 2026-09-13 pm review of the first pass: bottom-right instead of bottom-left, two lines
+    instead of one, quieter (smaller type, lower opacities). The non-overlap guarantee this suite
+    asserts is the VERTICAL one — the mark's top sits below the subline's last-line ink bottom
+    (SUBLINE_INK_BOTTOM_FROM_EDGE), which is invariant to `subline_lines` — rather than a
+    horizontal one: the bottom-right anchor puts the pill's left edge at roughly canvas width
+    minus 258px for this measurement's 2064-wide canvas (pill_x ~= 1806), which is LEFT of (not
+    clear of) the subline's maximum plausible right extent (canvas width - MARGIN_X = 1924px), so
+    the two guarantees are not interchangeable here — only the vertical one holds, and only it is
+    asserted below.
+    """
 
     @staticmethod
     def _subline_ink_bottom(height: float = 2752) -> float:
         return (height - bst.SUBLINE_LAST_BASELINE_FROM_BOTTOM
                 + bst.SUBLINE_SIZE * bst.SUBLINE_DESCENDER_RATIO)
 
-    def test_ai_mark_group_carries_the_glyph_path_and_the_label(self):
+    def test_ai_mark_group_carries_the_glyph_path_and_the_two_text_lines(self):
         root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
         group = by_id(root, "ai-mark")
         self.assertEqual(group.tag, f"{{{SVG_NS}}}g")
@@ -200,7 +211,17 @@ class TestAIMark(unittest.TestCase):
         self.assertTrue((path.get("d") or "").strip(), "glyph path has no data")
         text = group.find(f"{{{SVG_NS}}}text")
         self.assertIsNotNone(text)
-        self.assertEqual((text.text or "").strip(), "AI generated")
+        tspans = list(text.findall(f"{{{SVG_NS}}}tspan"))
+        self.assertEqual(len(tspans), 2, "ai-mark label should be exactly two lines")
+        self.assertEqual((tspans[0].text or "").strip(), "AI")
+        self.assertEqual((tspans[1].text or "").strip(), "generated")
+
+    def test_ai_mark_two_lines_are_left_aligned_to_each_other(self):
+        root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
+        tspans = by_id(root, "ai-mark").find(f"{{{SVG_NS}}}text").findall(f"{{{SVG_NS}}}tspan")
+        self.assertAlmostEqual(float(tspans[0].get("x")), float(tspans[1].get("x")), places=2)
+        # And the second line sits strictly below the first.
+        self.assertGreater(float(tspans[1].get("y")), float(tspans[0].get("y")))
 
     def test_ai_mark_sits_below_the_sublines_ink_regardless_of_line_count(self):
         for lines in (1, 2, 3):
@@ -210,10 +231,30 @@ class TestAIMark(unittest.TestCase):
                 mark_rect = by_id(root, "ai-mark").find(f"{{{SVG_NS}}}rect")
                 self.assertGreaterEqual(float(mark_rect.get("y")), self._subline_ink_bottom())
 
-    def test_ai_mark_left_edge_sits_at_the_side_margin(self):
+    def test_ai_mark_sits_in_the_bottom_right_corner(self):
         root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
         mark_rect = by_id(root, "ai-mark").find(f"{{{SVG_NS}}}rect")
-        self.assertAlmostEqual(float(mark_rect.get("x")), bst.MARGIN_X, places=2)
+        width, height = 2064.0, 2752.0
+        right_edge = float(mark_rect.get("x")) + float(mark_rect.get("width"))
+        bottom_edge = float(mark_rect.get("y")) + float(mark_rect.get("height"))
+        self.assertAlmostEqual(right_edge, width - bst.AI_MARK_RIGHT_INSET, places=2)
+        self.assertAlmostEqual(bottom_edge, height - bst.AI_MARK_BOTTOM_INSET, places=2)
+        # Tighter than the 140px side margin the headline/subline use, per brief.
+        self.assertLess(bst.AI_MARK_RIGHT_INSET, bst.MARGIN_X)
+        self.assertLess(bst.AI_MARK_BOTTOM_INSET, bst.MARGIN_X)
+        # In the right half of the canvas, clearly not bottom-left any more.
+        self.assertGreater(float(mark_rect.get("x")), width / 2)
+
+    def test_ai_mark_pill_is_quieter_than_the_first_pass(self):
+        root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
+        group = by_id(root, "ai-mark")
+        mark_rect = group.find(f"{{{SVG_NS}}}rect")
+        self.assertEqual(mark_rect.get("fill"), "#57606F")
+        self.assertLess(float(mark_rect.get("fill-opacity")), 0.5)
+        self.assertLess(float(mark_rect.get("rx")), 28.0)
+        text = group.find(f"{{{SVG_NS}}}text")
+        self.assertLess(float(text.get("font-size")), 36.0)
+        self.assertLess(float(text.get("fill-opacity")), 0.85)
 
 
 class TestHeadroomWarning(unittest.TestCase):
@@ -255,10 +296,13 @@ class TestStructuralContract(unittest.TestCase):
 
     def test_no_template_ever_ships_a_sentence_of_store_copy(self):
         # FR-9010-20: the words live in content.json. A template carrying real copy would
-        # render fine and silently outrank the manifest for anyone reading the repo.
-        svg = bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png")
-        for tspan in parse(svg).iter(f"{{{SVG_NS}}}tspan"):
-            self.assertRegex(tspan.text or "", r"(?i)^(headline|subline) line (one|two)$")
+        # render fine and silently outrank the manifest for anyone reading the repo. Scoped to
+        # headline/subline only — the ai-mark's tspans ("AI" / "generated") are a fixed static
+        # disclosure label, not manifest-sourced copy, so they are exempt from this pattern.
+        root = parse(bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png"))
+        for element_id in ("headline", "subline"):
+            for tspan in by_id(root, element_id).findall(f"{{{SVG_NS}}}tspan"):
+                self.assertRegex(tspan.text or "", r"(?i)^(headline|subline) line (one|two)$")
 
     def test_coordinates_are_written_at_two_decimals_not_full_float_noise(self):
         svg = bst.slot_template_svg(measurement(), slot="02", scene="02-kitchen.png")
