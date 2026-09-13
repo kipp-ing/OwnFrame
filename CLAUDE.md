@@ -118,11 +118,13 @@ already target it.
 
 `public` = `kipp-ing/OwnFrame` (public, open source): **source code only.** It's produced by
 filtering local `main` through `git-filter-repo` and force-pushing — it does **not** get plain
-`git push`. Excluded paths: `Design/AppStore/`, `Design/Reference/`, `docs/design/`,
-`docs/app-store-listing.md`, `docs/store-story.md`, `docs/where-the-money-goes.md`,
-`docs/handover-store-slots.md`, `docs/release-1.1-handout.md`,
-`docs/presentation-overhaul-plan.md`, `specs/9010-store-presentation/`. `Design/AppIcon/` stays
-public (it ships in the app).
+`git push`. Excluded paths: `Design/AppStore/`, `Design/Reference/`,
+`docs/design/appstore prerenders/`, `docs/design/scene-brief.md`, `docs/app-store-listing.md`,
+`docs/store-story.md`, `docs/where-the-money-goes.md`, `docs/handover-store-slots.md`,
+`docs/release-1.1-handout.md`, `docs/presentation-overhaul-plan.md`,
+`specs/9010-store-presentation/`. `Design/AppIcon/` stays public (it ships in the app); so does
+`docs/design/quiet-glass-2026-07-18.html` (the design record specs 500/510/9000 cite — not
+App-Store material despite living next to it).
 
 To publish new source-code commits to the public mirror: `.claude/scripts/publish-public.sh`. It
 clones `main` to a scratch dir, filters it, and force-pushes — never touches this working repo.
