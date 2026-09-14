@@ -96,7 +96,8 @@ account, a second device, a family member account, and ASC access. **Nothing her
         **two independent locks**, not one: approval cannot auto-publish, *and* all 175
         territories remain `available: false`. Release order is therefore: approved → click
         *Release this version* → then availability on.
-- [ ] **EU trader status — IN PROGRESS with Apple as of 2026-07-29; release-blocking for 27
+- [x] **EU trader status — approved (Jan, 2026-09-14; live API shows no
+      `TRADER_STATUS_NOT_PROVIDED` left). Was: in progress with Apple as of 2026-07-29; release-blocking for 27
       territories.** The territory availability records for the EU carry `contentStatuses:
       [TRADER_STATUS_NOT_PROVIDED, CANNOT_SELL]` (27 of 175; the other 148 carry `CANNOT_SELL`
       only, i.e. Jan's own switch). Without trader status the app **cannot be sold in the EU at

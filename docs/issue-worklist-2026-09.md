@@ -1,5 +1,9 @@
 # Open iOS issues — worklist (2026-09-14)
 
+**Focus (Jan, 2026-09-14):** ASC and the App Store pictures are on hold / frozen. The job now is to polish the app so it
+keeps every promise in `product-facts.yaml` and the approved store claims, and to get the human tests in
+[`hitl.md`](hitl.md) done.
+
 Approved plan for the issues left by the 2026-09-13 product-facts pass. One work package (WP) per session, each ending at
 a commit. tvOS issues (#17 #29 #32 #33 #47 #48 #51) stay deferred per CLAUDE.md. **Store captures in `Design/AppStore/`
 are frozen:** fixes land anyway, and small drift between app and screenshots is accepted.
