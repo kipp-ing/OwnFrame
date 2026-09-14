@@ -121,7 +121,7 @@ Reuse **`AppStoreScreenshotUITests`** (env-gated, commit 2239845) on the iPhone 
 
     python3 .claude/scripts/asc-upload-screenshots.py \
         --dir ~/Library/Developer/Xcode/ImmichSlideshow-dist/screenshots-v1.0-iphone \
-        --display-type APP_IPHONE_69 \
+        --display-type APP_IPHONE_67 \
         --files 03-hero-chapel.png 05-hero-iceberg.png 07-photo-info.png 04-chrome.png \
                 02-onboarding-sharedlink.png 01-onboarding-choice.png 06-settings.png
 
