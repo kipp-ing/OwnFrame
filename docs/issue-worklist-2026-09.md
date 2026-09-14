@@ -19,7 +19,7 @@ are frozen:** fixes land anyway, and small drift between app and screenshots is 
 `swift test`, explicit file list, no commit, max. 2 rounds), and never two in the same package at once. Every
 code WP gets an adversarial verify pass. Fact changes go in the same commit as the code.
 
-Jan's own steps from this list (FramePhone check, Framepad check, German string review) are also queued in
+Jan's own steps from this list (German string review, push word) are also queued in
 [`hitl.md`](hitl.md).
 
 ## Checklist
@@ -54,10 +54,10 @@ taps drill in again; the strict expectation fails loudly on that day.
   - `AlbumReference` order + albumName
   - search uses the album order instead of `"desc"`
   - `uniqueLabel` uses the album name
-- [ ] S2 PowerKit/ThemeKit (#67): brightness store + re-apply API
-- [ ] Claude: wire #67 (`SlideshowView:184/285`, settings slider, `initialBrightness` in makeAdapter)
+- [~] ~~S2 PowerKit/ThemeKit (#67)~~ — **deferred (Jan, 2026-09-14):** brightness memory becomes its own feature spec
+      (HA, ambient light, auto, night time); recorded in the 400 Roadmap and `hitl.md` §9. Not part of this worklist.
 - [ ] Claude: #61 comment `OwnFrameApp:777-784`; existing host-labeled sources stay (rename possible)
-- [ ] Verify + gate (host packages + iOS 18.6 sim) → facts → commit → close #61 #62; #67 stays open until the Framepad check
+- [ ] Verify + gate (host packages + iOS 18.6 sim) → facts → commit → close #61 #62
 
 ### WP3 — #64 HA metadata follows the active source
 - [ ] S3 PhotoSourceKit + backends: `AssetMetadata` city/state/country
@@ -79,7 +79,7 @@ taps drill in again; the strict expectation fails loudly on that day.
 ### WP5 — #66 + final gate
 - [ ] Subagent: #66 comments + "Uhr-Overlay" → "Uhr-Einblendung"
 - [ ] Full gate: host packages; iOS suite on 18.6 **and** 26.0 (confirm the runtime from the xcresult, check the
-      StoreKit skip count); Framepad #67 (dim → lock/unlock → relaunch, the level holds) → close #67
+      StoreKit skip count)
 - [ ] `check-facts.py`, bump `verified_commit`; list new German strings for Jan; note in `docs/store-story.md` that the
       captures predate #59/#60/#61
 - [ ] Push / `publish-public.sh` only on Jan's word

@@ -42,7 +42,7 @@ The engine prefetches the next images and keeps a bounded in-memory cache so nor
 
 ### User Story 3 - Recover from empty sources and failures (Priority: P2)
 
-The slideshow skips individual broken images, reports empty sources and fetch failures calmly, and offers a manual retry. (Automatic retry with backoff and periodic source refresh are deferred — see Roadmap.)
+The slideshow skips individual broken images, reports empty sources and fetch failures calmly, and offers a manual retry. (Automatic retry with backoff and periodic source refresh are implemented by sub-spec `310-slideshow-resilience` — see Roadmap.)
 
 **Why this priority**: Unattended playback should not be permanently blocked by one bad asset or a temporary network issue.
 
@@ -53,7 +53,7 @@ The slideshow skips individual broken images, reports empty sources and fetch fa
 1. **Given** a running slideshow, **When** a single image cannot be loaded, **Then** that image is skipped and the next loadable image is displayed without a crash.
 2. **Given** the active source has no displayable images, **When** the slideshow starts, **Then** a calm empty-state message is shown instead of a blank or crashed screen.
 3. **Given** the source asset list cannot be fetched, **When** the failure occurs, **Then** a clear error message with manual retry is shown.
-4. **Given** the source includes videos, Live Photos, or other non-image assets, **When** the display order is built, **Then** those assets are skipped and only still images are shown.
+4. **Given** the source includes videos, Live Photos, or other non-image assets, **When** the display order is built, **Then** Live Photos are shown as their still image, and videos and other assets without a still image are skipped (FR-900-08).
 
 ### User Story 4 - Reveal controls only on intent (Priority: P1)
 
@@ -145,7 +145,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 ### Functional Requirements
 
 - **FR-300-01**: The app MUST open directly into the running slideshow after setup, showing one image fullscreen with no chrome, clock, info overlay, or status UI until explicit user action.
-- **FR-300-02**: The engine MUST load the configured source's image assets through topic 100 data access; the current active source is a single selected album, while future source types are owned by topic 100 and `110-shared-album-link`.
+- **FR-300-02**: The engine MUST load the configured source's image assets through topic 100 data access; exactly one saved source plays at a time, chosen from the source library owned by `120-source-library` (Immich albums, Immich links per `110-shared-album-link`, iCloud albums per `900-photo-library-source`); pooling several sources stays topic 100 roadmap. *(Amended 2026-09-14, #69: said "a single selected album", which predates 120.)*
 - **FR-300-03**: The engine MUST show exactly one image at a time, advance after the active duration, transition using the active transition, and loop indefinitely.
 - **FR-300-04**: The engine MUST consume topic 500 display options for order, duration, transition, Ken Burns, fit, quality, and clock settings, and MUST apply changes live without duplicating the settings catalogue in this topic.
 - **FR-300-05**: Shuffle order, when supplied by topic 500, MUST show every photo once per cycle before repeats and reshuffle for the next cycle; sequential order MUST follow album order.
@@ -153,7 +153,7 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 - **FR-300-07**: The in-memory image cache MUST have a fixed bound and evict oldest entries first.
 - **FR-300-09**: A single broken or unloadable image MUST be skipped without crashing or stopping the slideshow.
 - **FR-300-10**: Empty sources and failed source fetches MUST show calm messages with manual retry rather than a blank or crashed screen.
-- **FR-300-13**: Videos, Live Photos, and other non-image assets MUST be skipped; this topic displays still images only.
+- **FR-300-13**: Videos and other media without a still image representation MUST be skipped; Live Photos MUST display their still representation, never their motion (FR-900-08); this topic displays still images only. *(Amended 2026-09-14, #69: listed Live Photos as skipped; FR-900-08 and the shipped build show the still, for Immich and Photos sources alike.)*
 - **FR-300-14**: The slideshow timer MUST be foreground-only: it pauses in the background and resumes in the foreground, respecting user pause state and iPadOS platform boundaries.
 - **FR-300-15**: A tap MUST reveal Liquid Glass chrome with top actions info, albums, and settings, and bottom controls previous, play/pause, and next; another tap MUST hide it.
 - **FR-300-16**: Revealed chrome MUST auto-hide after about 4.5 seconds of idle, and control interaction MUST reset the countdown.
@@ -177,19 +177,18 @@ From the chrome, the user reaches Settings with a live brightness slider and dis
 
 ### Key Entities *(include if feature involves data)*
 
-- **Slideshow Source**: The configured provider of image assets. The active source is currently one selected album from topic 100; future multi-album, Memories, and shared-link sources are deferred to topic 100 and sub-spec 110.
+- **Slideshow Source**: The configured provider of image assets. The active source is one saved source from the source library of `120-source-library` (an Immich album, an Immich link, or an iCloud album); pooling several sources and Memories stay deferred to topic 100.
 - **Slideshow Asset**: A still image asset with ID, display metadata, image data, and optional EXIF date/location.
 - **Slideshow State**: Current asset, playback order, current index, running or user-paused state, visible chrome state, active album, and transient empty/error phase.
 - **Image Cache**: Bounded in-memory image storage (built). Disk-persistent storage with size enforcement and a clear action is built — sub-spec [320-disk-image-cache](../320-disk-image-cache/spec.md).
 - **Album Browser Selection**: The album and asset chosen from the browser, used to switch the active runtime album and jump to an image.
 - **Info Overlay Data**: Date/time and location derived from Immich EXIF, empty when unavailable.
-- **Clock Overlay Rendering**: The rendered time and optional date at the corner configured by topic 500. Deferred (see Roadmap) — the settings exist in topic 500 but the renderer is not yet built.
+- **Clock Overlay Rendering**: The rendered time and optional date at the corner configured by topic 500. Implemented in sub-spec `510-clock-overlay` (iOS/iPadOS; tvOS rendering rides topic 1000).
 
 ### Roadmap / Deferred (not yet built)
 
-These are specified intent but not implemented today; the engine currently uses an in-memory cache
-only and forward playback without unattended retry/refresh. Each should be scheduled as its own
-Spec Kit feature.
+These were specified intent without an implementation when this topic was written; each was
+scheduled as its own Spec Kit feature, and the entries below record where each landed.
 
 - **Disk image cache + Clear cache** (was FR-300-08 / part of FR-300-27): **implemented** as
   sub-spec [320-disk-image-cache](../320-disk-image-cache/spec.md) (2026-07-09) — size-limited
@@ -197,15 +196,15 @@ Spec Kit feature.
   (default 500 MB), Clear action, plus a remembered source list for offline launches. No longer
   deferred; FR-320-01…12 are the binding requirements.
 - **Auto-retry with backoff** (was FR-300-11): load/connection failures auto-retry with backoff for
-  unattended recovery, beyond the existing manual retry. **Now specced** as sub-spec
-  `310-slideshow-resilience` (FR-310-01…05) — planned pre-release.
+  unattended recovery, beyond the existing manual retry. **Implemented** as sub-spec
+  `310-slideshow-resilience` (FR-310-01…05), merged 2026-07-09.
 - **German translations** (part of FR-300-30): a `de` localization for the string catalogs.
   **Shipped 2026-07-23** across iOS + tvOS (PR #40) — no longer deferred; source strings stay
   English (repo policy: English-only source) while German ships as a translation pass over the
   existing catalogs.
 - **Periodic source refresh** (was FR-300-12): the active source asset list refreshes periodically
-  so newly added Immich photos enter rotation without an app restart. **Now specced** as sub-spec
-  `310-slideshow-resilience` (FR-310-06…11) — planned pre-release.
+  so newly added Immich photos enter rotation without an app restart. **Implemented** as sub-spec
+  `310-slideshow-resilience` (FR-310-06…11), merged 2026-07-09.
 - **Rendered clock overlay** (was FR-300-29): render the optional clock per the topic 500
   settings contract — design agreed 2026-07-18 ("Quiet Glass" clock round, FR-500-12/17/18/19):
   three styles (Digits default / Pill / Analog), six places plus Random, Room/Cozy sizes,
@@ -216,9 +215,10 @@ Spec Kit feature.
 - Multi-album source pooling and Memories source selection belong to topic 100. Acceptance
   preserved from the source: selecting multiple albums pools photos from all of them, and selecting
   Memories plays that source when topic 100 supports it.
-- Shared-link source selection belongs to reserved sub-spec `110-shared-album-link`. Acceptance
-  preserved from the source: a stubbed shared-link entry is present in future source pickers until
-  the shared-link source is implemented.
+- Shared-link source selection: **implemented** as sub-spec `110-shared-album-link`, with
+  onboarding and Share Sheet in `210-shared-link-onboarding` — the Immich link is a real source in
+  the picker, so the old "stubbed entry until implemented" acceptance no longer applies *(noted
+  2026-09-14, #69)*.
 
 ## Success Criteria *(mandatory)*
 
@@ -230,7 +230,7 @@ Spec Kit feature.
 - **SC-300-04**: In long-running playback, the in-memory cache remains within its configured limit.
 - **SC-300-05**: A single unloadable image is skipped and the slideshow continues to the next loadable image.
 - **SC-300-06**: Empty source and failed source-fetch states show a readable message with retry and do not crash.
-- **SC-300-07**: A failed source fetch surfaces a manual retry that recovers playback when the mocked or real source becomes available. *(Automatic backoff retry is deferred — see Roadmap.)*
+- **SC-300-07**: A failed source fetch surfaces a manual retry that recovers playback when the mocked or real source becomes available. *(Automatic backoff retry is implemented by `310-slideshow-resilience` — see Roadmap.)*
 - **SC-300-08**: Tap reveals chrome, idle hides it after about 4.5 seconds, and swipes navigate without chrome appearing.
 - **SC-300-09**: Selecting a different album and photo in the browser resumes fullscreen playback at that photo in the now-active album.
 - **SC-300-10**: The info overlay shows date and location when EXIF exists and nothing when it is absent.
@@ -241,7 +241,7 @@ Spec Kit feature.
 ## Assumptions
 
 - Topic 100 supplies album, asset, preview, original-quality, thumbnail, and EXIF data access behind injected transports, with TLS validation enabled.
-- Topic 500 owns the stored values and controls for order, duration, transition, Ken Burns, fit, image quality, and clock configuration; this topic owns consuming and rendering their effects (the clock renderer is deferred — see Roadmap).
+- Topic 500 owns the stored values and controls for order, duration, transition, Ken Burns, fit, image quality, and clock configuration; this topic owns consuming and rendering their effects (the clock renderer is implemented in `510-clock-overlay`).
 - Topic 400 owns brightness and idle-timer behavior; this topic only surfaces the live brightness slider and respects foreground-only lifecycle signals.
 - Topic 200 owns reset of connection, API key, and selected album; this topic only provides the chrome exit entry point.
 - The default remains plain, light, and overlay-free in alignment with the constitution; visual effects and overlays are opt-in except for the active transition default supplied by topic 500.

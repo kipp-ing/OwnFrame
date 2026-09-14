@@ -7,6 +7,9 @@
 **Status**: Active — **amended 2026-07-21** (frame identity, US3 / FR-700-16…22 / SC-700-11…14).
 The identity half is **release-blocking for the first public release**; see US3. **Further
 amended 2026-07-26** (in-app UI presentation is not connectivity loss, FR-700-23 / SC-700-15).
+FR-700-23 is **implemented and merged** together with 710's FR-710-24 (PR #49, 2026-07-29); its live check on iOS 17 hardware is
+queued in `docs/hitl.md` §4. **Text aligned 2026-09-14** (#69): FR-700-14's select lists saved-source
+labels (FR-120-07), not album names.
 
 **Input**: Consolidated from `specs/005-hacontrol/spec.md`: secure MQTT connection, Home Assistant discovery, availability, and pause/play control for the running slideshow.
 
@@ -135,8 +138,8 @@ that Home Assistant shows the same device and entity IDs.
 - **FR-700-11**: Invalid or unknown command payloads MUST be ignored safely without crashing or changing to an inconsistent state.
 - **FR-700-12**: For conflicting or rapid valid commands, the latest valid command MUST determine the result, and echoed state MUST match the actual app state.
 - **FR-700-13**: The app MUST expose a dimmable light entity for brightness via discovery (brightness scale 255); an inbound brightness command MUST be clamped to range, applied through PowerManager (topic 400), and the resulting brightness MUST be echoed.
-- **FR-700-14**: The app MUST expose a select entity for the active album via discovery, with the available album names as options; a valid selection MUST switch the active album and be echoed, while an unknown album MUST leave state unchanged and echo the actual current album.
-- **FR-700-15**: The set of entities enabled in the current app is pause/play, brightness, and album select; sleep/wake remains deferred (see Roadmap).
+- **FR-700-14**: The app MUST expose a select entity for the active source via discovery, with the saved sources' labels as options (FR-120-07; *text aligned 2026-09-14 — originally "the available album names", superseded when the source library replaced the single album*); a valid selection MUST switch the active source and be echoed, while an unknown label MUST leave state unchanged and echo the actual current source.
+- **FR-700-15**: The set of entities enabled in the current app is pause/play, brightness, and source select (FR-700-14; extended by 710); sleep/wake remains deferred (see Roadmap).
 
 *(FR-700-16…22, added 2026-07-21, make FR-700-06's "stable, duplicate-free" precise. They
 describe required behaviour, not a storage mechanism — the mechanism is a plan decision, subject

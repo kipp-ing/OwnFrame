@@ -19,7 +19,7 @@ while controllable entities + command handling + App Intents stay behind the unl
 (FR-1100-03 / FR-1100-03a; US5 and SC-1100-06 restated accordingly). This widens the free tier
 and never claws anything back.
 
-**Amended 2026-07-22 (single unlock):** the two separate paid tiers (**Pro** = ambience, and
+**Amended 2026-07-23 (single unlock):** the two separate paid tiers (**Pro** = ambience, and
 **Automation** = remote control) and the optional **everything-bundle** are **collapsed into one
 one-time purchase, the "Supporter Unlock"**, which grants *every* gated capability at once — Ken
 Burns motion, the clock overlay, and full Home Assistant remote control plus Shortcuts/App
@@ -290,7 +290,9 @@ never prompts for tips on its own.
   the **free** tier. With a broker configured, an unentitled frame MUST connect to the broker
   and publish, via HA MQTT discovery, availability (LWT) and the read-only sensor entities only
   — the current-photo sensor (asset id + metadata), the current-photo image sensor when its
-  opt-in toggle is on (FR-710-07), the playback phase, the photo count, and the app version — so
+  opt-in toggle is on (FR-710-15), the playback phase, the photo count and the app version
+  (FR-710-07), battery level and charging state (FR-710-23; omitted on batteryless devices), and
+  `frame_status` (FR-710-24) — so
   Home Assistant can *see* the frame. In this state the frame MUST publish no controllable
   entity and subscribe to no command topic. Because discovery configs are published
   **retained**, "publish no controllable entity" is not satisfied by silence on a frame
@@ -302,12 +304,13 @@ never prompts for tips on its own.
   ones. The broker connection, its stored credentials (in
   the keychain), and TLS are free-tier capabilities; only *control* is gated. Making telemetry
   free never conflicts with FR-1100-13 — it widens the free tier, it does not claw anything
-  back.
+  back. *(Amended 2026-09-14, #69: battery/charging and `frame_status` added — 710 already classes
+  both as free telemetry; the image opt-in re-cited from FR-710-07 to FR-710-15.)*
 - **FR-1100-04** *(one product, no tiers)*: There MUST be exactly one functional unlock
   product; there are no separate paid tiers and no bundle. A user either owns the Supporter
   Unlock or does not, so partial ownership cannot occur and the unlock screen only ever presents
   an owned or a not-owned state — never a choice between products. (This supersedes the earlier
-  Pro / Automation / everything-bundle split, 2026-07-22.)
+  Pro / Automation / everything-bundle split, 2026-07-23.)
 
 **Purchase model constraints**
 

@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-25
 
-**Status**: Active — built and merged to main (PR #9, 2026-06-26); remaining polish tracked in tasks.md Phase 8
+**Status**: Active — built and merged to main (PR #9, 2026-06-26); remaining polish tracked in tasks.md Phase 8. **Amended 2026-09-14** (D-09, #65, #69): a Share extension cannot bring its host app forward on iOS, so the shared-in link is picked up the next time OwnFrame is opened and the extension says so (US2, FR-210-31, SC-210-02).
 
 **Input**: User description: "Onboarding & shared-link UX overhaul. Choice-first onboarding (shared link vs server); shared-link-only setup (no API key); concise step descriptions; searchable album picker (name + date + photo count) for 50+ albums; subscrollable album list with an always-reachable primary action; iOS Share Sheet acceptance so an Immich share link can be sent into the app and auto-starts or asks for a password; ask for a shared-link password only when the link needs one. Ease of use is a primary goal."
 
@@ -44,7 +44,7 @@ On first launch the user is offered a choice between "Use a shared link" and "Co
 
 ### User Story 2 - Send an Immich link into the app from the Share Sheet (Priority: P1)
 
-From Safari, the Immich app, or anywhere a link can be shared, the user taps Share and selects ImmichSlideshow. The app receives the link, resolves it, and starts playing right away — or asks for a password first if the link needs one. If the app is not yet configured, the shared link drives the shared-link-only setup, pre-filled. If the app is already configured, the link is added as a source and becomes active.
+From Safari, the Immich app, or anywhere a link can be shared, the user taps Share and selects OwnFrame. The extension takes the link and confirms: "Open OwnFrame to start." When the person next opens or switches to OwnFrame, the app picks the link up, resolves it, and starts playing — or asks for a password first if the link needs one. If the app is not yet configured, the shared link drives the shared-link-only setup, pre-filled. If the app is already configured, the link is added as a source and becomes active. *(Amended 2026-09-14, D-09: iOS lets only Today and iMessage extensions open their host app, so a Share extension cannot bring OwnFrame forward by itself.)*
 
 **Why this priority**: This is the "easiest way of use" the user called out as a main goal: hand the app a link and watch. It removes manual typing/pasting entirely.
 
@@ -52,12 +52,13 @@ From Safari, the Immich app, or anywhere a link can be shared, the user taps Sha
 
 **Acceptance Scenarios**:
 
-1. **Given** ImmichSlideshow is installed, **When** the user shares a URL from another app, **Then** ImmichSlideshow appears as a recipient in the iOS Share Sheet.
-2. **Given** the app is not yet configured, **When** an Immich share link is sent in, **Then** the app opens into the shared-link-only setup pre-filled with that link.
-3. **Given** the app is already configured, **When** a valid non-protected Immich link is sent in, **Then** the app resolves it, adds it as a source, makes it active, and starts playing it.
+1. **Given** OwnFrame is installed, **When** the user shares a URL from another app, **Then** OwnFrame appears as a recipient in the iOS Share Sheet.
+2. *(Amended 2026-09-14, D-09)* **Given** the app is not yet configured, **When** an Immich share link is sent in and the person then opens OwnFrame, **Then** the app shows the shared-link-only setup pre-filled with that link.
+3. **Given** the app is already configured, **When** a valid non-protected Immich link is sent in and the person opens or switches to OwnFrame, **Then** the app resolves it, adds it as a source, makes it active, and starts playing it.
 4. **Given** a password-protected link is sent in, **When** the app receives it, **Then** the app asks for the password once and, on success, starts playing it.
 5. **Given** a link that is already present in the source library is sent in, **When** the app receives it, **Then** the app switches to the existing source rather than creating a duplicate.
 6. **Given** a malformed, non-Immich, or unreachable link is sent in, **When** the app receives it, **Then** a clear error is shown and nothing is persisted.
+7. *(Added 2026-09-14, D-09)* **Given** the person selects OwnFrame in the Share Sheet, **When** the extension has taken the link, **Then** it shows a short confirmation telling them to open OwnFrame to start, and it never claims that OwnFrame opened by itself.
 
 ### User Story 3 - Find an album fast in a long list (Priority: P2)
 
@@ -152,6 +153,7 @@ Every onboarding screen carries concise helper text that explains what to do on 
 - **FR-210-16**: If a shared-in link is already present in the source library, the app MUST switch to the existing source rather than create a duplicate.
 - **FR-210-17**: If a shared-in link is malformed, not a supported Immich link, invalid/expired, or unreachable, the app MUST show a clear error without crashing and persist nothing.
 - **FR-210-18**: An incoming shared link MUST survive a cold start of the host app (handed off via the App Group) and reach the correct destination after launch.
+- **FR-210-31** *(added 2026-09-14, D-09, #65)*: After taking the link, the share extension MUST show a short, localized (EN + DE) confirmation that tells the person to open OwnFrame to start, before the extension closes. It MUST NOT attempt to open the host app (no `extensionContext.open`, which iOS ignores for Share extensions) and MUST NOT imply that playback already started. The host app MUST pick the handed-off link up whenever it next becomes active (cold start per FR-210-18, or returning to the foreground).
 
 #### Searchable, subscrollable album picker
 
@@ -183,7 +185,7 @@ Every onboarding screen carries concise helper text that explains what to do on 
 ### Measurable Outcomes
 
 - **SC-210-01**: A new user with only a non-protected shared link can reach a running slideshow without entering or storing an API key.
-- **SC-210-02**: Sharing an Immich link from another app into ImmichSlideshow starts the slideshow — or asks for a password once and then starts — in at most two taps after selecting the app in the Share Sheet.
+- **SC-210-02** *(amended 2026-09-14, D-09 — was "starts the slideshow in at most two taps after selecting the app", which no Share extension can meet on iOS)*: After an Immich link is shared into OwnFrame, the extension confirms and tells the person to open OwnFrame; the next time OwnFrame is opened or switched to (warm or cold), the slideshow starts — or asks for a password once and then starts — in at most two taps after opening OwnFrame.
 - **SC-210-03**: A password prompt appears only for links that are actually password-protected; non-protected links never show a password prompt.
 - **SC-210-04**: In a library of 50+ albums, a user can narrow to a target album within a few keystrokes of search, and the primary action stays visible the entire time in portrait and landscape.
 - **SC-210-05**: 100% of malformed, invalid/expired, or unreachable shared links (in-app or shared-in) show a clear, classified error and persist no source or secret.
@@ -200,10 +202,10 @@ Every onboarding screen carries concise helper text that explains what to do on 
 
 - The topic 120 source library, shared-link resolver, and Keychain secret store are reused; a shared link added here is an ordinary source in that library and follows its active-source/restart rules.
 - Topic 100 album data can expose album name, date (or date range), and photo/asset count from the existing Immich album endpoints; if a field is unavailable from the running server it simply does not participate in search.
-- The Share Sheet capability is implemented as an iOS Share Extension plus an App Group shared with the host app; the extension is thin (captures the URL only, no network, no secrets).
+- The Share Sheet capability is implemented as an iOS Share Extension plus an App Group shared with the host app; the extension is thin (captures the URL and shows the FR-210-31 confirmation; no network, no secrets).
 - When a link is shared in while the app is already configured, the intended behavior is to add it as a source and make it active (start playing it), consistent with the topic 120 set-active/restart behavior.
 - HTTPS only with a valid TLS certificate (Constitution IV); self-signed/plaintext is out of scope.
-- Target platform is iPadOS 18+ (iPhone optional); Share Sheet acceptance applies on both.
+- Target platform is iPadOS/iOS 17+ (the deployment floor; iPhone optional); Share Sheet acceptance applies on both.
 - Ease of use is a primary design goal: the shared-link and Share Sheet paths minimize taps and never ask for more than the link (plus a password only when required).
 
 ### Dependencies

@@ -8,7 +8,9 @@
 of what it converged on, not as guesswork ahead of it. Nothing here is implemented yet: the app
 forces no color scheme (`preferredColorScheme` and `colorScheme` appear in **zero** Swift files),
 `AccentColor.colorset` declares no color, and the album picker is still `.listStyle(.plain)`
-(`OwnFrame/Onboarding/AlbumPickerView.swift:49`). Requirement IDs are `FR-9000-NN` / `SC-9000-NN`.
+(`OwnFrame/Onboarding/AlbumPickerView.swift:49`). *(That was the state on 2026-09-01. Update
+2026-09-14, #69: the accent is declared as Messing `#E3A857` (7eba377) and the app is dark app-wide
+(73ff5f0, #70); FR-9000-38 was added for filled-control labels, #59.)* Requirement IDs are `FR-9000-NN` / `SC-9000-NN`.
 Application to specific screens is **not** owned here — see FR-9000-35.
 
 **Input**: The first four-digit block. `100`–`1200` are product modules mirroring Swift packages; a
@@ -200,9 +202,9 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
 #### Color and tint
 
 - **FR-9000-13**: The app MUST declare **exactly one accent color** in
-  `OwnFrame/Assets.xcassets/AccentColor.colorset`, and every tint MUST derive from it. Today that
-  colorset declares **no** color, so the app's blue is an omission rather than a decision — that is
-  the defect this requirement closes.
+  `OwnFrame/Assets.xcassets/AccentColor.colorset`, and every tint MUST derive from it. When written,
+  that colorset declared **no** color, so the app's blue was an omission rather than a decision —
+  that was the defect this requirement closes *(closed by 7eba377, #58)*.
 - **FR-9000-14**: The accent hue is **Messing `#E3A857`** (decided 2026-09-01). It MUST be the value
   declared in `AccentColor.colorset` per FR-9000-13. Recorded for provenance: it was chosen over
   *Terrakotta* `#E08C6A` and *Gletscher* `#5AC8C8`, against today's default `#0A84FF`.
@@ -210,6 +212,11 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
   carries **10:1 against the `#000000` ground**, comfortably past FR-9000-07, but only **2.1:1 under
   white text**, which fails AA. A filled control tinted Messing MUST therefore carry a **near-black
   label**, never a white one. Messing as text, icon or stroke *on* the dark ground is unrestricted.
+- **FR-9000-38** *(added 2026-09-14, #59)*: Every filled control tinted with the accent (e.g.
+  `.borderedProminent`), wherever it appears, MUST render the near-black label FR-9000-14 requires,
+  and this MUST be checked by a capture or a test rather than assumed, because whether SwiftUI's
+  automatic label color over the accent picks white cannot be read from source. How it is achieved
+  (a shared style or per-site label color) is a plan decision, not owned here (FR-9000-35).
 - **FR-9000-15**: Surfaces MUST come from the named system-role palette recorded by the design
   record: `systemBackground` `#000000`, `secondarySystemGroupedBackground` `#1C1C1E`, the tertiary
   grouped surface `#2C2C2E`, and `quaternaryFill` `rgba(118,118,128,0.24)`. Arbitrary greys MUST NOT
@@ -350,7 +357,7 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
 - **Type scale**: five Dynamic Type roles (`largeTitle`, `title2`, `headline`, `body`,
   `subheadline`) with recorded sizes and weights.
 - **Surface palette**: four named system-role surfaces plus one separator hairline.
-- **Accent**: the single declared tint in `AccentColor.colorset`. Currently undeclared; hue pending.
+- **Accent**: the single declared tint in `AccentColor.colorset` — Messing `#E3A857` (FR-9000-14, declared in 7eba377).
 - **Vocabulary table**: the DE/EN *Wortschatz* sheet, grouped by surface, statuses *new* / *retired*
   / *unchanged*.
 - **String catalogs**: the five shipped `.xcstrings` files, 351 keys, `sourceLanguage: en`.

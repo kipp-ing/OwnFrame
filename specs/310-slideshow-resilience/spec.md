@@ -6,15 +6,18 @@
 
 **Status**: Implemented + merged to main (2026-07-09) — was the pre-release gate before the App
 Store release. FR→test mapping in `docs/spec-traceability.md` (310 section). **Amended
-2026-09-11** (US4/FR-310-14/SC-310-07): an opt-in arrival signal for the periodic refresh, added
-to give 9010 store slot 5 a real capability to depict instead of an invented screen.
+2026-09-11** (US4/FR-310-14/SC-310-07): an arrival signal for the periodic refresh, added
+to give 9010 store slot 5 a real capability to depict instead of an invented screen; its card is
+**on by default** since 2026-09-13 (see Clarifications). **Amended 2026-09-14** (#60, #61, #69):
+the card stays legible over any photo (FR-310-15) and never names a source by its host
+(FR-310-16).
 
 **Input**: Sub-spec of `specs/300-slideshow`. A photo frame runs unattended for weeks: it must
 survive network loss without anyone touching it, and newly added photos must enter rotation
 without an app restart. This spec promotes two items from topic 300's Roadmap into buildable
 requirements: **auto-retry with backoff** (was FR-300-11) and **periodic source refresh**
-(was FR-300-12). Out of scope: the disk image cache (+ Clear action) stays deferred in topic
-300's Roadmap; a user-facing setting for the refresh interval (fixed default here, see
+(was FR-300-12). Out of scope: the disk image cache (+ Clear action) — specified and shipped
+separately in 320 *(noted 2026-09-14, #69)*; a user-facing setting for the refresh interval (fixed default here, see
 Assumptions); retry/refresh state as HA diagnostics entities (roadmap note below).
 
 ## Clarifications
@@ -199,6 +202,20 @@ only once per genuine addition (a no-op or removal-only refresh publishes nothin
   FR-310-06 does not already guarantee (no instant or background arrival), MUST NOT show a
   `SourceKind` category word or any raw host, and is never gated behind a purchase (free, like
   HA telemetry) — see 9010 FR-9010-06/07 for the store-facing constraints this binds.
+- **FR-310-15** *(added 2026-09-14, #60)*: The arrival card MUST stay legible over any photograph,
+  including bright, high-key ones. Its text MUST sit on a dark scrim layer **inside** the glass
+  card, so white text always has a dark floor regardless of the photo behind it (decided by Jan
+  2026-09-14 over a denser material or luminance adaptation). The card stays ambience: never
+  interactive, hidden whenever the chrome is showing (fact UNATT-08; the same rule the clock follows,
+  FR-500-12), free.
+- **FR-310-16** *(added 2026-09-14, #61)*: The source name the card shows MUST be a human name,
+  never a raw host (FR-310-14). A shared-link source added without a label MUST default its label
+  to the linked album's name as reported by the link itself (`GET /api/shared-links/me`), and fall
+  back to a neutral localized "Shared album" / "Geteiltes Album" when no name is available. A label
+  the person typed always wins. Because FR-310-14 forbids a raw host on the card, a label that
+  equals the source's host — for example on a link saved before this amendment — MUST be shown on the
+  card as the neutral "Shared album" / "Geteiltes Album" instead; the saved label itself is left
+  unchanged and stays renamable in Settings → Sources (the label source of truth remains 120's).
 
 ### Key Entities
 
@@ -218,8 +235,8 @@ only once per genuine addition (a no-op or removal-only refresh publishes nothin
   only if users ask; the fixed default keeps setup friction at zero.
 - **Retry/refresh status in HA diagnostics** (last refresh time, current backoff state) as
   additional 710 diagnostics attributes.
-- **Disk image cache** stays where it is: topic 300 Roadmap. It complements this spec (photos
-  keep showing across a relaunch while offline) but is not required by it.
+- **Disk image cache** — *delivered in 320 (noted 2026-09-14, #69)*. It complements this spec
+  (photos keep showing across a relaunch while offline) but is not required by it.
 
 ## Success Criteria *(mandatory)*
 

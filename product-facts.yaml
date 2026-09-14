@@ -157,8 +157,8 @@ facts:
     intent: ["J-02", "FR-210-12", "FR-210-13", "FR-210-14", "FR-210-15", "FR-210-16", "FR-210-18", "SC-210-02"]
     implementation: mismatch
     evidence: ["OwnFrameShareExtension/ShareViewController.swift:24-26,36,68-71", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:653,657-660,663", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6"]
-    mismatch: "Spec 210 US2 scenario 2 ('the app opens into setup'), SC-210-02 (slideshow starts within two taps of choosing the app) and Jan's hook (J-02) cannot be met by a Share extension on iOS. The extension calls extensionContext.open(immichslideshow://shared), which is a no-op for Share extensions; no URL scheme is registered either, and registering one would not help. FR-210-18 (survives a cold start) is met."
-    candidate_issue: "#65 — Share Extension: remove the dead immichslideshow:// open call and the false comments (ShareViewController.swift:24-26, IncomingLinkSheet.swift:5-6) and make the extension's confirmation tell the person to open OwnFrame to finish. Spec 210 US2 scenario 2 / SC-210-02 to be reworded (decided 2026-09-13, D-09)."
+    mismatch: "Spec side resolved 2026-09-14 (D-09): 210 US2 scenario 2, SC-210-02 and the new FR-210-31 now say the link is picked up the next time OwnFrame is opened and the extension says so. Code side still open: the extension calls extensionContext.open(immichslideshow://shared), a no-op for Share extensions (no URL scheme is registered, and registering one would not help), and it shows no confirmation. FR-210-18 (survives a cold start) is met."
+    candidate_issue: "#65 — Share Extension: remove the dead immichslideshow:// open call and the false comments (ShareViewController.swift:24-26, IncomingLinkSheet.swift:5-6) and show the FR-210-31 'Open OwnFrame to start' confirmation (EN + DE)."
 
   - id: SRC-08
     fact: "Connects to a person's own Immich server with the server address and an API key, and plays a chosen album from that account."
@@ -326,7 +326,7 @@ facts:
       - "Sequential is date order, not a hand-arranged order."
     gated: free
     platforms: [ios, ipados]
-    intent: ["FR-500-03", "FR-500-06", "FR-130-02"]
+    intent: ["FR-500-03", "FR-500-06", "FR-130-02", "FR-130-12"]
     implementation: mismatch
     evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:41-52", "Packages/ImmichClient/Sources/ImmichClient/Models.swift:87-94", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:114,121", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:711-720"]
     mismatch: "Spec 130 (research §2, the v3 API contract, task T018 marked done) passes the album's own order (AlbumResponseDto.order) to the metadata search. The build always sends 'desc', the Album model does not decode `order`, and MetadataSearchTests pins the literal, so an album set to oldest-first plays newest-first. Same for Immich links."
@@ -475,9 +475,8 @@ facts:
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-900-08", "FR-300-13"]
-    implementation: mismatch
+    implementation: verified
     evidence: ["Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:136-144"]
-    mismatch: "FR-300-13 (the older Immich-era text) says Live Photos are skipped; the build shows the still for Immich Live Photos, as FR-900-08 does for Photos. Looks like stale spec text, not a bug."
 
   - id: PLAY-16
     fact: "Offers a weather overlay, extra 'premium' transitions or burn-in protection."
@@ -495,7 +494,7 @@ facts:
     fact: "Out of the box the slideshow is calm: no clock, no Ken Burns motion, no photo info; effects are opt-in."
     verdict: partial
     limits:
-      - "The new-photos card is on by default (UNATT-08; decided 2026-09-13, D-15: a transient notice, not an overlay)."
+      - "The new-photos card is on by default (UNATT-08; decided 2026-09-13, D-15: a transient notice, not an overlay; written into constitution VII 1.2.0, 2026-09-14)."
       - "The calm default is the same for free and paid users."
     gated: free
     platforms: [ios, ipados]
@@ -533,7 +532,7 @@ facts:
     verdict: does
     limits:
       - "System-drawn UI (permission alerts, share sheet, system photo picker) follows the system setting."
-      - "Decided 2026-09-13 (D-10); constitution VII's 'light' is to be amended to mean calm and lightweight."
+      - "Decided 2026-09-13 (D-10); constitution VII 1.2.0 (2026-09-14) now says 'light' means lightweight, not a light color scheme."
     gated: n/a
     platforms: [ios, ipados]
     intent: ["J-28", "decision 2026-09-13", "FR-9000-05", "FR-9000-06"]
@@ -615,7 +614,7 @@ facts:
       - "Built-in screen only."
       - "Near black is not off; the display stays on."
     detail: "The chosen level is not persisted yet: after a relaunch, or on leaving the slideshow, the screen returns to the system brightness, and the level is not re-applied when the app returns to the foreground (for example after lock and unlock). If the app is force-quit, the earlier brightness may not be restored."
-    todo: "Persist the brightness level and re-apply it on slideshow start/foreground (#67)"
+    todo: "Brightness memory is deferred to its own feature spec (Jan, 2026-09-14: HA, ambient light, auto, night time; #67, 400 Roadmap). Until then, never claim the level is remembered."
     gated: free
     platforms: [ios, ipados]
     intent: ["J-32", "FR-400-05", "FR-400-07", "FR-400-08", "FR-400-09", "FR-400-11"]
@@ -1011,7 +1010,7 @@ facts:
     limits:
       - "What is stored is the path part of the Immich link the person pasted (the /s/ slug or /share/ key); FR-120-08 classes it as non-secret and allows it outside the keychain. The key Immich resolves from it is never stored; it is looked up again on each start."
       - "The Share Extension holds an Immich link in the App Group settings only until the app picks it up."
-      - "Decided 2026-09-13 (D-14): the stored link token is not a secret; constitution III is to be clarified to match FR-120-08."
+      - "Decided 2026-09-13 (D-14): the stored link token is not a secret (still never logged); constitution III 1.2.0 (2026-09-14) says so, matching FR-120-08."
     gated: n/a
     platforms: [ios, ipados]
     intent: ["J-35", "FR-120-08", "FR-210-13"]

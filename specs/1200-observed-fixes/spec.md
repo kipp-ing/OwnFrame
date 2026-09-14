@@ -58,7 +58,7 @@ A user who prefers to see whole photos selects **Fit** and turns on Ken Burns. T
 fully visible (letterboxed) and drifts with a gentle centered zoom, rather than being cropped to
 fill the screen.
 
-**Why this priority**: A paid Pro/ambience feature silently overriding a core display choice is a
+**Why this priority**: A paid ambience feature (Supporter Unlock) silently overriding a core display choice is a
 correctness bug against the user's explicit setting; it touches the shipped motion engine so it
 carries more risk than Story 1.
 
@@ -91,7 +91,7 @@ least user-visible of the three, and gated on the HA path being set up.
    **Then** the corresponding entity's state updates without polling.
 3. **Given** the frame runs on a device without a battery (Apple TV), **When** discovery is
    published, **Then** neither entity is discovered.
-4. **Given** an unentitled (no-Automation) frame, **When** it publishes, **Then** the battery and
+4. **Given** an unentitled (no Supporter Unlock) frame, **When** it publishes, **Then** the battery and
    charging sensors are still published (they are free read-only telemetry).
 
 ### Edge Cases

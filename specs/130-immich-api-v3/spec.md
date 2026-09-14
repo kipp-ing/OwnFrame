@@ -168,7 +168,8 @@ body still yields a usable message everywhere the client reads one.
   endpoint (`POST /api/search/metadata`), filtered by album and paged until the server reports
   no further page, and MUST NOT depend on an `assets` array on the album response (removed in
   v3). The result preserves every asset ID and returns an empty valid list for an empty album
-  (preserves FR-100-04 and FR-100-08).
+  (preserves FR-100-04 and FR-100-08). *(Amended 2026-09-14, D-16, #62: the sort order MUST be the
+  album's own `order` as the server reports it — see FR-130-12 and 500, FR-500-06.)*
 - **FR-130-03**: The client MUST authenticate a password-protected shared link by sending the
   password in the **request body** (`POST /api/shared-links/login`, `SharedLinkLoginDto.password`,
   with the link identifier as `?key=`/`?slug=`), and MUST NOT send the password as a URL query
@@ -184,7 +185,10 @@ body still yields a usable message everywhere the client reads one.
   3.0.2), so it cannot back the listing — but the share `key` does authorize the metadata search.
   Both auth kinds MUST surface through the existing `assets(albumID:)` choke point (`[Asset]`), so
   SlideshowKit callers and the 320 source snapshot stay transparent; the auth difference is
-  confined to the request builder, not a branch in `assets(albumID:)`.
+  confined to the request builder, not a branch in `assets(albumID:)`. *(Amended 2026-09-14,
+  D-16, #62: for both auth kinds the pager's sort order MUST be the album's own `order` as the
+  server reports it, falling back to newest first only when none is reported — never a hard-coded
+  `desc`; see 500, FR-500-06.)*
 - **FR-130-04**: The client MUST determine the server's major version from
   `GET /api/server/version` (already available) and classify any server reporting major **< 3**
   as unsupported.

@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-04
 
-**Status**: Active — built on feat/710 (PR #10); 40/41 tasks done, live-HA confirmation tracked in docs/manual-verification.md
+**Status**: Active — built on feat/710 (PR #10); 40/41 tasks done, live-HA confirmation tracked in docs/manual-verification.md (queued in `docs/hitl.md` §4). FR-710-24 is implemented and merged (PR #49, 2026-07-29). **Amended 2026-09-14** (#64, #69): current-photo metadata and image follow the active source (FR-710-25); tiering note names the single Supporter Unlock.
 
 **Input**: Extends `specs/700-ha-control`. Home Assistant can read and set everything over
 MQTT — all display settings, playback, the active album, and the currently shown photo (image +
@@ -21,7 +21,8 @@ changes.
 > **free** — an unentitled frame publishes them so Home Assistant can *see* it. The
 > **controllable entities** (everything with a `command_topic`: brightness/light, album select,
 > playback switch, the settings controls, next/previous) and all command handling require the
-> **Automation** unlock. The state/echo model here is unchanged; the gate only decides which
+> **Supporter Unlock** — the single unlock since the tier collapse (PR #40; it replaced the former
+> Automation tier, text aligned 2026-09-14, #69). The state/echo model here is unchanged; the gate only decides which
 > entities are published and whether command topics are subscribed. See FR-1100-03 / FR-1100-03a.
 
 ## Clarifications
@@ -262,6 +263,19 @@ fixes the connectivity/UI-visibility conflation this sensor separates out.)*
   (FR-1100-03a). `frame_status` is orthogonal to and does not change `phase` (FR-710-07, unchanged:
   `loading|playing|empty|failed`) or `playback` (FR-700-07/08): existing automations keyed on either
   continue to see exactly the same values and semantics as before this amendment.
+
+*(FR-710-25, added 2026-09-14, #64 — facts REMOTE-03/REMOTE-04 found the lookups pinned to the
+API-key server whatever source was playing.)*
+
+- **FR-710-25**: Current-photo metadata and image lookups MUST go through the **active source** —
+  the engine's source-neutral path — never through a fixed client: an Immich link resolves through
+  that link and its own credential, an API-key album through the configured server, a Photos source
+  on the device. An asset ID, link credential or API key of one source MUST NOT be sent to another
+  source's server. A link-only setup (no API key configured) MUST still publish the current photo's
+  metadata and, under FR-710-15, its image. Place MUST reach Home Assistant as separate city, state
+  and country attributes for every source that provides them, so an Immich link is as detailed as an
+  API-key album; a Photos source publishes the date only, with no place (fact REMOTE-03; FR-900-11).
+  FR-710-16 and FR-710-22 still hold.
 
 ### Key Entities *(include if feature involves data)*
 

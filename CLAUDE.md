@@ -124,7 +124,8 @@ simulator, and UI/preview via XcodeBuildMCP.
 4. **PowerManager** — `isIdleTimerDisabled` during the slideshow; `UIScreen.brightness`
    (0.0–1.0).
 5. **ThemeSettings** — transition, duration, Ken Burns, background, clock overlay. In
-   UserDefaults. Default: light, calm, no overlay.
+   UserDefaults. Default: calm and lightweight (dark app-wide), no persistent overlay; the
+   new-photos card is a transient notice, on by default (constitution VII, 1.2.0).
 6. **HAControl** — MQTT over **TLS** to the existing broker. HA discovery (light/select/switch +
    LWT availability). Remotely controls brightness, album, pause/play.
 

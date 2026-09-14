@@ -185,7 +185,9 @@ has no Back affordance, and the existing choice-screen behavioural contract stil
 - **FR-220-12**: The QR scan MUST feed the decoded string through a host-testable seam so that
   parsing, validation, and routing are unit-tested without a camera; camera capture itself is
   verified only on a physical device.
-- **FR-220-13**: All new user-facing strings MUST be English (the project is English-only).
+- **FR-220-13**: All new user-facing strings MUST be authored in English, the source language, and
+  localized through the String Catalogs; German ships alongside English since 2026-07-23 (PR #40).
+  *(Amended 2026-09-14, #69: said "the project is English-only", which predates the German UI.)*
 
 ### Key Entities *(include if feature involves data)*
 

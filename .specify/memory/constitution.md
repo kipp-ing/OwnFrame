@@ -1,8 +1,25 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.1.0 → 1.1.1
-Bump rationale: PATCH — corrected the stale platform line in Additional Constraints
+Version change: 1.1.1 → 1.2.0
+Bump rationale: MINOR — two principles re-worded to match decisions Jan made in the 2026-09-13
+  product-facts pass (issue #69):
+  - VII (D-10, D-15): "light" now explicitly means lightweight, not a light color scheme — the
+    app is dark app-wide per FR-9000-05 — and a transient notice that fades on its own (the
+    new-photos card, FR-310-14) is not an overlay and may be on by default. This changes what
+    the default experience is allowed to contain, so it is not a PATCH ("non-semantic"); it is a
+    backward-compatible relaxation — everything compliant under 1.1.1 stays compliant — so not
+    a MAJOR ("backward-incompatible … redefinition"). MINOR is the remaining level.
+  - III (D-14): clarifies that non-secret identifiers — notably an Immich link's path token
+    (FR-120-08), still never logged — are not secrets and may live outside the keychain. The set
+    of secrets and their at-rest rule are unchanged.
+  Principles defined: 7 (III clarified, VII amended in 1.2.0).
+  Also touched in the same change: specs 500 (FR-500-15 note), 310 (status), CLAUDE.md (module 5
+  default line).
+  Follow-up TODOs: product-facts.yaml LOOK-01, LOOK-04 and PRIV-02 carried "to be amended/clarified"
+  notes — updated in the same commit.
+
+Previous change (1.1.0 → 1.1.1): PATCH — corrected the stale platform line in Additional Constraints
   ("iPadOS 18+" → "iPadOS/iOS 17+"): the shipped deployment floor has been 17.0 since the
   iOS-17-floor work landed; no semantic change to any principle. Flagged by /speckit-analyze
   (finding C1) during 900 planning, 2026-07-16.
@@ -73,6 +90,12 @@ cryptography of its own. Secrets never transit or rest in iCloud key-value stora
 plaintext CloudKit fields, or in any custom encryption scheme; a secret received via the
 sanctioned channel is stored into the local keychain and used only from there.
 
+Non-secret identifiers are not secrets and may live in UserDefaults or the App Group: server
+addresses, broker host and port, and an Immich link's path token as the person pasted it (the
+`/s/` slug or the `/share/` key, FR-120-08). Such a token is still treated as sensitive — never
+logged — and a key the server resolves from a slug is not stored. A link's password is a secret and
+stays in the keychain. *(Clarified 1.2.0, D-14.)*
+
 **Rationale:** Plaintext secrets are a permanent leak risk that no later fix can heal; the
 keychain is the only permitted storage. Device-to-device sync is confined to the one channel
 where key management is the platform's responsibility end to end — hand-rolled crypto or
@@ -102,8 +125,11 @@ vague quality wishes. Every criterion must be expressible as a test.
 of a red or green signal.
 
 ### VII. Plain and Light by Default
-UI defaults are calm and light. Extra features (transitions, Ken Burns, overlays) are opt-in and
-are never imposed. Default: light, calm, no overlay.
+UI defaults are calm and lightweight. "Light" means light in weight, not a light color scheme: the
+app is dark app-wide (FR-9000-05). Effects beyond the default crossfade (other transitions, Ken
+Burns, clock, photo details) are opt-in and are never imposed. A transient notice that fades on its own — the new-photos card
+(FR-310-14) — is not an overlay and may be on by default. Default: calm, no persistent overlay.
+*(Amended 1.2.0, D-10 / D-15.)*
 
 **Rationale:** A slideshow should show the photos first; effects are seasoning, not the baseline
 state.
@@ -140,4 +166,4 @@ Every spec, plan, and review checks compliance with these principles. Deviations
 explicitly justified; a NON-NEGOTIABLE violation blocks the merge. Ongoing development
 guidelines live in `CLAUDE.md` and `tdd-workflow.md`.
 
-**Version**: 1.1.1 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-07-16
+**Version**: 1.2.0 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-09-14

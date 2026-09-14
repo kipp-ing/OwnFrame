@@ -187,7 +187,10 @@ revoked-while-active → the source errors calmly like a failed Immich source.
   the 310 polling interval is the fallback, not the primary mechanism, for this backend.
   For shared albums, remote posts carry no documented notification latency — the app MUST
   additionally refetch the active Photos source when entering the foreground, and the 310
-  periodic refresh remains the guaranteed upper bound.
+  periodic refresh remains the guaranteed upper bound. Under limited access no album source
+  exists (FR-900-04), so this applies only to the "Selected Photos" pool, which MUST reflect
+  changes to the person's selection; photos others add to an iCloud Shared Album never arrive
+  there. *(Amended 2026-09-14, #69: limited-access carve-out.)*
 - **FR-900-10**: The info overlay MUST show the same fields as for Immich assets (date,
   location when available) sourced from asset metadata; the FR-300-25 exclusions (no filename,
   no album name, no secrets) hold. "Location available" means a display-ready place name in
@@ -242,8 +245,9 @@ revoked-while-active → the source errors calmly like a failed Immich source.
 - **Smart albums** (Favorites, Recents) and **Memories-style collections** as pickable sources.
 - **Multi-source pooling** across backends — stays topic 100/120 roadmap; the source protocol
   here is a prerequisite, not the delivery.
-- **Naming/positioning follow-through**: store subtitle becomes "OwnFrame &
-  iCloud" when this ships (listing text: `docs/app-store-listing.md`).
+- **Naming/positioning follow-through**: settled — the source has one name in app and store,
+  "iCloud album" (FR-9000-26), and the store subtitle stayed source-neutral instead of naming
+  iCloud (listing text: `docs/app-store-listing.md`).
 
 ## Success Criteria *(mandatory)*
 

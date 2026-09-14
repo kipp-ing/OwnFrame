@@ -4,7 +4,8 @@
 
 **Created**: 2026-06-23
 
-**Status**: Active
+**Status**: Active — text aligned 2026-09-14 (#69: deployment floor). Remembered brightness (#67, D-08) is
+**deferred to its own feature spec** by Jan's call the same day — see Roadmap.
 
 **Input**: Consolidated from `specs/004-power-manager/spec.md`: keep the display awake during foreground slideshow use, control brightness within iPadOS limits, and restore normal device behavior when the slideshow exits.
 
@@ -41,7 +42,6 @@ The app can set screen brightness to a target between 0.0 and 1.0 and can transi
 2. **Given** a target brightness outside 0.0 to 1.0 is requested, **When** it is applied, **Then** the value is clamped to the valid range instead of producing an error.
 3. **Given** soft dimming is requested, **When** a target brightness is set, **Then** brightness changes gradually without a hard jump until it reaches the target.
 4. **Given** brightness was dimmed to near zero, **When** brightness is raised again, **Then** it reaches the new target and the display was technically on throughout.
-
 ---
 
 ### User Story 3 - Restore brightness and idle behavior on exit (Priority: P3)
@@ -84,16 +84,15 @@ When the slideshow exits, the app restores the idle timer and, if it changed bri
 - **FR-400-12**: A new soft-dim target MUST preempt any in-flight soft dim, and backgrounding MUST stop any in-flight dim.
 - **FR-400-13**: Power behavior MUST be encapsulated behind an injectable interface so it is testable without real display hardware, in alignment with Modular Isolation.
 - **FR-400-14**: The module MUST respect iPadOS platform boundaries: display and idle-timer control are only guaranteed while the app is foregrounded.
-
 ### Key Entities *(include if feature involves data)*
 
-- **Power State**: Whether wake suppression is active, whether the app changed brightness, the captured baseline, and any in-flight dim target.
-- **Brightness Target**: A requested brightness value clamped to 0.0 to 1.0, plus whether the transition is immediate or gradual.
+- **Power State**: Whether wake suppression is active, whether the app changed brightness, the captured baseline, and any in-flight dim target.- **Brightness Target**: A requested brightness value clamped to 0.0 to 1.0, plus whether the transition is immediate or gradual.
 - **Screen Controller**: The injectable boundary that applies idle-timer and brightness effects in production and can be replaced by a fake in tests.
 
 ### Roadmap / Deferred (not yet built)
 
 - Expose a sleep/wake capability where "sleep" softly dims to near black and "wake" restores prior brightness, driven by an external, source-agnostic presence signal. The app must not include an in-app scheduler; schedule and sensor logic live outside this module.
+- **Brightness memory and automatic brightness — its own feature spec, not yet written** *(recorded 2026-09-14, #67; Jan: "a new feature, new spec needed")*. Decision D-08 (a dimmed frame should hold its level) stands, but *which* level to remember is a design question: the in-app slider, Home Assistant and Shortcuts can all set brightness, and a night automation that sets 0 % must not bring the frame up near black after a morning relaunch. The spec is to cover together: remembered level and who may set it, the ambient light sensor / automatic brightness, night-time behaviour, and the relation to presence sleep/wake (`730`). Findings to carry over from the 2026-09-14 review: re-applying on foreground must re-capture the baseline per foreground session (FR-400-10/11, SC-400-05), and the Home Assistant light reports a hard-coded 1.0 at start instead of the applied level (`SlideshowRemoteControlAdapter` `initialBrightness`).
 - Reserved sub-spec `730` under topic 700: Home Assistant control surface for presence-driven sleep/wake. Acceptance preserved from the source: given a sleep/no-presence command, when it arrives, then brightness ramps to near black without stopping playback; given wake/presence returns, when it arrives, then brightness restores; HA/MQTT now and possible later on-device camera input must drive the same engine boundary.
 
 ## Success Criteria *(mandatory)*
@@ -106,10 +105,9 @@ When the slideshow exits, the app restores the idle timer and, if it changed bri
 - **SC-400-04**: A soft dim reaches the target through at least one observable intermediate brightness value between start and target.
 - **SC-400-05**: After slideshow exit, brightness equals the captured pre-change baseline whenever the app changed brightness.
 - **SC-400-06**: In the background, the app performs no brightness or idle-timer writes, and a user-set background brightness remains untouched.
-
 ## Assumptions
 
 - The slideshow feature provides lifecycle signals for start, exit, foreground, and background.
 - Brightness baseline means the system value immediately before the app's first brightness write.
 - Soft dimming uses calm fixed defaults for duration and step cadence; user configuration of those details belongs to display options.
-- The app targets iPadOS 18+, where brightness and idle-timer control are foreground-only capabilities.
+- The app targets iPadOS/iOS 17+ (the deployment floor), where brightness and idle-timer control are foreground-only capabilities.

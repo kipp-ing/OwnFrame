@@ -4,7 +4,8 @@
 
 **Created**: 2026-06-23
 
-**Status**: Active
+**Status**: Active — **amended 2026-09-14** (#62, #69, decision D-16: "sequential" is each source's own album order,
+FR-500-06; stale roadmap and assumptions brought in line with what has shipped).
 
 **Input**: Consolidated from `specs/008-display-options/spec.md`: persistent, live display and playback preferences for the slideshow, replacing placeholder settings rows with working controls.
 
@@ -23,7 +24,7 @@ The user can change slideshow order and per-photo duration from settings. The ru
 1. **Given** a default install, **When** the slideshow first runs, **Then** order is shuffle and duration is 15 seconds without user configuration.
 2. **Given** the settings screen, **When** the user changes the duration, **Then** the running slideshow's auto-advance uses the new duration without a restart.
 3. **Given** order is shuffle, **When** the slideshow runs a full cycle, **Then** every photo is shown once before any repeats, and the next cycle uses a fresh shuffle.
-4. **Given** order is sequential, **When** the slideshow runs, **Then** photos appear in the source's album order — i.e. capture-date order, newest first (see FR-500-06 note; 130).
+4. **Given** order is sequential, **When** the slideshow runs, **Then** photos appear in the album's own order as set in Immich or Apple Photos (FR-500-06, amended 2026-09-14; 130).
 5. **Given** any changed option, **When** the app is relaunched, **Then** the previously chosen values are still in effect.
 
 ---
@@ -118,7 +119,7 @@ disappears; relaunch and verify all choices persist.
 - **FR-500-03**: The system MUST apply these defaults on first run or after invalid storage fallback: order shuffle, duration 15 seconds, transition crossfade, Ken Burns off, fit Fit, quality Preview, and clock off. The clock's stored sub-defaults (used when the user first enables it) are: style Digits, place bottom trailing, size Room, date line off.
 - **FR-500-04**: Settings changes MUST apply to the already-running slideshow without requiring an app or slideshow restart.
 - **FR-500-05**: Settings changes MUST persist across app launches.
-- **FR-500-06**: The system MUST support photo order options shuffle and sequential. Shuffle MUST show every photo once per cycle before any repeat, then reshuffle for the next cycle. **"Album order" (sequential) is the source's capture-date order, newest first** — under Immich v3 (130) an API-key album is fetched via `POST /api/search/metadata` with `order: desc` (which reproduces the album's own date sort), and a shared link plays the order returned by `/api/shared-links/me`; the offline snapshot (320) replays that same stored order.
+- **FR-500-06**: The system MUST support photo order options shuffle and sequential. Shuffle MUST show every photo once per cycle before any repeat, then reshuffle for the next cycle. **"Album order" (sequential) is the album's own order, for every source** *(amended 2026-09-14, D-16, #62 — was "capture-date order, newest first", which ignored an album sorted oldest-first in Immich)*: an Immich album — whether played through the API key or through an Immich link — plays in the order the server reports for that album (its `order` setting, ascending or descending), passed to the v3 metadata-search pager (130, FR-130-12); if the server reports no order, newest first is the fallback. A Photos album plays in the order Photos returns for that album (900; see fact PLAY-03 for its limits), and the "Selected Photos" pool, which has no album, plays oldest first (PLAY-03). The offline snapshot (320) replays that same stored order. OwnFrame never reorders album content itself; the order is set in Immich or Photos.
 - **FR-500-07**: The system MUST support configurable per-photo duration and MUST clamp out-of-range values to the documented valid range.
 - **FR-500-08**: The system MUST support transition options crossfade, slide, dissolve, and none.
 - **FR-500-09**: The system MUST support an optional Ken Burns slow pan/zoom toggle, default off.
@@ -127,7 +128,7 @@ disappears; relaunch and verify all choices persist.
 - **FR-500-12**: The system MUST support an optional clock overlay with configurable style, place, size, and an optional date line. The clock belongs to the ambient layer: it MUST hide (with a gentle fade) whenever the transient chrome is visible (300, FR-300-15/16) and return when the chrome hides. It renders with the shared glass/legibility treatment so it stays readable over any photo, and it never blocks touch interaction with the slideshow.
 - **FR-500-13**: The settings screen MUST replace disabled placeholder rows for duration, transition, Ken Burns, order, fit, and quality with live controls bound to the settings store, and MUST provide live clock rows: on/off, style, place, size, and date line.
 - **FR-500-14**: The existing brightness control MUST continue to work after display options are enabled.
-- **FR-500-15**: The default experience MUST remain calm and overlay-free, in alignment with Plain and Light by Default; every visual effect or overlay is either current behavior or opt-in.
+- **FR-500-15**: The default experience MUST remain calm and overlay-free, in alignment with Plain and Light by Default; every visual effect or overlay is either current behavior or opt-in. *(Clarified 2026-09-14, D-10/D-15, constitution 1.2.0: "light" means lightweight, not a light color scheme — the app is dark app-wide per FR-9000-05 — and the new-photos card, FR-310-14, is a transient notice that fades on its own, not an overlay, so it may be on by default.)*
 - **FR-500-16**: Invalid, partial, or unreadable stored settings MUST fall back to the documented defaults without blocking startup.
 - **FR-500-17**: The clock MUST support three styles: **Digits** (bare rounded numerals on a soft local halo — the default), **Pill** (compact glass capsule), and **Analog** (round glass face with hour and minute hands; shows no date line). The date line, when enabled, applies to Digits and Pill.
 - **FR-500-18**: The clock MUST support six fixed places (top leading / top center / top trailing / bottom leading / bottom center / bottom trailing) plus **Random**. Random selects among the fixed places and relocates only on a photo advance at a slow cadence (on the order of every 5–10 minutes), never while a photo is on screen. The clock and the photo-details caption MUST never overlap: the caption yields its place (on narrow screens by moving up rather than sideways). Legacy four-corner stored values remain valid places.
@@ -142,10 +143,10 @@ disappears; relaunch and verify all choices persist.
 
 ### Roadmap / Deferred (not yet built)
 
-- Disk-persistent image cache settings, automatic retry/backoff, periodic source refresh, cache size, and clear-cache controls remain deferred to the slideshow resilience milestone.
+- *(Delivered, noted 2026-09-14:)* automatic retry/backoff and periodic source refresh shipped in 310; the disk image cache with its storage/Clear controls shipped in 320.
 - Presence-driven sleep/wake and Home Assistant motion integration remain deferred to topic 400 and reserved sub-spec `730` under topic 700.
-- Multi-source albums, Memories, and shared-link mode remain deferred to Immich data-source roadmap specs.
-- Localization, video playback, and Live Photo playback are outside this milestone.
+- *(Delivered, noted 2026-09-14:)* multiple saved sources (120) and Immich links (110/210) shipped. Memories remain deferred to Immich data-source roadmap specs.
+- *(Delivered, noted 2026-09-14:)* German localization shipped 2026-07-23 via String Catalogs (English stays the source language). Video playback and Live Photo *motion* remain out of scope; a Live Photo shows as its still (FR-900-08).
 
 ## Success Criteria *(mandatory)*
 
@@ -167,8 +168,8 @@ disappears; relaunch and verify all choices persist.
 - The Immich client provides both preview and original-quality image fetches behind the image-source boundary; TLS remains enabled.
 - The exact valid duration range is a plan detail, but the default is 15 seconds and out-of-range values are clamped.
 - With Ken Burns enabled while fit is Fit, the rendering honors Fit: a centered zoom with panning suppressed keeps the whole photo visible and avoids revealing background beyond the letterbox (FR-500-20); Fill framing is not substituted.
-- This milestone keeps the current single active album source.
-- The clock renderer itself lives with the slideshow view (topic 300 roadmap); this spec owns
+- Settings apply to whichever source is active; a person can keep several saved sources with one active at a time (120). *(Updated 2026-09-14 — was "a single active album source".)*
+- The clock renderer itself lives with the slideshow view (shipped in 510, noted 2026-09-14); this spec owns
   the settings model, defaults, and the behavioral contract above. On tvOS the clock
   additionally pixel-shifts per FR-1000-10; Random place complements but does not replace that.
 - Random place selection needs no cryptographic quality; any uniform pick that avoids the
