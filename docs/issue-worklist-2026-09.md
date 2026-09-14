@@ -79,6 +79,12 @@ album placeholder) as they are.
 - [x] Claude: red adapter tests first (link source, link-only without API key, no call on the API-key client), then
       neutral path only; drop `api` from makeAdapter
 - [x] Adversarial verify: no asset ids/keys to a foreign host → facts REMOTE-03/04 → commit → close #64
+- Done 2026-09-14 in `e01495c`. Follow-ups, not part of WP3:
+  - **#74**: possible stale-api race in the album browser right after a source switch (pre-existing, unconfirmed,
+    red test first).
+  - Test gap: since `FakeAPI.failImage` fails only `thumbnail`, nothing covers a failed `.preview` HA image fetch.
+  - `check-facts.py` re-verify warnings (21, incl. REMOTE-03/04 evidence) are still open; bump `verified_commit`
+    only after re-verifying.
 
 ### WP4a — visible UI
 - [ ] #60 scrim in `NewPhotosOverlayView.card(for:)`; check via the capture seam over the beach photo (no store re-render)
