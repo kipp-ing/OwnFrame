@@ -127,6 +127,9 @@ Revised package order:
 
 ### WP5 — #66 + final gate
 - [ ] Subagent: #66 comments + "Uhr-Overlay" → "Uhr-Einblendung"
+- [ ] App catalog: Xcode's build extraction adds the key **"New photos card"** (older code, not WP2) with no German
+      value. Add it with a DE translation and put it on Jan's German string list. Commit only the key, not Xcode's
+      reformatting of the whole file (found 2026-09-14 after WP2).
 - [ ] Full gate: host packages; iOS suite on 18.6 **and** 26.0 (confirm the runtime from the xcresult, check the
       StoreKit skip count)
 - [ ] `check-facts.py`, bump `verified_commit`; list new German strings for Jan; note in `docs/store-story.md` that the
