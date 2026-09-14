@@ -249,7 +249,7 @@ connection editor fixed it; no deeper bug.
 
 **Independent Test**: host tests on a pending-selection model with fakes (nothing persists until commit); XCUITest for Cancel, multi-select + Done, and the no-server prompt.
 
-**Orchestration note**: the selection model is OnboardingKit host work, subagent-eligible. It runs **after** the WP2 ImmichClient + OnboardingKit pass (130 Phase 9, 310 T024–T027, 120 T037–T042), never concurrently. The picker and both hosts are SwiftUI, and all UI tests are **Claude inline**. Scope is the Immich album picker. `PhotoAlbumPickerView` also adds on tap (`PhotoAlbumPickerView.swift:131,155,200,219`) under the same pinned Done; whether FR-210-28 covers it is **open — ask Jan and record the answer on #71**, it is not changed here.
+**Orchestration note**: the selection model is OnboardingKit host work, subagent-eligible. It runs **after** the WP2 ImmichClient + OnboardingKit pass (130 Phase 9, 310 T024–T027, 120 T037–T042), never concurrently. The picker and both hosts are SwiftUI, and all UI tests are **Claude inline**. Scope is the Immich album picker. `PhotoAlbumPickerView` also adds on tap (`PhotoAlbumPickerView.swift:131,155,200,219`) under the same pinned Done; whether FR-210-28 covers it was open. **Jan decided 2026-09-14: yes, both pickers behave the same.** The Photos picker gets the same mark-then-Done rework in this package (recorded on #71); its tasks are still to be written before any code.
 
 - [ ] T065 [P] [US3] Red: new `Packages/OnboardingKit/Tests/OnboardingKitTests/AlbumSelectionTests.swift` — a pending-selection model (e.g. an `AlbumSelection` value type):
   - `toggle(album)` marks and unmarks.

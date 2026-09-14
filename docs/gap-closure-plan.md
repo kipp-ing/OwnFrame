@@ -131,6 +131,9 @@ Small, well-understood, cheap to close.
 
 Roughly by value. All need SDD artifacts before any code.
 
+**Jan's priority, 2026-09-14:** spec **pre-explained permissions** and **Quiet Glass (`330`)** next. The "set up another
+frame" QR and `730` presence sleep/wake stay parked.
+
 - [ ] **Quiet Glass → new sub-spec `330`** (of topic 300, following 510's precedent). Blocked on
       recovering the design artifact (section 0). Covers the ambient caption / "Always" mode
       (`510/spec.md:105`), the soft-glass fallback re-tint (`510/spec.md:82`), and the

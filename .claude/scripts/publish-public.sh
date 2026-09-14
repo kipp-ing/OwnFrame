@@ -23,6 +23,7 @@ EXCLUDE_PATHS=(
   "docs/release-1.1-handout.md"
   "docs/presentation-overhaul-plan.md"
   "docs/hitl.md"
+  "docs/hitl-session-guide.md"
   "specs/9010-store-presentation"
 )
 
