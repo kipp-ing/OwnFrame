@@ -29,6 +29,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 mkdir -p "$OUT"
 
+# Broker password: the environment wins, else the login Keychain item `ownframe-mqtt`
+# (created once by Jan with `security add-generic-password -a car -s ownframe-mqtt -w`).
+if [ -z "${MQTT_PASSWORD:-}" ]; then
+  MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
+fi
+
 die() { echo "error: $*" >&2; exit 1; }
 
 # xcodebuild, with the exit code preserved and the log kept for inspection.
@@ -101,7 +107,7 @@ cmd_launch() {
 # Run rig tests. Requires the broker password in the environment — never hard-coded.
 run_rig() {
   local test_id="$1" label="$2"
-  [ -n "${MQTT_PASSWORD:-}" ] || die "set MQTT_PASSWORD (broker password; never committed)"
+  [ -n "${MQTT_PASSWORD:-}" ] || die "no broker password: set MQTT_PASSWORD or the Keychain item ownframe-mqtt (never committed)"
   require_device
   local bundle="$OUT/$label.xcresult"
   rm -rf "$bundle"

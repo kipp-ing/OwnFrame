@@ -139,6 +139,8 @@ Environment (forwarded by `xcodebuild` with the prefix stripped):
 - `TEST_RUNNER_DEVICE_RIG=1` — required, else every rig test skips. Keeps a normal suite
   run from ever touching the live broker.
 - `TEST_RUNNER_MQTT_PASSWORD=…` — the broker password is **never** hard-coded (Konstitution III).
+  `framepad.sh` takes it from `MQTT_PASSWORD`, or else from the login Keychain item `ownframe-mqtt`
+  (account `car`, stored by Jan 2026-09-14), so it never passes through a chat.
 
 ### Why the rig can't use `--uitest`
 
