@@ -62,16 +62,17 @@ Landed #62 (album order), the #61 label source (card, Get Frame State, Shortcuts
 and #73's password lifecycle in one commit. Gate on iOS 18.6: app-hosted 70/0 + 18/0 UI, re-run after the verify fixes;
 host ImmichClient 84, OnboardingKit 188, AppIntentsKit 42, SlideshowKit 192. Decisions and parked findings:
 `specs/130-immich-api-v3/tasks.md` T026, `specs/120-source-library/tasks.md` Phase 9 "Verify pass". #61 closed, #62
-closed, #73 stays open (§2b landing screen).
-- [ ] S1 ImmichClient + OnboardingKit (#62 + #61):
+closed, #73 stays open for its item 3 only. Jan confirmed oldest-first live and left the §2b defaults (Reset landing,
+album placeholder) as they are.
+- [x] S1 ImmichClient + OnboardingKit (#62 + #61):
   - `Album.order`
   - `AlbumReference` order + albumName
   - search uses the album order instead of `"desc"`
   - `uniqueLabel` uses the album name
 - [~] ~~S2 PowerKit/ThemeKit (#67)~~ — **deferred (Jan, 2026-09-14):** brightness memory becomes its own feature spec
       (HA, ambient light, auto, night time); recorded in the 400 Roadmap and `hitl.md` §9. Not part of this worklist.
-- [ ] Claude: #61 comment `OwnFrameApp:777-784`; existing host-labeled sources stay (rename possible)
-- [ ] Verify + gate (host packages + iOS 18.6 sim) → facts → commit → close #61 #62
+- [x] Claude: #61 comment `OwnFrameApp:777-784`; existing host-labeled sources stay (rename possible)
+- [x] Verify + gate (host packages + iOS 18.6 sim) → facts → commit → close #61 #62
 
 ### WP3 — #64 HA metadata follows the active source
 - [ ] S3 PhotoSourceKit + backends: `AssetMetadata` city/state/country
@@ -97,7 +98,7 @@ Implementers work from these task phases (TDD order, Claude-only steps marked):
 |---|---|---|
 | #62 | `specs/130-immich-api-v3/tasks.md` Phase 9 (T026–T035) | with #61 package part (same ImmichClient pass) |
 | #61 | `specs/120-source-library/tasks.md` Phase 9 (T037–T039) + `specs/310-slideshow-resilience/tasks.md` Phase 7 (T024–T034) + `specs/800-app-intents/tasks.md` Phase 7 (T030–T036) | close only after all three |
-| #73 (passwords) | `specs/120-source-library/tasks.md` Phase 9 (T040–T047) | landing screen waits for Jan |
+| #73 (passwords) | `specs/120-source-library/tasks.md` Phase 9 (T040–T047) | done in WP2; landing stays (Jan, 2026-09-14) |
 | #64 | `specs/710-ha-full-control/tasks.md` Phase 9 (T047–T059) | after the ImmichClient pass |
 | #72 | `specs/300-slideshow/tasks.md` (T001–T013) | before or with #60 |
 | #60 | `specs/310-slideshow-resilience/tasks.md` Phase 7 (T035–T040) | after 300 T005 (soft-glass tier) |
@@ -114,15 +115,15 @@ Revised package order:
 - **WP5:** #66 + gate
 
 ### Added 2026-09-14 by the fact check (SRC-09, LOOK-03, SHORTCUT-03, SRC-12)
-- [ ] **#61 widened:** the host/album-id label also leaks through "Get Frame State". Fix it at the label source per
+- [x] **#61 widened:** the host/album-id label also leaks through "Get Frame State". Fix it at the label source per
       FR-120-13 (card + intent), inside WP2 S1 + app wiring. Test: `sourceLabel` is never a host or an id.
 - [ ] **#72 chrome below iOS 26** (FR-300-34): implement the quiet-glass softGlass tier plus eased scrims; capture over
       near-white and near-black photos (iOS 17/18 + 26 sims) and on Framepad. Do it **with WP4a** (#60 uses the same glass
       helpers). Fact LOOK-03.
 - [ ] **#71 album picker select-then-confirm** (FR-210-28): marking, commit on confirm, Cancel discards; UI tests.
       Own package after WP4b (OnboardingKit + app UI, Claude inline for UI). Fact SRC-09.
-- [ ] **#73 reset leftovers:** delete Immich-link passwords on Reset (red test first). The landing-screen question waits
-      for Jan (`hitl.md` §2b); FR-200-24 gets amended only if he picks the welcome screen.
+- [x] **#73 reset leftovers:** delete Immich-link passwords on Reset (red test first). Landing screen: Jan had no
+      preference (2026-09-14), so Reset stays on the connection step and FR-200-24 is unchanged.
 
 ### WP5 — #66 + final gate
 - [ ] Subagent: #66 comments + "Uhr-Overlay" → "Uhr-Einblendung"

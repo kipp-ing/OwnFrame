@@ -301,8 +301,8 @@ password, and Reset (FR-200-24) deletes every saved link's password along with t
 Get Frame State is 800 Phase 7 T030–T033. The stored album-name default for Immich links is 310
 T024–T027.
 
-**Not tasked**: #73's other part (where Reset should land) waits for Jan's decision, queued in
-`docs/hitl.md` §2b.
+**Not tasked**: #73's other part (where Reset should land). Resolved 2026-09-14: Jan had no preference, so
+Reset stays on the connection step (FR-200-24 unchanged).
 
 **Coordination**: T037–T038 join the single ImmichClient + OnboardingKit pass with 130 Phase 9 and
 310 T024–T027 (worklist WP2). T040–T042 are OnboardingKit too, so they run in that pass or after it,
