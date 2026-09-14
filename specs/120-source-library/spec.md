@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-24
 
-**Status**: Active — built and merged to main (feat/120, 2026-06-25); US flows covered by host units + XCUITests
+**Status**: Active — built and merged to main (feat/120, 2026-06-25); US flows covered by host units + XCUITests. **Amended 2026-09-14** (#61, fact SHORTCUT-03): display-name rule FR-120-13; Open Question 4 resolved.
 
 **Input**: User request: save several slideshow sources (Immich albums and shared/public album
 links) as one library, switch which one is playing, and expose that switch in the Home Assistant
@@ -161,6 +161,22 @@ shared-link password never appears in UserDefaults/logs.
   alongside MUST be carried through to the saved source. Camera access follows FR-220-05: if it is
   denied or unavailable, manual entry MUST remain fully usable, and scanning is never the only way
   to add a link.
+- **FR-120-13** *(added 2026-09-14, #61)*: A source's **display name** — the label as shown to a
+  person or returned to another app — MUST never be a raw host, a URL or an album id. A label the
+  person typed always wins. Without one, the default is the album's own name: for an Immich album its
+  name, for an Immich link the album name the link reports (310, FR-310-16). If no name is available,
+  a neutral localized placeholder from the 9000 vocabulary is used (for a link: "Shared album" /
+  "Geteiltes Album"). A stored label that equals the source's host or album id (sources saved before
+  this rule) MUST be replaced by that placeholder on every surface that shows or returns the label
+  outside Settings → Sources — at least the new-photos card (FR-310-16) and the state-read intent
+  (800, FR-800-07); the stored label itself is left unchanged and stays renamable. The Home Assistant
+  select (FR-120-07) keeps using stored labels, so existing automations keep their option values.
+  *(A stored label counts as "equal to the host" also when it is the host plus the numeric suffix the
+  old default added for uniqueness, e.g. `host 2`. The placeholder is applied when the name is
+  displayed, never written into the stored label, so it follows the current app language.)*
+- **FR-120-14** *(added 2026-09-14, #73)*: A shared-link password MUST NOT outlive its source. Removing
+  a source MUST delete that source's password from the Keychain, and Reset (200, FR-200-24) MUST
+  delete the passwords of every saved link along with the library.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -202,8 +218,8 @@ shared-link password never appears in UserDefaults/logs.
    in the UI).
 3. **Slug→key freshness** *(decide in `/speckit-plan`)*: Re-resolve a shared-link slug to its key on
    each launch (tolerates a rotated/expired key) versus caching the resolved key.
-4. **Label source of truth** *(decide in `/speckit-plan`)*: Default a source's label from the
-   album/shared-link name, with an optional user override — confirm whether overrides are needed for v1.
+4. **Label source of truth**: RESOLVED 2026-09-14 — the user override exists (FR-120-04 relabel), and
+   the default comes from the album's own name, never a host or id (FR-120-13; #61).
 
 ## Assumptions
 

@@ -229,6 +229,60 @@ of leaking (SC-800-04).
 
 ---
 
+## Phase 7: Amendment 2026-09-14 — Get Frame State never returns a host (FR-800-07, #61)
+
+**Goal**: FR-800-07 (clarified 2026-09-14): "active source label" is the **display name** per 120,
+FR-120-13. An unlabeled link whose stored label is its host (or `host N`), or an album labeled with
+its id, comes back as the neutral placeholder, and a typed or album-name label comes back unchanged.
+Fact SHORTCUT-03 records the gap: `FrameCommandService.swift:65` returns `surface.currentAlbum`,
+which the adapter fills with the stored label (`SlideshowRemoteControlAdapter.swift:95-96`).
+
+**Catch**: `currentAlbum` is also the HA select's state (`HAControlCoordinator.swift:403`,
+`selectAlbum` at adapter :184/:190), and FR-120-07 keeps stored labels there. So the intent needs a
+**separate** display-name property; `currentAlbum` must not be rewritten.
+
+**Independent Test**: AppIntentsKit host tests over fakes (plumbing), plus the app-hosted glue test
+over the real adapter (the rule). AppIntentsKit depends only on HAControlKit and cannot call the
+OnboardingKit function, so the host/`host N`/album-id rule itself is pinned by 120 T037 and T032
+below.
+
+**Depends on**: 120 T038, the display-name function.
+
+- [ ] T030 [P] [US3] Red: `Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift`
+      — `frameState().sourceLabel` is read from a dedicated display-name requirement on the surface
+      (e.g. `currentSourceDisplayName`), **not** from `currentAlbum`. A fake surface with
+      `currentAlbum = "bilder.example.org"` and display name "Shared album" yields "Shared album".
+      The six-field `Mirror` whitelist stays green. Expected red = doesn't compile.
+- [ ] T031 [US3] Green: add the requirement where the registry's surface type is declared. An
+      AppIntentsKit-owned refinement is preferred, so HAControlKit's control protocol stays
+      unchanged. Read it at `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:65`
+      and update the fake in `AppIntentsTestSupport`. `swift test` green in AppIntentsKit (and
+      HAControlKit if touched). Depends on T030.
+- [ ] T032 [US3] Red (app-hosted, **Claude**): `OwnFrameTests/FrameIntentGlueTests.swift` — with the
+      real `SlideshowRemoteControlAdapter` as the surface, seed an unlabeled link source
+      `Source(label: "bilder.example.org", kind: .sharedLink(baseURL: https://bilder.example.org, slug: …))`
+      as active. `GetFrameStateIntent().perform()` → `sourceLabel ==
+      SourceLibraryViewModel.displayName(for:)`, i.e. the placeholder. Variants: `bilder.example.org 2`,
+      and an album source labeled with its album id. A typed label "Iceland 2021" passes through
+      unchanged. In `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift`, pin that the HA select
+      state (`currentAlbum`) still carries the stored label (FR-120-07).
+- [ ] T033 [US3] Green (**Claude inline**): `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift`
+      — `currentAlbum` (:95-96, :184, :190) stays the stored label. Add the display-name property,
+      computed with `SourceLibraryViewModel.displayName(for:)` for the active source at init (:95)
+      and on a switch (:184); with no library it falls back to the legacy album name. Update the
+      `getFrameStateIntentNeverOpensTheAppAndMirrorsTheSnapshot` fixture (:174-197). Green T032.
+- [ ] T034 [US3] Verification (**Claude**): `swift test` AppIntentsKit; XcodeBuildMCP `test_sim` whole
+      classes `FrameIntentGlueTests`, `SlideshowRemoteControlAdapterTests`, `HAControlRoundTripTests`
+      (select options/state unchanged)
+- [ ] T035 [US3] Facts, **same commit as T033**: `product-facts.yaml` **SHORTCUT-03** →
+      `implementation: verified`; remove `mismatch`/`candidate_issue`; add `FR-120-13` to `intent`;
+      refresh `evidence` (the new property, `FrameCommandService.swift`, the T038 function,
+      `FrameIntentGlueTests.swift`); run `.claude/scripts/check-facts.py`
+- [ ] T036 Commit with explicit paths. **Close #61 only when 310 T024–T033, 120 T037–T039 and this
+      phase are all committed**, citing the three commits (`gh` account `kipp-ing`)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

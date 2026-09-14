@@ -183,8 +183,10 @@ facts:
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-210-19", "FR-210-20", "FR-210-21", "FR-210-22", "FR-210-27", "FR-210-28"]
-    implementation: unverified
-    evidence: []
+    implementation: mismatch
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/AlbumSearch.swift:5-27", "OwnFrame/Onboarding/AlbumPickerView.swift:20-52,78-83", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:48-58", "OwnFrame/Onboarding/SourceStepView.swift:64-65,80-85", "OwnFrame/Slideshow/SourceLibraryView.swift:202,208-213,222-273", "Packages/OnboardingKit/Sources/OnboardingKit/StartupGate.swift:36-38", "Packages/OnboardingKit/Tests/OnboardingKitTests/AlbumSearchTests.swift:42-74", "OwnFrameUITests/AlbumSearchUITests.swift:28-68", "OwnFrameUITests/SourceLibraryUITests.swift:87-127"]
+    mismatch: "Search (name, UTC year, photo count; name-only when metadata is missing), the internally scrolling list, the pinned Continue/Done bar and the shared AlbumPickerView in onboarding and Settings all match. Settings shows the 'Add a server' prompt when no server is stored. Onboarding only reaches the album tab with a server (StartupGate.swift:36-38). But FR-210-28 select-then-confirm is not built. Tapping a row saves the album to the library at once (AlbumPickerView.swift:81-83 -> addAlbumSource persists). Continue/Done only leaves the screen, and Cancel in Settings (SourceLibraryView.swift:202) keeps albums already tapped. The UI tests tap then Done, so they cannot tell the two apart. Also: the 'add a server' prompt has no test."
+    candidate_issue: "#71 — Album picker: implement FR-210-28 select-then-confirm. Tapping marks albums, the pinned Continue/Done commits them, Cancel discards. Add UI tests that Cancel adds nothing and that the Settings 'Add a server' prompt shows with no server."
 
   - id: SRC-10
     fact: "Requires Immich v3 or newer; an older server gets a 'needs Immich v3 or newer' notice with the detected version and does not play."
@@ -220,8 +222,8 @@ facts:
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-200-12", "FR-200-19", "FR-200-24", "FR-210-29"]
-    implementation: unverified
-    evidence: []
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowSettingsView.swift:281-300,426-438", "OwnFrame/Onboarding/ConnectionFieldsView.swift:15-73", "OwnFrame/Slideshow/ConnectionSettingsView.swift:27-41,68-80", "Packages/OnboardingKit/Sources/OnboardingKit/ConnectionSettingsViewModel.swift:31-77", "OwnFrame/OwnFrameApp.swift:673,686-694,738-747", "Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift:190-199", "Packages/OnboardingKit/Tests/OnboardingKitTests/ConnectionSettingsViewModelTests.swift:45-113,139-160", "Packages/OnboardingKit/Tests/OnboardingKitTests/OnboardingViewModelTests.swift:369-396", "OwnFrameTests/OnboardingResetTests.swift:20-54"]
 
   - id: SRC-13
     fact: "Combines several albums or sources into one slideshow."
@@ -524,8 +526,10 @@ facts:
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-300-15", "FR-300-34"]
-    implementation: unverified
-    evidence: []
+    implementation: mismatch
+    evidence: ["OwnFrame/Slideshow/View+Compat.swift:14-32,45-57", "OwnFrame/Slideshow/SlideshowChrome.swift:56-71,76,97,119-135", "docs/design/quiet-glass-2026-07-18.html:706,712"]
+    mismatch: "Liquid Glass on iOS 26 is in place (glassEffect, .glass button style, GlassEffectContainer). The earlier-version fallback is not a material for the controls themselves: glassButtonStyle falls back to .bordered, a tinted fill with no blur. Only cards (photo info, clock pill, new-photos card) get ultraThinMaterial. 'Readable over any photo' rests on fixed 45%-to-clear black edge gradients behind the bars. No test or capture checks it. The quiet-glass design record calls the iOS 17 fallback 'washed-out' and proposes a dark-tinted softGlass tier, which is not in the code. Issue #60 shows a sibling glass card illegible over a bright photo."
+    candidate_issue: "#72 — Slideshow chrome below iOS 26: give glassButtonStyle a real material fallback with a dark tint (the quiet-glass softGlass tier, View+Compat.swift:24-32). Then capture the chrome over near-white and near-black photos on Framepad (iOS 17.7) and an iOS 26 sim as the FR-300-34 check."
 
   - id: LOOK-04
     fact: "Uses a dark appearance on every app-drawn screen, regardless of the system setting."
@@ -973,8 +977,10 @@ facts:
     gated: supporter
     platforms: [ios, ipados]
     intent: ["FR-800-07"]
-    implementation: unverified
-    evidence: []
+    implementation: mismatch
+    evidence: ["Packages/AppIntentsKit/Sources/AppIntentsKit/FrameStateSnapshot.swift:12-19", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:59-70", "OwnFrame/Intents/FrameStateEntity.swift:14-55", "OwnFrame/Intents/FrameIntents.swift:145-163", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:95-96,184", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:205-210", "OwnFrame/Onboarding/SharedLinkSetupView.swift:112,136", "OwnFrame/Onboarding/AlbumPickerView.swift:79", "Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift:17-83", "OwnFrameTests/FrameIntentGlueTests.swift:174-197"]
+    mismatch: "The result type is structurally limited to six fields: isPlaying, brightnessPercent, sourceLabel, photoDate, photoCity, photoCountry. Host and app-hosted tests pin this, including a Mirror check. No bytes, IDs, region or version get through. But sourceLabel is the saved source's label, and a link added through the low-friction setup path (label \"\") gets the link's raw server host as its label (SourceLibraryViewModel.swift:210; same cause as #61). 'Get Frame State' then returns a server address, breaking the limit. An Immich album with an empty name is labeled with its album id (AlbumPickerView.swift:79), which the 800 contract also excludes."
+    candidate_issue: "#61 (scope widened 2026-09-14; spec FR-120-13, FR-800-07 note) — never use the raw host (or album id) as a source label: derive a friendly default for unlabeled Immich links (album name from /api/shared-links/me) and for unnamed albums. Add a FrameStateSnapshot/glue test proving sourceLabel is never a host."
 
   - id: SHORTCUT-04
     fact: "Controls the frame silently in the background through Shortcuts."

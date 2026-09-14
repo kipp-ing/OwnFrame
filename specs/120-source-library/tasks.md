@@ -282,6 +282,104 @@ shipped with 220.
       `startScan()` passing `labelText` to `addScannedSharedLink(using:label:)` rather than the
       first-run path's `""`. tvOS is unaffected: its target compiles only `OwnFrameTV/`.
 
+---
+
+## Phase 9: Amendment 2026-09-14 — Display name and password lifecycle (FR-120-13, FR-120-14; #61, #73)
+
+**Goal**: (1) FR-120-13: a source's display name, as shown to a person or returned to another app,
+is never a raw host, a URL or an album id. The rule lives in **one** OnboardingKit function beside
+`SourceLibraryViewModel.uniqueLabel` (`Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:205-215`):
+- A typed label always wins; the default is the album's own name.
+- A stored label equal to the host (also `host N`) or the album id maps to a neutral localized
+  placeholder at display time. The placeholder is **never written into storage**.
+- Settings → Sources and the HA select (FR-120-07) keep showing stored labels.
+
+(2) FR-120-14: a shared-link password never outlives its source. Removing a source deletes its
+password, and Reset (FR-200-24) deletes every saved link's password along with the library.
+
+**Consumers (cross-referenced, not duplicated here)**: the new-photos card is 310 Phase 7 T030–T031;
+Get Frame State is 800 Phase 7 T030–T033. The stored album-name default for Immich links is 310
+T024–T027.
+
+**Not tasked**: #73's other part (where Reset should land) waits for Jan's decision, queued in
+`docs/hitl.md` §2b.
+
+**Coordination**: T037–T038 join the single ImmichClient + OnboardingKit pass with 130 Phase 9 and
+310 T024–T027 (worklist WP2). T040–T042 are OnboardingKit too, so they run in that pass or after it,
+never concurrently with it. 210 Phase 11 (#71) also changes OnboardingKit and waits for both.
+
+### Display name (FR-120-13)
+
+- [ ] T037 [P] Red: new `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceDisplayNameTests.swift`
+      for one pure public function, e.g. `SourceLibraryViewModel.displayName(for: Source) -> String`:
+      - A typed or album-name label passes through unchanged.
+      - A `.sharedLink` whose trimmed label equals `baseURL.host` (case-insensitive), or that host
+        plus a numeric " N" suffix, → the link placeholder.
+      - An `.album(albumID)` whose label equals the album id (also `id N`, the old
+        `activateAlbumSource` counter) → the album placeholder.
+      - A URL-shaped label (`https://…`) → the placeholder for its kind; an empty or whitespace
+        label → the placeholder for its kind.
+      - A label that only *contains* the host ("Family on bilder.example.org") passes through.
+      - A `.photoLibrary` label passes through.
+      - Calling it never writes the library: the store save count is unchanged.
+
+      Plus a catalog check in the `SourceVocabularyCatalogTests` pattern: the placeholder keys exist
+      in `Packages/OnboardingKit/Sources/OnboardingKit/Localizable.xcstrings` with translated `de`
+      values ("Geteiltes Album" for the link).
+- [ ] T038 Green: the function in `SourceLibraryViewModel.swift` next to `uniqueLabel`: public,
+      static, pure, placeholders via `String(localized:bundle: .module)`; catalog entries EN + DE.
+      **Decision, record here**: FR-120-13 names only the link placeholder ("Shared album"). Pick the
+      unnamed-Immich-album wording from the 9000 vocabulary (FR-9000-26) and queue it for Jan (T045).
+      Depends on T037.
+- [ ] T039 **Claude inline** (SwiftUI): unnamed Immich album. `OwnFrame/Onboarding/AlbumPickerView.swift:79`
+      shows the album id as the row text today. The row shows the album placeholder instead. The
+      stored label stays as today (never the placeholder), so the card/intent map it through T038.
+      Add an unnamed album to `UITestSupport.manyAlbums()` (`OwnFrame/OwnFrameApp.swift`) and assert
+      the row text in `OwnFrameUITests/AlbumSearchUITests.swift`. If 210 Phase 11 (#71) has already
+      reworked the row, apply the change there.
+
+### Password lifecycle (FR-120-14)
+
+- [ ] T040 [P] Pin (remove): `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceLibraryViewModelTests.swift`
+      — `remove(id:)` already deletes a link's password (`SourceLibraryViewModel.swift:218-221`;
+      the remove test from 210 T032, ~:96). Confirm it asserts the deletion for a link source and no
+      delete for an album source, and add `@covers FR-120-14`. **Expected green on write**: recorded
+      as a regression pin (T034 pattern), not a red-then-green cycle.
+- [ ] T041 Red (Reset, host): `Packages/OnboardingKit/Tests/OnboardingKitTests/OnboardingViewModelTests.swift`,
+      beside `resetReturnsToConnectionAndClearsLibrary` (:360). Seed two link sources (both with
+      passwords in an `InMemorySharedLinkSecretStore`) plus an album source. After `reset()`, both
+      `readPassword` calls return `nil` and the library is empty. Red = does not compile:
+      `OnboardingViewModel.init` (:33-37) takes no secret store.
+- [ ] T042 Green: `Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift` — add a
+      `secretStore: any SharedLinkSecretStore = InMemorySharedLinkSecretStore()` init parameter.
+      `reset()` (:190-199) deletes the password of every `.sharedLink` source in `sourceStore.load()`
+      **before** `sourceStore.clear()`. **Decision, record here**: passwords orphaned by earlier
+      Resets can no longer be found by source id, and sweeping them needs a service-wide delete on
+      `SharedLinkSecretStore` (e.g. `deleteAllPasswords()`). FR-120-14 requires only saved links.
+      Depends on T041.
+- [ ] T043 Red+Green (app-hosted, **Claude**): `OwnFrameTests/OnboardingResetTests.swift` — the same
+      assertion through a real `KeychainSharedLinkSecretStore(service:)` with a test-only service
+      name; seed a password, `reset()`, and the password is gone.
+- [ ] T044 Wiring (**Claude inline**, app entry point): pass the production
+      `KeychainSharedLinkSecretStore()` (the same service the source library uses) to both
+      `OnboardingViewModel(` sites in `OwnFrame/OwnFrameApp.swift` (:148 uitest, :302 production).
+
+### Close-out
+
+- [ ] T045 Verification (**Claude**): `swift test` in OnboardingKit; XcodeBuildMCP `test_sim` whole
+      classes `OnboardingResetTests`, `SourceLibraryUITests`, `SettingsUITests`, `AlbumSearchUITests`.
+      Queue the placeholder strings (EN + DE, link + album) for Jan's German review in `docs/hitl.md`.
+- [ ] T046 Facts, **same commit as the code they describe**. **SHORTCUT-03** is flipped by 800 T035,
+      whose evidence cites T038's function, so nothing for it here. **PRIV-01**: add `FR-120-14` to
+      `intent` and the `reset()` deletion lines to `evidence`. **PRIV-02**: touch only if storage
+      changed (not expected). Run `.claude/scripts/check-facts.py`.
+- [ ] T047 Commits with explicit paths: T037–T039 go in WP2's commit with 310's #61 part; T040–T046
+      in their own commit. Comment on #73 that the password lifecycle landed, and **leave #73 open**
+      (§2b pending). #61 closes in 800 T036.
+
+**Checkpoint**: no surface outside Settings → Sources shows or returns a host, URL or album id as a
+source name; Reset and remove leave no link password in the Keychain.
+
 ## Dependencies & order
 
 - **Setup (P1)** → **Foundational (P2)** → stories.

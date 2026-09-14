@@ -296,3 +296,129 @@ machinery) → Phase 6 gates → then the release checklist in
 - Commit after each red+green pair or logical group; stage with explicit paths, never `-A`.
 - `SlideshowResilienceTests.swift` is shared by T002/T007/T013/T015/T017/T018 — those tasks
   are deliberately sequential; only the two pure-logic suites fan out.
+
+---
+
+## Phase 7: Amendment 2026-09-14 — Arrival card legibility and human source label (#60, #61)
+
+**Requirements**: FR-310-15 (dark scrim inside the glass card, #60) and FR-310-16 (album-name default
+label, never a raw host on the card, #61), both refining FR-310-14 (US4). The card stays
+non-interactive, hidden while the chrome shows, free (fact UNATT-08).
+
+**Two commits, per `docs/issue-worklist-2026-09.md`:** #61 ships in **WP2** with #62 (130 Phase 9);
+#60 ships in **WP4a** with #59 (9000). Each part has its own facts and close task.
+
+> **Coordination (#61 ↔ #62 ↔ 120):** T024–T027 touch `SharedLinkResolver.swift` and OnboardingKit,
+> the same files as 130 Phase 9 (album `order`) and 120 Phase 9 (the one display-name function,
+> FR-120-13). **One implementer does 130 T027–T031, 310 T024–T027 and 120 T037–T038 in a single
+> ImmichClient + OnboardingKit pass**, with shared fixtures and one `SharedLinkResolution` init
+> change. Never two agents in one package.
+
+**Decisions (2026-09-14, recorded):**
+1. The localized placeholder ("Shared album" / "Geteiltes Album") is **never persisted** as a label.
+   It is applied at display time, so it follows the current app language. The album name from
+   `/shared-links/me`, when present, **is** stored as the default label (FR-310-16).
+2. A stored label counts as "equal to the host" also as `host N`, the numeric suffix the old
+   `uniqueLabel` added (120, FR-120-13).
+3. The capture-count local change (T035) and the computed ≈ 0.54 scrim floor (T036) stand. **Jan
+   eyeballs the capture before commit.**
+
+### #61 — the card never names a host (FR-310-16, via 120 FR-120-13)
+
+Today the low-friction paths pass `label: ""` (`OwnFrame/Onboarding/SharedLinkSetupView.swift:112,136`,
+`OwnFrame/Onboarding/IncomingLinkSheet.swift:77`), `uniqueLabel`
+(`Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:205-215`) falls back to
+`baseURL.host`, and the resolver discards the album name (`SharedLinkResolver.swift:4-14,166-174`).
+The display rule itself (host, `host N`, album id → placeholder) is **one function owned by 120
+(T037–T038)**. This phase stores the better default and makes the card consume that function. The
+state-read intent consumes it too, in 800 Phase 7.
+
+- [ ] T024 [P] [US4] Red: `Packages/ImmichClient/Tests/ImmichClientTests/SharedLinkResolverTests.swift`
+      — `SharedLinkResolution.albumName` is decoded from `album.albumName` in both the `/me`
+      (no password) and `/login` (password) responses; absent or empty → `nil` (FR-310-16)
+- [ ] T025 [US4] Green: `albumName` on `AlbumReference` and `SharedLinkResolution` in
+      `Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift` — a new init parameter
+      defaulted to `nil`, landed together with 130 T028's `order` (depends on T024)
+- [ ] T026 [US4] Red: `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceLibraryViewModelTests.swift`
+      — with `label: ""`, the resolver's `albumName` "Iceland 2021" becomes the **stored** label.
+      Cover all three entry points: `resolveSharedLink`, `confirmSharedLinkPassword`,
+      `addScannedSharedLink`. A typed label always wins, and a colliding album name still gets the
+      " 2" suffix. With `albumName == nil`, the stored label **never** contains the placeholder
+      string: it keeps today's non-empty fallback, which the 120 display-name function maps to the
+      placeholder on display. The stub resolvers at :302-320 return a name.
+- [ ] T027 [US4] Green: `SourceLibraryViewModel.swift` — keep the resolution returned by the
+      resolver (today `_ =` at :159) on `pendingLink`. The `uniqueLabel` chain becomes typed label →
+      `albumName` → existing fallback. No placeholder is written and no catalog entry is added here;
+      the placeholder string belongs to 120 T038 (depends on T025, T026). `swift test` green in
+      ImmichClient + OnboardingKit.
+- ~~T028–T029~~ **Merged into 120 T037–T038** (2026-09-14): the host / `host N` / album-id detection
+      is the single display-name function next to `uniqueLabel`, not a separate `Source` query here.
+      These IDs stay unused.
+- [ ] T030 [US4] Red (app target, **Claude inline**): new `OwnFrameTests/NewPhotosCardLabelTests.swift`
+      — the card's source label is `SourceLibraryViewModel.displayName(for:)` (120 T038) of the
+      active source. A link labeled with its host, or `host 2`, shows the placeholder; an album-name
+      or typed label, or a Photos label, shows unchanged. No app-catalog entry: the placeholder ships
+      in OnboardingKit's catalog (120 T038). Depends on 120 T038.
+- [ ] T031 [US4] Green (**Claude inline**): `activeSourceLabel` (`OwnFrame/OwnFrameApp.swift:773-788`)
+      returns the display name of the active source. Rewrite the now-stale DEBUG comment at
+      `OwnFrameApp.swift:777-784` and the matching doc comment at
+      `OwnFrameUITests/AppStoreScreenshotUITests.swift:189-193`: a host label never reaches the card
+      any more. The `SCREENSHOT_CAPTURE_SOURCE_LABEL` override itself stays, because the frozen
+      capture uses it. `SharedLinkSetupView`/`IncomingLinkSheet` keep passing `label: ""`; confirm no
+      change there.
+- [ ] T032 [US4] Verification (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes
+      `NewPhotosCardLabelTests`, `NewPhotosCardCopyTests`, `NewPhotosCardCaptureTimingTests`,
+      `SharedLinkOnboardingUITests`, `ShareSheetIncomingUITests`, `SourceLibraryUITests`
+- [ ] T033 [US4] Facts, **same commit as T025–T031**: `product-facts.yaml` **UNATT-08** — reword
+      the label limit (an Immich link added without a name shows the album's name, or "Shared album";
+      never a server name), add FR-310-16 and FR-120-13 to `intent`, refresh `evidence`
+      (`OwnFrameApp.swift` `activeSourceLabel`, `SourceLibraryViewModel.swift`). Run
+      `.claude/scripts/check-facts.py`. (The German placeholder is queued for Jan by 120 T045.)
+- [ ] T034 [US4] Commit with explicit paths (WP2, together with #62 and 120 T037–T039). **Do not
+      close #61 here**: it closes in 800 T036, once this part, 120 T037–T039 and 800 Phase 7 are all
+      committed.
+
+### #60 — legible over bright photos (FR-310-15)
+
+`card(for:)` (`OwnFrame/Slideshow/NewPhotosOverlayView.swift:71-90`) sets white text on
+`.glassCard(cornerRadius: 20)` (`OwnFrame/Slideshow/View+Compat.swift:16-22`). Glass picks up a
+bright photo, so the text washes out. **The scrim comes from the soft-glass tier of 300 (#72,
+`specs/300-slideshow/tasks.md` T005)**, which gives `glassCard` an optional in-shape dark `scrim`
+layer. This card opts into it on every runtime, so there is one helper and one layer, not a second
+hand-rolled fill. **300 T005 lands before T037 or in the same commit.** App target only, so every
+task is **Claude inline**. **Store assets in `Design/AppStore/` are frozen and MUST NOT be
+re-rendered.**
+
+- [ ] T035 [US4] Baseline capture (**Claude**): run `OwnFrameUITests/AppStoreScreenshotUITests.swift`
+      `testCaptureNewPhotosCard` over the bright beach photo with the seam at
+      `SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT=3`, which gives the longest copy, "+3 new photos". Do
+      it on the iOS 26 runtime (glass) and on 18.6 (`ultraThinMaterial` fallback). Keep the
+      attachment out of `Design/AppStore/`, downscale it (`sips -Z 900`) before reading, and note the
+      washed-out state under this task. If the test's hard-coded `"1"` has to change for the run,
+      do not commit that change.
+- [ ] T036 [US4] Red: new `OwnFrameTests/NewPhotosCardScrimTests.swift` — the card exposes a static
+      scrim opacity (e.g. `NewPhotosOverlayView.cardScrimOpacity`), and the test requires it to keep
+      white text at ≥ 4.5:1 (WCAG AA) over a pure-white photo, ignoring the glass. Black at opacity
+      `a` over white composites to an sRGB value `1 − a`, and AA needs relative luminance ≤ 0.183, so
+      `a` ≳ 0.54. The test computes this and does not hard-code it. It is red because the constant
+      does not exist yet. **The computed floor is a starting point: Jan eyeballs the T038 capture
+      before commit.**
+- [ ] T037 [US4] Green: in `card(for:)`, use `.glassCard(cornerRadius: 20, scrim: Self.cardScrimOpacity)`
+      from the 300 T005 tier. That is a single in-shape dark layer; below iOS 26 the darker of the
+      tier tint and the card scrim wins, so they never stack. Non-interactive, no change to the copy,
+      timing or chrome-hidden rule (depends on T036 and 300 T005)
+- [ ] T038 [US4] Verification (**Claude**): repeat T035's capture on both runtimes, and add a dark
+      photo to confirm the card doesn't turn into a black box. Compare against the baseline. **Jan
+      eyeballs the beach-photo capture before commit**; `cardScrimOpacity` may only move up from the
+      computed floor. Then run `test_sim` whole classes `NewPhotosCardScrimTests`,
+      `NewPhotosCardCopyTests`, `NewPhotosCardCaptureTimingTests`, `UITestNewPhotosCardSeamTests`.
+      Do not re-render store assets.
+- [ ] T039 [US4] Facts, **same commit as T037**: `product-facts.yaml` **UNATT-08** — add FR-310-15 to
+      `intent` and the scrim lines of `NewPhotosOverlayView.swift` to `evidence`; add a
+      "stays readable over bright photos" limit only if Jan's store copy needs it. Run
+      `.claude/scripts/check-facts.py`.
+- [ ] T040 [US4] Commit with explicit paths (WP4a, with #59, and with 300's tier if 300 T005 is not
+      committed yet), then close #60 with the commit reference
+
+**Checkpoint**: the card reads over the beach photo on iOS 26 glass and the iOS 17/18 fallback; a
+link added without a name shows its album's name; no source host ever reaches the card.

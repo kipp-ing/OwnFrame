@@ -85,6 +85,40 @@ taps drill in again; the strict expectation fails loudly on that day.
 - [ ] fix the comments; red contract test first; share-sheet UITest
 - [ ] fact SRC-07 → commit → close #65
 
+### Spec round closed 2026-09-14 — every code package now has spec + tasks
+Implementers work from these task phases (TDD order, Claude-only steps marked):
+
+| Issue | Task phase | Must land with / after |
+|---|---|---|
+| #62 | `specs/130-immich-api-v3/tasks.md` Phase 9 (T026–T035) | with #61 package part (same ImmichClient pass) |
+| #61 | `specs/120-source-library/tasks.md` Phase 9 (T037–T039) + `specs/310-slideshow-resilience/tasks.md` Phase 7 (T024–T034) + `specs/800-app-intents/tasks.md` Phase 7 (T030–T036) | close only after all three |
+| #73 (passwords) | `specs/120-source-library/tasks.md` Phase 9 (T040–T047) | landing screen waits for Jan |
+| #64 | `specs/710-ha-full-control/tasks.md` Phase 9 (T047–T059) | after the ImmichClient pass |
+| #72 | `specs/300-slideshow/tasks.md` (T001–T013) | before or with #60 |
+| #60 | `specs/310-slideshow-resilience/tasks.md` Phase 7 (T035–T040) | after 300 T005 (soft-glass tier) |
+| #59 | `specs/9000-design-language/tasks.md` (T001–T012) | with #60/#72 (visual package) |
+| #65 | `specs/210-shared-link-onboarding/tasks.md` Phase 10 (T057–T064) | — |
+| #71 | `specs/210-shared-link-onboarding/tasks.md` Phase 11 (T065–T072) | after #65 (same tasks file, same picker area) |
+
+Revised package order:
+- **WP2:** #62 + #61 package part + #73 passwords (ImmichClient + OnboardingKit)
+- **WP3:** #64
+- **WP4a:** #72 → #60 → #59 (visual, simulator)
+- **WP4b:** #65
+- **WP4c:** #71
+- **WP5:** #66 + gate
+
+### Added 2026-09-14 by the fact check (SRC-09, LOOK-03, SHORTCUT-03, SRC-12)
+- [ ] **#61 widened:** the host/album-id label also leaks through "Get Frame State". Fix it at the label source per
+      FR-120-13 (card + intent), inside WP2 S1 + app wiring. Test: `sourceLabel` is never a host or an id.
+- [ ] **#72 chrome below iOS 26** (FR-300-34): implement the quiet-glass softGlass tier plus eased scrims; capture over
+      near-white and near-black photos (iOS 17/18 + 26 sims) and on Framepad. Do it **with WP4a** (#60 uses the same glass
+      helpers). Fact LOOK-03.
+- [ ] **#71 album picker select-then-confirm** (FR-210-28): marking, commit on confirm, Cancel discards; UI tests.
+      Own package after WP4b (OnboardingKit + app UI, Claude inline for UI). Fact SRC-09.
+- [ ] **#73 reset leftovers:** delete Immich-link passwords on Reset (red test first). The landing-screen question waits
+      for Jan (`hitl.md` §2b); FR-200-24 gets amended only if he picks the welcome screen.
+
 ### WP5 — #66 + final gate
 - [ ] Subagent: #66 comments + "Uhr-Overlay" → "Uhr-Einblendung"
 - [ ] Full gate: host packages; iOS suite on 18.6 **and** 26.0 (confirm the runtime from the xcresult, check the

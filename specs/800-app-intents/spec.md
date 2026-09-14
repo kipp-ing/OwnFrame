@@ -131,7 +131,9 @@ secrets, never server URLs with credentials, no photo bytes.
   and switching MUST reuse its restart strategy — parity with the HA album select.
 - **FR-800-07**: The state-read intent MUST expose only: playback state, brightness, active
   source label, current photo date and coarse location — never credentials, asset bytes, server
-  URLs, or filenames (consistent with FR-300-25/FR-300-32).
+  URLs, or filenames (consistent with FR-300-25/FR-300-32). *(Clarified 2026-09-14, #61: "active
+  source label" is the display name per 120, FR-120-13, so an unlabeled link's host or an album id
+  never comes back as the label.)*
 - **FR-800-08**: Parameter validation MUST mirror the HA ranges (brightness 0–100 % mapping to
   topic 400's 0.0–1.0; unknown source → error + unchanged state, the topic-700 self-heal
   stance).
