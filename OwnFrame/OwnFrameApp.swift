@@ -149,7 +149,8 @@ struct OwnFrameApp: App {
                 api: { _ in StubImmichAPI() },
                 config: config,
                 keychain: keychain,
-                sourceStore: sourceStore
+                sourceStore: sourceStore,
+                secretStore: secretStore
             )
             // Optional fast path for manual/visual verification and the Settings/chrome
             // tests: seed a complete state (key + base URL + one active album source) and
@@ -198,7 +199,7 @@ struct OwnFrameApp: App {
                 return SourceLibrary.restartStrategy(from: previous, to: next)
             }
             controlRegistry.sourceOptions = {
-                sourceStore.load().sources.map { SourceOption(id: $0.id, label: $0.label) }
+                OwnFrameApp.sourceOptions(for: sourceStore.load().sources)
             }
             controlRegistry.isConfigured = sourceStore.load().active != nil
             factories = Factories(
@@ -303,7 +304,10 @@ struct OwnFrameApp: App {
             api: { serverConfig in ImmichClient(config: serverConfig) },
             config: config,
             keychain: keychain,
-            sourceStore: sourceStore
+            sourceStore: sourceStore,
+            // The same Keychain service the source library saves link passwords in, so
+            // Reset can delete them (120, FR-120-14).
+            secretStore: secretStore
         )
 
         // Resume at the first missing step on launch; a complete state (key + base URL +
@@ -573,7 +577,7 @@ struct OwnFrameApp: App {
         }
 
         controlRegistry.sourceOptions = {
-            sourceStore.load().sources.map { SourceOption(id: $0.id, label: $0.label) }
+            OwnFrameApp.sourceOptions(for: sourceStore.load().sources)
         }
         controlRegistry.isConfigured = sourceStore.load().active != nil
 
@@ -618,6 +622,16 @@ struct OwnFrameApp: App {
 /// Routes between onboarding and the running slideshow. Holds the slideshow view
 /// model for the lifetime of the `.done` state so its timer/prefetch survive
 /// re-renders; reset tears it down and returns to onboarding (002/US3).
+extension OwnFrameApp {
+    /// The saved sources as App Intents options (800, FR-800-06): the stored label to apply by,
+    /// plus the display name the Shortcuts picker shows (120, FR-120-13).
+    static func sourceOptions(for sources: [Source]) -> [SourceOption] {
+        sources.map {
+            SourceOption(id: $0.id, label: $0.label, displayName: SourceLibraryViewModel.displayName(for: $0))
+        }
+    }
+}
+
 private struct RootView: View {
     let onboarding: OnboardingViewModel
     let factories: OwnFrameApp.Factories
@@ -754,6 +768,11 @@ private struct RootView: View {
         guard let strategy = factories.switchActiveSource(id) else { return }
         switch strategy {
         case let .switchAlbum(albumID):
+            // Album → album keeps the adapter, so tell it which source now plays: the HA
+            // select state and Get Frame State's display name must follow (800, FR-800-07).
+            if let active = factories.loadLibrary().active {
+                remoteAdapter?.activeSourceChanged(to: active)
+            }
             Task { await slideshow?.switchAlbum(albumID) }
         case .rebuild:
             rebuildSlideshow()
@@ -772,18 +791,16 @@ private struct RootView: View {
     /// card). Read the same live way as `activeSourceIsPhotoLibrary`.
     private var activeSourceLabel: String? {
         #if DEBUG
-        // 9010 slot 5 live capture only: a shared-link source added through the low-
-        // friction onboarding path (no label field, by design — see SharedLinkSetupView)
-        // defaults its label to the link's raw host (SourceLibraryViewModel.uniqueLabel).
-        // That is fine for a real user's own frame, but this capture's real host
-        // (frame.kippings.de) must never appear on a public store screenshot — the exact
-        // hostname-leak trap docs/handover-store-slots.md flags for this card. DEBUG-only,
-        // env-var-gated; display-time only, never persisted, never reachable in Release.
+        // 9010 slot 5 live capture only: the frozen store capture names its card with a chosen
+        // album name. A host label no longer reaches the card either way (the display name
+        // below maps it to "Shared album", 310 FR-310-16), so this only picks the capture's
+        // wording. DEBUG-only, env-var-gated; display-time only, never persisted, never
+        // reachable in Release.
         if let override = ProcessInfo.processInfo.environment["SCREENSHOT_CAPTURE_SOURCE_LABEL"] {
             return override
         }
         #endif
-        return factories.loadLibrary().active?.label
+        return NewPhotosOverlayView.sourceLabel(for: factories.loadLibrary().active)
     }
 
     /// Rebuild the slideshow view model (and the API client) from the updated stores and
@@ -1016,6 +1033,9 @@ enum UITestSupport {
                       startDate: midYear(year), endDate: midYear(year))
             )
         }
+        // 120, FR-120-13 (#61): an album without a name. Its row must show the neutral
+        // placeholder, never the album id.
+        albums.append(Album(id: "album-unnamed", name: "", assetCount: 5))
         return albums
     }
 

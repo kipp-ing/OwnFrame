@@ -385,11 +385,31 @@ import ImmichClient
     #expect(vm.errorMessage == nil)
 }
 
+// 120 T041 (FR-120-14): Reset deletes the password of every saved link along with the library.
+// @covers FR-120-14, FR-200-24
+@MainActor @Test func resetDeletesThePasswordOfEverySavedLink() {
+    let baseURL = URL(string: "https://bilder.example.test")!
+    var library = SourceLibrary()
+    library.add(Source(id: "link-1", label: "Geo", kind: .sharedLink(baseURL: baseURL, slug: "geo")))
+    library.add(Source(id: "link-2", label: "Korsika", kind: .sharedLink(baseURL: baseURL, slug: "korsika")))
+    library.add(Source(id: "album-1", label: "Fam", kind: .album(albumID: "a1")))
+    let sourceStore = InMemorySourceLibraryStore(library: library)
+    let secretStore = InMemorySharedLinkSecretStore(passwordsBySourceID: ["link-1": "pw-1", "link-2": "pw-2"])
+    let vm = makeVM(api: AlbumsAPI(result: .success([])), sourceStore: sourceStore, secretStore: secretStore)
+
+    vm.reset()
+
+    #expect(secretStore.readPassword(forSourceID: "link-1") == nil)
+    #expect(secretStore.readPassword(forSourceID: "link-2") == nil)
+    #expect(sourceStore.load().sources.isEmpty)
+}
+
 @MainActor private func makeVM(
     api: any ImmichAPI,
     config: InMemoryConfigStore = .init(),
     keychain: InMemoryKeychainStore = .init(),
     sourceStore: InMemorySourceLibraryStore = .init(),
+    secretStore: InMemorySharedLinkSecretStore = .init(),
     retryLimit: Int = 0
 ) -> OnboardingViewModel {
     OnboardingViewModel(
@@ -397,6 +417,7 @@ import ImmichClient
         config: config,
         keychain: keychain,
         sourceStore: sourceStore,
+        secretStore: secretStore,
         connectionRetryLimit: retryLimit,
         connectionRetryDelay: .zero,
         // No real waiting in tests — the retry cadence is host behaviour, not under test.

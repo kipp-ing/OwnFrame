@@ -12,6 +12,7 @@
 //  FR-9010-07 only binds Ken Burns and the clock overlay).
 //
 
+import OnboardingKit
 import SlideshowKit
 import SwiftUI
 
@@ -21,6 +22,12 @@ struct NewPhotosOverlayView: View {
     /// category word — sidesteps both the "Shared Album" vocabulary trap and the
     /// hostname-leak trap a kind subtitle carries (`SourceLibraryView.swift:321`).
     let sourceLabel: String?
+
+    /// The card's label for the active source (310, FR-310-16): its display name per 120,
+    /// FR-120-13, so a stored host, `host N` or album id shows as the neutral placeholder.
+    static func sourceLabel(for source: Source?) -> String? {
+        source.map(SourceLibraryViewModel.displayName(for:))
+    }
     let chromeVisible: Bool
 
     @State private var visible = false

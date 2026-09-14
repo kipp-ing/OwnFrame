@@ -333,20 +333,20 @@ The display rule itself (host, `host N`, album id → placeholder) is **one func
 (T037–T038)**. This phase stores the better default and makes the card consume that function. The
 state-read intent consumes it too, in 800 Phase 7.
 
-- [ ] T024 [P] [US4] Red: `Packages/ImmichClient/Tests/ImmichClientTests/SharedLinkResolverTests.swift`
+- [x] T024 [P] [US4] Red: `Packages/ImmichClient/Tests/ImmichClientTests/SharedLinkResolverTests.swift`
       — `SharedLinkResolution.albumName` is decoded from `album.albumName` in both the `/me`
       (no password) and `/login` (password) responses; absent or empty → `nil` (FR-310-16)
-- [ ] T025 [US4] Green: `albumName` on `AlbumReference` and `SharedLinkResolution` in
+- [x] T025 [US4] Green: `albumName` on `AlbumReference` and `SharedLinkResolution` in
       `Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift` — a new init parameter
       defaulted to `nil`, landed together with 130 T028's `order` (depends on T024)
-- [ ] T026 [US4] Red: `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceLibraryViewModelTests.swift`
+- [x] T026 [US4] Red: `Packages/OnboardingKit/Tests/OnboardingKitTests/SourceLibraryViewModelTests.swift`
       — with `label: ""`, the resolver's `albumName` "Iceland 2021" becomes the **stored** label.
       Cover all three entry points: `resolveSharedLink`, `confirmSharedLinkPassword`,
       `addScannedSharedLink`. A typed label always wins, and a colliding album name still gets the
       " 2" suffix. With `albumName == nil`, the stored label **never** contains the placeholder
       string: it keeps today's non-empty fallback, which the 120 display-name function maps to the
       placeholder on display. The stub resolvers at :302-320 return a name.
-- [ ] T027 [US4] Green: `SourceLibraryViewModel.swift` — keep the resolution returned by the
+- [x] T027 [US4] Green: `SourceLibraryViewModel.swift` — keep the resolution returned by the
       resolver (today `_ =` at :159) on `pendingLink`. The `uniqueLabel` chain becomes typed label →
       `albumName` → existing fallback. No placeholder is written and no catalog entry is added here;
       the placeholder string belongs to 120 T038 (depends on T025, T026). `swift test` green in
@@ -354,27 +354,27 @@ state-read intent consumes it too, in 800 Phase 7.
 - ~~T028–T029~~ **Merged into 120 T037–T038** (2026-09-14): the host / `host N` / album-id detection
       is the single display-name function next to `uniqueLabel`, not a separate `Source` query here.
       These IDs stay unused.
-- [ ] T030 [US4] Red (app target, **Claude inline**): new `OwnFrameTests/NewPhotosCardLabelTests.swift`
+- [x] T030 [US4] Red (app target, **Claude inline**): new `OwnFrameTests/NewPhotosCardLabelTests.swift`
       — the card's source label is `SourceLibraryViewModel.displayName(for:)` (120 T038) of the
       active source. A link labeled with its host, or `host 2`, shows the placeholder; an album-name
       or typed label, or a Photos label, shows unchanged. No app-catalog entry: the placeholder ships
       in OnboardingKit's catalog (120 T038). Depends on 120 T038.
-- [ ] T031 [US4] Green (**Claude inline**): `activeSourceLabel` (`OwnFrame/OwnFrameApp.swift:773-788`)
+- [x] T031 [US4] Green (**Claude inline**): `activeSourceLabel` (`OwnFrame/OwnFrameApp.swift:773-788`)
       returns the display name of the active source. Rewrite the now-stale DEBUG comment at
       `OwnFrameApp.swift:777-784` and the matching doc comment at
       `OwnFrameUITests/AppStoreScreenshotUITests.swift:189-193`: a host label never reaches the card
       any more. The `SCREENSHOT_CAPTURE_SOURCE_LABEL` override itself stays, because the frozen
       capture uses it. `SharedLinkSetupView`/`IncomingLinkSheet` keep passing `label: ""`; confirm no
       change there.
-- [ ] T032 [US4] Verification (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes
+- [x] T032 [US4] Verification (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes
       `NewPhotosCardLabelTests`, `NewPhotosCardCopyTests`, `NewPhotosCardCaptureTimingTests`,
       `SharedLinkOnboardingUITests`, `ShareSheetIncomingUITests`, `SourceLibraryUITests`
-- [ ] T033 [US4] Facts, **same commit as T025–T031**: `product-facts.yaml` **UNATT-08** — reword
+- [x] T033 [US4] Facts, **same commit as T025–T031**: `product-facts.yaml` **UNATT-08** — reword
       the label limit (an Immich link added without a name shows the album's name, or "Shared album";
       never a server name), add FR-310-16 and FR-120-13 to `intent`, refresh `evidence`
       (`OwnFrameApp.swift` `activeSourceLabel`, `SourceLibraryViewModel.swift`). Run
       `.claude/scripts/check-facts.py`. (The German placeholder is queued for Jan by 120 T045.)
-- [ ] T034 [US4] Commit with explicit paths (WP2, together with #62 and 120 T037–T039). **Do not
+- [x] T034 [US4] Commit with explicit paths (WP2, together with #62 and 120 T037–T039). **Do not
       close #61 here**: it closes in 800 T036, once this part, 120 T037–T039 and 800 Phase 7 are all
       committed.
 

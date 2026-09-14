@@ -34,20 +34,37 @@ public struct ImmichClient: ImmichAPI {
         // shares on v3 (validated live against 3.0.2, M2) — but the share `key` authorizes the
         // metadata search, so a shared link pages exactly like an API key, only authenticating
         // with the `?key=` query (appended by `makeRequest`) instead of the `x-api-key` header.
-        try await albumAssetsViaMetadataSearch(albumID: albumID)
+        // The album's own order is looked up on every fetch, so a sort changed in Immich reaches
+        // the frame on the next refresh (130 Phase 9, #62).
+        let order = try await albumOrder(albumID: albumID)
+        return try await albumAssetsViaMetadataSearch(albumID: albumID, order: order)
+    }
+
+    /// The album's own order via `GET /api/albums/{id}?withoutAssets=true`, authenticated like
+    /// every other request (API-key header or share `?key=`; verified live against 3.1.0 for
+    /// both). A failed lookup throws — it never silently becomes newest first. Only an absent,
+    /// `null` or unknown `order` falls back to `desc` (FR-500-06).
+    private func albumOrder(albumID: String) async throws -> AlbumOrder {
+        let request = makeRequest(
+            path: "api/albums/\(albumID)",
+            queryItems: [URLQueryItem(name: "withoutAssets", value: "true")]
+        )
+        let data = try await responseData(for: request)
+        return try decode(Album.self, from: data).order ?? .desc
     }
 
     /// Album source (API key or shared link): page `POST /api/search/metadata` filtered to the
     /// album's images until the server stops returning a `nextPage` token (FR-130-02). `order`
-    /// mirrors the album's own date sort; the caller may still filter by type.
-    private func albumAssetsViaMetadataSearch(albumID: String) async throws -> [Asset] {
+    /// is the album's own order (asc/desc); newest first when none is reported. The caller may
+    /// still filter by type.
+    private func albumAssetsViaMetadataSearch(albumID: String, order: AlbumOrder) async throws -> [Asset] {
         var collected: [Asset] = []
         var page = 1
         while true {
             let body = MetadataSearchRequest(
                 albumIds: [albumID],
                 type: "IMAGE",
-                order: "desc",
+                order: order.rawValue,
                 page: page,
                 size: Self.metadataSearchPageSize
             )

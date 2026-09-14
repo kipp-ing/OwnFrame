@@ -62,7 +62,9 @@ public struct FrameCommandService {
         return FrameStateSnapshot(
             isPlaying: surface.playbackState == .playing,
             brightnessPercent: Int((surface.brightness * 100).rounded()),
-            sourceLabel: surface.currentAlbum,
+            // The display name, never `currentAlbum` (the HA select's stored
+            // label, which may be a host) — FR-800-07, FR-120-13.
+            sourceLabel: surface.currentSourceDisplayName,
             photoDate: report.takenAt,
             photoCity: report.city,
             photoCountry: report.country

@@ -52,6 +52,13 @@ import ImmichClientTestSupport
     #expect(request.value(forHTTPHeaderField: "x-api-key") == config.apiKey)
 }
 
+// 130 Phase 9 (#62): `order` is additive — existing `Album(id:name:)` call sites keep compiling.
+// @covers FR-130-02
+@Test func albumInitDefaultsOrderToNilAndCarriesAGivenOrder() {
+    #expect(Album(id: "a1", name: "Fam").order == nil)
+    #expect(Album(id: "a1", name: "Fam", order: .asc).order == .asc)
+}
+
 private extension Array {
     var only: Element? {
         count == 1 ? self[0] : nil

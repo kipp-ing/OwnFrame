@@ -39,6 +39,7 @@ struct FrameStateSnapshotTests {
             playbackState: .playing,
             brightness: 0.4,
             currentAlbum: "Iceland",
+            currentSourceDisplayName: "Iceland",
             currentPhotoReport: report,
             version: "9.9.9"
         )
@@ -55,6 +56,50 @@ struct FrameStateSnapshotTests {
             photoCity: "Berlin",
             photoCountry: "DE"
         ))
+    }
+
+    // MARK: - Source label is the display name, never a host (FR-120-13)
+
+    // A shared-link source whose stored label is its host: the HA select state
+    // (`currentAlbum`) keeps the stored label (FR-120-07), but Get Frame State
+    // must read the dedicated display-name requirement instead.
+    // @covers FR-800-07, FR-120-13
+    @Test
+    func sourceLabel_readsTheDisplayName_notTheStoredAlbumLabel() async throws {
+        let registry = FrameControlRegistry()
+        registry.isConfigured = true
+        let surface = RecordingControlSurface(
+            playbackState: .playing,
+            currentAlbum: "bilder.example.org",
+            currentSourceDisplayName: "Shared album"
+        )
+        registry.register(surface)
+        let service = FrameCommandService(registry: registry)
+
+        let snapshot = try await service.frameState()
+
+        #expect(snapshot.sourceLabel == "Shared album")
+        #expect(surface.currentAlbum == "bilder.example.org")
+        #expect(surface.calls.isEmpty)
+    }
+
+    // No active source name: the snapshot carries nil, never a fallback to the
+    // stored album label.
+    // @covers FR-800-07, FR-120-13
+    @Test
+    func sourceLabel_nilDisplayName_doesNotFallBackToCurrentAlbum() async throws {
+        let registry = FrameControlRegistry()
+        registry.isConfigured = true
+        let surface = RecordingControlSurface(
+            currentAlbum: "bilder.example.org",
+            currentSourceDisplayName: nil
+        )
+        registry.register(surface)
+        let service = FrameCommandService(registry: registry)
+
+        let snapshot = try await service.frameState()
+
+        #expect(snapshot.sourceLabel == nil)
     }
 
     // MARK: - Structural whitelist (SC-800-04)

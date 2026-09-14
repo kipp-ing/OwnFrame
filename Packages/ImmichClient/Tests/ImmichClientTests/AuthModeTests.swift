@@ -6,8 +6,11 @@ import ImmichClientTestSupport
 // @covers FR-100-02
 @Test func apiKeyAuthSetsHeaderAndDoesNotAppendKeyQuery() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
-    // v3 (130): an API-key album lists assets via POST /api/search/metadata.
-    let transport = MockTransport(result: .success((try searchData(), response(url: baseURL))))
+    // v3 (130): an API-key album looks up its order, then lists assets via POST /api/search/metadata.
+    let transport = MockTransport(sequence: [
+        .success((albumData(), response(url: baseURL))),
+        .success((try searchData(), response(url: baseURL))),
+    ])
     let client = ImmichClient(
         config: ServerConfig(baseURL: baseURL, auth: .apiKey("secret-api-key")),
         transport: transport
@@ -15,16 +18,22 @@ import ImmichClientTestSupport
 
     _ = try await client.assets(albumID: "album-1")
 
-    let request = try await #require(transport.recordedRequests.only)
-    #expect(request.value(forHTTPHeaderField: "x-api-key") == "secret-api-key")
-    #expect(queryValue("key", in: request.url) == nil)
+    let requests = await transport.recordedRequests
+    #expect(requests.count == 2)
+    for request in requests {
+        #expect(request.value(forHTTPHeaderField: "x-api-key") == "secret-api-key")
+        #expect(queryValue("key", in: request.url) == nil)
+    }
 }
 
 @Test func shareKeyAuthAppendsKeyQueryAndDoesNotSetAPIKeyHeader() async throws {
     let baseURL = try #require(URL(string: "https://photos.example.test"))
     // v3 (130/M2): a shared-link album lists assets via POST /api/search/metadata (?key=), same
     // pager as the API-key path — just authenticated by the key query instead of the header.
-    let transport = MockTransport(result: .success((try searchData(), response(url: baseURL))))
+    let transport = MockTransport(sequence: [
+        .success((albumData(), response(url: baseURL))),
+        .success((try searchData(), response(url: baseURL))),
+    ])
     let client = ImmichClient(
         config: ServerConfig(baseURL: baseURL, auth: .shareKey("shared-bearer-key")),
         transport: transport
@@ -32,9 +41,17 @@ import ImmichClientTestSupport
 
     _ = try await client.assets(albumID: "album-1")
 
-    let request = try await #require(transport.recordedRequests.only)
-    #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
-    #expect(queryValue("key", in: request.url) == "shared-bearer-key")
+    let requests = await transport.recordedRequests
+    #expect(requests.count == 2)
+    for request in requests {
+        #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
+        #expect(queryValue("key", in: request.url) == "shared-bearer-key")
+    }
+}
+
+/// The album-order lookup (`GET /api/albums/{id}?withoutAssets=true`) that precedes the pager.
+private func albumData() -> Data {
+    Data(#"{"id":"album-1","albumName":"Trip","order":"desc"}"#.utf8)
 }
 
 @Test func shareKeyAuthPreservesEndpointQueryItems() async throws {

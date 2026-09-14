@@ -126,11 +126,13 @@ struct OnboardingConfirmStepView: View {
 
             Section {
                 ForEach(sourceLibrary.sources) { source in
+                    // The display name, never a stored host or album id (120, FR-120-13).
+                    let name = SourceLibraryViewModel.displayName(for: source)
                     HStack(spacing: 12) {
                         Image(systemName: source.kind.onboardingIconName)
                             .foregroundStyle(.secondary)
                             .frame(width: 24)
-                        Text(source.label)
+                        Text(name)
                         Spacer()
                         if source.id == sourceLibrary.activeID {
                             Text("Active")
@@ -140,7 +142,7 @@ struct OnboardingConfirmStepView: View {
                         }
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel(source.id == sourceLibrary.activeID ? "\(source.label), active" : source.label)
+                    .accessibilityLabel(source.id == sourceLibrary.activeID ? "\(name), active" : name)
                     .accessibilityIdentifier("onboarding.confirm.row.\(source.id)")
                 }
             } header: {

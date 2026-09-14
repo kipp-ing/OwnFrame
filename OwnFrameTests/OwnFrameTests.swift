@@ -66,12 +66,32 @@ struct ImmichClientIntegrationTests {
         #expect(request.value(forHTTPHeaderField: "x-api-key") == apiKey)
     }
 
+    /// `assets(albumID:)` first looks up the album's own order (130 Phase 9, #62), then pages
+    /// the metadata search; the transport answers those two requests in order.
+    private func makeAlbumAssetsClient(
+        albumID: String,
+        searchJSON: String
+    ) throws -> (ImmichClient, MockTransport) {
+        func reply(_ json: String, _ path: String) throws -> Result<(Data, URLResponse), Error> {
+            let url = try #require(URL(string: "https://photos.example.test\(path)"))
+            let data = try #require(json.data(using: .utf8))
+            let response = try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil))
+            return .success((data, response))
+        }
+        let transport = MockTransport(sequence: [
+            try reply(#"{"id":"\#(albumID)","albumName":"Family","order":"asc"}"#, "/api/albums/\(albumID)"),
+            try reply(searchJSON, "/api/search/metadata")
+        ])
+        let client = ImmichClient(config: ServerConfig(baseURL: baseURL, apiKey: apiKey), transport: transport)
+        return (client, transport)
+    }
+
     // v3 (130): an API-key album lists its images via POST /api/search/metadata, not the
-    // removed album `assets` array.
+    // removed album `assets` array, in the album's own order.
     @Test func assetsFetchImagesViaMetadataSearchWithAPIKey() async throws {
-        let (client, transport) = try makeClient(
-            json: #"{"assets":{"items":[{"id":"asset-1","type":"IMAGE"}],"nextPage":null}}"#,
-            path: "/api/search/metadata"
+        let (client, transport) = try makeAlbumAssetsClient(
+            albumID: "album-1",
+            searchJSON: #"{"assets":{"items":[{"id":"asset-1","type":"IMAGE"}],"nextPage":null}}"#
         )
 
         let assets = try await client.assets(albumID: "album-1")
@@ -80,10 +100,17 @@ struct ImmichClientIntegrationTests {
         #expect(assets[0].id == "asset-1")
         #expect(assets[0].type == "IMAGE")
 
-        let request = try #require(await transport.recordedRequests.first)
-        #expect(request.httpMethod == "POST")
-        #expect(request.url?.path == "/api/search/metadata")
-        #expect(request.value(forHTTPHeaderField: "x-api-key") == apiKey)
+        let requests = await transport.recordedRequests
+        try #require(requests.count == 2)
+        #expect(requests[0].httpMethod == "GET")
+        #expect(requests[0].url?.path == "/api/albums/album-1")
+        #expect(requests[0].value(forHTTPHeaderField: "x-api-key") == apiKey)
+        #expect(requests[1].httpMethod == "POST")
+        #expect(requests[1].url?.path == "/api/search/metadata")
+        #expect(requests[1].value(forHTTPHeaderField: "x-api-key") == apiKey)
+        let body = try #require(requests[1].httpBody)
+        let order = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        #expect(order?["order"] as? String == "asc")
     }
 
     @Test func previewRequestUsesThumbnailPreviewQueryAndReturnsData() async throws {
@@ -112,9 +139,9 @@ struct ImmichClientIntegrationTests {
 
     // SC-005: empty album decodes to [] without error.
     @Test func assetsReturnsEmptyArrayForEmptyAlbum() async throws {
-        let (client, _) = try makeClient(
-            json: #"{"assets":{"items":[],"nextPage":null}}"#,
-            path: "/api/search/metadata"
+        let (client, _) = try makeAlbumAssetsClient(
+            albumID: "empty",
+            searchJSON: #"{"assets":{"items":[],"nextPage":null}}"#
         )
 
         let assets = try await client.assets(albumID: "empty")

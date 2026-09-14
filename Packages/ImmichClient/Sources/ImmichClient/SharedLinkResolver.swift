@@ -5,11 +5,15 @@ public struct SharedLinkResolution: Sendable, Equatable {
     public let key: String
     public let albumID: String
     public let expiresAt: Date?
+    /// The linked album's name as the link reports it (`album.albumName`); `nil` when absent,
+    /// empty or whitespace-only (310, FR-310-16).
+    public let albumName: String?
 
-    public init(key: String, albumID: String, expiresAt: Date?) {
+    public init(key: String, albumID: String, expiresAt: Date?, albumName: String? = nil) {
         self.key = key
         self.albumID = albumID
         self.expiresAt = expiresAt
+        self.albumName = albumName
     }
 }
 
@@ -137,10 +141,12 @@ public struct SharedLinkResolver: SharedLinkResolving {
     private func decodeResolution(from data: Data) throws -> SharedLinkResolution {
         do {
             let response = try JSONDecoder().decode(SharedLinkMeResponse.self, from: data)
+            let albumName = response.album.albumName?.trimmingCharacters(in: .whitespacesAndNewlines)
             return SharedLinkResolution(
                 key: response.key,
                 albumID: response.album.id,
-                expiresAt: response.expiresAt.flatMap(parseISO8601Date)
+                expiresAt: response.expiresAt.flatMap(parseISO8601Date),
+                albumName: albumName?.isEmpty == false ? albumName : nil
             )
         } catch let error as ImmichError {
             throw error
@@ -170,5 +176,6 @@ private struct SharedLinkMeResponse: Decodable {
 
     struct AlbumReference: Decodable {
         let id: String
+        let albumName: String?
     }
 }

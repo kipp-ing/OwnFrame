@@ -22,6 +22,8 @@ public enum OnboardingPathChoice: Sendable, Equatable {
     @ObservationIgnored private let config: ConfigStore
     @ObservationIgnored private let keychain: KeychainStore
     @ObservationIgnored private let sourceStore: any SourceLibraryStore
+    // Shared-link passwords, deleted together with their sources on Reset (120, FR-120-14).
+    @ObservationIgnored private let secretStore: any SharedLinkSecretStore
     // Bounded auto-retry for the connection validation. The first request on a fresh
     // install fails while the iOS Local Network permission prompt is up; retrying a few
     // times lets validation complete once the user grants access instead of surfacing a
@@ -35,6 +37,7 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         config: ConfigStore,
         keychain: KeychainStore,
         sourceStore: any SourceLibraryStore = InMemorySourceLibraryStore(),
+        secretStore: any SharedLinkSecretStore = InMemorySharedLinkSecretStore(),
         connectionRetryLimit: Int = 4,
         connectionRetryDelay: Duration = .seconds(1.2),
         sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) }
@@ -43,6 +46,7 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         self.config = config
         self.keychain = keychain
         self.sourceStore = sourceStore
+        self.secretStore = secretStore
         self.connectionRetryLimit = connectionRetryLimit
         self.connectionRetryDelay = connectionRetryDelay
         self.sleep = sleep
@@ -190,6 +194,15 @@ public enum OnboardingPathChoice: Sendable, Equatable {
     public func reset() {
         config.clear()
         keychain.delete()
+        // A link password never outlives its source (FR-120-14): delete the password of every
+        // saved link while the sources can still be found, then clear the library. Passwords
+        // orphaned by earlier Resets are not swept (no service-wide delete); links never
+        // shipped publicly before this rule, so there are none to find.
+        for source in sourceStore.load().sources {
+            if case .sharedLink = source.kind {
+                secretStore.deletePassword(forSourceID: source.id)
+            }
+        }
         sourceStore.clear()
         step = .connection
         serverURLInput = ""

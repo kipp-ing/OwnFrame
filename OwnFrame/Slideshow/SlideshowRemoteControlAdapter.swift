@@ -3,6 +3,7 @@
 //  OwnFrame
 //
 
+import AppIntentsKit
 import HAControlKit
 import ImmichClient
 import Observation
@@ -47,6 +48,11 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         sources.isEmpty ? albums.map(\.name) : sources.map(\.label)
     }
     public private(set) var currentAlbum: String?
+    /// The active source's display name for Get Frame State (800, FR-800-07): the stored label
+    /// mapped through `SourceLibraryViewModel.displayName(for:)`, so a host, `host N` or album
+    /// id never leaves the app (120, FR-120-13). `currentAlbum` stays the stored label because
+    /// it is also the HA select's state (FR-120-07).
+    public private(set) var currentSourceDisplayName: String?
     public var onLocalChange: (@MainActor () -> Void)?
     public var onSettingsChange: (@MainActor () -> Void)?
     public var onPhotoChange: (@MainActor (PhotoReport) -> Void)?
@@ -92,8 +98,10 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         self.onSelectSource = onSelectSource
         self.isPhotoLibrarySource = isPhotoLibrarySource
         self.brightness = min(max(initialBrightness, 0), 1)
-        self.currentAlbum = sources.first { $0.id == activeSourceID }?.label
-            ?? albums.first { $0.id == currentAlbumID }?.name
+        let activeSource = sources.first { $0.id == activeSourceID }
+        let legacyAlbumName = albums.first { $0.id == currentAlbumID }?.name
+        self.currentAlbum = activeSource?.label ?? legacyAlbumName
+        self.currentSourceDisplayName = activeSource.map(SourceLibraryViewModel.displayName(for:)) ?? legacyAlbumName
         self.themeStore = themeStore
         self.api = api
         self.metadataCache = metadataCache
@@ -172,7 +180,19 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         self.albums = albums
         if sources.isEmpty, currentAlbum == nil {
             currentAlbum = albums.first { $0.id == currentAlbumID }?.name
+            currentSourceDisplayName = currentAlbum
         }
+    }
+
+    /// The app switched the active source without rebuilding this adapter (album → album from
+    /// Settings → Sources). Moves the select state and the display name, and echoes once. A
+    /// switch this adapter started (`selectAlbum`) already set both, so it changes nothing.
+    public func activeSourceChanged(to source: Source) {
+        let displayName = SourceLibraryViewModel.displayName(for: source)
+        guard currentAlbum != source.label || currentSourceDisplayName != displayName else { return }
+        currentAlbum = source.label
+        currentSourceDisplayName = displayName
+        onLocalChange?()
     }
 
     public func selectAlbum(_ name: String) {
@@ -182,12 +202,14 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         if !sources.isEmpty {
             guard let source = sources.first(where: { $0.label == name }) else { return }
             currentAlbum = name
+            currentSourceDisplayName = SourceLibraryViewModel.displayName(for: source)
             onSelectSource?(source.id)
             onLocalChange?()
             return
         }
         guard let album = albums.first(where: { $0.name == name }) else { return }
         currentAlbum = name
+        currentSourceDisplayName = name
         Task { await slideshow.switchAlbum(album.id) }
         onLocalChange?()
     }
@@ -404,6 +426,9 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
 }
 
 // MARK: - PhotoReporting
+
+// Get Frame State reads `currentSourceDisplayName` through this refinement (800, FR-800-07).
+extension SlideshowRemoteControlAdapter: FrameIntentSurface {}
 
 extension SlideshowRemoteControlAdapter: PhotoReporting {
     public var currentPhotoReport: PhotoReport { _currentPhotoReport }

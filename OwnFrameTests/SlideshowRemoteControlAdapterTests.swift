@@ -322,6 +322,76 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(fixture.adapter.currentAlbum == "Iceland")
     }
 
+    // MARK: - Display name for Get Frame State (800, FR-800-07 via 120, FR-120-13; #61)
+
+    private nonisolated static let linkBaseURL = URL(string: "https://bilder.example.org")!
+
+    /// Stored labels that must never leave the app as a source name: the link's host, the old
+    /// `host N` collision suffix, and an unnamed album's id.
+    private nonisolated static let leakingSources: [Source] = [
+        Source(id: "s1", label: "bilder.example.org", kind: .sharedLink(baseURL: linkBaseURL, slug: "family")),
+        Source(id: "s1", label: "bilder.example.org 2", kind: .sharedLink(baseURL: linkBaseURL, slug: "family")),
+        Source(id: "s1", label: "album-7f3", kind: .album(albumID: "album-7f3"))
+    ]
+
+    // @covers FR-800-07, FR-120-13, FR-120-07
+    @Test(arguments: leakingSources)
+    func displayNameMapsALeakingStoredLabelWhileTheSelectKeepsIt(_ source: Source) throws {
+        let fixture = try makeAdapter(suite: "adapter.displayName.leak", sources: [source], activeSourceID: "s1")
+        defer { fixture.cleanUp() }
+
+        let shown = try #require(fixture.adapter.currentSourceDisplayName)
+        #expect(shown == SourceLibraryViewModel.displayName(for: source))
+        #expect(!shown.localizedCaseInsensitiveContains("bilder.example.org"))
+        #expect(!shown.contains("album-7f3"))
+        // The HA select still names the saved source by its stored label (FR-120-07).
+        #expect(fixture.adapter.currentAlbum == source.label)
+        #expect(fixture.adapter.albumOptions == [source.label])
+    }
+
+    // @covers FR-800-07, FR-120-13
+    @Test func displayNamePassesATypedLabelThroughAndFollowsASwitch() throws {
+        let typed = Source(id: "s1", label: "Iceland 2021", kind: .sharedLink(baseURL: Self.linkBaseURL, slug: "iceland"))
+        let unlabeled = Source(id: "s2", label: "bilder.example.org", kind: .sharedLink(baseURL: Self.linkBaseURL, slug: "family"))
+        let fixture = try makeAdapter(suite: "adapter.displayName.switch", sources: [typed, unlabeled], activeSourceID: "s1")
+        defer { fixture.cleanUp() }
+
+        #expect(fixture.adapter.currentSourceDisplayName == "Iceland 2021")
+
+        fixture.adapter.selectAlbum("bilder.example.org")
+
+        #expect(fixture.adapter.currentAlbum == "bilder.example.org")
+        #expect(fixture.adapter.currentSourceDisplayName == SourceLibraryViewModel.displayName(for: unlabeled))
+    }
+
+    /// A switch that doesn't go through `selectAlbum` (Settings → Sources, album → album keeps the
+    /// adapter) must still move both the select state and the display name.
+    // @covers FR-800-07, FR-120-13, FR-120-07
+    @Test func activeSourceChangeMovesTheSelectStateAndTheDisplayName() throws {
+        let iceland = Source(id: "s1", label: "Iceland", kind: .album(albumID: "album-1"))
+        let unnamed = Source(id: "s2", label: "album-7f3", kind: .album(albumID: "album-7f3"))
+        let fixture = try makeAdapter(suite: "adapter.displayName.external", sources: [iceland, unnamed], activeSourceID: "s1")
+        defer { fixture.cleanUp() }
+        var localChanges = 0
+        fixture.adapter.onLocalChange = { localChanges += 1 }
+
+        fixture.adapter.activeSourceChanged(to: unnamed)
+
+        #expect(fixture.adapter.currentAlbum == "album-7f3")
+        #expect(fixture.adapter.currentSourceDisplayName == SourceLibraryViewModel.displayName(for: unnamed))
+        #expect(localChanges == 1)
+    }
+
+    // @covers FR-800-07
+    @Test func displayNameWithoutALibraryFallsBackToTheLegacyAlbumName() throws {
+        let fixture = try makeAdapter(suite: "adapter.displayName.legacy", currentAlbumID: "album-1")
+        defer { fixture.cleanUp() }
+
+        fixture.adapter.updateAlbums([Album(id: "album-1", name: "Family")])
+
+        #expect(fixture.adapter.currentSourceDisplayName == "Family")
+    }
+
     @Test func updateAlbumsEnrichesSubsequentPhotoReports() async throws {
         let fixture = try makePhotoFixture(
             suite: "photo.updateAlbums",

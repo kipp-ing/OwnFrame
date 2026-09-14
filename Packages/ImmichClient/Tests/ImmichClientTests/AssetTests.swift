@@ -4,7 +4,8 @@ import Testing
 import ImmichClientTestSupport
 
 // v3 (130): an API-key album lists its assets from POST /api/search/metadata; the removed album
-// `assets` array is gone. See MetadataSearchTests for paging and the shared-link branch.
+// `assets` array is gone. See MetadataSearchTests for paging, the album-order lookup that
+// precedes the search, and the shared-link branch.
 
 // @covers FR-100-02, FR-130-02, SC-100-01
 @Test func assetsFetchesImagesViaMetadataSearchWithAPIKeyHeader() async throws {
@@ -22,7 +23,10 @@ import ImmichClientTestSupport
     }
     """.data(using: .utf8))
     let response = try #require(HTTPURLResponse(url: requestURL, statusCode: 200, httpVersion: nil, headerFields: nil))
-    let transport = MockTransport(result: .success((responseData, response)))
+    let transport = MockTransport(sequence: [
+        .success((albumLookupData(), response)),
+        .success((responseData, response)),
+    ])
     let config = ServerConfig(baseURL: baseURL, apiKey: "secret-api-key")
     let client = ImmichClient(config: config, transport: transport)
 
@@ -30,7 +34,9 @@ import ImmichClientTestSupport
 
     #expect(assets.map(\.id) == ["asset-1", "asset-2"])
 
-    let request = try await #require(transport.recordedRequests.only)
+    let requests = await transport.recordedRequests
+    #expect(requests.count == 2)
+    let request = try #require(requests.last)
     #expect(request.httpMethod == "POST")
     #expect(request.url?.path == "/api/search/metadata")
     #expect(request.value(forHTTPHeaderField: "x-api-key") == config.apiKey)
@@ -47,7 +53,10 @@ import ImmichClientTestSupport
     let requestURL = try #require(URL(string: "https://photos.example.test/api/search/metadata"))
     let responseData = try #require(#"{"assets":{"total":0,"count":0,"items":[],"nextPage":null}}"#.data(using: .utf8))
     let response = try #require(HTTPURLResponse(url: requestURL, statusCode: 200, httpVersion: nil, headerFields: nil))
-    let transport = MockTransport(result: .success((responseData, response)))
+    let transport = MockTransport(sequence: [
+        .success((albumLookupData(), response)),
+        .success((responseData, response)),
+    ])
     let config = ServerConfig(baseURL: baseURL, apiKey: "secret-api-key")
     let client = ImmichClient(config: config, transport: transport)
 
@@ -56,8 +65,7 @@ import ImmichClientTestSupport
     #expect(assets.isEmpty)
 }
 
-private extension Array {
-    var only: Element? {
-        count == 1 ? self[0] : nil
-    }
+/// The album lookup `assets(albumID:)` issues before paging (`GET /api/albums/{id}`).
+private func albumLookupData() -> Data {
+    Data(#"{"id":"album-1","albumName":"Trip","order":"desc"}"#.utf8)
 }

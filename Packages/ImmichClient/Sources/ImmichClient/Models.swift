@@ -1,5 +1,12 @@
 import Foundation
 
+/// An Immich album's own sort setting (`order` on the v3 album response): oldest first
+/// (`asc`) or newest first (`desc`) by date (130, FR-130-02/12; 500, FR-500-06).
+public enum AlbumOrder: String, Sendable, Codable, Equatable {
+    case asc
+    case desc
+}
+
 public struct Album: Codable, Sendable {
     public let id: String
     public let name: String
@@ -9,19 +16,24 @@ public struct Album: Codable, Sendable {
     public let assetCount: Int?
     public let startDate: Date?
     public let endDate: Date?
+    /// The album's own sort as the server reports it; `nil` when absent, `null` or an
+    /// unknown value (the pager then falls back to newest first).
+    public let order: AlbumOrder?
 
     public init(
         id: String,
         name: String,
         assetCount: Int? = nil,
         startDate: Date? = nil,
-        endDate: Date? = nil
+        endDate: Date? = nil,
+        order: AlbumOrder? = nil
     ) {
         self.id = id
         self.name = name
         self.assetCount = assetCount
         self.startDate = startDate
         self.endDate = endDate
+        self.order = order
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -30,6 +42,7 @@ public struct Album: Codable, Sendable {
         case assetCount
         case startDate
         case endDate
+        case order
     }
 
     // Decode dates from ISO8601 strings so the album list keeps decoding with a plain
@@ -43,6 +56,9 @@ public struct Album: Codable, Sendable {
             .flatMap(Album.parseISO8601Date)
         endDate = try container.decodeIfPresent(String.self, forKey: .endDate)
             .flatMap(Album.parseISO8601Date)
+        // Tolerant: an unknown or mistyped `order` never fails the album — it is just nil.
+        order = (try? container.decodeIfPresent(String.self, forKey: .order))
+            .flatMap(AlbumOrder.init(rawValue:))
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -52,6 +68,7 @@ public struct Album: Codable, Sendable {
         try container.encodeIfPresent(assetCount, forKey: .assetCount)
         try container.encodeIfPresent(startDate.map(Album.formatISO8601Date), forKey: .startDate)
         try container.encodeIfPresent(endDate.map(Album.formatISO8601Date), forKey: .endDate)
+        try container.encodeIfPresent(order, forKey: .order)
     }
 
     private static func parseISO8601Date(_ string: String) -> Date? {
@@ -86,7 +103,8 @@ public struct Asset: Codable, Sendable {
 
 /// Request body for `POST /api/search/metadata` — the v3 replacement for the removed album
 /// `assets` array. `albumIds` filters to one album; `type` filters to images server-side;
-/// `order` mirrors the album's own sort (`asc`/`desc` by date); `page`/`size` drive paging.
+/// `order` is the album's own order (asc/desc); newest first when none is reported;
+/// `page`/`size` drive paging.
 struct MetadataSearchRequest: Encodable, Sendable {
     let albumIds: [String]
     let type: String?

@@ -83,7 +83,7 @@ import Testing
 // The shared-link add path is the two-phase resolve flow (210, US4) — see the
 // "Two-phase resolve" section below. Removing such a source must delete its secret.
 @MainActor
-// @covers FR-120-04
+// @covers FR-120-04, FR-120-14
 @Test func sourceLibraryViewModelRemoveSharedLinkDeletesPassword() async {
     let store = InMemorySourceLibraryStore()
     let secretStore = InMemorySharedLinkSecretStore()
@@ -98,6 +98,22 @@ import Testing
     #expect(viewModel.sources.isEmpty)
     #expect(secretStore.readPassword(forSourceID: id) == nil)
     #expect(store.load().sources.isEmpty)
+}
+
+// 120 T040 (FR-120-14): only a link has a password — removing an album source deletes none.
+@MainActor
+// @covers FR-120-14
+@Test func sourceLibraryViewModelRemoveAlbumSourceDeletesNoPassword() {
+    var seeded = SourceLibrary()
+    seeded.add(Source(id: "album-source", label: "Family", kind: .album(albumID: "album-1")))
+    let store = InMemorySourceLibraryStore(library: seeded)
+    let secretStore = RecordingSecretStore()
+    let viewModel = SourceLibraryViewModel(store: store, secretStore: secretStore, resolver: StubResolver())
+
+    viewModel.remove(id: "album-source")
+
+    #expect(viewModel.sources.isEmpty)
+    #expect(secretStore.deletedIDs.isEmpty)
 }
 
 @MainActor
@@ -268,6 +284,83 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
     #expect(store.load().sources.count == 1)
 }
 
+// MARK: - Album-name default label (310 Phase 7, #61)
+
+@MainActor
+// @covers FR-310-16, FR-120-13
+@Test func resolveSharedLinkWithoutLabelStoresTheAlbumName() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: StubResolver(albumName: "Iceland 2021"))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "")
+
+    #expect(vm.sources.map(\.label) == ["Iceland 2021"])
+    #expect(store.load().sources.map(\.label) == ["Iceland 2021"])
+}
+
+@MainActor
+// @covers FR-310-16, FR-120-13
+@Test func confirmSharedLinkPasswordWithoutLabelStoresTheAlbumName() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: PasswordGatedResolver(correctPassword: "pw", albumName: "Iceland 2021"))
+    await vm.resolveSharedLink(urlString: geoURL, label: "")
+
+    await vm.confirmSharedLinkPassword("pw")
+
+    #expect(vm.sources.map(\.label) == ["Iceland 2021"])
+    #expect(store.load().sources.map(\.label) == ["Iceland 2021"])
+}
+
+@MainActor
+// @covers FR-310-16, FR-120-13
+@Test func addScannedSharedLinkWithoutLabelStoresTheAlbumName() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: StubResolver(albumName: "Iceland 2021"))
+
+    await vm.addScannedSharedLink(using: FixedScanner(result: geoURL), label: "")
+
+    #expect(vm.sources.map(\.label) == ["Iceland 2021"])
+    #expect(store.load().sources.map(\.label) == ["Iceland 2021"])
+}
+
+@MainActor
+// @covers FR-310-16, FR-120-13
+@Test func typedLabelWinsOverTheAlbumName() async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: StubResolver(albumName: "Iceland 2021"))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "  Geo  ")
+
+    #expect(store.load().sources.map(\.label) == ["Geo"])
+}
+
+@MainActor
+// @covers FR-310-16
+@Test func collidingAlbumNameGetsANumericSuffix() async {
+    var seeded = SourceLibrary()
+    seeded.add(Source(label: "Iceland 2021", kind: .album(albumID: "album-1")))
+    let store = InMemorySourceLibraryStore(library: seeded)
+    let vm = makeViewModel(store: store, resolver: StubResolver(albumName: "Iceland 2021"))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "")
+
+    #expect(store.load().sources.map(\.label) == ["Iceland 2021", "Iceland 2021 2"])
+}
+
+// Without a reported name the stored label keeps today's non-empty host fallback — never the
+// localized placeholder, which is applied only at display time (FR-120-13).
+@MainActor
+// @covers FR-310-16, FR-120-13
+@Test(arguments: [nil, "", "   "] as [String?])
+func sharedLinkWithoutAlbumNameStoresTheHostFallback(_ albumName: String?) async {
+    let store = InMemorySourceLibraryStore()
+    let vm = makeViewModel(store: store, resolver: StubResolver(albumName: albumName))
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "")
+
+    #expect(store.load().sources.map(\.label) == [geoBaseURL.host!])
+}
+
 // MARK: - Helpers
 
 @MainActor
@@ -290,20 +383,22 @@ private func makeViewModel(
 /// correct password ⇒ success, any other password ⇒ `.wrongPassword`.
 private final class PasswordGatedResolver: SharedLinkResolving, @unchecked Sendable {
     let correctPassword: String?
+    let albumName: String?
     private(set) var requests: [(baseURL: URL, slug: String, password: String?)] = []
 
-    init(correctPassword: String? = nil) {
+    init(correctPassword: String? = nil, albumName: String? = "Iceland 2021") {
         self.correctPassword = correctPassword
+        self.albumName = albumName
     }
 
     func resolve(baseURL: URL, slug: String, password: String?) async throws -> SharedLinkResolution {
         requests.append((baseURL, slug, password))
         guard let correctPassword else {
-            return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil)
+            return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil, albumName: albumName)
         }
         guard let password else { throw ImmichError.passwordRequired }
         guard password == correctPassword else { throw ImmichError.wrongPassword }
-        return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil)
+        return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil, albumName: albumName)
     }
 }
 
@@ -317,12 +412,37 @@ private final class StubResolver: SharedLinkResolving, @unchecked Sendable {
     private let result: Result<SharedLinkResolution, Error>
     private(set) var requests: [Request] = []
 
-    init(result: Result<SharedLinkResolution, Error> = .success(SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil))) {
+    init(albumName: String? = "Iceland 2021") {
+        self.result = .success(SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil, albumName: albumName))
+    }
+
+    init(result: Result<SharedLinkResolution, Error>) {
         self.result = result
     }
 
     func resolve(baseURL: URL, slug: String, password: String?) async throws -> SharedLinkResolution {
         requests.append(Request(baseURL: baseURL, slug: slug, password: password))
         return try result.get()
+    }
+}
+
+private struct FixedScanner: CodeScanning {
+    let result: String?
+
+    func scan() async -> String? {
+        result
+    }
+}
+
+/// Records every password delete so a test can assert none happened.
+private final class RecordingSecretStore: SharedLinkSecretStore, @unchecked Sendable {
+    private(set) var deletedIDs: [String] = []
+
+    func savePassword(_ password: String, forSourceID id: String) throws {}
+
+    func readPassword(forSourceID id: String) -> String? { nil }
+
+    func deletePassword(forSourceID id: String) {
+        deletedIDs.append(id)
     }
 }

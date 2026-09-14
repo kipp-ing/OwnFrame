@@ -330,7 +330,7 @@ No real server.
 > shared fixtures, one `SharedLinkResolution` init change, no second agent in either package
 > (worklist WP2, S1). 710 Phase 9 (#64) touches ImmichClient afterwards and waits for this pass.
 
-- [ ] T026 [Order] Decision, recorded inline under this task before any red test: **where each auth
+- [x] T026 [Order] Decision, recorded inline under this task before any red test: **where each auth
       kind gets the album's order**. Per-fetch lookup inside `assets(albumID:)` (API key:
       `GET /api/albums/{id}?withoutAssets=true` → `Album.order`; link: `GET /api/shared-links/me`
       with `?key=`) lets a sort changed in Immich reach the frame on the next hourly refresh.
@@ -339,18 +339,26 @@ No real server.
       (the cookie-vs-relogin question deferred at T008a/M2). Also record: a failed order lookup
       MUST fail the fetch into 310's retry, never silently become `desc`; only an *absent or
       unknown* `order` value falls back to `desc` (FR-500-06).
-- [ ] T027 [P] [Order] Red: `Packages/ImmichClient/Tests/ImmichClientTests/V3DecodeToleranceTests.swift`
+      **Decision (2026-09-14, Claude): per-fetch lookup for both auth kinds, on one endpoint.**
+      `assets(albumID:)` first sends `GET /api/albums/{id}?withoutAssets=true` through `makeRequest`,
+      so it carries `x-api-key` or `?key=` exactly like the metadata search that follows. `/me` is
+      not used, which sidesteps the password-link cookie question: the album endpoint sits on the
+      same share-key auth path the search already relies on. Verified live against Immich 3.1.0
+      with the Iceland2021 demo link: HTTP 200, `"order":"desc"` under `?key=`. The resolution
+      therefore does **not** carry the order (T027's resolution clause dropped, T031 not
+      applicable). A failed lookup throws; only an absent, `null` or unknown value becomes `desc`.
+- [x] T027 [P] [Order] Red: `Packages/ImmichClient/Tests/ImmichClientTests/V3DecodeToleranceTests.swift`
       (+ `AlbumTests.swift`) — `Album` decodes `order` `"asc"`/`"desc"` into a typed value; absent,
       `null` or an unknown string decodes to `nil` without failing the album. Also
       `…/SharedLinkResolverTests.swift`: `SharedLinkResolution` carries the album's order from both
       the `/me` (no password) and `/login` (password) responses; absent → `nil` (FR-130-02/12).
-- [ ] T028 [Order] Green: `order` on `Album` (+ CodingKey) in
+- [x] T028 [Order] Green: `order` on `Album` (+ CodingKey) in
       `Packages/ImmichClient/Sources/ImmichClient/Models.swift`; `order` on `AlbumReference` and
       `SharedLinkResolution` in `Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift`
       — new init parameters defaulted to `nil`, so the existing
       `SharedLinkResolution(key:albumID:expiresAt:)` call sites in OnboardingKit tests and
       `OwnFrame/OwnFrameApp.swift:1370` compile unchanged (depends on T027).
-- [ ] T029 [Order] Red: `Packages/ImmichClient/Tests/ImmichClientTests/MetadataSearchTests.swift` —
+- [x] T029 [Order] Red: `Packages/ImmichClient/Tests/ImmichClientTests/MetadataSearchTests.swift` —
       replace the pinned `"desc"` in `metadataSearchRequestEncodesAlbumFilterPagingAndImageType`
       (:39-47) with behavior tests: API-key album reported `asc` → every page's body has
       `order == "asc"`; `desc` → `"desc"`; no order → `"desc"`; the same three cases for a
@@ -359,36 +367,37 @@ No real server.
       (`MockTransport(sequence:)`); add request-body capture there if it lacks one. Any order lookup
       the T026 decision adds is asserted by path and auth, and a failing lookup throws instead of
       defaulting (FR-130-02/12, FR-500-06).
-- [ ] T030 [Order] Green: `albumAssetsViaMetadataSearch` in
+- [x] T030 [Order] Green: `albumAssetsViaMetadataSearch` in
       `Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:43-60` takes the album's order
       per T026 and drops the hard-coded `"desc"`; correct the doc comments at
       `ImmichClient.swift:41-42` and `Models.swift:87-89` to "the album's own order (asc/desc);
       newest first when none is reported" (depends on T028, T029). `swift test` green in
       ImmichClient.
-- [ ] T031 [Order] *Only if T026 carries the order from resolution:* Red
+- [ ] ~~T031~~ **Not applicable** (T026 decided on a per-fetch lookup, so no order travels through the resolution).
+      Kept for the record: [Order] *Only if T026 carries the order from resolution:* Red
       `Packages/OnboardingKit/Tests/OnboardingKitTests/ActiveSourceResolverTests.swift` — a
       shared-link resolution's order reaches `ResolvedSource`; then Green in
       `Packages/OnboardingKit/Sources/OnboardingKit/ActiveSourceResolver.swift`. The hand-off into the
       client at the app build site (`OwnFrame/OwnFrameApp.swift` `resolveActiveSource`, ~:368) is
       **Claude, inline** (app entry point). `swift test` green in OnboardingKit.
-- [ ] T032 [Cache] Red+Green (verification, no production change expected):
+- [x] T032 [Cache] Red+Green (verification, no production change expected):
       `Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowOfflineTests.swift` — a stub source
       returning an oldest-first list: with `order == .sequential` the rotation plays exactly that
       order, and an offline relaunch from `SourceSnapshotStore` replays the same stored order
       (FR-500-06, FR-320-06). Expected green on arrival, because sequential keeps fetch order
       (`SlideshowViewModel.swift:711-715`). If it goes red, **stop and report**: a SlideshowKit
       change is outside this phase's expected scope.
-- [ ] T033 Verification gate (**Claude**, not a subagent): XcodeBuildMCP `build_sim` + `test_sim`
+- [x] T033 Verification gate (**Claude**, not a subagent): XcodeBuildMCP `build_sim` + `test_sim`
       whole classes on the app scheme (runtime per `docs/testing.md`, confirm it from the xcresult).
       Queue a live check in `docs/hitl.md`: an Immich album set to oldest-first plays oldest first,
       through the API key and through an Immich link.
-- [ ] T034 Facts, **in the same commit as T028/T030**: in `product-facts.yaml`, **PLAY-03** →
+- [x] T034 Facts, **in the same commit as T028/T030**: in `product-facts.yaml`, **PLAY-03** →
       `implementation: verified`; drop the limit "the current build always plays newest first";
       remove `mismatch`/`candidate_issue`; refresh the `evidence` line numbers. **UNATT-07** →
       reword the sequential limit, which assumes newest-first: a new photo takes its place in the
       album's order, so in a newest-first album it waits for the next cycle and in an oldest-first
       album it plays at the end of the current one. Run `.claude/scripts/check-facts.py`.
-- [ ] T035 Commit with explicit paths (together with #61, worklist WP2), then close #62 with the
+- [x] T035 Commit with explicit paths (together with #61, worklist WP2), then close #62 with the
       commit reference (`gh` account `kipp-ing`); tick this phase's boxes.
 
 **Checkpoint**: an oldest-first Immich album plays oldest first under both auth kinds, from the

@@ -248,17 +248,17 @@ below.
 
 **Depends on**: 120 T038, the display-name function.
 
-- [ ] T030 [P] [US3] Red: `Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift`
+- [x] T030 [P] [US3] Red: `Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift`
       — `frameState().sourceLabel` is read from a dedicated display-name requirement on the surface
       (e.g. `currentSourceDisplayName`), **not** from `currentAlbum`. A fake surface with
       `currentAlbum = "bilder.example.org"` and display name "Shared album" yields "Shared album".
       The six-field `Mirror` whitelist stays green. Expected red = doesn't compile.
-- [ ] T031 [US3] Green: add the requirement where the registry's surface type is declared. An
+- [x] T031 [US3] Green: add the requirement where the registry's surface type is declared. An
       AppIntentsKit-owned refinement is preferred, so HAControlKit's control protocol stays
       unchanged. Read it at `Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:65`
       and update the fake in `AppIntentsTestSupport`. `swift test` green in AppIntentsKit (and
       HAControlKit if touched). Depends on T030.
-- [ ] T032 [US3] Red (app-hosted, **Claude**): `OwnFrameTests/FrameIntentGlueTests.swift` — with the
+- [x] T032 [US3] Red (app-hosted, **Claude**): `OwnFrameTests/FrameIntentGlueTests.swift` — with the
       real `SlideshowRemoteControlAdapter` as the surface, seed an unlabeled link source
       `Source(label: "bilder.example.org", kind: .sharedLink(baseURL: https://bilder.example.org, slug: …))`
       as active. `GetFrameStateIntent().perform()` → `sourceLabel ==
@@ -266,19 +266,19 @@ below.
       and an album source labeled with its album id. A typed label "Iceland 2021" passes through
       unchanged. In `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift`, pin that the HA select
       state (`currentAlbum`) still carries the stored label (FR-120-07).
-- [ ] T033 [US3] Green (**Claude inline**): `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift`
+- [x] T033 [US3] Green (**Claude inline**): `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift`
       — `currentAlbum` (:95-96, :184, :190) stays the stored label. Add the display-name property,
       computed with `SourceLibraryViewModel.displayName(for:)` for the active source at init (:95)
       and on a switch (:184); with no library it falls back to the legacy album name. Update the
       `getFrameStateIntentNeverOpensTheAppAndMirrorsTheSnapshot` fixture (:174-197). Green T032.
-- [ ] T034 [US3] Verification (**Claude**): `swift test` AppIntentsKit; XcodeBuildMCP `test_sim` whole
+- [x] T034 [US3] Verification (**Claude**): `swift test` AppIntentsKit; XcodeBuildMCP `test_sim` whole
       classes `FrameIntentGlueTests`, `SlideshowRemoteControlAdapterTests`, `HAControlRoundTripTests`
       (select options/state unchanged)
-- [ ] T035 [US3] Facts, **same commit as T033**: `product-facts.yaml` **SHORTCUT-03** →
+- [x] T035 [US3] Facts, **same commit as T033**: `product-facts.yaml` **SHORTCUT-03** →
       `implementation: verified`; remove `mismatch`/`candidate_issue`; add `FR-120-13` to `intent`;
       refresh `evidence` (the new property, `FrameCommandService.swift`, the T038 function,
       `FrameIntentGlueTests.swift`); run `.claude/scripts/check-facts.py`
-- [ ] T036 Commit with explicit paths. **Close #61 only when 310 T024–T033, 120 T037–T039 and this
+- [x] T036 Commit with explicit paths. **Close #61 only when 310 T024–T033, 120 T037–T039 and this
       phase are all committed**, citing the three commits (`gh` account `kipp-ing`)
 
 ---

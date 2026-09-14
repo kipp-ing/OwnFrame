@@ -1,12 +1,14 @@
+import AppIntentsKit
 import Foundation
 import HAControlKit
 
-/// Scriptable `PlaybackControlling & PhotoReporting` fake shared by the
-/// AppIntentsKit suites and the app-hosted glue tests (spec 800, T005). Records
-/// every call in order with its argument; state is plain settable vars — no
-/// logic beyond recording (parity with the HAControlKit test fakes).
+/// Scriptable `FrameIntentSurface` fake shared by the AppIntentsKit suites and
+/// the app-hosted glue tests (spec 800, T005). Records every call in order with
+/// its argument; state is plain settable vars — no logic beyond recording
+/// (parity with the HAControlKit test fakes). `currentSourceDisplayName` is set
+/// independently of `currentAlbum`, never derived from it.
 @MainActor
-public final class RecordingControlSurface: PlaybackControlling, PhotoReporting {
+public final class RecordingControlSurface: FrameIntentSurface {
     public enum Call: Equatable {
         case pause
         case resume
@@ -22,6 +24,7 @@ public final class RecordingControlSurface: PlaybackControlling, PhotoReporting 
     public var brightness: Double
     public var albumOptions: [String]
     public var currentAlbum: String?
+    public var currentSourceDisplayName: String?
     public var currentPhotoReport: PhotoReport
     public var version: String
 
@@ -33,6 +36,7 @@ public final class RecordingControlSurface: PlaybackControlling, PhotoReporting 
         brightness: Double = 0.5,
         albumOptions: [String] = [],
         currentAlbum: String? = nil,
+        currentSourceDisplayName: String? = nil,
         currentPhotoReport: PhotoReport = RecordingControlSurface.emptyReport,
         version: String = "1.0"
     ) {
@@ -40,6 +44,7 @@ public final class RecordingControlSurface: PlaybackControlling, PhotoReporting 
         self.brightness = brightness
         self.albumOptions = albumOptions
         self.currentAlbum = currentAlbum
+        self.currentSourceDisplayName = currentSourceDisplayName
         self.currentPhotoReport = currentPhotoReport
         self.version = version
     }

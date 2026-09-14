@@ -26,6 +26,34 @@ import ImmichClientTestSupport
     #expect(album.id == "al-1")
     #expect(album.name == "Trip")
     #expect(album.assetCount == 3)
+    #expect(album.order == .desc)
+}
+
+// 130 Phase 9 (#62): the album's own sort decodes into a typed value.
+// @covers FR-130-02, FR-500-06
+@Test(arguments: [("asc", AlbumOrder.asc), ("desc", AlbumOrder.desc)])
+func albumDecodesOrderIntoTypedValue(_ raw: String, _ expected: AlbumOrder) throws {
+    let json = #"{ "id": "al-1", "albumName": "Trip", "order": "\#(raw)" }"#
+
+    let album = try JSONDecoder().decode(Album.self, from: Data(json.utf8))
+
+    #expect(album.order == expected)
+}
+
+// Absent, `null`, an unknown string or a non-string never fails the album — the order is just nil.
+// @covers FR-130-02, FR-500-06, FR-130-08
+@Test(arguments: [
+    #"{ "id": "al-1", "albumName": "Trip" }"#,
+    #"{ "id": "al-1", "albumName": "Trip", "order": null }"#,
+    #"{ "id": "al-1", "albumName": "Trip", "order": "sideways" }"#,
+    #"{ "id": "al-1", "albumName": "Trip", "order": 1 }"#,
+])
+func albumDecodesAbsentNullOrUnknownOrderAsNil(_ json: String) throws {
+    let album = try JSONDecoder().decode(Album.self, from: Data(json.utf8))
+
+    #expect(album.id == "al-1")
+    #expect(album.name == "Trip")
+    #expect(album.order == nil)
 }
 
 // @covers FR-130-08, SC-130-05

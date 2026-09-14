@@ -64,7 +64,17 @@ import PhotoSourceKit
     // Immich `type` string flows through `MediaKind(rawValue:) ?? .other`: IMAGE/VIDEO map
     // directly, an unknown string (AUDIO) degrades to `.other`.
     let json = #"{"assets":{"items":[{"id":"a1","type":"IMAGE"},{"id":"v1","type":"VIDEO"},{"id":"x1","type":"AUDIO"}],"nextPage":null}}"#
-    let (source, transport) = try makeSource(data: Data(json.utf8), statusCode: 200)
+    let baseURL = try #require(URL(string: "https://photos.example.test"))
+    let ok = try #require(HTTPURLResponse(url: baseURL, statusCode: 200, httpVersion: nil, headerFields: nil))
+    // `assets(albumID:)` first looks up the album's order, then pages the metadata search.
+    let transport = MockTransport(sequence: [
+        .success((Data(#"{"id":"album-1","albumName":"Trip","order":"desc"}"#.utf8), ok)),
+        .success((Data(json.utf8), ok)),
+    ])
+    let source: any PhotoSourceProviding = ImmichClient(
+        config: ServerConfig(baseURL: baseURL, apiKey: "secret-api-key"),
+        transport: transport
+    )
 
     let assets = try await source.assets(in: "album-1")
 
@@ -78,7 +88,10 @@ import PhotoSourceKit
     // `source.assets(in:)`), so the id must reach the transport as the album filter —
     // dropping the forwarding kept every test green while the app paged the wrong album
     // (issue #30).
-    let request = try #require(await transport.recordedRequests.only)
+    let requests = await transport.recordedRequests
+    #expect(requests.count == 2)
+    #expect(requests.first?.url?.path == "/api/albums/album-1")
+    let request = try #require(requests.last)
     let body = try #require(request.httpBody)
     let object = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
     #expect(object["albumIds"] as? [String] == ["album-1"])

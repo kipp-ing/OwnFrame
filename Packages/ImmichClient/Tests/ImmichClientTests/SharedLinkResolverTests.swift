@@ -148,6 +148,58 @@ import ImmichClientTestSupport
     }
 }
 
+// MARK: - 310 Phase 7 (#61): the resolution carries the linked album's name
+
+/// A resolution body with `album.albumName` set to `albumNameJSON` (raw JSON value), or no
+/// `albumName` key when `nil`.
+private func resolutionBody(albumNameJSON: String?) -> Data {
+    let name = albumNameJSON.map { #", "albumName": \#($0)"# } ?? ""
+    return Data(#"{ "key": "real-key", "album": { "id": "album-7"\#(name) }, "expiresAt": null }"#.utf8)
+}
+
+// @covers FR-310-16, FR-120-13
+@Test(arguments: [nil, "secret-password"] as [String?])
+func resolverCarriesAlbumNameFromMeAndLoginResponses(_ password: String?) async throws {
+    let baseURL = try #require(URL(string: "https://photos.example.test"))
+    let transport = MockTransport(result: .success((
+        resolutionBody(albumNameJSON: #""Iceland 2021""#),
+        httpResponse(url: baseURL, statusCode: 200)
+    )))
+    let resolver = SharedLinkResolver(transport: transport)
+
+    let resolution = try await resolver.resolve(baseURL: baseURL, slug: "trip", password: password)
+
+    #expect(resolution.albumName == "Iceland 2021")
+    #expect(resolution.albumID == "album-7")
+    let request = try await #require(transport.recordedRequests.only)
+    #expect(request.url?.path == (password == nil ? "/api/shared-links/me" : "/api/shared-links/login"))
+}
+
+// @covers FR-310-16
+@Test(arguments: [nil, "null", #""""#, #""   ""#] as [String?])
+func resolverMapsAbsentOrBlankAlbumNameToNil(_ albumNameJSON: String?) async throws {
+    let baseURL = try #require(URL(string: "https://photos.example.test"))
+    for password in [nil, "secret-password"] as [String?] {
+        let transport = MockTransport(result: .success((
+            resolutionBody(albumNameJSON: albumNameJSON),
+            httpResponse(url: baseURL, statusCode: 200)
+        )))
+        let resolver = SharedLinkResolver(transport: transport)
+
+        let resolution = try await resolver.resolve(baseURL: baseURL, slug: "trip", password: password)
+
+        #expect(resolution.albumName == nil)
+        #expect(resolution.albumID == "album-7")
+    }
+}
+
+// The new field is additive: the three-argument init keeps compiling and defaults it to nil.
+// @covers FR-310-16
+@Test func sharedLinkResolutionInitDefaultsAlbumNameToNil() {
+    #expect(SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil).albumName == nil)
+    #expect(SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil, albumName: "Trip").albumName == "Trip")
+}
+
 private func expectResolverError(
     statusCode: Int,
     password: String?,

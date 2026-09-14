@@ -57,7 +57,12 @@ Constitution is 1.2.0. #67 dropped (own spec later). Items below kept for the re
 Not needed: #50 has no product bug (see WP0). What remains is deleting the `XCTExpectFailure` block once iOS 27 synthesized
 taps drill in again; the strict expectation fails loudly on that day.
 
-### WP2 — host packages in parallel
+### WP2 — host packages in parallel — ✅ DONE 2026-09-14
+Landed #62 (album order), the #61 label source (card, Get Frame State, Shortcuts picker, album picker, onboarding review)
+and #73's password lifecycle in one commit. Gate on iOS 18.6: app-hosted 70/0 + 18/0 UI, re-run after the verify fixes;
+host ImmichClient 84, OnboardingKit 188, AppIntentsKit 42, SlideshowKit 192. Decisions and parked findings:
+`specs/130-immich-api-v3/tasks.md` T026, `specs/120-source-library/tasks.md` Phase 9 "Verify pass". #61 closed, #62
+closed, #73 stays open (§2b landing screen).
 - [ ] S1 ImmichClient + OnboardingKit (#62 + #61):
   - `Album.order`
   - `AlbumReference` order + albumName

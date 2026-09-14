@@ -323,16 +323,14 @@ facts:
     verdict: partial
     limits:
       - "Shuffle shows every photo once per cycle, then reshuffles without an immediate repeat."
-      - "Sequential for an Immich album or Immich link is meant to follow the album's own sort setting (newest or oldest first; default newest first); the current build always plays newest first."
+      - "Sequential for an Immich album or Immich link follows the album's own sort setting in Immich (newest or oldest first; newest first when the server reports none). A sort changed in Immich reaches the frame on the next check."
       - "Sequential for a Photos album follows the Photos album order; 'Selected Photos' plays oldest first."
       - "Sequential is date order, not a hand-arranged order."
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-500-03", "FR-500-06", "FR-130-02", "FR-130-12"]
-    implementation: mismatch
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:41-52", "Packages/ImmichClient/Sources/ImmichClient/Models.swift:87-94", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:114,121", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:711-720"]
-    mismatch: "Spec 130 (research §2, the v3 API contract, task T018 marked done) passes the album's own order (AlbumResponseDto.order) to the metadata search. The build always sends 'desc', the Album model does not decode `order`, and MetadataSearchTests pins the literal, so an album set to oldest-first plays newest-first. Same for Immich links."
-    candidate_issue: "#62 — Immich sequential order ignores the album's sort setting: decode Album.order and pass it to /api/search/metadata (spec 130 T018) for API-key albums and Immich links; update MetadataSearchTests and the misleading comments at ImmichClient.swift:41-42 and Models.swift:87-89."
+    implementation: verified
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:31-53,67", "Packages/ImmichClient/Sources/ImmichClient/Models.swift:5-8,21,60", "Packages/ImmichClient/Tests/ImmichClientTests/MetadataSearchTests.swift:130,151,175,192,210", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:114,121", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:711-720", "Packages/SlideshowKit/Tests/SlideshowKitTests/SlideshowOfflineTests.swift:257"]
 
   - id: PLAY-04
     fact: "The time each photo stays on screen is adjustable; the default is 15 seconds."
@@ -679,10 +677,10 @@ facts:
     verdict: partial
     limits:
       - "Shuffle: inserted at a random point in the rest of the current cycle."
-      - "Sequential: takes its place in the order, so a newest Immich photo waits until the next cycle starts."
+      - "Sequential: takes its place in the album's order. In a newest-first album a new photo waits until the next cycle starts; in an oldest-first album it plays at the end of the current cycle."
     gated: free
     platforms: [ios, ipados, tvos]
-    intent: ["FR-310-07", "FR-310-08"]
+    intent: ["FR-310-07", "FR-310-08", "FR-500-06"]
     implementation: verified
     evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/RotationReconciler.swift:63-89,127-136"]
 
@@ -692,13 +690,13 @@ facts:
     limits:
       - "On by default; can be turned off in Settings."
       - "Shows for about 5 seconds, only after a check that found additions while the slideshow was playing, so up to 60 minutes after the upload."
-      - "Shows the source's own label only, never a source-type word or server name."
+      - "Shows the source's own name. An Immich link added without a name shows its album's name, or 'Shared album' when none is known; never a server name or album id."
       - "Hidden while the controls are showing."
     gated: free
     platforms: [ios, ipados]
-    intent: ["J-30", "FR-310-14", "FR-9010-06"]
+    intent: ["J-30", "FR-310-14", "FR-310-16", "FR-120-13", "FR-9010-06"]
     implementation: verified
-    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28,58-94", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28-30,35,65-101", "OwnFrame/OwnFrameApp.swift:792-803", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:211-221,233,257", "OwnFrameTests/NewPhotosCardLabelTests.swift", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
 
   - id: UNATT-09
     fact: "Shows new photos instantly or via push when they are added."
@@ -976,11 +974,9 @@ facts:
       - "Never credentials, server addresses, file names or image data."
     gated: supporter
     platforms: [ios, ipados]
-    intent: ["FR-800-07"]
-    implementation: mismatch
-    evidence: ["Packages/AppIntentsKit/Sources/AppIntentsKit/FrameStateSnapshot.swift:12-19", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:59-70", "OwnFrame/Intents/FrameStateEntity.swift:14-55", "OwnFrame/Intents/FrameIntents.swift:145-163", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:95-96,184", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:205-210", "OwnFrame/Onboarding/SharedLinkSetupView.swift:112,136", "OwnFrame/Onboarding/AlbumPickerView.swift:79", "Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift:17-83", "OwnFrameTests/FrameIntentGlueTests.swift:174-197"]
-    mismatch: "The result type is structurally limited to six fields: isPlaying, brightnessPercent, sourceLabel, photoDate, photoCity, photoCountry. Host and app-hosted tests pin this, including a Mirror check. No bytes, IDs, region or version get through. But sourceLabel is the saved source's label, and a link added through the low-friction setup path (label \"\") gets the link's raw server host as its label (SourceLibraryViewModel.swift:210; same cause as #61). 'Get Frame State' then returns a server address, breaking the limit. An Immich album with an empty name is labeled with its album id (AlbumPickerView.swift:79), which the 800 contract also excludes."
-    candidate_issue: "#61 (scope widened 2026-09-14; spec FR-120-13, FR-800-07 note) — never use the raw host (or album id) as a source label: derive a friendly default for unlabeled Immich links (album name from /api/shared-links/me) and for unnamed albums. Add a FrameStateSnapshot/glue test proving sourceLabel is never a host."
+    intent: ["FR-800-07", "FR-120-13"]
+    implementation: verified
+    evidence: ["Packages/AppIntentsKit/Sources/AppIntentsKit/FrameStateSnapshot.swift:12-19", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:59-72", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameControlRegistry.swift:7-14", "OwnFrame/Intents/FrameStateEntity.swift:14-55", "OwnFrame/Intents/FrameIntents.swift:145-163", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:55,104,183,190-198,205,212,431", "OwnFrame/OwnFrameApp.swift:628-632,772-775", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:211-221,233,257", "OwnFrame/Onboarding/AlbumPickerView.swift:82,89", "OwnFrame/Onboarding/SourceStepView.swift:130", "Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift", "OwnFrameTests/FrameIntentGlueTests.swift:179,197", "OwnFrameTests/SlideshowRemoteControlAdapterTests.swift:339,353,370,386"]
 
   - id: SHORTCUT-04
     fact: "Controls the frame silently in the background through Shortcuts."
@@ -1006,9 +1002,9 @@ facts:
     verdict: does
     gated: n/a
     platforms: [ios, ipados]
-    intent: ["J-35", "FR-200-08", "FR-210-10", "FR-120-08", "FR-600-04", "FR-600-12"]
+    intent: ["J-35", "FR-200-08", "FR-210-10", "FR-120-08", "FR-120-14", "FR-600-04", "FR-600-12"]
     implementation: verified
-    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:13-56", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/KeychainBrokerSettingsStore.swift:14-56"]
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:13-56", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39", "Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift:194-206", "OwnFrame/OwnFrameApp.swift:153,310", "OwnFrameTests/OnboardingResetTests.swift", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/KeychainBrokerSettingsStore.swift:14-56"]
 
   - id: PRIV-02
     fact: "Keeps non-secret configuration in the app's own settings storage: server address, the saved source list (including each Immich link's path token), broker host and port, frame name, display settings and the cached unlock status."

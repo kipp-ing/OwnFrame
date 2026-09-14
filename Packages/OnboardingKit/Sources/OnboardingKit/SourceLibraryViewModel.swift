@@ -153,10 +153,11 @@ public final class SourceLibraryViewModel {
     private func attemptResolve(password: String?) async {
         guard let pending = pendingLink else { return }
         addState = .resolving
+        let resolution: SharedLinkResolution
         do {
             // Validate the link (and password, if any) before persisting anything; nothing
             // is written on failure (Constitution III — no half-written secret).
-            _ = try await resolver.resolve(baseURL: pending.baseURL, slug: pending.slug, password: password)
+            resolution = try await resolver.resolve(baseURL: pending.baseURL, slug: pending.slug, password: password)
         } catch ImmichError.passwordRequired {
             addState = .needsPassword
             return
@@ -168,7 +169,7 @@ public final class SourceLibraryViewModel {
             return
         }
 
-        let savedID = persistResolvedLink(pending, password: password)
+        let savedID = persistResolvedLink(pending, albumName: resolution.albumName, password: password)
         pendingLink = nil
         addState = .resolved(sourceID: savedID)
     }
@@ -178,6 +179,7 @@ public final class SourceLibraryViewModel {
     /// adding a duplicate (210, D7).
     private func persistResolvedLink(
         _ pending: (baseURL: URL, slug: String, label: String),
+        albumName: String?,
         password: String?
     ) -> String {
         if let existing = library.sources.first(where: {
@@ -191,7 +193,7 @@ public final class SourceLibraryViewModel {
         }
 
         let source = Source(
-            label: uniqueLabel(from: pending),
+            label: uniqueLabel(from: pending, albumName: albumName),
             kind: .sharedLink(baseURL: pending.baseURL, slug: pending.slug)
         )
         if let password { try? secretStore.savePassword(password, forSourceID: source.id) }
@@ -202,16 +204,69 @@ public final class SourceLibraryViewModel {
         return source.id
     }
 
-    /// A non-empty, unique label for a new shared-link source. Falls back to the link host
-    /// when none was supplied (the low-friction path asks only for a link), then appends a
-    /// counter so it never collides with an existing source label.
-    private func uniqueLabel(from pending: (baseURL: URL, slug: String, label: String)) -> String {
-        let trimmed = pending.label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let base = trimmed.isEmpty ? (pending.baseURL.host ?? pending.slug) : trimmed
+    /// A non-empty, unique label for a new shared-link source: the typed label, else the album
+    /// name the link reports (310, FR-310-16), else the link host (the low-friction path asks
+    /// only for a link). A counter is appended so it never collides with an existing source
+    /// label. The localized placeholder is never stored — `displayName(for:)` applies it.
+    private func uniqueLabel(
+        from pending: (baseURL: URL, slug: String, label: String),
+        albumName: String?
+    ) -> String {
+        let typed = pending.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = albumName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let base = !typed.isEmpty ? typed : (!name.isEmpty ? name : (pending.baseURL.host ?? pending.slug))
         if !library.sources.contains(where: { $0.label == base }) { return base }
         var suffix = 2
         while library.sources.contains(where: { $0.label == "\(base) \(suffix)" }) { suffix += 1 }
         return "\(base) \(suffix)"
+    }
+
+    // MARK: - Display name (120, FR-120-13)
+
+    /// The name to show a person or return to another app for `source` — never a raw host, a
+    /// URL or an album id. A stored label that is blank, URL-shaped (`http(s)://…`), or equal
+    /// to the link's host / the album's id (case-insensitive, also with the old " N" counter
+    /// suffix) maps to a neutral localized placeholder for its kind; every other label —
+    /// typed, an album name, or one that merely contains the host — passes through unchanged,
+    /// as does every Photos label. Pure: the placeholder is applied at display time only and
+    /// never written to storage. Settings → Sources keeps showing the stored label.
+    public nonisolated static func displayName(for source: Source) -> String {
+        let trimmed = source.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch source.kind {
+        case .photoLibrary:
+            return source.label
+        case let .sharedLink(baseURL, _):
+            return isMachineLabel(trimmed, locator: baseURL.host) ? sharedAlbumPlaceholder : source.label
+        case let .album(albumID):
+            return isMachineLabel(trimmed, locator: albumID) ? immichAlbumPlaceholder : source.label
+        }
+    }
+
+    /// Placeholder for an Immich link source without a usable name (FR-120-13, FR-310-16).
+    public nonisolated static var sharedAlbumPlaceholder: String {
+        String(localized: "Shared album", bundle: .module)
+    }
+
+    /// Placeholder for an Immich album source without a usable name (FR-120-13; 9000 vocabulary).
+    public nonisolated static var immichAlbumPlaceholder: String {
+        String(localized: "Immich album", bundle: .module)
+    }
+
+    /// Whether a trimmed label is machine-derived rather than a human name: blank, URL-shaped,
+    /// or the source's locator (host or album id), optionally followed by " N".
+    private nonisolated static func isMachineLabel(_ label: String, locator: String?) -> Bool {
+        if label.isEmpty { return true }
+        if label.range(of: "http://", options: [.caseInsensitive, .anchored]) != nil
+            || label.range(of: "https://", options: [.caseInsensitive, .anchored]) != nil {
+            return true
+        }
+        guard let locator, !locator.isEmpty else { return false }
+        if label.caseInsensitiveCompare(locator) == .orderedSame { return true }
+        guard let prefix = label.range(of: locator + " ", options: [.caseInsensitive, .anchored]) else {
+            return false
+        }
+        let suffix = label[prefix.upperBound...]
+        return !suffix.isEmpty && suffix.allSatisfy { $0.isASCII && $0.isNumber }
     }
 
     public func remove(id: String) {

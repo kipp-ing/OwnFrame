@@ -17,9 +17,22 @@ struct SourceEntity: AppEntity {
 
     let id: String
     let label: String
+    /// Shown in the Shortcuts picker and summary; the stored `label` never is, so an unlabeled
+    /// link's host or an unnamed album's id stays out of view (120, FR-120-13).
+    let displayName: String
+
+    init(id: String, label: String, displayName: String? = nil) {
+        self.id = id
+        self.label = label
+        self.displayName = displayName ?? label
+    }
+
+    init(_ option: SourceOption) {
+        self.init(id: option.id, label: option.label, displayName: option.displayName)
+    }
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(label)")
+        DisplayRepresentation(title: "\(displayName)")
     }
 }
 
@@ -28,13 +41,12 @@ struct SourceEntityQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [SourceEntity] {
         let options = try FrameIntentContext.requireRegistry().sourceOptions()
         return identifiers.compactMap { id in
-            options.first { $0.id == id }.map { SourceEntity(id: $0.id, label: $0.label) }
+            options.first { $0.id == id }.map(SourceEntity.init)
         }
     }
 
     @MainActor
     func suggestedEntities() async throws -> [SourceEntity] {
-        try FrameIntentContext.requireRegistry().sourceOptions()
-            .map { SourceEntity(id: $0.id, label: $0.label) }
+        try FrameIntentContext.requireRegistry().sourceOptions().map(SourceEntity.init)
     }
 }

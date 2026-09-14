@@ -186,11 +186,10 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// Jan called it"). The forced trigger below makes this deterministic — the photo is real
     /// (a genuine live source), only the card itself is forced.
     ///
-    /// `SCREENSHOT_CAPTURE_SOURCE_LABEL` overrides the card's source label. Onboarding through
-    /// `newPhotosCardLink` has no label field (the low-friction shared-link path, by design), so
-    /// it would otherwise default to the link's raw host — `frame.kippings.de`, Jan's real
-    /// private domain, which must never reach a public store screenshot. A friendly, plausible
-    /// name a real user could have typed sidesteps that without touching onboarding itself.
+    /// `SCREENSHOT_CAPTURE_SOURCE_LABEL` overrides the card's source label. A host label no longer
+    /// reaches the card in any build: an unlabeled link now stores the linked album's name, and a
+    /// host label shows as "Shared album" (310, FR-310-16). The override stays because the frozen
+    /// capture was taken with it, so it only picks the capture's wording.
     @MainActor
     func testCaptureNewPhotosCard() throws {
         let app = launch(environment: [

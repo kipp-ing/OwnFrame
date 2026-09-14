@@ -16,6 +16,7 @@ import Testing
 import AppIntentsKit
 import AppIntentsTestSupport
 import HAControlKit
+import OnboardingKit
 import PurchaseKit
 @testable import OwnFrame
 
@@ -171,13 +172,38 @@ struct FrameIntentGlueTests {
         #expect(suggested.map(\.label) == ["Iceland 2021", "Family"])
     }
 
+    /// 120, FR-120-13 (#61): the Shortcuts source picker names a source by its display name, so
+    /// an unlabeled link's stored host never shows; applying still uses the stored label, the
+    /// same one the HA select matches on (FR-120-07).
+    // @covers FR-120-13, FR-800-06
+    @Test func sourcePickerShowsTheDisplayNameAndAppliesTheStoredLabel() async throws {
+        let linkURL = try #require(URL(string: "https://bilder.example.org"))
+        let link = Source(id: "s1", label: "bilder.example.org", kind: .sharedLink(baseURL: linkURL, slug: "family"))
+        let album = Source(id: "s2", label: "Family", kind: .album(albumID: "a2"))
+        let fixture = try Fixture(sources: OwnFrameApp.sourceOptions(for: [link, album]))
+        defer { fixture.restore() }
+
+        let suggested = try await SourceEntity.defaultQuery.suggestedEntities()
+        #expect(suggested.map(\.displayName) == [SourceLibraryViewModel.displayName(for: link), "Family"])
+        #expect(suggested.allSatisfy { !$0.displayName.contains("bilder.example.org") })
+        #expect(suggested.map(\.label) == ["bilder.example.org", "Family"])
+
+        let intent = SelectSourceIntent()
+        intent.source = try #require(suggested.first)
+        _ = try await intent.perform()
+        #expect(fixture.surface.calls == [.selectAlbum("bilder.example.org")])
+    }
+
     @Test func getFrameStateIntentNeverOpensTheAppAndMirrorsTheSnapshot() async throws {
         let taken = Date(timeIntervalSince1970: 1_600_000_000)
         let fixture = try Fixture()
         defer { fixture.restore() }
         fixture.surface.playbackState = .playing
         fixture.surface.brightness = 0.4
-        fixture.surface.currentAlbum = "Iceland 2021"
+        // The HA select's stored label may be a host (FR-120-07); the intent must return the
+        // surface's display name instead (FR-800-07, FR-120-13, #61).
+        fixture.surface.currentAlbum = "bilder.example.org"
+        fixture.surface.currentSourceDisplayName = "Iceland 2021"
         fixture.surface.currentPhotoReport = PhotoReport(
             assetID: "SECRET-ASSET", imageData: Data([0xFF]),
             takenAt: taken, city: "Berlin", state: "BE", country: "DE",

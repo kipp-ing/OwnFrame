@@ -249,6 +249,57 @@ struct OfflineRelaunchTests {
         #expect(clock.sleeperCount >= 1)
     }
 
+    // 130 T032 regression pin (#62): the engine never re-sorts. A source that
+    // lists its album oldest-first plays exactly that order under `.sequential`,
+    // and an offline relaunch replays the same stored order from the snapshot
+    // (sequential keeps fetch order; the album's own sort lives in the source).
+    // @covers FR-500-06, FR-320-06
+    @Test func sequentialPlaysTheSourceOrderAndOfflineRelaunchReplaysIt() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = StubPhotoSource()
+        let disk = DiskImageCache(root: root.appendingPathComponent("images"), budget: 10_000_000)
+        let snapshots = FileSourceSnapshotStore(root: root.appendingPathComponent("snapshots"))
+        // Oldest-first, as an Immich album set to ascending order returns it —
+        // deliberately not the id-sorted order.
+        let oldestFirst = ["taken-2019", "taken-2021", "taken-2016-edited", "taken-2024"]
+        source.setAssets(oldestFirst.map { SourceAsset(id: $0, kind: .image) }, for: "album")
+        for (index, id) in oldestFirst.enumerated() {
+            source.setImageData(Data([UInt8(index + 1)]), for: id, fidelity: .preview)
+        }
+
+        // First run: one full pass plays exactly the fetched order.
+        let firstRun = makeRelaunchedModel(source: source, disk: disk, snapshots: snapshots, clock: TestClock())
+        await firstRun.start()
+        var played = [firstRun.currentAssetID]
+        for _ in 1..<oldestFirst.count {
+            await firstRun.advance()
+            played.append(firstRun.currentAssetID)
+        }
+        #expect(played == oldestFirst)
+        #expect(snapshots.load(forKey: "album")?.map(\.id) == oldestFirst)   // FR-320-06
+        for id in oldestFirst {
+            #expect(await waitForDiskEntry(disk, "\(id)#preview") != nil, "missing \(id)")
+        }
+        firstRun.pause()   // park every timer before the "power cut"
+
+        // Offline relaunch: list and image fetches all fail.
+        source.setAssetsError(SourceFailure.transient(underlying: TestSourceError.probe), for: "album")
+        for id in oldestFirst {
+            source.setImageError(SourceFailure.transient(underlying: TestSourceError.probe), for: id, fidelity: .preview)
+        }
+        let relaunched = makeRelaunchedModel(source: source, disk: disk, snapshots: snapshots, clock: TestClock())
+        await relaunched.start()
+        #expect(relaunched.phase == .playing)
+
+        var replayed = [relaunched.currentAssetID]
+        for _ in 1..<oldestFirst.count {
+            await relaunched.advance()
+            replayed.append(relaunched.currentAssetID)
+        }
+        #expect(replayed == oldestFirst)
+    }
+
     // 900 US3-3/4: an access revocation must never be masked by remembered photos.
     // The Photos factory disables the auth-snapshot fallback — the user just said
     // "this app may not see these photos", so playing cached copies would defy the

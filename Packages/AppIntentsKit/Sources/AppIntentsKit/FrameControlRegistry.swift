@@ -1,12 +1,24 @@
 import Foundation
 import HAControlKit
 
+/// The surface the intents layer drives: HAControlKit's control + report
+/// protocols, refined with what only the intents need. Owned here so
+/// HAControlKit's `PlaybackControlling` stays unchanged (spec 800 T031).
+public protocol FrameIntentSurface: PlaybackControlling, PhotoReporting {
+    /// The active source's display name per FR-120-13 — never a bare host,
+    /// `host N`, or album id. Deliberately separate from `currentAlbum`, which
+    /// is the HA select's state and keeps the stored label (FR-120-07).
+    /// No default implementation: falling back to `currentAlbum` would
+    /// silently reintroduce the host leak (FR-800-07).
+    var currentSourceDisplayName: String? { get }
+}
+
 /// The process-stable handle the app registers once and every per-generation
 /// adapter plugs into (data-model.md "FrameControlRegistry", research R2/R3/R8).
 /// Bridges the `openAppWhenRun` cold-launch race via `awaitReady`.
 @MainActor
 public final class FrameControlRegistry {
-    public typealias ControlSurface = any PlaybackControlling & PhotoReporting
+    public typealias ControlSurface = any FrameIntentSurface
 
     public enum RegistryState {
         case ready(ControlSurface)

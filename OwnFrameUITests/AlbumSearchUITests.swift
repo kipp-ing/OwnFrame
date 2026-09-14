@@ -65,6 +65,36 @@ final class AlbumSearchUITests: XCTestCase {
         XCTAssertTrue(cont.isHittable, "the pinned Continue should remain tappable after scrolling")
     }
 
+    /// 120, FR-120-13 (#61): an Immich album without a name shows the neutral placeholder as its
+    /// row text, never its album id.
+    @MainActor
+    func testUnnamedAlbumRowShowsPlaceholderNotID() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-onboarding-source", "--uitest-albums-many"]
+        app.launch()
+
+        let search = app.textFields["onboarding.album.search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10), "the album search field should appear")
+        let row = app.buttons["onboarding.album.album-unnamed"]
+        for _ in 0..<12 where !row.exists { app.swipeUp() }
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "the unnamed stub album should be listed")
+
+        XCTAssertTrue(row.label.contains("Immich album"), "row text should be the placeholder, got \(row.label)")
+        XCTAssertFalse(row.label.contains("album-unnamed"), "row text must never be the album id")
+
+        // The review step right after lists the added source by the same display name.
+        row.tap()
+        let cont = app.buttons["onboarding.source.continue"]
+        XCTAssertTrue(cont.waitForExistence(timeout: 5), "Continue should appear once the album is added")
+        cont.tap()
+        let reviewRow = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "onboarding.confirm.row."))
+            .firstMatch
+        XCTAssertTrue(reviewRow.waitForExistence(timeout: 5), "the review step should list the added source")
+        XCTAssertTrue(reviewRow.label.contains("Immich album"), "review row should be the placeholder, got \(reviewRow.label)")
+        XCTAssertFalse(reviewRow.label.contains("album-unnamed"), "review row must never be the album id")
+    }
+
     /// Landscape (the iPad's primary orientation): the same search-narrows + pinned-action
     /// behavior holds when the device is rotated.
     @MainActor

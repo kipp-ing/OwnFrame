@@ -76,14 +76,17 @@ struct AlbumPickerView: View {
 
     @ViewBuilder
     private func albumRow(_ album: Album) -> some View {
+        // The stored label stays the album id for an unnamed album; the row shows its display
+        // name, so the id never reaches the screen (120, FR-120-13).
         let label = album.name.isEmpty ? album.id : album.name
+        let shownLabel = SourceLibraryViewModel.displayName(for: Source(label: label, kind: .album(albumID: album.id)))
         let isAdded = sourceLibrary.sources.contains { $0.label == label }
         Button {
             sourceLibrary.addAlbumSource(albumID: album.id, label: label)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(label).foregroundStyle(.primary)
+                    Text(shownLabel).foregroundStyle(.primary)
                     if let subtitle = Self.subtitle(for: album) {
                         Text(subtitle).font(.caption).foregroundStyle(.secondary)
                     }
