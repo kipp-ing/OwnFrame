@@ -290,6 +290,28 @@ import PhotoLibraryTestSupport
         #expect(gateway.fetchMetadataCallCount == 1)
     }
 
+    /// FR-710-25 / FR-900-11/14: Photos metadata stays date only — no geocoding, so city,
+    /// state and country are `nil`, both for scripted and for default gateway metadata.
+    // @covers FR-710-25
+    @Test func metadataCarriesNoPlacePartsFromPhotos() async throws {
+        let gateway = FakePhotoLibraryGateway()
+        gateway.setAuthorization(.full)
+        let captured = Date(timeIntervalSince1970: 1_600_000_000)
+        gateway.setMetadata(
+            AssetMetadata(capturedAt: captured, latitude: 64.1, longitude: -21.9, placeName: nil),
+            for: "a1"
+        )
+        let provider = PhotoLibraryProvider(gateway: gateway)
+
+        for assetID in ["a1", "unscripted"] {
+            let metadata = try await provider.metadata(for: assetID)
+            #expect(metadata.city == nil)
+            #expect(metadata.state == nil)
+            #expect(metadata.country == nil)
+            #expect(metadata.placeName == nil)
+        }
+    }
+
     // MARK: - Change handler pass-through
 
     @Test func setChangeHandlerForwardsToGateway() async {

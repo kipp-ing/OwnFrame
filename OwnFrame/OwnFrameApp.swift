@@ -472,13 +472,10 @@ struct OwnFrameApp: App {
         }
         // 800 (FR-800-02): the ONE adapter per slideshow generation, built
         // synchronously — broker or not — so App Intents and HA drive the same
-        // instance. The client serves the adapter's current-photo metadata/image
-        // fetches; the select options come from the source library (900, FR-900-11).
+        // instance. Current-photo metadata/image come from the slideshow's own source
+        // (FR-710-25), never an API-key client; the select options come from the source
+        // library (900, FR-900-11).
         let makeAdapter: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter = { slideshow, powerManager, themeStore, onSwitchSource in
-            let client: (any ImmichAPI)? = {
-                guard let appConfig = config.load(), let apiKey = keychain.read() else { return nil }
-                return ImmichClient(config: ServerConfig(baseURL: appConfig.baseURL, apiKey: apiKey))
-            }()
             let library = sourceStore.load()
             let isPhotoLibrarySource: Bool = {
                 if case .photoLibrary = library.active?.kind { return true }
@@ -493,7 +490,6 @@ struct OwnFrameApp: App {
                 onSelectSource: onSwitchSource,
                 isPhotoLibrarySource: isPhotoLibrarySource,
                 themeStore: themeStore,
-                api: client,
                 metadataCache: MetadataCache(limit: 64),
                 publishOptions: HAPublishOptionsStoreFactory.make()
             )
@@ -1330,7 +1326,10 @@ extension StubImmichAPI: PhotoSourceProviding {
             capturedAt: info.takenAt,
             latitude: nil,
             longitude: nil,
-            placeName: parts.isEmpty ? nil : parts.joined(separator: ", ")
+            placeName: parts.isEmpty ? nil : parts.joined(separator: ", "),
+            city: info.city,
+            state: info.state,
+            country: info.country
         )
     }
 

@@ -408,6 +408,73 @@ struct SlideshowRemoteControlAdapterTests {
         #expect(fixture.adapter.currentPhotoReport.albumName == "Family")
     }
 
+    // MARK: - Active-source metadata (710 T053, FR-710-25, #64)
+
+    // Current-photo metadata and image follow the ACTIVE source. The engine plays a real
+    // shared-link `ImmichClient` over a path-routing transport, so a place or image in the
+    // report can only have come through the link.
+
+    @Test func linkSourceReportsDateAndPlaceThroughTheLink() async throws {
+        let fixture = try makeLinkFixture(suite: "photo.link.meta")
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle { fixture.adapter.currentPhotoReport.city != nil }
+
+        let report = fixture.adapter.currentPhotoReport
+        #expect(report.assetID == "link-asset-1")
+        #expect(report.takenAt == LinkRoutingTransport.takenAt)
+        #expect(report.city == "Reykjavik")
+        #expect(report.state == "Capital Region")
+        #expect(report.country == "Iceland")
+    }
+
+    @Test func linkOnlySetupPublishesTheImageWhenEnabled() async throws {
+        let cap = 512_000
+        let fixture = try makeLinkFixture(
+            suite: "photo.link.image",
+            options: HAPublishOptions(imageEnabled: true, imageSource: .thumbnail, byteCap: cap)
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle { fixture.adapter.currentPhotoReport.imageData != nil }
+
+        let data = try #require(fixture.adapter.currentPhotoReport.imageData, "no API key, still an image")
+        #expect(data.count <= cap)
+        #expect(UIImage(data: data) != nil)
+    }
+
+    // The adapter no longer accepts an API-key client at all (that was the #64 leak, which
+    // sent a link's asset ids to the API-key server), so the remaining proof is on the wire:
+    // every request carrying a link asset id goes to the link's host with its key.
+    @Test func linkAssetIDsOnlyEverReachTheLinkHost() async throws {
+        let fixture = try makeLinkFixture(
+            suite: "photo.link.isolation",
+            options: HAPublishOptions(imageEnabled: true, imageSource: .thumbnail, byteCap: 512_000)
+        )
+        defer { fixture.slideshow.pause(); fixture.cleanUp() }
+        fixture.adapter.onPhotoChange = { _ in }
+
+        await fixture.slideshow.start()
+        await settle {
+            fixture.adapter.currentPhotoReport.city != nil && fixture.adapter.currentPhotoReport.imageData != nil
+        }
+
+        let linkRequests = fixture.linkTransport.requests
+        #expect(linkRequests.contains { $0.url?.path == "/api/assets/link-asset-1" },
+                "the metadata lookup goes to the link")
+        for request in linkRequests where request.url?.absoluteString.contains("link-asset-") == true {
+            let url = try #require(request.url)
+            #expect(url.host == "link.example")
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "key", value: "link-key")))
+            #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
+        }
+    }
+
     // MARK: - Fixture
 
     private struct Fixture {
@@ -474,11 +541,11 @@ struct SlideshowRemoteControlAdapterTests {
     }
 
     /// Builds an adapter wired for photo reporting over a *real* running
-    /// `SlideshowViewModel`. The view model plays on its own always-succeeding API
-    /// while the adapter reports through a separate `FakeAPI` (`haAPI`) whose
-    /// metadata/image behaviour is independently configurable — so an adapter image
-    /// failure never stops playback. A blocking ticker keeps the auto-advance
-    /// parked, making manual `showNext()`/`showPrevious()` steps deterministic.
+    /// `SlideshowViewModel`. Since FR-710-25 the adapter reports through the engine's own
+    /// source, so one `FakeAPI` (`haAPI`) both plays and reports. Its image failure hits only
+    /// `thumbnail` (playback loads `preview`), so an HA image failure never stops playback. A
+    /// blocking ticker keeps the auto-advance parked, making manual
+    /// `showNext()`/`showPrevious()` steps deterministic.
     private func makePhotoFixture(
         suite: String,
         assets: [Asset] = [Asset(id: "asset-1", type: "IMAGE"), Asset(id: "asset-2", type: "IMAGE")],
@@ -497,14 +564,13 @@ struct SlideshowRemoteControlAdapterTests {
         store.settings.order = .sequential
         store.settings.quality = .preview
 
-        let vmAPI = FakeAPI(assets: assets, info: [:], image: image)
         let haAPI = FakeAPI(
             assets: assets, info: info, image: image,
             failImage: failAdapterImage, failInfo: failAdapterInfo
         )
 
         let slideshow = SlideshowViewModel(
-            source: vmAPI,
+            source: haAPI,
             collectionID: "album-1",
             ticker: BlockingTicker(),
             settingsStore: store
@@ -518,7 +584,6 @@ struct SlideshowRemoteControlAdapterTests {
             powerManager: powerManager,
             albums: albumsAtInit ? [Album(id: "album-1", name: "Family")] : [],
             themeStore: store,
-            api: haAPI,
             metadataCache: MetadataCache(limit: 64),
             publishOptions: optionsStore
         )
@@ -528,11 +593,73 @@ struct SlideshowRemoteControlAdapterTests {
         )
     }
 
+    private struct LinkFixture {
+        let adapter: SlideshowRemoteControlAdapter
+        let slideshow: SlideshowViewModel
+        let linkTransport: LinkRoutingTransport
+        let defaults: UserDefaults
+        let suiteName: String
+
+        func cleanUp() {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+    }
+
+    /// An adapter over an engine that plays a shared link on `link.example` (key `link-key`).
+    private func makeLinkFixture(
+        suite: String,
+        options: HAPublishOptions = HAPublishOptions()
+    ) throws -> LinkFixture {
+        let suiteName = "de.kippings.ImmichSlideshow.tests.\(suite)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let store = UserDefaultsThemeStore(defaults: defaults)
+        store.settings.order = .sequential
+        store.settings.quality = .preview
+
+        let linkTransport = LinkRoutingTransport(host: "link.example", image: makeJPEG())
+        let linkClient = ImmichClient(
+            config: ServerConfig(baseURL: URL(string: "https://link.example")!, auth: .shareKey("link-key")),
+            transport: linkTransport
+        )
+        let slideshow = SlideshowViewModel(
+            source: linkClient,
+            collectionID: LinkRoutingTransport.albumID,
+            ticker: BlockingTicker(),
+            settingsStore: store
+        )
+        let optionsStore = InMemoryHAPublishOptionsStore()
+        optionsStore.options = options
+
+        let adapter = SlideshowRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: PowerManager(screen: StubScreen()),
+            themeStore: store,
+            metadataCache: MetadataCache(limit: 64),
+            publishOptions: optionsStore
+        )
+        return LinkFixture(
+            adapter: adapter, slideshow: slideshow, linkTransport: linkTransport,
+            defaults: defaults, suiteName: suiteName
+        )
+    }
+
     /// The photo-report build is deferred to a main-actor task chain (observe
     /// re-arm → async metadata/image fetch); yield generously so it completes.
     private func settle() async {
         for _ in 0..<50 {
             await Task.yield()
+        }
+    }
+
+    /// Like `settle()`, but for a chain through a real `ImmichClient`: polls until `condition`
+    /// holds or about a second has passed, so a red test fails on its expectations, not a hang.
+    private func settle(until condition: () -> Bool) async {
+        for _ in 0..<200 {
+            if condition() { return }
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
         }
     }
 
@@ -582,10 +709,10 @@ private struct BlockingTicker: SlideshowTicker {
 
 private enum FakeError: Error { case boom }
 
-/// Configurable, call-counting `ImmichAPI`. `assetInfo`/`thumbnail`/`preview` are
-/// never touched by the view model's playback path (it loads via `preview`/
-/// `original` for display only, and never fetches `assetInfo`), so the counters
-/// isolate the adapter's own reporting fetches.
+/// Configurable, call-counting `ImmichAPI` that both plays and reports. Playback loads via
+/// `preview`/`original` and never fetches `assetInfo`, so `assetInfoCalls` isolates the
+/// adapter's own metadata fetches. `failImage` fails only `thumbnail`, the HA image path,
+/// so playback keeps running.
 private actor FakeAPI: ImmichAPI {
     private let assetList: [Asset]
     private let info: [String: AssetInfo]
@@ -616,7 +743,6 @@ private actor FakeAPI: ImmichAPI {
 
     func preview(assetID: String) async throws -> Data {
         previewCalls += 1
-        if failImage { throw FakeError.boom }
         return image
     }
 
@@ -653,8 +779,62 @@ extension FakeAPI: PhotoSourceProviding {
             capturedAt: info.takenAt,
             latitude: nil,
             longitude: nil,
-            placeName: parts.isEmpty ? nil : parts.joined(separator: ", ")
+            placeName: parts.isEmpty ? nil : parts.joined(separator: ", "),
+            city: info.city,
+            state: info.state,
+            country: info.country
         )
+    }
+}
+
+/// 710 T053 (FR-710-25): one Immich host that answers by path and records every request, so a
+/// test can prove which host a link's asset ids reached. `serves: false` answers 404 to
+/// everything. Internal, not private: `HAControlRoundTripTests` reuses it.
+final class LinkRoutingTransport: HTTPTransport, @unchecked Sendable {
+    static let albumID = "link-album"
+    /// `2020-09-13T12:26:40Z`, the EXIF capture date every link asset reports.
+    static let takenAt = Date(timeIntervalSince1970: 1_600_000_000)
+
+    let host: String
+    private let image: Data
+    private let serves: Bool
+    private let lock = NSLock()
+    private var recorded: [URLRequest] = []
+
+    init(host: String, image: Data = Data(), serves: Bool = true) {
+        self.host = host
+        self.image = image
+        self.serves = serves
+    }
+
+    var requests: [URLRequest] { lock.withLock { recorded } }
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        lock.withLock { recorded.append(request) }
+        guard let url = request.url else { throw URLError(.badURL) }
+        let body = serves ? route(url.path) : nil
+        let response = HTTPURLResponse(url: url, statusCode: body == nil ? 404 : 200, httpVersion: nil, headerFields: nil)!
+        return (body ?? Data(), response)
+    }
+
+    private func route(_ path: String) -> Data? {
+        if path == "/api/server/version" {
+            return Data(#"{"major":3,"minor":1,"patch":0}"#.utf8)
+        }
+        if path == "/api/albums/\(Self.albumID)" {
+            return Data(#"{"id":"\#(Self.albumID)","albumName":"Iceland","order":"asc"}"#.utf8)
+        }
+        if path == "/api/search/metadata" {
+            return Data(#"{"assets":{"items":[{"id":"link-asset-1","type":"IMAGE"},{"id":"link-asset-2","type":"IMAGE"}],"nextPage":null}}"#.utf8)
+        }
+        if path.hasSuffix("/thumbnail") {
+            return image
+        }
+        if path.hasPrefix("/api/assets/") {
+            let id = String(path.dropFirst("/api/assets/".count))
+            return Data(#"{"id":"\#(id)","exifInfo":{"dateTimeOriginal":"2020-09-13T12:26:40.000Z","city":"Reykjavik","state":"Capital Region","country":"Iceland"}}"#.utf8)
+        }
+        return nil
     }
 }
 

@@ -81,17 +81,36 @@ public struct SourceCollection: Sendable, Equatable {
 /// Info-overlay + HA metadata payload (FR-900-10/11). Absent fields are `nil`, never
 /// faked; the overlay renders nothing for a `nil` field (FR-300-24). No geocoding in v1
 /// (R7), so `placeName` is always `nil` from the Photos backend.
+///
+/// `city`, `state` and `country` carry the place separately so HA can publish them as
+/// distinct attributes for every source that has them (FR-710-25). They default to `nil`;
+/// the Photos backend leaves them `nil` (FR-900-11/14). `placeName` stays the composed
+/// overlay string.
 public struct AssetMetadata: Sendable, Equatable {
     public let capturedAt: Date?
     public let latitude: Double?
     public let longitude: Double?
     public let placeName: String?
+    public let city: String?
+    public let state: String?
+    public let country: String?
 
-    public init(capturedAt: Date?, latitude: Double?, longitude: Double?, placeName: String?) {
+    public init(
+        capturedAt: Date?,
+        latitude: Double?,
+        longitude: Double?,
+        placeName: String?,
+        city: String? = nil,
+        state: String? = nil,
+        country: String? = nil
+    ) {
         self.capturedAt = capturedAt
         self.latitude = latitude
         self.longitude = longitude
         self.placeName = placeName
+        self.city = city
+        self.state = state
+        self.country = country
     }
 }
 

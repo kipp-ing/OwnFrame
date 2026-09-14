@@ -75,11 +75,15 @@ extension ImmichClient: PhotoSourceProviding {
             let parts = [info.city, info.country].compactMap { $0 }.filter { !$0.isEmpty }
             let placeName = parts.isEmpty ? nil : parts.joined(separator: ", ")
             // ImmichClient's AssetInfo/ExifInfo carries no coordinates today → lat/lon nil.
+            // City, state and country also pass through separately for HA (FR-710-25).
             return AssetMetadata(
                 capturedAt: info.takenAt,
                 latitude: nil,
                 longitude: nil,
-                placeName: placeName
+                placeName: placeName,
+                city: info.city,
+                state: info.state,
+                country: info.country
             )
         }
     }

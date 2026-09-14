@@ -75,10 +75,10 @@ album placeholder) as they are.
 - [x] Verify + gate (host packages + iOS 18.6 sim) → facts → commit → close #61 #62
 
 ### WP3 — #64 HA metadata follows the active source
-- [ ] S3 PhotoSourceKit + backends: `AssetMetadata` city/state/country
-- [ ] Claude: red adapter tests first (link source, link-only without API key, no call on the API-key client), then
+- [x] S3 PhotoSourceKit + backends: `AssetMetadata` city/state/country
+- [x] Claude: red adapter tests first (link source, link-only without API key, no call on the API-key client), then
       neutral path only; drop `api` from makeAdapter
-- [ ] Adversarial verify: no asset ids/keys to a foreign host → facts REMOTE-03/04 → commit → close #64
+- [x] Adversarial verify: no asset ids/keys to a foreign host → facts REMOTE-03/04 → commit → close #64
 
 ### WP4a — visible UI
 - [ ] #60 scrim in `NewPhotosOverlayView.card(for:)`; check via the capture seam over the beach photo (no store re-render)

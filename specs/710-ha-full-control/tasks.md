@@ -284,28 +284,28 @@ subagent-eligible (host `swift test`, one package at a time). App-target tasks T
 **Independent test**: host suites with stub sources; in the app target, fake transports and fake
 sources only. No real broker, no real server (SC-710-06).
 
-- [ ] T047 [P] Red: `Packages/PhotoSourceKit/Tests/PhotoSourceKitTests/SourceModelsTests.swift` —
+- [x] T047 [P] Red: `Packages/PhotoSourceKit/Tests/PhotoSourceKitTests/SourceModelsTests.swift` —
   `AssetMetadata` carries `city`, `state`, `country` (each optional) and they take part in
   equality. `placeName` is kept, because the info overlay (`OwnFrame/Slideshow/PhotoInfoView.swift:66`)
   still reads it
-- [ ] T048 Green: add the three fields to `AssetMetadata` in
+- [x] T048 Green: add the three fields to `AssetMetadata` in
   `Packages/PhotoSourceKit/Sources/PhotoSourceKit/SourceModels.swift`, with init parameters
   defaulted to `nil` so today's call sites compile; update
   `Packages/PhotoSourceKit/Sources/PhotoSourceTestSupport/StubPhotoSource.swift:197` to green T047
-- [ ] T049 [P] Red: `Packages/ImmichClient/Tests/ImmichClientTests/ImmichPhotoSourceTests.swift`
+- [x] T049 [P] Red: `Packages/ImmichClient/Tests/ImmichClientTests/ImmichPhotoSourceTests.swift`
   (:144) — `metadata(for:)` passes `assetInfo`'s city, state and country through separately. It
   works identically for a shared-link client (`?key=`, link host) and an API-key client, and the
   `placeName` composition is unchanged
-- [ ] T050 Green: `Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-85` to green
+- [x] T050 Green: `Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-85` to green
   T049 (depends on T048)
-- [ ] T051 [P] Red+Green: `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/PhotoLibraryProviderTests.swift`
+- [x] T051 [P] Red+Green: `Packages/PhotoLibraryKit/Tests/PhotoLibraryKitTests/PhotoLibraryProviderTests.swift`
   (:280) — Photos metadata has `city`/`state`/`country == nil` (no geocoding, FR-900-11/14);
   `PHKitGateway.swift:221` and `PhotoLibraryTestSupport/FakePhotoLibraryGateway.swift:160` stay
   place-free
-- [ ] T052 Host gate: `swift test` green in PhotoSourceKit, ImmichClient, PhotoLibraryKit,
+- [x] T052 Host gate: `swift test` green in PhotoSourceKit, ImmichClient, PhotoLibraryKit,
   SlideshowKit (`SlideshowViewModelTests.swift:461` compiles unchanged) and HAControlKit
   (`CachedMetadata` already has city/state/country)
-- [ ] T053 Red (**Claude inline**): `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift`, each
+- [x] T053 Red (**Claude inline**): `OwnFrameTests/SlideshowRemoteControlAdapterTests.swift`, each
   test built on an engine whose source is an Immich-link `ImmichClient` over a recording transport
   (`ImmichClientTestSupport`'s `MockTransport`, or a local recording `HTTPTransport` if the test
   target cannot link it):
@@ -318,10 +318,10 @@ sources only. No real broker, no real server (SC-710-06).
   (d) **no asset id sent to another host**: every request carrying the link's asset ids goes to the
   link's host with its `key=`, and the API-key server's transport receives no request.
   Plus a regression: a Photos source still reports date only, no place
-- [ ] T054 Red (**Claude inline**): `OwnFrameTests/HAControlRoundTripTests.swift` — a link-source
+- [x] T054 Red (**Claude inline**): `OwnFrameTests/HAControlRoundTripTests.swift` — a link-source
   round trip publishes `current_photo` with separate city/state/country attributes through the
   coordinator; the existing `photosSourceReportsDateOnlyMetadataThroughNeutralPath` (:129) stays green
-- [ ] T055 Green (**Claude inline**): `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` — one
+- [x] T055 Green (**Claude inline**): `OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift` — one
   path for every source through `neutralMetadata`/`neutralImageData`, mapping
   `AssetMetadata.city/state/country` into `CachedMetadata` (Photos yields `nil` place). Delete
   `metadata(for:api:)`/`imageData(for:api:)`, the `api` property and init parameter. Keep
@@ -332,23 +332,23 @@ sources only. No real broker, no real server (SC-710-06).
   `StubAPI` :481, `FakeAPI` :519, :451; `HAControlRoundTripTests.swift` `RoundTripStubAPI` :311,
   `NextStubAPI` :363, :229; `PurchaseGateCoordinatorTests.swift:406`) to engine sources, and fill
   city/state/country in the UITest stub source `OwnFrameApp.swift:1306-1316`. Green T053/T054
-- [ ] T056 Verification (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes
+- [x] T056 Verification (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes
   `SlideshowRemoteControlAdapterTests`, `HAControlRoundTripTests`, `PurchaseGateCoordinatorTests`,
   `PhotoInfoUITests` (the overlay still shows a place); host suites from T052 still green
-- [ ] T057 Adversarial review (fresh subagent, told to **refute**, treating "nothing leaks" as a
+- [x] T057 Adversarial review (fresh subagent, told to **refute**, treating "nothing leaks" as a
   hypothesis): read the diff and every remaining `ImmichAPI`/`ImmichClient` construction in
   `OwnFrame/` and `AppIntentsKit`. Can any path send a link's asset id, link key or API key to a
   foreign host? Candidate paths: the adapter, `MetadataCache` across a source switch (is it per
   adapter generation?), the `makeCoordinator` album client, App Intents, `PhotoInfoView`. Also check
   FR-710-16/22. Findings are fixed here or recorded on #64 before close
-- [ ] T058 Facts, **same commit as T050/T055**: `product-facts.yaml` **REMOTE-03** →
+- [x] T058 Facts, **same commit as T050/T055**: `product-facts.yaml` **REMOTE-03** →
   `implementation: verified`; limits become "Immich album or Immich link: date and city/state/country"
   plus "Photos source: date only"; drop the Immich-link limit and `mismatch`/`candidate_issue`; add
   `FR-710-25` to `intent`; refresh `evidence`. **REMOTE-04** → `verified`; drop "Unreliable for
   Immich-link sources"; add `FR-710-25` to `intent`; refresh `evidence`. Run
   `.claude/scripts/check-facts.py`. Where `data-model.md`'s Current Photo entry names the API-key
   client as the lookup, reword it to the active source
-- [ ] T059 Commit with explicit paths, then close #64 with the commit reference (`gh` account
+- [x] T059 Commit with explicit paths, then close #64 with the commit reference (`gh` account
   `kipp-ing`); tick this phase's boxes
 
 **Checkpoint**: a link-only frame publishes date, city, state, country and (opt-in) image to HA;

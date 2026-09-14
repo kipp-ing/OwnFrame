@@ -843,34 +843,28 @@ facts:
 
   - id: REMOTE-03
     fact: "Reports the current photo's date and place to Home Assistant."
-    verdict: partial
+    verdict: does
     limits:
-      - "Immich album via server + API key: date and city/state/country."
+      - "Immich album or Immich link: date and city/state/country."
       - "Photos source: date only."
-      - "Immich link as the active source, current build: no date or place when no API key is configured, and unreliable (often empty) when one is, because the lookup goes to the API-key server instead of the link's server."
     gated: free
     platforms: [ios, ipados]
-    intent: ["FR-710-05", "FR-710-06", "FR-900-11"]
-    implementation: mismatch
-    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:283-297,337-346", "OwnFrame/OwnFrameApp.swift:474-480"]
-    mismatch: "Spec 710 US2 expects current-photo metadata for every source. The adapter's Immich client is always the API-key server client, whatever source is active. With no API key an Immich link publishes no date, place or image. With an API key it looks up the link's asset ids on the API-key server, which fails for links on another host or albums that user cannot see, and it sends the link's asset ids to that server."
-    candidate_issue: "#64 — HA current-photo metadata and image use the API-key server client regardless of the active source (OwnFrameApp.swift:474-480). Route Immich-link sources through the engine's source-neutral metadata/image path, already used for Photos (SlideshowRemoteControlAdapter.swift:337-346)."
+    intent: ["FR-710-05", "FR-710-06", "FR-710-25", "FR-900-11"]
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:307-308,330-341", "Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-89", "OwnFrameTests/SlideshowRemoteControlAdapterTests.swift", "OwnFrameTests/HAControlRoundTripTests.swift"]
 
   - id: REMOTE-04
     fact: "Can optionally publish the current photo itself to Home Assistant as an image."
-    verdict: partial
+    verdict: does
     limits:
       - "Opt-in, off by default, free."
       - "Thumbnail by default or preview size, capped at 512 KB, not retained on the broker."
       - "The image entity needs Home Assistant 2023.7 or newer."
-      - "Unreliable for Immich-link sources in the current build (same cause as REMOTE-03)."
     gated: free
     platforms: [ios, ipados]
-    intent: ["FR-710-07", "FR-710-15", "FR-900-12"]
-    implementation: mismatch
-    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-21", "OwnFrame/OwnFrameApp.swift:518-520"]
-    mismatch: "Same root cause as REMOTE-03: the image is requested from the API-key server, so Immich-link sources get none or a failed lookup."
-    candidate_issue: "#64 (same issue as REMOTE-03)."
+    intent: ["FR-710-07", "FR-710-15", "FR-710-25", "FR-900-12"]
+    implementation: verified
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-21", "OwnFrame/OwnFrameApp.swift:517-519", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:345-351"]
 
   - id: REMOTE-05
     fact: "Home Assistant can control the frame: pause/play, brightness, which saved source plays, every display setting (order, duration, transition, Ken Burns, fit, quality, clock on/position/style/size/date), and next/previous; changes echo back to Home Assistant."

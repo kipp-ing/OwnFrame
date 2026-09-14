@@ -31,8 +31,8 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     /// album-list select remains (pre-900 constructions and tests).
     private let sources: [Source]
     private let onSelectSource: ((String) -> Void)?
-    /// The active source is Photos-backed (900): current-photo metadata/image publish
-    /// through the engine's neutral pass-throughs instead of the Immich API.
+    /// The active source is Photos-backed (900): only the album-name fallback needs it, since
+    /// a server album list can't name a Photos collection.
     private let isPhotoLibrarySource: Bool
     private let themeStore: (any ThemeSettingsStore)?
     private var suppressSettingsCallback = false
@@ -67,10 +67,9 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     nonisolated(unsafe) private var batteryObservers: [NSObjectProtocol] = []
     private var batteryMonitorTask: Task<Void, Never>?
 
-    // Photo-reporting dependencies (US2). Optional so the existing playback/settings
-    // call sites keep compiling; when unwired, reports degrade to asset ID + phase
-    // with no metadata or image.
-    private let api: (any ImmichAPI)?
+    // Photo-reporting dependencies (US2). Metadata and image always come from the engine's
+    // active source (FR-710-25), so no other server's client is held here; without publish
+    // options no image is published.
     private let metadataCache: MetadataCache
     private let publishOptions: (any HAPublishOptionsStore)?
     private var _currentPhotoReport: PhotoReport
@@ -86,7 +85,6 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         isPhotoLibrarySource: Bool = false,
         initialBrightness: Double = 1.0,
         themeStore: (any ThemeSettingsStore)? = nil,
-        api: (any ImmichAPI)? = nil,
         metadataCache: MetadataCache = MetadataCache(limit: 64),
         publishOptions: (any HAPublishOptionsStore)? = nil
     ) {
@@ -103,7 +101,6 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         self.currentAlbum = activeSource?.label ?? legacyAlbumName
         self.currentSourceDisplayName = activeSource.map(SourceLibraryViewModel.displayName(for:)) ?? legacyAlbumName
         self.themeStore = themeStore
-        self.api = api
         self.metadataCache = metadataCache
         self.publishOptions = publishOptions
         self._currentPhotoReport = PhotoReport(
@@ -303,21 +300,12 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
             )
         }
 
-        // 900 (FR-900-11/12): a Photos source publishes through the engine's neutral
-        // pass-throughs — capture date only, no place fields (R7, no geocoding); image
-        // bytes under the same global opt-in. Immich keeps its richer EXIF path.
-        let meta: CachedMetadata?
-        let image: Data?
-        if isPhotoLibrarySource {
-            meta = await neutralMetadata(for: assetID)
-            image = await neutralImageData(for: assetID)
-        } else if let api {
-            meta = await metadata(for: assetID, api: api)
-            image = await imageData(for: assetID, api: api)
-        } else {
-            meta = nil
-            image = nil
-        }
+        // FR-710-25: one path for every source, through the engine's own source. An Immich
+        // link resolves through that link and its key, an API-key album through its server,
+        // Photos on the device (date only, R7) — so an asset id never reaches another
+        // source's server. Image bytes stay under the global opt-in (FR-710-15, FR-900-12).
+        let meta = await neutralMetadata(for: assetID)
+        let image = await neutralImageData(for: assetID)
 
         return PhotoReport(
             assetID: assetID, imageData: image,
@@ -335,62 +323,31 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         albums.first { $0.id == albumID }?.assetCount ?? slideshow.photoCount
     }
 
-    /// Metadata via the bounded LRU cache; a fetch failure yields `nil` (never
-    /// cached) but the asset ID is still reported.
-    private func metadata(for assetID: String, api: any ImmichAPI) async -> CachedMetadata? {
-        if let cached = metadataCache.metadata(for: assetID) {
-            return cached
-        }
-        do {
-            let info = try await api.assetInfo(assetID: assetID)
-            let meta = CachedMetadata(
-                takenAt: info.takenAt, city: info.city, state: info.state, country: info.country
-            )
-            metadataCache.store(meta, for: assetID)
-            return meta
-        } catch {
-            return nil
-        }
-    }
-
-    /// Neutral metadata for a Photos-backed show (900, R7): the capture date through the
-    /// engine's pass-through; place fields stay empty — no geocoding. Same bounded cache.
+    /// Metadata through the engine's active source (FR-710-25), via the bounded LRU cache.
+    /// City, state and country pass through as the source reports them; Photos has none (R7,
+    /// no geocoding). A fetch failure yields `nil` (never cached) but the asset ID is still
+    /// reported.
     private func neutralMetadata(for assetID: String) async -> CachedMetadata? {
         if let cached = metadataCache.metadata(for: assetID) {
             return cached
         }
         guard let metadata = try? await slideshow.metadata(for: assetID) else { return nil }
-        let meta = CachedMetadata(takenAt: metadata.capturedAt, city: nil, state: nil, country: nil)
+        let meta = CachedMetadata(
+            takenAt: metadata.capturedAt, city: metadata.city, state: metadata.state, country: metadata.country
+        )
         metadataCache.store(meta, for: assetID)
         return meta
     }
 
-    /// Image bytes for a Photos-backed show (900, FR-900-12): the same global opt-in and
-    /// byte cap as Immich, fetched through the engine's neutral pass-through.
+    /// Image bytes through the engine's active source (FR-710-25, FR-900-12): only when
+    /// publishing images is enabled, then downscaled/capped to the byte budget. `nil` when
+    /// disabled, on a fetch failure, or if it can't be brought under the cap.
     private func neutralImageData(for assetID: String) async -> Data? {
         let options = publishOptions?.options ?? HAPublishOptions()
         guard options.imageEnabled else { return nil }
         let fidelity: ImageFidelity = options.imageSource == .thumbnail ? .thumbnail : .preview
         guard let raw = try? await slideshow.imageData(for: assetID, fidelity: fidelity) else { return nil }
         return Self.downscaledJPEG(from: raw, cap: options.byteCap)
-    }
-
-    /// Image bytes for HA: only when publishing images is enabled; fetched via the
-    /// configured source, then downscaled/capped to the byte budget. `nil` when
-    /// disabled, on a fetch failure, or if it can't be brought under the cap.
-    private func imageData(for assetID: String, api: any ImmichAPI) async -> Data? {
-        let options = publishOptions?.options ?? HAPublishOptions()
-        guard options.imageEnabled else { return nil }
-        do {
-            let raw: Data
-            switch options.imageSource {
-            case .thumbnail: raw = try await api.thumbnail(assetID: assetID)
-            case .preview: raw = try await api.preview(assetID: assetID)
-            }
-            return Self.downscaledJPEG(from: raw, cap: options.byteCap)
-        } catch {
-            return nil
-        }
     }
 
     private static func mapPhase(_ phase: SlideshowPhase) -> SlideshowPhaseReport {

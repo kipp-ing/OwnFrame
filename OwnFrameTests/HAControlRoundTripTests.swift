@@ -156,6 +156,69 @@ struct HAControlRoundTripTests {
         #expect(report.country == nil)
     }
 
+    // 710 T054 (FR-710-25, #64): an Immich link publishes `current_photo` with separate
+    // city/state/country through the coordinator, looked up through the link itself. No API
+    // key is configured anywhere in this test.
+    @Test func linkSourcePublishesCurrentPhotoPlaceThroughTheCoordinator() async throws {
+        let suiteName = "de.kippings.ImmichSlideshow.tests.roundtrip.linkmeta"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = UserDefaultsThemeStore(defaults: defaults)
+        store.settings.order = .sequential
+        let linkClient = ImmichClient(
+            config: ServerConfig(baseURL: URL(string: "https://link.example")!, auth: .shareKey("link-key")),
+            transport: LinkRoutingTransport(host: "link.example")
+        )
+        let slideshow = SlideshowViewModel(
+            source: linkClient,
+            collectionID: LinkRoutingTransport.albumID,
+            ticker: NonFiringTicker(),
+            settingsStore: store
+        )
+        let adapter = SlideshowRemoteControlAdapter(
+            slideshow: slideshow,
+            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            themeStore: store
+        )
+
+        let transport = RecordingTransport()
+        let coordinator = HAControlCoordinator(
+            transport: transport,
+            control: adapter,
+            photoReporter: adapter,
+            configStore: StaticBrokerConfigStore(config: BrokerConfig(
+                host: "broker.local", port: 8883, username: "user", password: "pass", deviceID: "devlink"
+            )),
+            deviceName: "OwnFrame",
+            enabledEntities: [.currentPhoto]
+        )
+        await coordinator.start()
+        await slideshow.start()
+
+        let photoTopic = HATopics.stateTopic(deviceID: "devlink", entity: .currentPhoto)
+        var placed: [String: Any]?
+        for _ in 0..<60 where placed == nil {
+            for _ in 0..<10 { await Task.yield() }
+            try await Task.sleep(for: .milliseconds(20))
+            placed = transport.published
+                .filter { $0.topic == photoTopic }
+                .compactMap { try? JSONSerialization.jsonObject(with: $0.payload) as? [String: Any] }
+                .last { $0["city"] is String }
+        }
+
+        let json = try #require(placed, "current_photo must publish the link photo's place")
+        #expect(json["id"] as? String == "link-asset-1")
+        #expect(json["city"] as? String == "Reykjavik")
+        #expect(json["state"] as? String == "Capital Region")
+        #expect(json["country"] as? String == "Iceland")
+        #expect(json["taken_at"] is String, "the capture date publishes too")
+
+        slideshow.pause()
+        await coordinator.stop()
+    }
+
     @Test func chromeTogglePauseEchoesPlaybackStateToHA() async throws {
         // The chrome play/pause button calls `viewModel.togglePause()` directly
         // (SlideshowChrome.swift), never `adapter.pause()/resume()`. The adapter
@@ -225,8 +288,7 @@ struct HAControlRoundTripTests {
             slideshow: slideshow,
             powerManager: PowerManager(screen: RoundTripStubScreen()),
             albums: [Album(id: "album-1", name: "Family")],
-            themeStore: store,
-            api: NextStubAPI(assets: assets)
+            themeStore: store
         )
 
         await slideshow.start()

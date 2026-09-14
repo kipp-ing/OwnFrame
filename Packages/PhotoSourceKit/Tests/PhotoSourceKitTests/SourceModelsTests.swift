@@ -91,4 +91,43 @@ private struct SampleError: Error, Equatable {}
         #expect(ImageFidelity.preview.rawValue == "preview")
         #expect(ImageFidelity.original.rawValue == "original")
     }
+
+    // MARK: - AssetMetadata place fields (FR-710-25)
+
+    /// City, state and country default to `nil`, so today's call sites (which only pass
+    /// `placeName`) keep compiling and stay place-free. `placeName` is kept for the overlay.
+    @Test func assetMetadataPlaceFieldsDefaultToNil() {
+        let metadata = AssetMetadata(capturedAt: nil, latitude: nil, longitude: nil, placeName: "Berlin, Germany")
+        #expect(metadata.city == nil)
+        #expect(metadata.state == nil)
+        #expect(metadata.country == nil)
+        #expect(metadata.placeName == "Berlin, Germany")
+    }
+
+    /// City, state and country are carried separately and each takes part in equality.
+    @Test func assetMetadataPlaceFieldsAreCarriedAndTakePartInEquality() {
+        let base = AssetMetadata(
+            capturedAt: nil, latitude: nil, longitude: nil, placeName: "Berlin, Germany",
+            city: "Berlin", state: "Berlin", country: "Germany"
+        )
+        #expect(base.city == "Berlin")
+        #expect(base.state == "Berlin")
+        #expect(base.country == "Germany")
+        #expect(base == AssetMetadata(
+            capturedAt: nil, latitude: nil, longitude: nil, placeName: "Berlin, Germany",
+            city: "Berlin", state: "Berlin", country: "Germany"
+        ))
+        #expect(base != AssetMetadata(
+            capturedAt: nil, latitude: nil, longitude: nil, placeName: "Berlin, Germany",
+            city: "Hamburg", state: "Berlin", country: "Germany"
+        ))
+        #expect(base != AssetMetadata(
+            capturedAt: nil, latitude: nil, longitude: nil, placeName: "Berlin, Germany",
+            city: "Berlin", state: "Brandenburg", country: "Germany"
+        ))
+        #expect(base != AssetMetadata(
+            capturedAt: nil, latitude: nil, longitude: nil, placeName: "Berlin, Germany",
+            city: "Berlin", state: "Berlin", country: nil
+        ))
+    }
 }

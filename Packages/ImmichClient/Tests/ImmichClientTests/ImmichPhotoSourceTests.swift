@@ -161,8 +161,89 @@ import PhotoSourceKit
         latitude: nil,
         longitude: nil,
         // Same composition as PhotoInfoView: [city, country] joined by ", ".
-        placeName: "Berlin, Germany"
+        placeName: "Berlin, Germany",
+        // FR-710-25: the place parts are passed through separately as well.
+        city: "Berlin",
+        state: "Berlin",
+        country: "Germany"
     ))
+}
+
+/// FR-710-25: `metadata(for:)` passes city, state and country through separately and
+/// behaves identically for a shared-link client (`?key=` on the link host) and an API-key
+/// client; `placeName` composition is unchanged.
+// @covers FR-710-25
+@Test func metadataPassesPlacePartsThroughForSharedLinkAndAPIKeyClients() async throws {
+    let json = """
+    {
+        "id": "asset-1",
+        "type": "IMAGE",
+        "localDateTime": "2024-06-15T14:30:00.000Z",
+        "exifInfo": {
+            "city": "Reykjavik",
+            "state": "Capital Region",
+            "country": "Iceland"
+        }
+    }
+    """
+    let linkHost = try #require(URL(string: "https://share.link.example.test"))
+    let serverHost = try #require(URL(string: "https://photos.example.test"))
+    let clients: [(ServerConfig, URL)] = [
+        (ServerConfig(baseURL: linkHost, auth: .shareKey("link-share-key")), linkHost),
+        (ServerConfig(baseURL: serverHost, apiKey: "secret-api-key"), serverHost),
+    ]
+
+    var results: [AssetMetadata] = []
+    for (config, host) in clients {
+        let ok = try #require(HTTPURLResponse(url: host, statusCode: 200, httpVersion: nil, headerFields: nil))
+        let transport = MockTransport(result: .success((Data(json.utf8), ok)))
+        let source: any PhotoSourceProviding = ImmichClient(config: config, transport: transport)
+
+        let metadata = try await source.metadata(for: "asset-1")
+
+        #expect(metadata.city == "Reykjavik")
+        #expect(metadata.state == "Capital Region")
+        #expect(metadata.country == "Iceland")
+        #expect(metadata.placeName == "Reykjavik, Iceland")
+        results.append(metadata)
+
+        // The request stays on this client's own host with its own credential.
+        let request = try #require(await transport.recordedRequests.only)
+        #expect(request.url?.host == host.host)
+        #expect(request.url?.path == "/api/assets/asset-1")
+        switch config.auth {
+        case let .shareKey(key):
+            #expect(queryValue("key", of: request) == key)
+            #expect(request.value(forHTTPHeaderField: "x-api-key") == nil)
+        case let .apiKey(key):
+            #expect(queryValue("key", of: request) == nil)
+            #expect(request.value(forHTTPHeaderField: "x-api-key") == key)
+        }
+    }
+    #expect(results.count == 2)
+    #expect(results.first == results.last)
+}
+
+/// FR-710-25: a missing state or empty country stays absent; the parts are never faked
+/// and `placeName` keeps its [city, country] composition.
+// @covers FR-710-25
+@Test func metadataPassesPlacePartsThroughWithoutFillingGaps() async throws {
+    let json = """
+    {
+        "id": "asset-1",
+        "type": "IMAGE",
+        "localDateTime": "2024-06-15T14:30:00.000Z",
+        "exifInfo": { "city": "Berlin" }
+    }
+    """
+    let (source, _) = try makeSource(data: Data(json.utf8), statusCode: 200)
+
+    let metadata = try await source.metadata(for: "asset-1")
+
+    #expect(metadata.city == "Berlin")
+    #expect(metadata.state == nil)
+    #expect(metadata.country == nil)
+    #expect(metadata.placeName == "Berlin")
 }
 
 @Test func metadataUsesCityOnlyWhenCountryMissing() async throws {
@@ -369,6 +450,14 @@ private func sizeQuery(of request: URLRequest) -> String? {
     return URLComponents(url: url, resolvingAgainstBaseURL: false)?
         .queryItems?
         .first { $0.name == "size" }?
+        .value
+}
+
+private func queryValue(_ name: String, of request: URLRequest) -> String? {
+    guard let url = request.url else { return nil }
+    return URLComponents(url: url, resolvingAgainstBaseURL: false)?
+        .queryItems?
+        .first { $0.name == name }?
         .value
 }
 

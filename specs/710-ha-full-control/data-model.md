@@ -30,6 +30,9 @@ cases keep their current raw values unchanged.
 
 One snapshot of "what's on the frame right now," produced by the adapter on every photo change
 and consumed by `HAControlCoordinator` to drive the image + `current_photo` sensor publish.
+Metadata and image bytes are looked up through the slideshow's active source, whatever its kind
+(FR-710-25): an Immich link through that link, an API-key album through its server, Photos on the
+device (date only).
 
 ```swift
 public struct PhotoReport: Sendable, Equatable {
