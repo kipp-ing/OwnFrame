@@ -32,7 +32,16 @@ Jan's own steps from this list (German string review, push word) are also queued
       harness artifact fixed in 986a21c; the album-card tap was checked by finger on FramePhone/27.0 and works, the
       test wraps that one synthesized tap in `XCTExpectFailure(strict: true)` on iOS ≥ 27. No user-facing bug.
 
-### WP1 — specs first (#69)
+### WP1 — specs first (#69) — ✅ DONE 2026-09-14 (a36fec5)
+New IDs for the code work:
+- FR-310-15 (#60)
+- FR-310-16 (#61)
+- FR-500-06 + FR-130-02/12 (#62)
+- FR-710-25 (#64)
+- FR-210-31 + SC-210-02 (#65)
+- FR-9000-38 (#59)
+
+Constitution is 1.2.0. #67 dropped (own spec later). Items below kept for the record.
 - [ ] Subagent: #69 "Stale text" fixes (only `specs/**/spec.md`, `docs/spec-overview.md`)
 - [ ] Claude: Constitution VII + III (`speckit-constitution`)
 - [ ] Claude: new/changed FRs:
@@ -42,7 +51,7 @@ Jan's own steps from this list (German string review, push word) are also queued
   - 210 US2 / SC-210-02: pick-up on next open + extension confirmation
   - 700/710: metadata follows the active source
   - 9000-14: shared prominent style
-- [ ] Adversarial verify against `product-facts.yaml` → `check-facts.py` → commit → close #69
+- [x] Adversarial verify against `product-facts.yaml` → `check-facts.py` → commit → close #69 (18 findings, all resolved or parked)
 
 ### WP-50 — dropped
 Not needed: #50 has no product bug (see WP0). What remains is deleting the `XCTExpectFailure` block once iOS 27 synthesized
