@@ -15,14 +15,18 @@ are frozen:** fixes land anyway, and small drift between app and screenshots is 
 `swift test`, explicit file list, no commit, max. 2 rounds), and never two in the same package at once. Every
 code WP gets an adversarial verify pass. Fact changes go in the same commit as the code.
 
+Jan's own steps from this list (FramePhone check, Framepad check, German string review) are also queued in
+[`hitl.md`](hitl.md).
+
 ## Checklist
 
 ### WP0 — triage
 - [x] #54 closed (fixed in e872b90; gate runtimes 18.6 / 26.0 documented)
 - [x] #55 empty `ImmichLogo.imageset` deleted, `frame.afdesign` → `Design/AppIcon/` (5781329)
 - [x] #56 live ASC API: 1320×2868 in `APP_IPHONE_67`, docs corrected (033eeb7)
-- [ ] **Jan, FramePhone (iOS 27), #50:** (a) does tapping an album card drill in? (b) landscape onboarding: does the
-      confirm step scroll to "Start slideshow"? Post the result in #50.
+- [x] #50 FramePhone check — **already done before this plan** (`docs/testing.md:523-547`): landscape onboarding was a
+      harness artifact fixed in 986a21c; the album-card tap was checked by finger on FramePhone/27.0 and works, the
+      test wraps that one synthesized tap in `XCTExpectFailure(strict: true)` on iOS ≥ 27. No user-facing bug.
 
 ### WP1 — specs first (#69)
 - [ ] Subagent: #69 "Stale text" fixes (only `specs/**/spec.md`, `docs/spec-overview.md`)
@@ -36,9 +40,9 @@ code WP gets an adversarial verify pass. Fact changes go in the same commit as t
   - 9000-14: shared prominent style
 - [ ] Adversarial verify against `product-facts.yaml` → `check-facts.py` → commit → close #69
 
-### WP-50 — conditional on the FramePhone result
-- [ ] Finger fails too → product bug: fix right after WP1 (landscape confirm form; `NavigationLink` in the `LazyVGrid` sheet)
-- [ ] Finger works → XCUITest artifact: rework the test interaction after WP5
+### WP-50 — dropped
+Not needed: #50 has no product bug (see WP0). What remains is deleting the `XCTExpectFailure` block once iOS 27 synthesized
+taps drill in again; the strict expectation fails loudly on that day.
 
 ### WP2 — host packages in parallel
 - [ ] S1 ImmichClient + OnboardingKit (#62 + #61):

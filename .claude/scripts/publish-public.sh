@@ -22,6 +22,7 @@ EXCLUDE_PATHS=(
   "docs/handover-store-slots.md"
   "docs/release-1.1-handout.md"
   "docs/presentation-overhaul-plan.md"
+  "docs/hitl.md"
   "specs/9010-store-presentation"
 )
 
