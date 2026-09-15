@@ -258,34 +258,50 @@ that round trip. T063/T064 done in the same commit.
 
 **Independent Test**: host tests on a pending-selection model with fakes (nothing persists until commit); XCUITest for Cancel, multi-select + Done, and the no-server prompt.
 
-**Orchestration note**: the selection model is OnboardingKit host work, subagent-eligible. It runs **after** the WP2 ImmichClient + OnboardingKit pass (130 Phase 9, 310 T024–T027, 120 T037–T042), never concurrently. The picker and both hosts are SwiftUI, and all UI tests are **Claude inline**. Scope is the Immich album picker. `PhotoAlbumPickerView` also adds on tap (`PhotoAlbumPickerView.swift:131,155,200,219`) under the same pinned Done; whether FR-210-28 covers it was open. **Jan decided 2026-09-14: yes, both pickers behave the same.** The Photos picker gets the same mark-then-Done rework in this package (recorded on #71); its tasks are still to be written before any code.
+**Orchestration note**: the selection model is OnboardingKit host work, subagent-eligible. It runs **after** the WP2 ImmichClient + OnboardingKit pass (130 Phase 9, 310 T024–T027, 120 T037–T042), never concurrently. The picker and both hosts are SwiftUI, and all UI tests are **Claude inline**. Scope is the Immich album picker. `PhotoAlbumPickerView` also adds on tap (`PhotoAlbumPickerView.swift:131,155,200,219`) under the same pinned Done; whether FR-210-28 covers it was open. **Jan decided 2026-09-14: yes, both pickers behave the same.** The Photos picker gets the same mark-then-Done rework in this package (recorded on #71); its tasks are T073–T075 (written 2026-09-15), and the selection model below is kind-generic so both pickers share it.
 
-- [ ] T065 [P] [US3] Red: new `Packages/OnboardingKit/Tests/OnboardingKitTests/AlbumSelectionTests.swift` — a pending-selection model (e.g. an `AlbumSelection` value type):
+**One selection per sheet (2026-09-15).** Each host (`AddSourceView`, `SourceStepView`) owns one `AlbumSelection` and hands it to both pickers. Marks survive switching between the Album and iCloud album tabs, and one Done/Continue commits both. Commit order: Immich albums first, then Photos albums, each in its list order. A label that collides with an existing source gets the " 2" counter (as `activateAlbumSource` does), so two different albums with the same name can both be added.
+
+- [x] T065 [P] [US3] Red: new `Packages/OnboardingKit/Tests/OnboardingKitTests/AlbumSelectionTests.swift` — a pending-selection model (`AlbumSelection` value type of `Candidate(kind, label, position)`):
   - `toggle(album)` marks and unmarks.
-  - An album already in the library (matched by **album id**, not label) cannot be marked.
-  - Commit adds exactly the marked albums, in the picker's list order, through one library persist; labels come from the album name, and an unnamed album keeps today's stored fallback (120 T039).
+  - An album already in the library (matched by **album id**, not label) cannot be marked; the same holds for a Photos **collection id**. A shared-link kind is ignored.
+  - Commit adds exactly the marked albums, in the picker's list order (albums before Photos albums), through one library persist; labels come from the album name, and an unnamed album keeps today's stored fallback (120 T039). A label collision gets the counter suffix.
   - It reports the added count.
   - Discard adds nothing, and marking alone never writes the store (save count 0).
   - A mark survives a search-filter change.
-- [ ] T066 [US3] Green: `Packages/OnboardingKit/Sources/OnboardingKit/AlbumSelection.swift` (new) plus a batch `addAlbumSources(_:)` on `SourceLibraryViewModel.swift` (one persist) that the commit uses; `addAlbumSource` stays for other callers. `swift test` green in OnboardingKit. Depends on T065.
-- [ ] T067 [US3] Red XCUITest (**Claude**), in `OwnFrameUITests/SourceLibraryUITests.swift`:
+- [x] T066 [US3] Green: `Packages/OnboardingKit/Sources/OnboardingKit/AlbumSelection.swift` (new) plus a batch `addSources(_:)` on `SourceLibraryViewModel.swift` (one persist) that the commit uses; `addAlbumSource` / `addPhotoLibrarySource` stay for other callers. `swift test` green in OnboardingKit. Depends on T065.
+- [x] T067 [US3] Red XCUITest (**Claude**), in `OwnFrameUITests/SourceLibraryUITests.swift`:
   - Settings → + → Album: mark two albums → `sources.add.cancel` → the library is unchanged.
   - Mark two → `sources.add.done` → exactly those two are added.
   - Mark then unmark one → Done → only the other is added.
   - With no server stored (a shared-link-only seed), the Album tab shows the "Add a server" prompt (`sources.add.addServer`).
 
   In `OwnFrameUITests/AlbumSearchUITests.swift` (onboarding): marking alone adds nothing until Continue, and `onboarding.back` after marking adds nothing. Red today: Cancel keeps tapped albums.
-- [ ] T068 [US3] Green (**Claude inline**):
+- [x] T068 [US3] Green (**Claude inline**):
   - `AlbumPickerView.swift:77-100`: a row tap toggles a mark. The checkmark shows marked *or* already-added, already-added rows are disabled matched by album id, and the picker never persists. The row text for an unnamed album follows 120 T039.
   - Hosts own the selection. `SourceLibraryView.swift` `AddSourceView`: Done commits, Cancel discards, the `AddAlbumDoneBar` count is the marked count, and the stale comment at :206-207 goes.
   - `OwnFrame/Onboarding/SourceStepView.swift:64-85`: `AddedSourcesBar` Continue commits, then continues, and its count includes marked albums.
   - Update the header comment at `AlbumPickerView.swift:9-10`.
 
   Green T067.
-- [ ] T069 [US3] Update the existing tap-then-confirm UI tests so they assert nothing is added before confirm: `AlbumSearchUITests.swift` (:58, :88), `SourceLibraryUITests.swift` `testSettingsAlbumPickerSearchesAndSelectThenConfirm` and its `addAlbum` helper, and any album-row taps in `SourceOnboardingUITests.swift`, `OnboardingDescriptionsUITests.swift`, `SharedLinkPasswordUITests.swift`, `GermanScreenshotSweepUITests.swift`, `OwnFrameUITests.swift` (grep `.album.`) (**Claude**)
-- [ ] T070 Verification gate (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes `AlbumSearchUITests`, `SourceLibraryUITests`, `SourceOnboardingUITests`, `OnboardingDescriptionsUITests`; the **full XCUITest suite** before commit (the picker sits on the main onboarding path); screenshot the marked state in portrait and landscape (downscale before reading).
-- [ ] T071 Facts, **same commit as T066/T068**: `product-facts.yaml` **SRC-09** → `implementation: verified`; remove `mismatch`/`candidate_issue`; refresh `evidence` (`AlbumSelection.swift`, `AlbumPickerView.swift`, `SourceLibraryView.swift`, the new UI tests incl. the no-server prompt); run `.claude/scripts/check-facts.py`.
-- [ ] T072 Commit with explicit paths; close #71 with the commit reference (`gh` account `kipp-ing`), noting the Photos-picker answer from Jan.
+- [x] T069 [US3] Update the existing tap-then-confirm UI tests so they assert nothing is added before confirm: `AlbumSearchUITests.swift` (:58, :88), `SourceLibraryUITests.swift` `testSettingsAlbumPickerSearchesAndSelectThenConfirm` and its `addAlbum` helper, and any album-row taps in `SourceOnboardingUITests.swift`, `OnboardingDescriptionsUITests.swift`, `SharedLinkPasswordUITests.swift`, `GermanScreenshotSweepUITests.swift`, `OwnFrameUITests.swift` (grep `.album.`) (**Claude**)
+- [x] T073 [US3] Red XCUITest, Photos picker (**Claude**), in `OwnFrameUITests/PhotoAlbumPickerUITests.swift` (`--uitest-photos`, fake albums Family `pl-family` / Holiday 2024 `pl-holiday`):
+  - Settings → + → iCloud album: mark Family → `sources.add.cancel` → the library is unchanged.
+  - Mark Family and Holiday 2024 → Done → both are added; mark then unmark one → Done → only the other.
+  - One sheet, both tabs: mark an Immich album on Album, switch to iCloud album, mark Family → Done → both are added.
+  - Limited access (`--uitest-photos-auth=limited`): tapping the Selected Photos row only marks it; Done adds it.
+
+  Red today: Cancel keeps the tapped album.
+- [x] T074 [US3] Green (**Claude inline**): `PhotoAlbumPickerView.swift`.
+  - A tap on a collection row or on the Selected Photos pool row toggles a mark in the host's `AlbumSelection`, and the picker never persists.
+  - Already-added is matched by **collection id**. Today `collectionRow` (:219) matches by label, so a renamed source looked un-added.
+  - The checkmark and the disabled state follow T068.
+  - Both hosts pass the same selection binding as to `AlbumPickerView`. Update the header comment at :12-14. Green T073.
+  - **Welcome iCloud path stays tap-to-start (Jan, 2026-09-15, FR-210-28 amendment).** `OnboardingFlowView` `.photoLibrarySetup` uses the picker in an immediate mode: a tap adds and starts, with no selection. `WelcomeICloudUITests` stays unchanged as its regression guard.
+- [x] T075 [US3] Update the existing Photos tap-then-confirm UI tests so they assert nothing is added before confirm: `PhotoAlbumPickerUITests.swift` (:72, :123, the limited-pool test), `WelcomeICloudUITests.swift` (:52); `GermanScreenshotSweepUITests.swift` only checks existence (**Claude**)
+- [x] T070 Verification gate (**Claude**): XcodeBuildMCP `build_sim` + `test_sim` whole classes `AlbumSearchUITests`, `SourceLibraryUITests`, `SourceOnboardingUITests`, `OnboardingDescriptionsUITests`, `PhotoAlbumPickerUITests`, `WelcomeICloudUITests`; the **full XCUITest suite** before commit (the picker sits on the main onboarding path); screenshot the marked state in portrait and landscape (downscale before reading).
+- [x] T071 Facts, **same commit as T066/T068/T074**: `product-facts.yaml` **SRC-09** → `implementation: verified`; remove `mismatch`/`candidate_issue`; refresh `evidence` (`AlbumSelection.swift`, `AlbumPickerView.swift`, `PhotoAlbumPickerView.swift`, `SourceLibraryView.swift`, the new UI tests incl. the no-server prompt); run `.claude/scripts/check-facts.py`.
+- [x] T072 Commit with explicit paths; close #71 with the commit reference (`gh` account `kipp-ing`), noting the Photos-picker answer from Jan.
 
 **Checkpoint**: in both surfaces, tapping only marks; Continue/Done adds exactly the marked albums; Cancel adds nothing; the no-server prompt is under test.
 

@@ -116,12 +116,14 @@ final class SourceLibraryUITests: XCTestCase {
         let noResults = app.descendants(matching: .any).matching(identifier: "sources.album.noResults").firstMatch
         XCTAssertTrue(noResults.waitForExistence(timeout: 5), "a no-match query should show the no-results state")
 
-        // Select-then-confirm: clear, tap the album to add it, then Done finishes (FR-210-28).
+        // Select-then-confirm: clear, tap the album to mark it, then Done commits (FR-210-28).
         app.buttons["sources.album.search.clear"].tap()
         XCTAssertTrue(munich.waitForExistence(timeout: 5))
         munich.tap()
+        XCTAssertTrue(munich.isSelected, "tapping an album should mark it")
         let done = app.buttons["sources.add.done"]
         XCTAssertTrue(done.waitForExistence(timeout: 3), "the pinned Done action should be present")
+        XCTAssertTrue(done.label.contains("1"), "Done should count the marked album, got \(done.label)")
         done.tap()
 
         // The added album appears as a new source row in the manager.
@@ -153,7 +155,119 @@ final class SourceLibraryUITests: XCTestCase {
                       "the optional name field must remain available alongside scanning")
     }
 
+    /// 210 / FR-210-28 (#71) — tapping albums only marks them, so Cancel adds nothing.
+    @MainActor
+    func testCancelDiscardsMarkedAlbums() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-albums-many"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+            .waitForExistence(timeout: 5))
+
+        openSources(in: app)
+        XCTAssertTrue(app.buttons["sources.row.src-a1"].waitForExistence(timeout: 3))
+        app.buttons["sources.add"].tap()
+
+        let munich = app.buttons["sources.album.album-munich"]
+        let second = app.buttons["sources.album.album-2"]
+        XCTAssertTrue(munich.waitForExistence(timeout: 5))
+        munich.tap()
+        second.tap()
+        XCTAssertTrue(munich.isSelected && second.isSelected, "tapped albums should be marked")
+
+        app.buttons["sources.add.cancel"].tap()
+        XCTAssertTrue(app.buttons["sources.add"].waitForExistence(timeout: 3))
+        XCTAssertEqual(sourceRows(in: app).count, 1, "Cancel must leave the library unchanged")
+        XCTAssertFalse(app.buttons["München Trip"].exists, "a marked album must not be added on Cancel")
+    }
+
+    /// 210 / FR-210-28 (#71) — Done commits exactly the marked albums; an album marked and
+    /// unmarked again is not added.
+    @MainActor
+    func testDoneAddsExactlyTheMarkedAlbums() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-albums-many"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+            .waitForExistence(timeout: 5))
+
+        openSources(in: app)
+        XCTAssertTrue(app.buttons["sources.row.src-a1"].waitForExistence(timeout: 3))
+        app.buttons["sources.add"].tap()
+
+        let munich = app.buttons["sources.album.album-munich"]
+        let first = app.buttons["sources.album.album-1"]
+        let second = app.buttons["sources.album.album-2"]
+        XCTAssertTrue(munich.waitForExistence(timeout: 5))
+        munich.tap()
+        first.tap()
+        second.tap()
+        second.tap()
+        XCTAssertFalse(second.isSelected, "tapping a marked album again should unmark it")
+
+        let done = app.buttons["sources.add.done"]
+        XCTAssertTrue(done.label.contains("2"), "Done should count the two marked albums, got \(done.label)")
+        done.tap()
+
+        XCTAssertTrue(app.buttons["München Trip"].waitForExistence(timeout: 5), "a marked album should be added")
+        XCTAssertEqual(sourceRows(in: app).count, 3, "exactly the two marked albums should be added")
+    }
+
+    /// 210 / FR-210-28 (#71) — adding an Immich link closes the sheet; albums marked on the Album
+    /// tab before that are committed with it, never dropped unseen.
+    @MainActor
+    func testAddingALinkKeepsAlbumsMarkedOnTheAlbumTab() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+            .waitForExistence(timeout: 5))
+
+        openSources(in: app)
+        XCTAssertTrue(app.buttons["sources.row.src-a1"].waitForExistence(timeout: 3))
+        app.buttons["sources.add"].tap()
+
+        let urlaub = app.buttons["sources.album.a2"]
+        XCTAssertTrue(urlaub.waitForExistence(timeout: 5), "stub album a2 should be listed")
+        urlaub.tap()
+
+        app.segmentedControls["sources.add.type"].buttons["Immich link"].tap()
+        let url = app.textFields["sources.add.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 3))
+        url.tap()
+        url.typeText("https://demo.example.com/s/abc123")
+        app.buttons["sources.add.submit"].tap()
+
+        XCTAssertTrue(app.buttons["Urlaub 2026"].waitForExistence(timeout: 5),
+                      "the album marked before adding the link should be added too")
+        XCTAssertEqual(sourceRows(in: app).count, 3, "the seeded source, the marked album and the link")
+    }
+
+    /// 210 / FR-210-30 case a (SC-210-13) — with no server stored, the Album tab guides the user
+    /// to add a server instead of showing a load failure.
+    @MainActor
+    func testAlbumTabWithoutServerShowsAddServerPrompt() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome", "--uitest-no-server"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+            .waitForExistence(timeout: 5))
+
+        openSources(in: app)
+        app.buttons["sources.add"].tap()
+
+        XCTAssertTrue(app.buttons["sources.add.addServer"].waitForExistence(timeout: 5),
+                      "the Album tab should offer Add a server when no server is stored")
+        XCTAssertFalse(app.textFields["sources.album.search"].exists,
+                       "no album list should load without a server")
+    }
+
     // MARK: - Helpers
+
+    @MainActor
+    private func sourceRows(in app: XCUIApplication) -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "sources.row."))
+    }
 
     @MainActor
     private func openSources(in app: XCUIApplication) {
@@ -173,8 +287,9 @@ final class SourceLibraryUITests: XCTestCase {
         let albumButton = app.buttons["sources.album.a2"]
         XCTAssertTrue(albumButton.waitForExistence(timeout: 3), "stub album a2 should be listed")
         albumButton.tap()
-        // Select-then-confirm (210, FR-210-28): tapping the album adds it; Done finishes and
+        // Select-then-confirm (210, FR-210-28): tapping the album marks it; Done commits and
         // dismisses, and the new row appears in the manager.
+        XCTAssertTrue(albumButton.isSelected, "tapping the album should mark it")
         app.buttons["sources.add.done"].tap()
         XCTAssertTrue(app.buttons[name].waitForExistence(timeout: 3))
     }

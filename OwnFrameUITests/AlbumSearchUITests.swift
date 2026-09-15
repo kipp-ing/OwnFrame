@@ -52,10 +52,11 @@ final class AlbumSearchUITests: XCTestCase {
         let noResults = app.descendants(matching: .any).matching(identifier: "onboarding.album.noResults").firstMatch
         XCTAssertTrue(noResults.waitForExistence(timeout: 5), "a no-match query should show the no-results state")
 
-        // Clear, add an album, then confirm Continue stays pinned while the list scrolls.
+        // Clear, mark an album, then confirm Continue stays pinned while the list scrolls.
         app.buttons["onboarding.album.search.clear"].tap()
         XCTAssertTrue(munich.waitForExistence(timeout: 5))
         munich.tap()
+        XCTAssertTrue(munich.isSelected, "tapping an album should mark it")
 
         let cont = app.buttons["onboarding.source.continue"]
         XCTAssertTrue(cont.waitForExistence(timeout: 5), "Continue should appear once a source is added")
@@ -121,6 +122,72 @@ final class AlbumSearchUITests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(cont.isHittable, "Continue should stay pinned and tappable in landscape")
         attachScreenshot(app, name: "album-search-landscape")
+    }
+
+    /// 210 / FR-210-28 (#71) — in onboarding, tapping albums only marks them: Continue commits
+    /// exactly the marked albums, and an album marked then unmarked again is not added.
+    @MainActor
+    func testContinueCommitsExactlyTheMarkedAlbums() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-onboarding-source", "--uitest-albums-many"]
+        app.launch()
+
+        let munich = app.buttons["onboarding.album.album-munich"]
+        let second = app.buttons["onboarding.album.album-2"]
+        XCTAssertTrue(munich.waitForExistence(timeout: 10), "the seeded album list should appear")
+        munich.tap()
+        second.tap()
+        second.tap()
+        XCTAssertTrue(munich.isSelected, "tapping an album should mark it")
+        XCTAssertFalse(second.isSelected, "tapping a marked album again should unmark it")
+
+        let cont = app.buttons["onboarding.source.continue"]
+        XCTAssertTrue(cont.waitForExistence(timeout: 5), "Continue should appear once an album is marked")
+        attachScreenshot(app, name: "album-marked-portrait")
+        cont.tap()
+
+        let reviewRows = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "onboarding.confirm.row."))
+        XCTAssertTrue(reviewRows.firstMatch.waitForExistence(timeout: 5), "the review step should list the added source")
+        XCTAssertEqual(reviewRows.count, 1, "exactly the one marked album should be added")
+        XCTAssertTrue(reviewRows.firstMatch.label.contains("München Trip"), "got \(reviewRows.firstMatch.label)")
+    }
+
+    /// 210 / FR-210-28 (#71) — leaving the source step with Back discards the marks: on return
+    /// the album is neither added nor marked, and there is no Continue bar.
+    @MainActor
+    func testBackAfterMarkingAddsNothing() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-onboarding-source", "--uitest-albums-many"]
+        app.launch()
+
+        let munich = app.buttons["onboarding.album.album-munich"]
+        XCTAssertTrue(munich.waitForExistence(timeout: 10), "the seeded album list should appear")
+        munich.tap()
+        let cont = app.buttons["onboarding.source.continue"]
+        XCTAssertTrue(cont.waitForExistence(timeout: 5), "Continue should appear once an album is marked")
+
+        app.buttons["onboarding.back"].tap()
+        let connectionContinue = app.buttons["onboarding.connection.continue"]
+        XCTAssertTrue(connectionContinue.waitForExistence(timeout: 5), "Back should return to the connection step")
+        if !connectionContinue.isEnabled {
+            let url = app.textFields["onboarding.serverURL"]
+            // An empty text field reports its placeholder as its value.
+            let urlValue = url.value as? String ?? ""
+            if urlValue.isEmpty || urlValue == url.placeholderValue {
+                url.tap()
+                url.typeText("https://photos.example.test")
+            }
+            let key = app.descendants(matching: .any).matching(identifier: "onboarding.apiKey").firstMatch
+            key.tap()
+            key.typeText("uitest-key")
+        }
+        connectionContinue.tap()
+
+        XCTAssertTrue(munich.waitForExistence(timeout: 10), "the source step should show the albums again")
+        XCTAssertTrue(munich.isEnabled, "an album that was only marked must not have been added")
+        XCTAssertFalse(munich.isSelected, "Back should discard the mark")
+        XCTAssertFalse(cont.exists, "nothing was added, so there should be no Continue bar")
     }
 
     // MARK: - Helpers

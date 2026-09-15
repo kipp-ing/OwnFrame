@@ -103,6 +103,20 @@ album placeholder) as they are.
       Safari → Share round trip and EN/DE screenshots of the confirmation stay with device item T025 (`hitl.md` §6)
 - [x] fact SRC-07 → commit → close #65
 
+### WP4c — #71 album picker select-then-confirm (2026-09-15)
+- [x] Photos-picker tasks written first (210 T073–T075); the selection model is kind-generic (`AlbumSelection`), one
+      selection per sheet across the Album and iCloud album tabs
+- [x] Jan, 2026-09-15: the welcome screen's iCloud path keeps tap-to-start (FR-210-28 amended); every other picker
+      surface marks, and Done/Continue commits
+- [x] OnboardingKit model + batch `addSources` (subagent, 205 host tests); pickers, both hosts, `--uitest-no-server`
+      seam (Claude inline); red → green on the 4 picker UI classes (25/25)
+- [x] Adversarial verify: adding a link in Settings dropped marks → fixed + test; welcome-path duplicate name was a
+      silent no-op → goes through `addSources`; "added" copy while only marked → Jan's call (`hitl.md` §2b)
+- [x] Gate on iPad Pro 11-inch (M4) sim: full XCUITest suite 97/0/69 skipped (the skips are the capture, sweep,
+      live-smoke and device-rig tests), then the four picker classes plus WelcomeICloud again after the verify fixes 26/0;
+      OnboardingKit 205 host tests. The link-keeps-marks test was written after its fix, so it was never seen red.
+- [x] SRC-09 verified (`check-facts.py` 0 errors) → commit → close #71
+
 ### Spec round closed 2026-09-14 — every code package now has spec + tasks
 Implementers work from these task phases (TDD order, Claude-only steps marked):
 

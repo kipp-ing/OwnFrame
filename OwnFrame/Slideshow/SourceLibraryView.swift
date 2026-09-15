@@ -133,8 +133,8 @@ private struct SourceRow: View {
 }
 
 /// Add-source sheet: pick the kind, then confirm. The album tab uses the same searchable,
-/// subscrollable `AlbumPickerView` as onboarding (210, FR-210-27/28): tap albums to add them
-/// (select-then-confirm) and Done to finish; the shared-link form validates the link (and
+/// subscrollable `AlbumPickerView` as onboarding (210, FR-210-27/28): tap albums to mark them
+/// (select-then-confirm) and Done to add the marks; the shared-link form validates the link (and
 /// password, if any) before saving anything.
 private struct AddSourceView: View {
     @Bindable var viewModel: SourceLibraryViewModel
@@ -144,9 +144,9 @@ private struct AddSourceView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var kind: Kind = .album
-    /// Source count when the sheet opened, so the Done bar can report how many were added
-    /// in this pass rather than the library total.
-    @State private var initialSourceCount: Int?
+    /// Albums marked on the Album and iCloud album tabs in this pass; Done commits them,
+    /// Cancel drops them with the sheet (210, FR-210-28).
+    @State private var selection = AlbumSelection()
 
     enum Kind: Hashable { case album, sharedLink, photoLibrary }
 
@@ -163,7 +163,7 @@ private struct AddSourceView: View {
                 .padding(.top, 8)
                 .accessibilityIdentifier("sources.add.type")
 
-                // Album-add errors (Immich and Photos alike) surface here; the shared-link
+                // Library errors surface here (the pickers only mark, FR-210-28); the shared-link
                 // form reports its own resolve / password errors inline (210, US4).
                 if kind != .sharedLink, let errorMessage = viewModel.errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
@@ -178,9 +178,11 @@ private struct AddSourceView: View {
                 switch kind {
                 case .album:
                     // Dismiss the add-source sheet before routing to the connection editor,
-                    // which the parent presents (210, FR-210-29/30).
+                    // which the parent presents (210, FR-210-29/30). Leaving this way discards
+                    // any marks, like Cancel (FR-210-28).
                     AddAlbumPicker(
                         viewModel: viewModel,
+                        selection: $selection,
                         makeServerAPI: makeServerAPI,
                         onAddServer: onAddServer.map { route in { dismiss(); route() } }
                     )
@@ -190,38 +192,48 @@ private struct AddSourceView: View {
                             sourceLibrary: viewModel,
                             idPrefix: "sources.add",
                             submitIDSuffix: "submit"
-                        ) { dismiss() }
+                        ) {
+                            // Adding a link closes the sheet; albums marked on the other tabs
+                            // are committed with it rather than dropped unseen (FR-210-28).
+                            selection.commit(into: viewModel)
+                            dismiss()
+                        }
                     }
                 case .photoLibrary:
-                    PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: viewModel, idPrefix: "sources.photos")
+                    PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: viewModel, selection: $selection, idPrefix: "sources.photos")
                 }
             }
             .navigationTitle("Add source")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .accessibilityIdentifier("sources.add.cancel")
+                    Button("Cancel") {
+                        selection.discard()
+                        dismiss()
+                    }
+                    .accessibilityIdentifier("sources.add.cancel")
                 }
             }
-            // Albums (Immich and Photos) add on tap; Done finishes. The shared-link tab
-            // finishes via its own Add button, so it carries no pinned Done (210, FR-210-28).
+            // Albums (Immich and Photos) are marked on tap; Done commits the marks from both tabs.
+            // The shared-link tab finishes via its own Add button, so it carries no pinned Done
+            // (210, FR-210-28).
             .safeAreaInset(edge: .bottom) {
                 if kind != .sharedLink {
-                    AddAlbumDoneBar(addedCount: viewModel.sources.count - (initialSourceCount ?? viewModel.sources.count)) {
+                    AddAlbumDoneBar(addedCount: selection.count) {
+                        selection.commit(into: viewModel)
                         dismiss()
                     }
                 }
             }
-            .onAppear { if initialSourceCount == nil { initialSourceCount = viewModel.sources.count } }
         }
     }
 }
 
 /// Loads the connected server's albums, then shows the shared `AlbumPickerView`. Tapping a
-/// row adds the album to the library; the pinned Done in `AddSourceView` finishes.
+/// row marks the album; the pinned Done in `AddSourceView` commits the marks.
 private struct AddAlbumPicker: View {
     @Bindable var viewModel: SourceLibraryViewModel
+    @Binding var selection: AlbumSelection
     var makeServerAPI: () async -> (any ImmichAPI)?
     /// Routes the no-server guidance into the shared server-connection editor (210,
     /// FR-210-29). Nil when no route is wired — the guidance still shows, minus the button.
@@ -262,7 +274,7 @@ private struct AddAlbumPicker: View {
                 }
                 .frame(maxHeight: .infinity)
             case .loaded:
-                AlbumPickerView(albums: albums, sourceLibrary: viewModel, idPrefix: "sources.album")
+                AlbumPickerView(albums: albums, sourceLibrary: viewModel, selection: $selection, idPrefix: "sources.album")
             }
         }
         .task {
@@ -279,8 +291,8 @@ private struct AddAlbumPicker: View {
     }
 }
 
-/// The pinned bottom bar on the album tab: a Done action that finishes adding, annotated with
-/// how many albums were added in this pass (210, FR-210-28).
+/// The pinned bottom bar on the album tabs: a Done action that commits the marks, annotated with
+/// how many albums are marked in this pass (210, FR-210-28).
 private struct AddAlbumDoneBar: View {
     let addedCount: Int
     let onDone: () -> Void

@@ -27,6 +27,9 @@ struct SourceStepView: View {
 
     enum Kind: Hashable { case album, sharedLink, photoLibrary }
     @State private var kind: Kind = .album
+    /// Albums marked on the Album and iCloud album tabs; Continue commits them, Back drops them
+    /// with this view (210, FR-210-28).
+    @State private var selection = AlbumSelection()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,7 +52,7 @@ struct SourceStepView: View {
             .padding(.top, 8)
             .accessibilityIdentifier("onboarding.source.type")
 
-            // Album-add errors (Immich and Photos alike) surface here; the shared-link form
+            // Library errors surface here (the pickers only mark, FR-210-28); the shared-link form
             // reports its own resolve / password errors inline (210, US4).
             if kind != .sharedLink, let errorMessage = sourceLibrary.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle")
@@ -63,7 +66,7 @@ struct SourceStepView: View {
 
             switch kind {
             case .album:
-                AlbumPickerView(albums: onboarding.albums, sourceLibrary: sourceLibrary, idPrefix: "onboarding.album")
+                AlbumPickerView(albums: onboarding.albums, sourceLibrary: sourceLibrary, selection: $selection, idPrefix: "onboarding.album")
             case .sharedLink:
                 Form {
                     SharedLinkAddForm(
@@ -73,14 +76,16 @@ struct SourceStepView: View {
                     )
                 }
             case .photoLibrary:
-                PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: sourceLibrary, idPrefix: "onboarding.photos")
+                PhotoAlbumPickerView(gateway: makePhotoGateway(), sourceLibrary: sourceLibrary, selection: $selection, idPrefix: "onboarding.photos")
             }
         }
         .navigationTitle("Add a source")
         // The primary action stays pinned while the album list scrolls underneath (210, US3).
+        // Its count includes marked albums; Continue commits them first (FR-210-28).
         .safeAreaInset(edge: .bottom) {
-            if !sourceLibrary.sources.isEmpty {
-                AddedSourcesBar(count: sourceLibrary.sources.count) {
+            if !sourceLibrary.sources.isEmpty || !selection.isEmpty {
+                AddedSourcesBar(count: sourceLibrary.sources.count + selection.count) {
+                    selection.commit(into: sourceLibrary)
                     onboarding.proceedToConfirm()
                 }
             }

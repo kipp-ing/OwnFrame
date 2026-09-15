@@ -104,6 +104,43 @@ public final class SourceLibraryViewModel {
         persist(library)
     }
 
+    /// Batch add for the picker's confirm (210, FR-210-28): one persist for the whole pass.
+    /// In the given order, skips shared links, kinds already in the library and batch repeats;
+    /// a blank label falls back to the locator, a colliding one gets a " 2", " 3", … suffix.
+    /// Never sets an error and never switches the active source. Returns the number added.
+    @discardableResult
+    public func addSources(_ candidates: [AlbumSelection.Candidate]) -> Int {
+        errorMessage = nil
+
+        var library = self.library
+        var added = 0
+        for candidate in candidates {
+            let locator: String
+            switch candidate.kind {
+            case let .album(albumID): locator = albumID
+            case let .photoLibrary(collectionID): locator = collectionID
+            case .sharedLink: continue
+            }
+            guard !library.sources.contains(where: { $0.kind == candidate.kind }) else { continue }
+
+            let trimmed = candidate.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            let base = trimmed.isEmpty ? locator : trimmed
+            var label = base
+            var suffix = 2
+            while library.sources.contains(where: { $0.label == label }) {
+                label = "\(base) \(suffix)"
+                suffix += 1
+            }
+
+            let before = library.sources.count
+            library.add(Source(label: label, kind: candidate.kind))
+            if library.sources.count > before { added += 1 }
+        }
+
+        if added > 0 { persist(library) }
+        return added
+    }
+
     // MARK: - Two-phase resolve (210, D6)
 
     /// Reset the add-link flow to `.idle` — call when (re)opening the add-link surface.

@@ -6,11 +6,12 @@
 //  (SourceStepView) and Settings → Sources (SourceLibraryView) — 210, FR-210-27/28. Search
 //  narrows by name / year / photo count (case- and diacritic-insensitive via AlbumSearch);
 //  each row shows a date·count subtitle; a no-results state appears when nothing matches.
-//  Tapping a row adds the album to the library (select-then-confirm: the container supplies
-//  the pinned confirm action), already-added albums show a checkmark and are disabled. The
-//  list scrolls within its own region so the container's pinned action stays reachable.
-//  Accessibility ids are namespaced by `idPrefix` (e.g. onboarding.album / sources.album) so
-//  the two hosts stay independently testable.
+//  Tapping a row only marks it in the host's `AlbumSelection` (select-then-confirm, FR-210-28):
+//  the host's pinned confirm commits the marks and Cancel discards them, so the picker never
+//  persists. Marked and already-added albums show a checkmark; already-added ones (matched by
+//  album id) are disabled. The list scrolls within its own region so the container's pinned
+//  action stays reachable. Accessibility ids are namespaced by `idPrefix` (e.g. onboarding.album
+//  / sources.album) so the two hosts stay independently testable.
 //
 
 import ImmichClient
@@ -20,6 +21,7 @@ import SwiftUI
 struct AlbumPickerView: View {
     let albums: [Album]
     @Bindable var sourceLibrary: SourceLibraryViewModel
+    @Binding var selection: AlbumSelection
     let idPrefix: String
     @State private var searchText = ""
 
@@ -79,10 +81,13 @@ struct AlbumPickerView: View {
         // The stored label stays the album id for an unnamed album; the row shows its display
         // name, so the id never reaches the screen (120, FR-120-13).
         let label = album.name.isEmpty ? album.id : album.name
-        let shownLabel = SourceLibraryViewModel.displayName(for: Source(label: label, kind: .album(albumID: album.id)))
-        let isAdded = sourceLibrary.sources.contains { $0.label == label }
+        let kind = SourceKind.album(albumID: album.id)
+        let shownLabel = SourceLibraryViewModel.displayName(for: Source(label: label, kind: kind))
+        let isAdded = sourceLibrary.sources.contains { $0.kind == kind }
+        let isMarked = selection.isMarked(kind)
         Button {
-            sourceLibrary.addAlbumSource(albumID: album.id, label: label)
+            let position = albums.firstIndex { $0.id == album.id } ?? 0
+            selection.toggle(.init(kind: kind, label: label, position: position), in: sourceLibrary.library)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -92,7 +97,7 @@ struct AlbumPickerView: View {
                     }
                 }
                 Spacer()
-                if isAdded {
+                if isAdded || isMarked {
                     Image(systemName: "checkmark").foregroundStyle(.tint)
                 }
             }
@@ -100,6 +105,7 @@ struct AlbumPickerView: View {
         }
         .buttonStyle(.plain)
         .disabled(isAdded)
+        .accessibilityAddTraits(isMarked ? .isSelected : [])
         .accessibilityIdentifier("\(idPrefix).\(album.id)")
     }
 

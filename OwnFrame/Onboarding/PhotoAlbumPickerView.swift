@@ -9,9 +9,11 @@
 //  Shared Albums) through `PhotoLibraryProvider.collections()` — the same neutral surface
 //  the engine consumes, so the picker never touches PhotoKit types itself. Search narrows
 //  by title (simple contains; the Immich picker's richer `AlbumSearch` is polish).
-//  Tapping a row adds the album to the library (select-then-confirm: the container
-//  supplies the pinned confirm action); already-added albums show a checkmark and are
-//  disabled. Non-full access shows a calm unavailable state — the full per-cause wording
+//  With a `selection`, tapping a row only marks it (select-then-confirm, FR-210-28): the
+//  host's pinned confirm commits and Cancel discards. Without one (the welcome screen's
+//  iCloud path, 220, exempt by the FR-210-28 amendment) a tap adds the album at once.
+//  Marked and already-added albums show a checkmark; already-added ones (matched by
+//  collection id) are disabled. Non-full access shows a calm unavailable state — the full per-cause wording
 //  (limited/denied guidance) is US3 (T027–T030).
 //  Accessibility ids are namespaced by `idPrefix` (onboarding.photos / sources.photos).
 //
@@ -26,6 +28,8 @@ import UIKit
 struct PhotoAlbumPickerView: View {
     let gateway: any PhotoLibraryGateway
     @Bindable var sourceLibrary: SourceLibraryViewModel
+    /// The host's pending marks; nil means a tap adds immediately (welcome iCloud path only).
+    var selection: Binding<AlbumSelection>? = nil
     let idPrefix: String
 
     @State private var searchText = ""
@@ -123,15 +127,13 @@ struct PhotoAlbumPickerView: View {
         // sentinel collection ID, not the label, so neither a rename nor a language switch can
         // make an already-added pool look un-added.
         let label = String(localized: "Selected Photos")
-        let isAdded = sourceLibrary.sources.contains {
-            $0.kind == .photoLibrary(collectionID: PhotoLibrarySource.selectedPhotosID)
-        }
+        let kind = SourceKind.photoLibrary(collectionID: PhotoLibrarySource.selectedPhotosID)
+        let isAdded = sourceLibrary.sources.contains { $0.kind == kind }
+        let isMarked = selection?.wrappedValue.isMarked(kind) ?? false
         List {
             Section {
                 Button {
-                    sourceLibrary.addPhotoLibrarySource(
-                        collectionID: PhotoLibrarySource.selectedPhotosID, label: label
-                    )
+                    pick(kind: kind, label: label, position: 0)
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -143,7 +145,7 @@ struct PhotoAlbumPickerView: View {
                             }
                         }
                         Spacer()
-                        if isAdded {
+                        if isAdded || isMarked {
                             Image(systemName: "checkmark").foregroundStyle(.tint)
                         }
                     }
@@ -151,6 +153,7 @@ struct PhotoAlbumPickerView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isAdded)
+                .accessibilityAddTraits(isMarked ? .isSelected : [])
                 .accessibilityIdentifier("\(idPrefix).\(PhotoLibrarySource.selectedPhotosID)")
 
                 Button {
@@ -216,9 +219,12 @@ struct PhotoAlbumPickerView: View {
     @ViewBuilder
     private func collectionRow(_ collection: SourceCollection) -> some View {
         let label = collection.title.isEmpty ? collection.id : collection.title
-        let isAdded = sourceLibrary.sources.contains { $0.label == label }
+        let kind = SourceKind.photoLibrary(collectionID: collection.id)
+        let isAdded = sourceLibrary.sources.contains { $0.kind == kind }
+        let isMarked = selection?.wrappedValue.isMarked(kind) ?? false
         Button {
-            sourceLibrary.addPhotoLibrarySource(collectionID: collection.id, label: label)
+            let position = collections.firstIndex { $0.id == collection.id } ?? 0
+            pick(kind: kind, label: label, position: position)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -230,7 +236,7 @@ struct PhotoAlbumPickerView: View {
                     }
                 }
                 Spacer()
-                if isAdded {
+                if isAdded || isMarked {
                     Image(systemName: "checkmark").foregroundStyle(.tint)
                 }
             }
@@ -238,6 +244,19 @@ struct PhotoAlbumPickerView: View {
         }
         .buttonStyle(.plain)
         .disabled(isAdded)
+        .accessibilityAddTraits(isMarked ? .isSelected : [])
         .accessibilityIdentifier("\(idPrefix).\(collection.id)")
+    }
+
+    /// Marks the album in the host's selection, or adds it at once when there is none. The
+    /// immediate add goes through the same batch path, so a name already used by another source
+    /// gets the counter suffix instead of a silently rejected tap.
+    private func pick(kind: SourceKind, label: String, position: Int) {
+        let candidate = AlbumSelection.Candidate(kind: kind, label: label, position: position)
+        if let selection {
+            selection.wrappedValue.toggle(candidate, in: sourceLibrary.library)
+        } else {
+            sourceLibrary.addSources([candidate])
+        }
     }
 }

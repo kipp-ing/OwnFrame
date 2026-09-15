@@ -70,6 +70,7 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         app.buttons["sources.photos.search.clear"].tap()
         XCTAssertTrue(family.waitForExistence(timeout: 3))
         family.tap()
+        XCTAssertTrue(family.isSelected, "tapping a Photos album should mark it")
         let done = app.buttons["sources.add.done"]
         XCTAssertTrue(done.waitForExistence(timeout: 3),
                       "the pinned Done action should be present on the Photos tab")
@@ -94,6 +95,90 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         let photosAsset = NSPredicate(format: "value IN %@", ["pl-asset-1", "pl-asset-2", "pl-asset-3"])
         expectation(for: photosAsset, evaluatedWith: image)
         waitForExpectations(timeout: 5)
+    }
+
+    /// 210 / FR-210-28 (#71) — tapping a Photos album only marks it, so Cancel adds nothing.
+    @MainActor
+    func testCancelDiscardsMarkedPhotosAlbums() throws {
+        let app = launchSettingsPhotosTab()
+        let family = app.buttons["sources.photos.pl-family"]
+        let holiday = app.buttons["sources.photos.pl-holiday"]
+        XCTAssertTrue(family.waitForExistence(timeout: 5))
+        family.tap()
+        holiday.tap()
+        XCTAssertTrue(family.isSelected && holiday.isSelected, "tapped Photos albums should be marked")
+
+        app.buttons["sources.add.cancel"].tap()
+        XCTAssertTrue(app.buttons["sources.add"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Family"].exists, "Cancel must not add a marked Photos album")
+        XCTAssertFalse(app.buttons["Holiday 2024"].exists, "Cancel must not add a marked Photos album")
+    }
+
+    /// 210 / FR-210-28 (#71) — marking several Photos albums and pressing Done adds all of them.
+    @MainActor
+    func testDoneAddsAllMarkedPhotosAlbums() throws {
+        let app = launchSettingsPhotosTab()
+        let family = app.buttons["sources.photos.pl-family"]
+        let holiday = app.buttons["sources.photos.pl-holiday"]
+        XCTAssertTrue(family.waitForExistence(timeout: 5))
+        family.tap()
+        holiday.tap()
+        XCTAssertTrue(family.isEnabled && holiday.isEnabled, "marked albums must not be added before Done")
+
+        let done = app.buttons["sources.add.done"]
+        XCTAssertTrue(done.label.contains("2"), "Done should count both marked albums, got \(done.label)")
+        done.tap()
+
+        XCTAssertTrue(app.buttons["Family"].waitForExistence(timeout: 5), "Family should be added")
+        XCTAssertTrue(app.buttons["Holiday 2024"].exists, "Holiday 2024 should be added")
+    }
+
+    /// 210 / FR-210-28 (#71) — one selection per sheet: a mark on the Album tab survives switching
+    /// to the iCloud album tab, an unmarked Photos album is dropped, and one Done commits both kinds.
+    @MainActor
+    func testOneDoneCommitsMarksFromBothTabs() throws {
+        let app = launchSettingsPhotosTab(openPhotosTab: false)
+
+        let urlaub = app.buttons["sources.album.a2"]
+        XCTAssertTrue(urlaub.waitForExistence(timeout: 5), "stub album a2 should be listed")
+        urlaub.tap()
+
+        app.buttons["iCloud album"].tap()
+        let family = app.buttons["sources.photos.pl-family"]
+        let holiday = app.buttons["sources.photos.pl-holiday"]
+        XCTAssertTrue(family.waitForExistence(timeout: 5))
+        holiday.tap()
+        holiday.tap()
+        XCTAssertFalse(holiday.isSelected, "tapping a marked Photos album again should unmark it")
+        family.tap()
+
+        let done = app.buttons["sources.add.done"]
+        XCTAssertTrue(done.label.contains("2"), "Done should count marks from both tabs, got \(done.label)")
+        done.tap()
+
+        XCTAssertTrue(app.buttons["Urlaub 2026"].waitForExistence(timeout: 5), "the Immich album mark should be added")
+        XCTAssertTrue(app.buttons["Family"].exists, "the Photos album mark should be added")
+        XCTAssertFalse(app.buttons["Holiday 2024"].exists, "an unmarked album must not be added")
+    }
+
+    /// Settings → Sources → add, with the fake Photos gateway granting full access; lands on the
+    /// iCloud album tab unless `openPhotosTab` is false.
+    @MainActor
+    private func launchSettingsPhotosTab(openPhotosTab: Bool = true) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-chrome",
+                               "--uitest-photos", "--uitest-photos-auth=full"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+            .waitForExistence(timeout: 5))
+        openSources(in: app)
+        app.buttons["sources.add"].tap()
+        if openPhotosTab {
+            let photosTab = app.buttons["iCloud album"]
+            XCTAssertTrue(photosTab.waitForExistence(timeout: 3))
+            photosTab.tap()
+        }
+        return app
     }
 
     /// Onboarding source step: the Photos-album tab appears next to Album and Shared link;
@@ -203,8 +288,9 @@ final class PhotoAlbumPickerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["sources.photos.manageSelection"].exists,
                       "the system manage-selection affordance should be offered")
 
-        // Selecting the pool adds it; activating plays the granted assets.
+        // Tapping the pool marks it, Done adds it (FR-210-28), and activating plays the granted assets.
         selectedRow.tap()
+        XCTAssertTrue(selectedRow.isSelected, "tapping the Selected Photos row should mark it")
         app.buttons["sources.add.done"].tap()
         let newRow = app.buttons["Selected Photos"]
         XCTAssertTrue(newRow.waitForExistence(timeout: 5))

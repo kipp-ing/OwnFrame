@@ -166,8 +166,8 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         albums = (try? await api(ServerConfig(baseURL: url, apiKey: key)).albums()) ?? []
     }
 
-    /// Move from the add-source step to the confirmation step. The view guards this on the
-    /// library having at least one source.
+    /// Move from the add-source step to the confirmation step. The view offers this once the
+    /// library has a source or an album is marked, and commits the marks first (210, FR-210-28).
     public func proceedToConfirm() {
         errorMessage = nil
         step = .confirm

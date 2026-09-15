@@ -213,7 +213,11 @@ struct OwnFrameApp: App {
                     )
                 },
                 makeAPI: { @MainActor @Sendable in StubImmichAPI() },
-                makeServerAPI: { @MainActor @Sendable in StubImmichAPI() },
+                // 210, FR-210-30 case a: `--uitest-no-server` stands in for a setup without a
+                // stored server, so the album tab's add-a-server prompt is reachable hermetically.
+                makeServerAPI: { @MainActor @Sendable in
+                    ProcessInfo.processInfo.arguments.contains("--uitest-no-server") ? nil : StubImmichAPI()
+                },
                 switchActiveSource: switchActiveSource,
                 makeSourceLibraryViewModel: { @MainActor @Sendable onSwitchActive in
                     SourceLibraryViewModel(store: sourceStore, secretStore: secretStore, resolver: resolver, onSwitchActive: onSwitchActive)
