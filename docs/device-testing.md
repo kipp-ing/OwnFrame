@@ -83,6 +83,33 @@ Each of these cost a real debugging cycle at least once.
   *filter's*, so a failed build reports `exit 0`. Redirect to a log and check `$?`.
 - **Expect slowness.** A 2017 iPad is not a simulator; simulator-calibrated timeouts
   produce flakes that look like product bugs. The rig uses 90 s waits.
+- **Source-tree guard tests are simulator-only.** `AppearanceRootTests`,
+  `AccentFilledControlGuardTests`, `DeviceNeutralCopyTests` and `NewPhotosCardCopyTests` read the
+  repo via `#filePath`, which a device cannot reach (`NSCocoaErrorDomain 260`). Since WP5
+  (2026-09-15) they are compile-time disabled off the simulator, so on a device they show as
+  skipped, not failed. A new test that reads the repo needs the same gate.
+- **An OS update can switch UI Automation off.** FramePhone's move to 27.0 did: the full suite then
+  ran the app-hosted tests and failed `OwnFrameUITests-Runner … Timed out while enabling automation
+  mode` with **zero** UI tests executed. Re-check the switch after every device OS update.
+- **A device OS update can break Xcode's pairing while Finder still trusts the device.** Framepad
+  came back from 17.7.11 in `xctrace list devices` under `Devices Offline`, `devicectl` showed
+  `Pairing State: unsupported` and only a `RestorableDeviceRefDeviceRepresentation`, yet Finder
+  listed it as trusted (Finder uses the old lockdown trust; Xcode uses CoreDevice remote pairing).
+  The Mac-side log (`/usr/bin/log show --predicate 'process == "remotepairingd"'`) shows
+  `CSSMERR_CSP_INVALID_KEY` in `SecKeyCreateSignature` on every attach, then `awaitingUserConsent`
+  and `failure … Code=89 "Operation canceled"` ~0.9 s later — the Trust prompt flashes for half a
+  second and **the Mac** withdraws it. Tapping Trust cannot win that race. Not fixed by: re-plugging,
+  restarting the Mac, clearing the iPad's Settings → Developer → Clear Trusted Computers, or
+  `devicectl manage unpair`/`manage pair --device <udid>` (error 1000 "not found" — this subcommand
+  pair doesn't even reach devices in this broken state, unlike the automatic background attempt).
+  Xcode 27's device window (renamed from "Devices and Simulators"; no "Unpair Device" entry
+  surfaced for Framepad at all) didn't help either. **What actually worked (2026-09-15):** run
+  `xcrun devicectl manage pair --device <udid>` **repeatedly back-to-back** (a `for` loop, ~1 attempt/
+  sec) while watching the iPad for the Trust flash — most attempts still hit the same
+  `CSSMERR_CSP_INVALID_KEY`/cancel race, but one attempt in the burst got through to `available
+  (paired)` → `connected (no DDI)` → `connected`. Unclear why that one attempt didn't race-cancel;
+  worth trying the burst-loop first before escalating next time. Pairing records live in the
+  SIP-protected `/var/db/lockdown/RemotePairing`, not in the login Keychain.
 
 ## Reading the device's logs — this DOES work
 
