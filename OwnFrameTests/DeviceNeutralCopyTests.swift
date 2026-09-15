@@ -8,7 +8,15 @@ import Testing
 //
 // The catalogue is read from the source tree via `#filePath` — the compiled `.strings` in the test
 // bundle would not carry the German translations of the *app* target, and it is the source of
-// truth we actually want to pin.
+// truth we actually want to pin. Compile-time gate, not a file-exists probe: on the simulator a
+// missing catalogue must still fail loudly.
+#if targetEnvironment(simulator)
+private let sourceTreeReachable = true
+#else
+private let sourceTreeReachable = false
+#endif
+
+@Suite(.enabled(if: sourceTreeReachable, "Reads the repo via #filePath: simulator only, a device has no access to the Mac's disk"))
 struct DeviceNeutralCopyTests {
 
     /// Device names that must not appear in copy describing "the machine you are holding".

@@ -11,7 +11,7 @@ public final class HAControlCoordinator {
         /// can *see* the frame. Never publish a controllable entity, never subscribe to a
         /// command topic, never act on a command.
         case telemetryOnly
-        /// **Automation unlock.** Full read + control: controllable entities are published and
+        /// **Supporter Unlock.** Full read + control: controllable entities are published and
         /// their command topics subscribed and handled.
         case full
     }
@@ -166,7 +166,7 @@ public final class HAControlCoordinator {
 
         for entity in orderedEnabledEntities {
             // Free telemetry publishes read-only sensors only; controllable entities and
-            // their command topics require the Automation unlock (FR-1100-03 / FR-1100-03a).
+            // their command topics require the Supporter Unlock (FR-1100-03 / FR-1100-03a).
             if mode == .telemetryOnly && entity.isControllable { continue }
             // Battery/charging exist only on a battery-bearing device with a source — omit
             // both entirely otherwise (no discovery, no state) so Apple TV shows neither

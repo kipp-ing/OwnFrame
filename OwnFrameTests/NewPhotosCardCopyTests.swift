@@ -8,7 +8,15 @@ import Testing
 // `Text("…")`, so the catalog entries are the whole fix — this pins them.
 //
 // Read from the source tree via `#filePath`, like `DeviceNeutralCopyTests`: the test bundle's
-// compiled strings would not carry the app target's German translations.
+// compiled strings would not carry the app target's German translations. Simulator only, gated at
+// compile time so a missing catalogue on the simulator still fails loudly.
+#if targetEnvironment(simulator)
+private let sourceTreeReachable = true
+#else
+private let sourceTreeReachable = false
+#endif
+
+@Suite(.enabled(if: sourceTreeReachable, "Reads the repo via #filePath: simulator only, a device has no access to the Mac's disk"))
 struct NewPhotosCardCopyTests {
 
     /// The keys exactly as `NewPhotosOverlayView` produces them; an `Int` interpolation is `%lld`.

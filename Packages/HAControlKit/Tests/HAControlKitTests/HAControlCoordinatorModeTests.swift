@@ -5,7 +5,7 @@ import Testing
 /// Free-telemetry / paid-control split (spec 1100 FR-1100-03 / FR-1100-03a, amended
 /// 2026-07-20). `.telemetryOnly` publishes read-only sensor entities so Home Assistant can
 /// *see* the frame, but subscribes to zero command topics and never acts on a command;
-/// `.full` (the Automation unlock) is the unchanged read+control behaviour.
+/// `.full` (the Supporter Unlock) is the unchanged read+control behaviour.
 @MainActor
 @Suite
 struct HAControlCoordinatorModeTests {

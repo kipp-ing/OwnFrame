@@ -1,6 +1,13 @@
 import Foundation
 import Testing
 
+// Compile-time, not a file-exists probe: on the simulator a missing path must still fail loudly.
+#if targetEnvironment(simulator)
+private let sourceTreeReachable = true
+#else
+private let sourceTreeReachable = false
+#endif
+
 // FR-9000-05/-06 (issue #70): the app is dark on every app-drawn screen, whatever the system
 // setting, and that is declared exactly once per `@main` entry point — never per screen, so a new
 // sheet cannot quietly opt out. The rendered appearance is checked on the simulator; what a host
@@ -8,6 +15,7 @@ import Testing
 //
 // @covers FR-9000-05
 // @covers FR-9000-06
+@Suite(.enabled(if: sourceTreeReachable, "Reads the repo via #filePath: simulator only, a device has no access to the Mac's disk"))
 struct AppearanceRootTests {
 
     private static let declaration = ".preferredColorScheme(.dark)"

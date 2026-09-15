@@ -58,6 +58,8 @@ it is a run that quietly skipped it.
 > you selected. This bit a release-gate run on 2026-07-29: it was set to 18.6 by id and actually
 > ran on 26.0. Always confirm the destination afterwards from the result bundle:
 > `xcrun xcresulttool get test-results summary --path <xcresult>` reports `osVersion`.
+> It bit again at WP5 (2026-09-15: selected 18.6, ran 17.5). The durable fix is a unique name per
+> runtime — `xcrun simctl rename <udid> "iPad Pro 11-inch (M4) 18.6"` — then the name pins.
 
 ## Layer 3 — UI tests (hermetic XCUITest)
 

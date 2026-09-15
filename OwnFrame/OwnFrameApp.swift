@@ -101,7 +101,8 @@ struct OwnFrameApp: App {
         let snapshotStore: any SourceSnapshotStoring
         let cacheBudgetStore: any CacheBudgetStore
         // iPad companion (topic 1000, FR-1000-06/12): mirror config to the sync channels.
-        // Invoked on launch and on every foreground; a no-op without iCloud (device-gated).
+        // Invoked on launch and on every foreground. Currently a silent no-op everywhere: the
+        // app carries no iCloud/KVS entitlement (#51).
         let publishCompanionSync: @MainActor @Sendable () async -> Void
     }
 
@@ -295,8 +296,9 @@ struct OwnFrameApp: App {
         )
         // iPad companion (topic 1000, FR-1000-06/12): mirror the current non-secret config to
         // iCloud KVS and the API key to CloudKit encrypted fields so the Apple TV app can
-        // prefill onboarding and hydrate secrets. Best-effort, fired once per launch; a no-op
-        // without iCloud (device-gated), so it never blocks or affects local behavior.
+        // prefill onboarding and hydrate secrets. Best-effort, so it never blocks or affects
+        // local behavior. Today it does nothing on any device: the app carries no iCloud/KVS
+        // entitlement, so both stores silently no-op (#51).
         let companionSync = CompanionSync(
             config: config,
             sourceStore: sourceStore,
@@ -669,7 +671,7 @@ private struct RootView: View {
             // hand-off. Each takes the URL once and routes it; a no-op when there is none.
             .task { consumePendingLink() }
             // Mirror config to the Apple TV via the sync channels on launch and every
-            // foreground (topic 1000, FR-1000-06/12). Device-gated no-op without iCloud.
+            // foreground (topic 1000, FR-1000-06/12). A no-op until the iCloud entitlement lands (#51).
             .task { await factories.publishCompanionSync() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {

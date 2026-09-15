@@ -53,7 +53,7 @@ public extension HAEntity {
     }
 
     /// Controllable entities carry a `command_topic`; Home Assistant can drive them. These
-    /// (plus command handling and App Intents) require the **Automation** unlock — they are
+    /// (plus command handling and App Intents) require the **Supporter Unlock** — they are
     /// only published/subscribed in `.full` mode (spec 1100 FR-1100-03).
     var isControllable: Bool { !isReadOnlySensor }
 

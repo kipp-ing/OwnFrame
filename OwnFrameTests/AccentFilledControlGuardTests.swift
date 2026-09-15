@@ -12,6 +12,14 @@
 import Foundation
 import Testing
 
+// Compile-time, not a file-exists probe: on the simulator a missing path must still fail loudly.
+#if targetEnvironment(simulator)
+private let sourceTreeReachable = true
+#else
+private let sourceTreeReachable = false
+#endif
+
+@Suite(.enabled(if: sourceTreeReachable, "Reads the repo via #filePath: simulator only, a device has no access to the Mac's disk"))
 struct AccentFilledControlGuardTests {
 
     private static let repoRoot = URL(fileURLWithPath: #filePath)

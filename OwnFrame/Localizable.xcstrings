@@ -1184,6 +1184,17 @@
         }
       }
     },
+    "New photos card" : {
+      "comment" : "Settings toggle for the transient card that announces newly arrived photos.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Karte „Neue Fotos“"
+          }
+        }
+      }
+    },
     "Next" : {
       "extractionState" : "manual",
       "localizations" : {

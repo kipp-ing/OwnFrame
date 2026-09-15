@@ -139,7 +139,7 @@ struct SlideshowView: View {
                     chromeVisible: chromeVisible
                 )
             }
-            // 310/9010: free, opt-in, ambient like the clock — never gated (FR-9010-07 only
+            // 310/9010: free, on by default, ambient like the clock — never gated (FR-9010-07 only
             // binds Ken Burns and the clock overlay).
             if themeStore.settings.newPhotosCard, viewModel.phase == .playing {
                 NewPhotosOverlayView(

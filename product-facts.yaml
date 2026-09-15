@@ -61,7 +61,7 @@ facts:
     platforms: [ios, ipados, tvos]
     intent: ["decision 2026-09-13", "FR-900-03", "FR-710-01"]
     implementation: verified
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:116,127", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:128,132", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift"]
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:133,144", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:132,136", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift"]
 
   - id: SRC-01
     fact: "First-run setup offers three paths, easiest first: an iCloud album, an Immich link (paste or QR), and an Immich server with an API key. Picking an iCloud album goes straight to the running slideshow."
@@ -103,7 +103,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-900-04", "FR-9010-06"]
     implementation: verified
-    evidence: ["Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/SelectedPhotosSource.swift:25-43", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:117-123", "OwnFrame/Onboarding/PhotoAlbumPickerView.swift:164"]
+    evidence: ["Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/SelectedPhotosSource.swift:25-43", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:117-123", "OwnFrame/Onboarding/PhotoAlbumPickerView.swift:168"]
 
   - id: SRC-04
     fact: "Plays an Immich link (an Immich shared album link) without an Immich account or API key."
@@ -117,7 +117,7 @@ facts:
     platforms: [ios, ipados, tvos]
     intent: ["J-02", "J-04", "FR-110-01", "FR-210-02", "FR-210-03", "FR-210-07", "FR-210-08", "FR-210-09", "FR-130-12"]
     implementation: verified
-    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkURL.swift:7-41", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:39-53,72-88,117-135"]
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkURL.swift:7-41", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:43-57,76-92,121-139"]
 
   - id: SRC-05
     fact: "Asks for an Immich link's password only after the server says the link needs one, and stores that password only in the keychain."
@@ -128,7 +128,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-02", "FR-210-06", "FR-210-10", "FR-210-11", "FR-130-03"]
     implementation: verified
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:137-143,166-173", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39"]
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:141-150,172-180", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39"]
 
   - id: SRC-06
     fact: "An Immich link can be added by scanning the QR code Immich shows for a shared album, in first-run setup and in Settings."
@@ -142,7 +142,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-02", "FR-220-04", "FR-220-05", "FR-220-06", "FR-120-12"]
     implementation: verified
-    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:46-71", "OwnFrame/Onboarding/SharedLinkSetupView.swift:94,132", "OwnFrame/Onboarding/SharedLinkAddForm.swift:51", "Packages/OnboardingKit/Sources/OnboardingKit/ScannedShareLink.swift:32-50"]
+    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:47-72", "OwnFrame/Onboarding/SharedLinkSetupView.swift:94,132", "OwnFrame/Onboarding/SharedLinkAddForm.swift:51", "Packages/OnboardingKit/Sources/OnboardingKit/ScannedShareLink.swift:32-50"]
 
   - id: SRC-07
     fact: "OwnFrame appears in the iOS Share Sheet: an Immich link shared into it is resolved and becomes the playing source (asking for a password once if needed), or opens pre-filled setup on a fresh install."
@@ -157,7 +157,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-02", "FR-210-12", "FR-210-13", "FR-210-14", "FR-210-15", "FR-210-16", "FR-210-18", "FR-210-31", "SC-210-02"]
     implementation: verified
-    evidence: ["OwnFrameShareExtension/ShareViewController.swift:5-11,33-40,70-102", "OwnFrameShareExtension/Localizable.xcstrings", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:662-675,832-860", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6", "Packages/OnboardingKit/Tests/OnboardingKitTests/ShareExtensionContractTests.swift", "OwnFrameUITests/ShareSheetIncomingUITests.swift"]
+    evidence: ["OwnFrameShareExtension/ShareViewController.swift:5-11,33-40,70-102", "OwnFrameShareExtension/Localizable.xcstrings", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:668-681,838-866", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6", "Packages/OnboardingKit/Tests/OnboardingKitTests/ShareExtensionContractTests.swift", "OwnFrameUITests/ShareSheetIncomingUITests.swift"]
 
   - id: SRC-08
     fact: "Connects to a person's own Immich server with the server address and an API key, and plays a chosen album from that account."
@@ -171,7 +171,7 @@ facts:
     platforms: [ios, ipados, tvos]
     intent: ["J-03", "FR-100-01", "FR-100-02", "FR-100-03", "FR-200-03", "FR-200-08"]
     implementation: verified
-    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/ConnectionURL.swift:8-11", "Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:21-25,117-118", "Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:21-27", "Packages/OnboardingKit/Sources/OnboardingKit/ConfigStore.swift:21-24"]
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/ConnectionURL.swift:8-11", "Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:21-25,134-135", "Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:21-27", "Packages/OnboardingKit/Sources/OnboardingKit/ConfigStore.swift:21-24"]
 
   - id: SRC-09
     fact: "The Immich album picker has a search field (album name, date, photo count), a list that scrolls on its own under a pinned confirm button, and adds one or more albums per pass; it is the same picker in setup and in Settings."
@@ -209,7 +209,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-120-01", "FR-120-03", "FR-120-04", "FR-120-06", "FR-120-09", "FR-120-11"]
     implementation: verified
-    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23", "OwnFrame/Slideshow/SourceLibraryView.swift:7,42-50,84-87", "OwnFrame/OwnFrameApp.swift:446-455"]
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23", "OwnFrame/Slideshow/SourceLibraryView.swift:7,43-51,85-88", "OwnFrame/OwnFrameApp.swift:458-467"]
 
   - id: SRC-12
     fact: "The Immich server address and API key can be changed later in Settings and are checked before saving; a reset clears the connection and returns to setup."
@@ -220,7 +220,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-200-12", "FR-200-19", "FR-200-24", "FR-210-29"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/SlideshowSettingsView.swift:281-300,426-438", "OwnFrame/Onboarding/ConnectionFieldsView.swift:15-73", "OwnFrame/Slideshow/ConnectionSettingsView.swift:27-41,68-80", "Packages/OnboardingKit/Sources/OnboardingKit/ConnectionSettingsViewModel.swift:31-77", "OwnFrame/OwnFrameApp.swift:673,686-694,738-747", "Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift:190-199", "Packages/OnboardingKit/Tests/OnboardingKitTests/ConnectionSettingsViewModelTests.swift:45-113,139-160", "Packages/OnboardingKit/Tests/OnboardingKitTests/OnboardingViewModelTests.swift:369-396", "OwnFrameTests/OnboardingResetTests.swift:20-54"]
+    evidence: ["OwnFrame/Slideshow/SlideshowSettingsView.swift:281-300,426-438", "OwnFrame/Onboarding/ConnectionFieldsView.swift:15-73", "OwnFrame/Slideshow/ConnectionSettingsView.swift:27-41,68-80", "Packages/OnboardingKit/Sources/OnboardingKit/ConnectionSettingsViewModel.swift:31-77", "OwnFrame/OwnFrameApp.swift:691,704-712,756-765", "Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift:194-212", "Packages/OnboardingKit/Tests/OnboardingKitTests/ConnectionSettingsViewModelTests.swift:45-113,139-160", "Packages/OnboardingKit/Tests/OnboardingKitTests/OnboardingViewModelTests.swift:369-416", "OwnFrameTests/OnboardingResetTests.swift:20-54"]
 
   - id: SRC-13
     fact: "Combines several albums or sources into one slideshow."
@@ -242,7 +242,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-900-03"]
     implementation: verified
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:43-61", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:66-81"]
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:60-78", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:66-81"]
 
   - id: SRC-15
     fact: "Plays Immich people, places, favorites, memories, tags or recently added, or Photos smart albums and Memories."
@@ -313,7 +313,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-01", "FR-200-01", "FR-200-02", "FR-210-04"]
     implementation: verified
-    evidence: ["OwnFrame/OwnFrameApp.swift:311", "Packages/OnboardingKit/Sources/OnboardingKit/StartupGate.swift"]
+    evidence: ["OwnFrame/OwnFrameApp.swift:323", "Packages/OnboardingKit/Sources/OnboardingKit/StartupGate.swift"]
 
   - id: PLAY-03
     fact: "Offers two photo orders: shuffle (default) and sequential, which follows the album's own date order."
@@ -415,7 +415,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["decision 2026-09-13", "FR-300-20", "FR-300-21", "FR-300-22"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:494-510", "OwnFrame/Slideshow/AlbumBrowserView.swift:26,103-111", "OwnFrame/OwnFrameApp.swift:427-432", "Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:21-22,112-115"]
+    evidence: ["OwnFrame/Slideshow/SlideshowView.swift:494-510", "OwnFrame/Slideshow/AlbumBrowserView.swift:26,103-111", "OwnFrame/OwnFrameApp.swift:439-444", "Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:21-22,129-132"]
 
   - id: PLAY-11
     fact: "An optional photo info overlay shows the photo's capture date and time and, where known, its place."
@@ -428,7 +428,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-300-24", "FR-300-25", "FR-900-10"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/PhotoInfoView.swift:60-68", "Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-85"]
+    evidence: ["OwnFrame/Slideshow/PhotoInfoView.swift:60-68", "Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-89"]
 
   - id: PLAY-12
     fact: "A single broken photo is skipped without stopping the show; an empty source or failed load shows a calm message with a Retry button instead of a blank screen."
@@ -461,7 +461,7 @@ facts:
     platforms: [ios, ipados, tvos]
     intent: ["FR-300-13", "FR-900-08", "FR-1100-02"]
     implementation: verified
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:47-53", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:160,470"]
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:64-70", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:160,470"]
 
   - id: PLAY-15
     fact: "Live Photos are shown as their still image; the motion is never played."
@@ -536,7 +536,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-28", "decision 2026-09-13", "FR-9000-05", "FR-9000-06"]
     implementation: verified
-    evidence: ["OwnFrame/OwnFrameApp.swift:613", "OwnFrameTV/TVRootView.swift:73", "OwnFrameTests/AppearanceRootTests.swift:1"]
+    evidence: ["OwnFrame/OwnFrameApp.swift:621", "OwnFrameTV/TVRootView.swift:73", "OwnFrameTests/AppearanceRootTests.swift:1"]
 
   - id: LOOK-05
     fact: "The app's accent colour is brass (#E3A857)."
@@ -590,7 +590,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-05", "decision 2026-09-13", "FR-9000-26", "FR-9010-10"]
     implementation: verified
-    evidence: ["OwnFrame/Onboarding/SourceStepView.swift:44", "Packages/OnboardingKit/Tests/OnboardingKitTests/SourceVocabularyCatalogTests.swift:1"]
+    evidence: ["OwnFrame/Onboarding/SourceStepView.swift:48", "Packages/OnboardingKit/Tests/OnboardingKitTests/SourceVocabularyCatalogTests.swift:1"]
 
   # ------------------------------------------------------------------ UNATT — the unattended frame
   - id: UNATT-01
@@ -667,7 +667,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-900-09", "FR-9010-06"]
     implementation: verified
-    evidence: ["OwnFrame/OwnFrameApp.swift:390-397", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:253-278", "OwnFrame/Slideshow/SlideshowView.swift:289-291"]
+    evidence: ["OwnFrame/OwnFrameApp.swift:402-409", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:253-278", "OwnFrame/Slideshow/SlideshowView.swift:289-291"]
 
   - id: UNATT-07
     fact: "A newly found photo joins the rotation; it is not necessarily shown right away."
@@ -693,7 +693,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-30", "FR-310-14", "FR-310-15", "FR-310-16", "FR-120-13", "FR-9010-06"]
     implementation: verified
-    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28-30,35,37-41,71-107", "OwnFrame/Slideshow/View+Compat.swift:26-43", "OwnFrameTests/NewPhotosCardScrimTests.swift", "OwnFrameUITests/ChromeLegibilityCaptureUITests.swift", "OwnFrame/OwnFrameApp.swift:792-803", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:211-221,233,257", "OwnFrameTests/NewPhotosCardLabelTests.swift", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28-30,35,37-41,71-107", "OwnFrame/Slideshow/View+Compat.swift:26-43", "OwnFrameTests/NewPhotosCardScrimTests.swift", "OwnFrameUITests/ChromeLegibilityCaptureUITests.swift", "OwnFrame/OwnFrameApp.swift:796-807", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:248-258,270,294", "OwnFrameTests/NewPhotosCardLabelTests.swift", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
 
   - id: UNATT-09
     fact: "Shows new photos instantly or via push when they are added."
@@ -754,7 +754,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-32", "FR-320-06", "FR-320-07"]
     implementation: verified
-    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:182-221", "OwnFrame/OwnFrameApp.swift:288-291,379"]
+    evidence: ["Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:182-221", "OwnFrame/OwnFrameApp.swift:293-296,391"]
 
   - id: UNATT-14
     fact: "Downloads a whole album ahead of time for offline use."
@@ -808,7 +808,7 @@ facts:
     platforms: [ios, ipados]
     intent: []
     implementation: verified
-    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:46-71"]
+    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:47-72"]
 
   # ------------------------------------------------------------------ REMOTE — Home Assistant over MQTT
   - id: REMOTE-01
@@ -861,7 +861,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-710-07", "FR-710-15", "FR-710-25", "FR-900-12"]
     implementation: verified
-    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-21", "OwnFrame/OwnFrameApp.swift:517-519", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:345-351"]
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-21", "OwnFrame/OwnFrameApp.swift:525-527", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:345-351"]
 
   - id: REMOTE-05
     fact: "Home Assistant can control the frame: pause/play, brightness, which saved source plays, every display setting (order, duration, transition, Ken Burns, fit, quality, clock on/position/style/size/date), and next/previous; changes echo back to Home Assistant."
@@ -895,7 +895,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-700-16", "FR-700-21", "FR-700-22"]
     implementation: verified
-    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:3-22", "OwnFrame/OwnFrameApp.swift:269-274"]
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:3-22", "OwnFrame/OwnFrameApp.swift:277-282"]
 
   - id: REMOTE-08
     fact: "Works directly with Apple Home / HomeKit."
@@ -967,7 +967,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-800-07", "FR-120-13"]
     implementation: verified
-    evidence: ["Packages/AppIntentsKit/Sources/AppIntentsKit/FrameStateSnapshot.swift:12-19", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:59-72", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameControlRegistry.swift:7-14", "OwnFrame/Intents/FrameStateEntity.swift:14-55", "OwnFrame/Intents/FrameIntents.swift:145-163", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:55,104,183,190-198,205,212,431", "OwnFrame/OwnFrameApp.swift:628-632,772-775", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:211-221,233,257", "OwnFrame/Onboarding/AlbumPickerView.swift:82,89", "OwnFrame/Onboarding/SourceStepView.swift:130", "Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift", "OwnFrameTests/FrameIntentGlueTests.swift:179,197", "OwnFrameTests/SlideshowRemoteControlAdapterTests.swift:339,353,370,386"]
+    evidence: ["Packages/AppIntentsKit/Sources/AppIntentsKit/FrameStateSnapshot.swift:12-19", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameCommandService.swift:59-72", "Packages/AppIntentsKit/Sources/AppIntentsKit/FrameControlRegistry.swift:7-14", "OwnFrame/Intents/FrameStateEntity.swift:14-55", "OwnFrame/Intents/FrameIntents.swift:145-163", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:55,102,180,187-195,202,209,388", "OwnFrame/OwnFrameApp.swift:632-636,776-779", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:248-258,270,294", "OwnFrame/Onboarding/AlbumPickerView.swift:85,94", "OwnFrame/Onboarding/SourceStepView.swift:136", "Packages/AppIntentsKit/Tests/AppIntentsKitTests/FrameStateSnapshotTests.swift", "OwnFrameTests/FrameIntentGlueTests.swift:179,197", "OwnFrameTests/SlideshowRemoteControlAdapterTests.swift:339,353,370,386"]
 
   - id: SHORTCUT-04
     fact: "Controls the frame silently in the background through Shortcuts."
@@ -995,7 +995,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-35", "FR-200-08", "FR-210-10", "FR-120-08", "FR-120-14", "FR-600-04", "FR-600-12"]
     implementation: verified
-    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:13-56", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39", "Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift:194-206", "OwnFrame/OwnFrameApp.swift:153,310", "OwnFrameTests/OnboardingResetTests.swift", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/KeychainBrokerSettingsStore.swift:14-56"]
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/KeychainStore.swift:13-56", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39", "Packages/OnboardingKit/Sources/OnboardingKit/OnboardingViewModel.swift:194-206", "OwnFrame/OwnFrameApp.swift:156,318", "OwnFrameTests/OnboardingResetTests.swift", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/KeychainBrokerSettingsStore.swift:14-56"]
 
   - id: PRIV-02
     fact: "Keeps non-secret configuration in the app's own settings storage: server address, the saved source list (including each Immich link's path token), broker host and port, frame name, display settings and the cached unlock status."
@@ -1041,7 +1041,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-18", "J-35", "FR-900-14", "FR-1100-07"]
     implementation: verified
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:104-121", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:117-135", "Packages/PurchaseKit/Sources/PurchaseKit/StoreKitClient.swift:42-129", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:155"]
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/ImmichClient.swift:121-138", "Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:121-139", "Packages/PurchaseKit/Sources/PurchaseKit/StoreKitClient.swift:42-129", "Packages/PhotoLibraryKit/Sources/PhotoLibraryKit/PHKitGateway.swift:155"]
 
   - id: PRIV-06
     fact: "Puts no extra cloud between the photos and the frame: photos come straight from Apple Photos/iCloud or the Immich server to the device."
@@ -1065,7 +1065,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-900-12", "FR-900-14"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:289-291", "Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-16"]
+    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:307-308", "Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-16"]
 
   - id: PRIV-08
     fact: "Asks for Photos access only when a Photos source is chosen, camera access only for QR scanning, and local-network access for Immich servers on the local network."
