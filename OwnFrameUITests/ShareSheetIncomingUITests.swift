@@ -78,6 +78,26 @@ final class ShareSheetIncomingUITests: XCTestCase {
         waitForExpectations(timeout: 5)
     }
 
+    /// SC-210-02 warm return (FR-210-31): OwnFrame is already running when a link is shared.
+    /// The Share Extension can't bring OwnFrame forward, so the link must be picked up when the
+    /// person switches back. The seam puts the link into the pending store only after the app has
+    /// gone to the background, as the extension would while the person is in Safari.
+    @MainActor
+    func testLinkSharedWhileBackgroundedIsPickedUpOnReturn() throws {
+        let link = "https://demo.example.com/s/holiday"
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-slideshow", "--uitest-pending-link-after-background", link]
+        app.launch()
+        assertSlideshowPlays(app, assets: ["asset-1", "asset-2", "asset-3"])
+
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackgroundSuspended, timeout: 10)
+                      || app.state == .runningBackground, "OwnFrame should be in the background")
+        app.activate()
+
+        assertSlideshowPlays(app, assets: ["asset-4", "asset-5", "asset-6"])
+    }
+
     // MARK: - Helpers
 
     @MainActor

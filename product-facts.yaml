@@ -151,14 +151,13 @@ facts:
       - "iPhone and iPad only; one web link per share."
       - "The extension passes only the link, never a password."
       - "The app does not come to the front after sharing, and cannot: iOS lets only Today and iMessage extensions open their host app. The person has to switch to OwnFrame, which then picks up the link (it survives a cold start)."
+      - "After sharing, the extension says 'Open OwnFrame to start' (German: 'Öffne OwnFrame, um zu starten') and closes when the person taps Done; it never claims the slideshow has started."
       - "A link already in the library is switched to, not duplicated."
     gated: free
     platforms: [ios, ipados]
-    intent: ["J-02", "FR-210-12", "FR-210-13", "FR-210-14", "FR-210-15", "FR-210-16", "FR-210-18", "SC-210-02"]
-    implementation: mismatch
-    evidence: ["OwnFrameShareExtension/ShareViewController.swift:24-26,36,68-71", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:653,657-660,663", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6"]
-    mismatch: "Spec side resolved 2026-09-14 (D-09): 210 US2 scenario 2, SC-210-02 and the new FR-210-31 now say the link is picked up the next time OwnFrame is opened and the extension says so. Code side still open: the extension calls extensionContext.open(immichslideshow://shared), a no-op for Share extensions (no URL scheme is registered, and registering one would not help), and it shows no confirmation. FR-210-18 (survives a cold start) is met."
-    candidate_issue: "#65 — Share Extension: remove the dead immichslideshow:// open call and the false comments (ShareViewController.swift:24-26, IncomingLinkSheet.swift:5-6) and show the FR-210-31 'Open OwnFrame to start' confirmation (EN + DE)."
+    intent: ["J-02", "FR-210-12", "FR-210-13", "FR-210-14", "FR-210-15", "FR-210-16", "FR-210-18", "FR-210-31", "SC-210-02"]
+    implementation: verified
+    evidence: ["OwnFrameShareExtension/ShareViewController.swift:5-11,33-40,70-102", "OwnFrameShareExtension/Localizable.xcstrings", "OwnFrameShareExtension/Info.plist", "OwnFrame/OwnFrameApp.swift:662-675,832-860", "OwnFrame/Onboarding/IncomingLinkSheet.swift:5-6", "Packages/OnboardingKit/Tests/OnboardingKitTests/ShareExtensionContractTests.swift", "OwnFrameUITests/ShareSheetIncomingUITests.swift"]
 
   - id: SRC-08
     fact: "Connects to a person's own Immich server with the server address and an API key, and plays a chosen album from that account."

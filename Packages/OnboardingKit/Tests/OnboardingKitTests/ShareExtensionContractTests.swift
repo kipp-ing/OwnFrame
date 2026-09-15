@@ -10,24 +10,45 @@ import Testing
 //
 // This guard scans the extension's SOURCE, since no test target compiles it. Textual, but each
 // assertion is chosen so the realistic regressions go red: a renamed constant on either side, a
-// second App-Group write (the "extension starts persisting a secret" case), or networking
-// creeping in. If the file moves, this test must fail loudly and be updated — never skipped.
+// second App-Group write (the "extension starts persisting a secret" case), networking creeping
+// in, or a host-open call coming back (FR-210-31). If the files move, this test must fail loudly
+// and be updated — never skipped.
 
+private var repoRoot: URL {
+    // …/Packages/OnboardingKit/Tests/OnboardingKitTests/<this file> → drop the file name,
+    // then four directories, to reach the repo root.
+    URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+}
+
+/// Every Swift file of the extension, joined: the guards cover all extension code, not only
+/// ShareViewController, so moving code into a second file can't slip past them.
 private var shareExtensionSource: String {
     get throws {
-        // …/Packages/OnboardingKit/Tests/OnboardingKitTests/<this file> → drop the file name,
-        // then four directories, to reach the repo root.
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let file = repoRoot
-            .appendingPathComponent("OwnFrameShareExtension")
-            .appendingPathComponent("ShareViewController.swift")
-        return try String(contentsOf: file, encoding: .utf8)
+        let folder = repoRoot.appendingPathComponent("OwnFrameShareExtension")
+        let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "swift" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        guard files.contains(where: { $0.lastPathComponent == "ShareViewController.swift" }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        return try files.map { try String(contentsOf: $0, encoding: .utf8) }.joined(separator: "\n")
     }
+}
+
+/// The German `stringUnit` of `key` in the extension's String Catalog, or nil.
+private func germanUnit(for key: String) throws -> [String: Any]? {
+    let catalogURL = repoRoot.appendingPathComponent("OwnFrameShareExtension/Localizable.xcstrings")
+    let data = try Data(contentsOf: catalogURL)
+    let catalog = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let strings = try #require(catalog["strings"] as? [String: Any])
+    let entry = strings[key] as? [String: Any]
+    let german = (entry?["localizations"] as? [String: Any])?["de"] as? [String: Any]
+    return german?["stringUnit"] as? [String: Any]
 }
 
 // @covers FR-210-13
@@ -57,4 +78,28 @@ private var shareExtensionSource: String {
     // "No network, no secret" (FR-210-13): the extension has no business touching either API.
     #expect(!source.contains("URLSession"))
     #expect(!source.contains("SecItem"))
+}
+
+// A Share extension cannot bring its host forward on iOS, so it must not pretend to.
+// @covers FR-210-31
+@Test func shareExtensionNeverTriesToOpenTheHost() throws {
+    let source = try shareExtensionSource
+
+    for forbidden in ["extensionContext?.open", "extensionContext.open", "openHost", "immichslideshow://"] {
+        #expect(!source.contains(forbidden), "extension source still contains \(forbidden)")
+    }
+}
+
+// Instead it tells the person to open OwnFrame, in English and German, and closes on Done.
+// @covers FR-210-31
+@Test func shareExtensionConfirmsWithALocalizedOpenOwnFrameMessage() throws {
+    let source = try shareExtensionSource
+    #expect(source.contains("\"Open OwnFrame to start\""))
+    #expect(source.contains("\"share.confirmation.done\""))
+
+    for key in ["Open OwnFrame to start", "Done"] {
+        let unit = try germanUnit(for: key)
+        #expect(unit?["state"] as? String == "translated", "\(key) has no translated German entry")
+        #expect((unit?["value"] as? String)?.isEmpty == false, "\(key) has an empty German value")
+    }
 }

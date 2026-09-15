@@ -137,6 +137,8 @@ struct OwnFrameApp: App {
             // incoming-link consumption is testable without the system Share Sheet. The value
             // is the launch argument following `--uitest-pending-link`.
             let pendingLinkStore = InMemoryPendingSharedLinkStore(pendingURL: UITestSupport.pendingLinkURL)
+            // 210 T061: or hand the link over only after the app has gone to the background (warm return).
+            UITestWarmReturnLinkSeam.arm(arguments: ProcessInfo.processInfo.arguments, store: pendingLinkStore)
             // 320: REAL file-backed stores in the sandbox tmp dir so the hermetic
             // build exercises the production disk paths. They persist across
             // relaunches within a test; `--uitest-reset-storage` starts clean.
@@ -657,9 +659,10 @@ private struct RootView: View {
 
     var body: some View {
         content
-            // Consume a pending shared link on launch, when returning to the foreground, and
-            // when the Share Extension opens the host scheme (210, US2). Each path takes the
-            // URL once and routes it; a no-op when there is none.
+            // Consume a pending shared link on launch and whenever OwnFrame returns to the
+            // foreground (210, US2; SC-210-02). The Share Extension cannot bring the app forward,
+            // so it tells the person to open OwnFrame (FR-210-31); these two paths are the whole
+            // hand-off. Each takes the URL once and routes it; a no-op when there is none.
             .task { consumePendingLink() }
             // Mirror config to the Apple TV via the sync channels on launch and every
             // foreground (topic 1000, FR-1000-06/12). Device-gated no-op without iCloud.
@@ -670,7 +673,6 @@ private struct RootView: View {
                     Task { await factories.publishCompanionSync() }
                 }
             }
-            .onOpenURL { _ in consumePendingLink() }
             .sheet(item: $incomingSheet) { context in
                 IncomingLinkSheet(sourceLibrary: context.viewModel, url: context.url) {
                     incomingSheet = nil

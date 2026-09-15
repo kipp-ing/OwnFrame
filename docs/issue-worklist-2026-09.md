@@ -93,13 +93,15 @@ album placeholder) as they are.
       instead of the beach photo; Jan approved the captures (2026-09-15)
 - [~] #59 shared `.accentProminent` style (PurchaseKit) at all 8 call sites, guard test + pixel assertion on the unlock
       button (17.5 + 26.5). Open: site-by-site captures of the other seven (9000 T009)
-- [ ] commit → close #60; comment on #72 and #59 with what stays open
+- [x] commit → close #60; comment on #72 and #59 with what stays open — `76d3e7f` (2026-09-15)
 
 ### WP4b — #65 share extension
-- [ ] remove the dead `extensionContext.open`
-- [ ] add the confirmation view + extension String Catalog (EN + DE) + pbxproj
-- [ ] fix the comments; red contract test first; share-sheet UITest
-- [ ] fact SRC-07 → commit → close #65
+- [x] remove the dead `extensionContext.open` (and the unused `.onOpenURL`: no URL scheme or associated domain is registered)
+- [x] add the confirmation view (UIKit label + Done button, Jan 2026-09-15) + extension String Catalog (EN + DE); the
+      synchronized folder picks the catalog up, no pbxproj edit
+- [x] fix the comments; red contract test first (OnboardingKit); warm-return UITest via a DEBUG seam. The real
+      Safari → Share round trip and EN/DE screenshots of the confirmation stay with device item T025 (`hitl.md` §6)
+- [x] fact SRC-07 → commit → close #65
 
 ### Spec round closed 2026-09-14 — every code package now has spec + tasks
 Implementers work from these task phases (TDD order, Claude-only steps marked):

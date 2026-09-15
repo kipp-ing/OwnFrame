@@ -2,8 +2,8 @@
 //  IncomingLinkSheet.swift
 //  OwnFrame
 //
-//  210, US2 — a shared link handed into the **already-configured** app (via the iOS
-//  Share Sheet / the `immichslideshow://` hand-off). It resolves the link first and asks
+//  210, US2 — a shared link handed into the **already-configured** app via the iOS Share
+//  Sheet, picked up when OwnFrame next becomes active (SC-210-02). It resolves the link first and asks
 //  for a password only when the server reports one is required, then makes the link the
 //  active source so the running slideshow switches to it. Reuses the SourceLibraryViewModel
 //  two-phase resolve engine (D6); `(baseURL,slug)` dedup means a link already in the

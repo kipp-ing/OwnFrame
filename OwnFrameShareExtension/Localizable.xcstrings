@@ -1,0 +1,30 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Done" : {
+      "comment" : "Share extension: closes the confirmation after a link was handed to OwnFrame.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fertig"
+          }
+        }
+      }
+    },
+    "Open OwnFrame to start" : {
+      "comment" : "Share extension confirmation (FR-210-31): the link is saved, and OwnFrame picks it up the next time the person opens it. The extension cannot open the app itself.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne OwnFrame, um zu starten"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
