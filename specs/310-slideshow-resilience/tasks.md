@@ -389,31 +389,40 @@ hand-rolled fill. **300 T005 lands before T037 or in the same commit.** App targ
 task is **Claude inline**. **Store assets in `Design/AppStore/` are frozen and MUST NOT be
 re-rendered.**
 
-- [ ] T035 [US4] Baseline capture (**Claude**): run `OwnFrameUITests/AppStoreScreenshotUITests.swift`
+- [x] T035 [US4] Baseline capture (**Claude**): run `OwnFrameUITests/AppStoreScreenshotUITests.swift`
       `testCaptureNewPhotosCard` over the bright beach photo with the seam at
       `SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT=3`, which gives the longest copy, "+3 new photos". Do
       it on the iOS 26 runtime (glass) and on 18.6 (`ultraThinMaterial` fallback). Keep the
       attachment out of `Design/AppStore/`, downscale it (`sips -Z 900`) before reading, and note the
       washed-out state under this task. If the test's hard-coded `"1"` has to change for the run,
       do not commit that change.
-- [ ] T036 [US4] Red: new `OwnFrameTests/NewPhotosCardScrimTests.swift` — the card exposes a static
+      **2026-09-15: ran hermetically instead** — `ChromeLegibilityCaptureUITests` (300 T002) captures
+      the card through the `--uitest-new-photos-card` seam over a full-bleed near-white and near-black
+      stub photo. That is a stricter case than the beach photo and needs no live server. **iOS 18.6,
+      today's code:** over near-white the card is a mid-grey plate and "+2 new photos" / "Updated
+      automatically" wash out; over near-black it reads. **iOS 26.5:** the glass card is already
+      dark grey over near-white and its text reads; the footnote line is the weakest.
+- [x] T036 [US4] Red: new `OwnFrameTests/NewPhotosCardScrimTests.swift` — the card exposes a static
       scrim opacity (e.g. `NewPhotosOverlayView.cardScrimOpacity`), and the test requires it to keep
       white text at ≥ 4.5:1 (WCAG AA) over a pure-white photo, ignoring the glass. Black at opacity
       `a` over white composites to an sRGB value `1 − a`, and AA needs relative luminance ≤ 0.183, so
       `a` ≳ 0.54. The test computes this and does not hard-code it. It is red because the constant
       does not exist yet. **The computed floor is a starting point: Jan eyeballs the T038 capture
       before commit.**
-- [ ] T037 [US4] Green: in `card(for:)`, use `.glassCard(cornerRadius: 20, scrim: Self.cardScrimOpacity)`
+- [x] T037 [US4] Green: in `card(for:)`, use `.glassCard(cornerRadius: 20, scrim: Self.cardScrimOpacity)`
       from the 300 T005 tier. That is a single in-shape dark layer; below iOS 26 the darker of the
       tier tint and the card scrim wins, so they never stack. Non-interactive, no change to the copy,
       timing or chrome-hidden rule (depends on T036 and 300 T005)
-- [ ] T038 [US4] Verification (**Claude**): repeat T035's capture on both runtimes, and add a dark
+- [x] T038 [US4] Verification (**Claude**): repeat T035's capture on both runtimes, and add a dark
       photo to confirm the card doesn't turn into a black box. Compare against the baseline. **Jan
       eyeballs the beach-photo capture before commit**; `cardScrimOpacity` may only move up from the
-      computed floor. Then run `test_sim` whole classes `NewPhotosCardScrimTests`,
+      computed floor. **2026-09-15, iOS 26.5, `cardScrimOpacity` 0.60 (computed floor ≈ 0.59):**
+      over near-white the card is a dark plate and all three lines read; over near-black it is a
+      slightly darker plate, not a black box. Same on iOS 17.5 (the below-26 path). **Jan approved
+      0.60 on these captures (2026-09-15).** Classes green on 17.5 and 26.5. Then run `test_sim` whole classes `NewPhotosCardScrimTests`,
       `NewPhotosCardCopyTests`, `NewPhotosCardCaptureTimingTests`, `UITestNewPhotosCardSeamTests`.
       Do not re-render store assets.
-- [ ] T039 [US4] Facts, **same commit as T037**: `product-facts.yaml` **UNATT-08** — add FR-310-15 to
+- [x] T039 [US4] Facts, **same commit as T037**: `product-facts.yaml` **UNATT-08** — add FR-310-15 to
       `intent` and the scrim lines of `NewPhotosOverlayView.swift` to `evidence`; add a
       "stays readable over bright photos" limit only if Jan's store copy needs it. Run
       `.claude/scripts/check-facts.py`.

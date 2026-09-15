@@ -519,15 +519,15 @@ facts:
     evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:93-141", "Packages/ThemeKit/Sources/ThemeKit/ClockPlacement.swift:51", "OwnFrame/Slideshow/SlideshowView.swift:134-140,602-604"]
 
   - id: LOOK-03
-    fact: "Slideshow controls use Liquid Glass on iOS 26 and later and a material fallback on earlier versions, readable over any photo."
+    fact: "Slideshow controls use Liquid Glass on iOS 26 and later and a dark-tinted material ('soft glass') on earlier versions, readable over any photo."
     verdict: does
+    limits:
+      - "Readability is checked by simulator captures over near-white and near-black photos (iOS 17.5 and 26.5); the check on a real iOS 17 device is still open (#72)."
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-300-15", "FR-300-34"]
-    implementation: mismatch
-    evidence: ["OwnFrame/Slideshow/View+Compat.swift:14-32,45-57", "OwnFrame/Slideshow/SlideshowChrome.swift:56-71,76,97,119-135", "docs/design/quiet-glass-2026-07-18.html:706,712"]
-    mismatch: "Liquid Glass on iOS 26 is in place (glassEffect, .glass button style, GlassEffectContainer). The earlier-version fallback is not a material for the controls themselves: glassButtonStyle falls back to .bordered, a tinted fill with no blur. Only cards (photo info, clock pill, new-photos card) get ultraThinMaterial. 'Readable over any photo' rests on fixed 45%-to-clear black edge gradients behind the bars. No test or capture checks it. The quiet-glass design record calls the iOS 17 fallback 'washed-out' and proposes a dark-tinted softGlass tier, which is not in the code. Issue #60 shows a sibling glass card illegible over a bright photo."
-    candidate_issue: "#72 — Slideshow chrome below iOS 26: give glassButtonStyle a real material fallback with a dark tint (the quiet-glass softGlass tier, View+Compat.swift:24-32). Then capture the chrome over near-white and near-black photos on Framepad (iOS 17.7) and an iOS 26 sim as the FR-300-34 check."
+    implementation: verified
+    evidence: ["OwnFrame/Slideshow/View+Compat.swift:14-24,32-63,76-95", "OwnFrame/Slideshow/SlideshowChrome.swift:18-48,94-107,155-171", "OwnFrameTests/SoftGlassTierTests.swift", "OwnFrameUITests/ChromeLegibilityCaptureUITests.swift", "docs/design/quiet-glass-2026-07-18.html:124-129"]
 
   - id: LOOK-04
     fact: "Uses a dark appearance on every app-drawn screen, regardless of the system setting."
@@ -548,9 +548,9 @@ facts:
       - "Filled accent controls must carry near-black labels (FR-9000-14)."
     gated: n/a
     platforms: [ios, ipados]
-    intent: ["J-28", "FR-9000-13", "FR-9000-14"]
+    intent: ["J-28", "FR-9000-13", "FR-9000-14", "FR-9000-38"]
     implementation: verified
-    evidence: ["OwnFrame/Assets.xcassets/AccentColor.colorset/Contents.json"]
+    evidence: ["OwnFrame/Assets.xcassets/AccentColor.colorset/Contents.json", "Packages/PurchaseKit/Sources/PurchaseKit/UI/AccentProminentButtonStyle.swift", "Packages/PurchaseKit/Tests/PurchaseKitTests/AccentProminentButtonStyleTests.swift", "OwnFrameTests/AccentFilledControlGuardTests.swift", "OwnFrameUITests/PurchaseGateUITests.swift:141-173"]
 
   - id: LOOK-06
     fact: "Redesigned, less technical screens: plain first-run vocabulary without 'API key', 'server address', 'instance' or 'Add a source'; one name for the Photos source; a 640-720 pt content column; album-picker rows with cover photos."
@@ -694,9 +694,9 @@ facts:
       - "Hidden while the controls are showing."
     gated: free
     platforms: [ios, ipados]
-    intent: ["J-30", "FR-310-14", "FR-310-16", "FR-120-13", "FR-9010-06"]
+    intent: ["J-30", "FR-310-14", "FR-310-15", "FR-310-16", "FR-120-13", "FR-9010-06"]
     implementation: verified
-    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28-30,35,65-101", "OwnFrame/OwnFrameApp.swift:792-803", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:211-221,233,257", "OwnFrameTests/NewPhotosCardLabelTests.swift", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
+    evidence: ["Packages/ThemeKit/Sources/ThemeKit/ThemeSettings.swift:9-14,42,67", "OwnFrame/Slideshow/NewPhotosOverlayView.swift:28-30,35,37-41,71-107", "OwnFrame/Slideshow/View+Compat.swift:26-43", "OwnFrameTests/NewPhotosCardScrimTests.swift", "OwnFrameUITests/ChromeLegibilityCaptureUITests.swift", "OwnFrame/OwnFrameApp.swift:792-803", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:211-221,233,257", "OwnFrameTests/NewPhotosCardLabelTests.swift", "Packages/SlideshowKit/Sources/SlideshowKit/SlideshowViewModel.swift:505-523"]
 
   - id: UNATT-09
     fact: "Shows new photos instantly or via push when they are added."

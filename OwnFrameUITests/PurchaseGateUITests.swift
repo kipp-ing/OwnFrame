@@ -138,6 +138,39 @@ final class PurchaseGateUITests: XCTestCase {
                       "unlock.buy.supporter must be reachable and hittable, not merely present")
     }
 
+    /// 9000 T005 (#59): the filled accent buy button carries a near-black label, not a white one.
+    /// Whether SwiftUI picks white over the Messing fill can't be read from source, so this samples
+    /// an element screenshot. Only the button's middle band is read (glyphs and fill; the capsule's
+    /// corners show the sheet's dark ground): a white label shows as near-white pixels, a near-black
+    /// one as pixels far darker than the fill (Messing luma ≈ 0.69).
+    // @covers FR-9000-38
+    @MainActor
+    func testUnlockBuyButtonLabelIsNearBlack() throws {
+        let app = launchIntoSettings(entitlements: "none")
+        let kenBurnsRow = element(app, "settings.row.kenburns.locked")
+        XCTAssertTrue(scrollToElement(kenBurnsRow, in: app), "kenburns locked row must be present")
+        kenBurnsRow.tap()
+
+        XCTAssertTrue(element(app, "unlock.price.supporter").waitForExistence(timeout: 5),
+                      "the stub product must load so the button shows its final label")
+        let buy = element(app, "unlock.buy.supporter")
+        XCTAssertTrue(buy.waitForExistence(timeout: 5) && app.scrollUntilHittable(buy))
+        sleep(1)
+
+        let screenshot = buy.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "unlock-buy-ios\(UIDevice.current.systemVersion)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let lumas = try middleBandLumas(of: screenshot.image)
+        let count = Double(lumas.count)
+        let nearWhite = Double(lumas.filter { $0 > 0.93 }.count) / count
+        let nearBlack = Double(lumas.filter { $0 < 0.25 }.count) / count
+        XCTAssertLessThan(nearWhite, 0.01, "white label glyphs on the accent fill (\(nearWhite) of the band)")
+        XCTAssertGreaterThan(nearBlack, 0.01, "no near-black label glyphs on the accent fill (\(nearBlack) of the band)")
+    }
+
     // MARK: - Assertion 6 — pre-gate broker config degrades gracefully (US5 / SC-1100-06)
 
     /// A frame configured before the gate keeps its broker settings, and telemetry is free — so
@@ -339,5 +372,35 @@ final class PurchaseGateUITests: XCTestCase {
         if element.waitForExistence(timeout: 3) { return true }
         app.scrollUntilExists(element)
         return element.exists
+    }
+
+    /// Rec. 709 luma (0…1, on sRGB values) of every pixel in the middle band of `image`: rows
+    /// 30–70 %, columns 15–85 %, which stays inside a capsule button's fill.
+    private func middleBandLumas(of image: UIImage) throws -> [Double] {
+        let cgImage = try XCTUnwrap(image.cgImage)
+        let width = cgImage.width
+        let height = cgImage.height
+        var buffer = [UInt8](repeating: 0, count: width * height * 4)
+        let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let drawn: Bool = buffer.withUnsafeMutableBytes { raw in
+            guard let context = CGContext(
+                data: raw.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: width * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        XCTAssertTrue(drawn, "could not decode the button screenshot")
+
+        var lumas: [Double] = []
+        for y in (height * 3 / 10)..<(height * 7 / 10) {
+            for x in (width * 15 / 100)..<(width * 85 / 100) {
+                let i = (y * width + x) * 4
+                let r = Double(buffer[i]) / 255, g = Double(buffer[i + 1]) / 255, b = Double(buffer[i + 2]) / 255
+                lumas.append(0.2126 * r + 0.7152 * g + 0.0722 * b)
+            }
+        }
+        return lumas
     }
 }

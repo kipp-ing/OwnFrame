@@ -19,6 +19,7 @@
 import OnboardingKit
 import PhotoLibraryKit
 import PhotoSourceKit
+import PurchaseKit
 import SwiftUI
 import UIKit
 
@@ -183,7 +184,7 @@ struct PhotoAlbumPickerView: View {
                     openURL(url)
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.accentProminent)
             .accessibilityIdentifier("\(idPrefix).openSettings")
         }
         .frame(maxHeight: .infinity)

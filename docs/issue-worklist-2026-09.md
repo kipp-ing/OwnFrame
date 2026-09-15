@@ -87,9 +87,13 @@ album placeholder) as they are.
     only after re-verifying.
 
 ### WP4a — visible UI
-- [ ] #60 scrim in `NewPhotosOverlayView.card(for:)`; check via the capture seam over the beach photo (no store re-render)
-- [ ] #59 shared near-black prominent style at the 8 call sites (5 app, 3 PurchaseKit); check in the UI rig
-- [ ] commit → close #60 #59
+- [x] #72 soft-glass tier + eased scrims (`View+Compat.swift`, `SlideshowChrome.swift`); tint 0.38 of `#18181B` and no
+      dark-photo scrim scaling (Jan, 2026-09-15). Stays open for the Framepad eyeball (300 T010, `hitl.md` §4).
+- [x] #60 scrim in `NewPhotosOverlayView.card(for:)` at 0.60, checked hermetically over near-white/near-black stubs
+      instead of the beach photo; Jan approved the captures (2026-09-15)
+- [~] #59 shared `.accentProminent` style (PurchaseKit) at all 8 call sites, guard test + pixel assertion on the unlock
+      button (17.5 + 26.5). Open: site-by-site captures of the other seven (9000 T009)
+- [ ] commit → close #60; comment on #72 and #59 with what stays open
 
 ### WP4b — #65 share extension
 - [ ] remove the dead `extensionContext.open`

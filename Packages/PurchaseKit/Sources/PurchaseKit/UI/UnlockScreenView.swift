@@ -273,7 +273,7 @@ public struct UnlockScreenView: View {
                     Text("Unlock", bundle: .module)
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.accentProminent)
             // Any purchase in flight locks every row: one tap, one charge.
             .disabled(busy != nil)
             .accessibilityLabel(Text("Unlock \(product.displayName), \(product.displayPrice)", bundle: .module))
@@ -327,7 +327,7 @@ public struct UnlockScreenView: View {
             )
 
             Button(action: onClose) { Text("Done", bundle: .module) }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.accentProminent)
                 .accessibilityIdentifier("unlock.done")
         }
     }

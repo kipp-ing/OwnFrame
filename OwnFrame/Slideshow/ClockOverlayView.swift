@@ -157,7 +157,7 @@ private struct PillClock: View {
         .shadow(color: .black.opacity(0.35), radius: 6, y: 1)
         .padding(.horizontal, pointSize * 0.34)
         .padding(.vertical, pointSize * 0.18)
-        .glassCard(cornerRadius: 999)
+        .glassPill()
     }
 }
 

@@ -1264,6 +1264,9 @@ private struct StubImmichAPI: ImmichAPI {
     // fileprivate: the 900 fake photo gateway serves the same renders (pl-* falls
     // through to the purple default, visually marking the Photos backend).
     fileprivate static func renderPortrait(for assetID: String) -> Data {
+        if let tone = UITestPhotoTone(arguments: ProcessInfo.processInfo.arguments) {
+            return tone.renderPortrait()
+        }
         let size = CGSize(width: 810, height: 1080)
         let colors: [String: UIColor] = [
             "asset-1": .systemRed,
@@ -1419,6 +1422,40 @@ enum UITestNewPhotosCardSeam {
             defer { expanded = false }
             return expanded
         }
+    }
+}
+
+/// 300 T001 (#72) chrome-legibility capture seam: `--uitest-photo-tone=white|black` makes
+/// the stub renderer paint every photo as a full-bleed near-white (`#F8F8F8`) or near-black
+/// (`#080808`) portrait, with no border and no dot, so captures show the chrome over the
+/// worst-case tones FR-300-34 names. Absent or unknown values keep the default renders.
+nonisolated enum UITestPhotoTone: String {
+    case white
+    case black
+
+    init?(arguments: [String]) {
+        let prefix = "--uitest-photo-tone="
+        guard let flag = arguments.first(where: { $0.hasPrefix(prefix) }) else { return nil }
+        self.init(rawValue: String(flag.dropFirst(prefix.count)))
+    }
+
+    private var component: CGFloat {
+        switch self {
+        case .white: 0xF8 / 255
+        case .black: 0x08 / 255
+        }
+    }
+
+    /// Same 3:4 portrait size as the default stub renders, at scale 1 so pixel positions match.
+    func renderPortrait() -> Data {
+        let size = CGSize(width: 810, height: 1080)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            UIColor(red: component, green: component, blue: component, alpha: 1).setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+        return image.pngData() ?? Data()
     }
 }
 

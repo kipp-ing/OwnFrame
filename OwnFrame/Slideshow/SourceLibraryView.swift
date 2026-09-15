@@ -12,6 +12,7 @@
 import ImmichClient
 import OnboardingKit
 import PhotoLibraryKit
+import PurchaseKit
 import SwiftUI
 
 struct SourceLibraryView: View {
@@ -288,7 +289,7 @@ private struct AddAlbumDoneBar: View {
         Button(action: onDone) {
             Text(doneLabel).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.accentProminent)
         .padding()
         .background(.bar)
         .accessibilityIdentifier("sources.add.done")

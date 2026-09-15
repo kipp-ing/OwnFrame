@@ -34,6 +34,12 @@ struct NewPhotosOverlayView: View {
 
     static let displayDuration: Duration = .seconds(5)
 
+    /// The card's one in-shape dark layer (310, FR-310-15), in the soft-glass tint color: keeps its
+    /// white text at WCAG AA over a pure-white photo even with the glass ignored, so it reads over
+    /// bright photos on Liquid Glass and on the soft-glass tier alike. `NewPhotosCardScrimTests`
+    /// computes the floor; this may only move up from it.
+    nonisolated static let cardScrimOpacity: Double = 0.60
+
     /// 9010 slot 5 capture seam only: how often `SlideshowView` re-publishes a forced arrival
     /// so the card stays continuously up while the capture rig walks to its chosen asset.
     /// Must stay well inside `displayDuration` — the card fades itself out after that, and a
@@ -93,7 +99,7 @@ struct NewPhotosOverlayView: View {
         .shadow(color: .black.opacity(0.35), radius: 6, y: 1)
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .glassCard(cornerRadius: 20)
+        .glassCard(cornerRadius: 20, scrim: Self.cardScrimOpacity)
     }
 
     private func countLabel(_ count: Int) -> String {

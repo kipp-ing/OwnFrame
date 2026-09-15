@@ -55,13 +55,13 @@ visual gate is captures, because material blur cannot be asserted numerically.
 
 ## Phase 1: Capture seam & baseline
 
-- [ ] T001 Red+Green capture seam (**Claude**): a DEBUG-only launch argument
+- [x] T001 Red+Green capture seam (**Claude**): a DEBUG-only launch argument
       `--uitest-photo-tone=white|black` makes the hermetic stub renderer
       (`renderPortrait(for:)`, `OwnFrame/OwnFrameApp.swift` ~:1250-1274) paint a full-bleed
       near-white (`#F8F8F8`) or near-black (`#080808`) image with no border and no dot. Default
       renders stay unchanged. Red first in new `OwnFrameTests/UITestPhotoToneSeamTests.swift`
       (pattern: `UITestNewPhotosCardSeamTests`).
-- [ ] T002 Baseline captures (**Claude**): new `OwnFrameUITests/ChromeLegibilityCaptureUITests.swift`,
+- [x] T002 Baseline captures (**Claude**): new `OwnFrameUITests/ChromeLegibilityCaptureUITests.swift`,
       opt-in like `AppStoreScreenshotUITests` so the default suite only records it as a skip. It
       launches `--uitest --uitest-slideshow --uitest-photo-tone=white|black`, reveals the chrome,
       opens photo info, and attaches captures; add one capture with the clock pill (entitlements
@@ -69,27 +69,44 @@ visual gate is captures, because material blur cannot be asserted numerically.
       (glass path), confirming the runtime from the xcresult. Downscale (`sips -Z 900`) before
       reading. Record under this task, per tone and runtime, whether the top-bar and bottom-bar
       glyphs, the info card and the clock read.
+      **2026-09-15, iOS 18.6 (iPad Pro 11-inch M4), today's code:** over **near-white**, the top-bar and
+      bottom-bar glyphs barely read (pale grey `.bordered` discs, white glyphs, the 45 % scrim only a
+      grey band); the info card is a mid-grey plate with low-contrast white text; the clock pill
+      reads, but only because its digits are large and bold. Over **near-black** everything reads.
+      The seam needs `--uitest-reset-storage` on every launch, or the 320 snapshot replays cached
+      stub renders instead of the toned ones.
+      **iOS 26.5 (iPad Pro 11-inch M5), today's code:** no 26.0 runtime is installed here, so 26.5
+      stands in for the glass path. Over near-white, Liquid Glass in the dark app appearance already
+      renders dark-grey discs, a dark-grey info card and clock pill, all reading; over near-black
+      everything reads. The gap is the below-26 path, as the record said.
 
 ---
 
 ## Phase 2: Tests (red first) ⚠️
 
-- [ ] T003 [P] Red: new `OwnFrameTests/SoftGlassTierTests.swift` — structure pinned to the design
+- [x] T003 [P] Red: new `OwnFrameTests/SoftGlassTierTests.swift` — structure pinned to the design
       record: a named soft-glass tint constant ≈ 0.2 black, used inside the shape below iOS 26; the
       scrim stops are `[(0.34, 0.0), (0.18, 0.40), (0.06, 0.75), (0.0, 1.0)]` (record CSS :111-112);
       the scrim band height is 0.26 of the screen height. Red = the constants don't exist.
-- [ ] T004 [P] Red: same file, worst-case legibility arithmetic. A white glyph over a pure-white photo
+- [x] T004 [P] Red: same file, worst-case legibility arithmetic. A white glyph over a pure-white photo
       sits under the scrim value at the bars' vertical position: the 44 pt inset plus half a control,
       as a fraction of the 26% band on the smallest supported iPad/iPhone screen height. Composite
       that scrim with the soft-glass tint, ignoring blur, and require ≥ 3:1. That number is the icon
       threshold of FR-9000-07; FR-300-34 names none, so it is this plan's choice. **If the record's
       values fail the bound, stop and report to Jan. Do not re-tune the record's numbers silently.**
+      **Reported and decided 2026-09-15.** The record carries two tints: its implementation map says
+      "≈ black.opacity(0.2)", its soft-glass CSS says `rgba(24,24,27,.38)`. Under this model (blur and
+      the material's own darkening ignored, so a lower bound) 0.2 black gives ≈2.4–2.5:1 everywhere,
+      while 0.38 of `#18181B` gives ≈3.4:1 on iPhone portrait (667 pt) and ≈3.5:1 on the smallest
+      iPad height (iPad mini landscape, 744 pt), but ≈2.75:1 on iPhone landscape (375 pt). **Jan chose
+      the CSS tint, 0.38 of `#18181B`.** T003 pins that instead of 0.2; T004 asserts ≥ 3:1 for iPad
+      (both orientations) and iPhone portrait; iPhone landscape is checked by capture only.
 
 ---
 
 ## Phase 3: Implementation
 
-- [ ] T005 Green: soft-glass tier in `OwnFrame/Slideshow/View+Compat.swift`:
+- [x] T005 Green: soft-glass tier in `OwnFrame/Slideshow/View+Compat.swift`:
       - **Below iOS 26:** `glassCard(cornerRadius:)` = `ultraThinMaterial` plus the tint fill inside
         the same `RoundedRectangle`. `glassButtonStyle()` becomes a material button style (shape
         filled with `ultraThinMaterial` plus the tint, white label, a pressed state) instead of
@@ -101,16 +118,18 @@ visual gate is captures, because material blur cannot be asserted numerically.
       - The iOS 26 branches of `glassCard`, `glassButtonStyle` and `glassGroup` stay untouched.
 
       Green T003.
-- [ ] T006 Green: `OwnFrame/Slideshow/SlideshowChrome.swift:56-71` `edgeScrims` — the eased four-stop
+- [x] T006 Green: `OwnFrame/Slideshow/SlideshowChrome.swift:56-71` `edgeScrims` — the eased four-stop
       gradients from T003's constants over 26% of the screen height (read from the container)
       replace the fixed 160 pt 45% linear bands. Keep `.ignoresSafeArea()` and
       `.allowsHitTesting(false)`, and update the comments at :8-11 and :55-59. The scrims apply on
       **every** runtime (they are not a glass path), so iOS 26 captures change here and only here.
       Green T004.
-- [ ] T007 `OwnFrame/Slideshow/ClockOverlayView.swift:160` (`glassCard(cornerRadius: 999)`) →
+- [x] T007 `OwnFrame/Slideshow/ClockOverlayView.swift:160` (`glassCard(cornerRadius: 999)`) →
       `glassPill()`. `PhotoInfoView.swift:39` stays a card: the caption pill is a separate row of the
       record, not #72.
-- [ ] T008 Decision (record here; **ask Jan**): the record also scales scrim opacity by the current
+- [x] T008 **Decided by Jan 2026-09-15: not in #72.** Luminance-scaled scrims stay out of this
+      amendment (they calm dark photos, they don't fix legibility); a later task may pick them up.
+      Original question, kept for the record: the record also scales scrim opacity by the current
       photo's edge luminance, with one `CIAreaAverage` over the top/bottom fifths of the decoded
       image, cached per asset. The scrim fades toward ~15% over already-dark photos; the mock uses
       45% of the scrim for dark photos (CSS :114). That calms dark photos rather than fixing
@@ -124,17 +143,24 @@ visual gate is captures, because material blur cannot be asserted numerically.
 
 ## Phase 4: Verification & Close
 
-- [ ] T009 Re-capture (**Claude**): the T002 matrix on 18.6 and 26.0 (bars, info card, clock pill over
+- [x] T009 Re-capture (**Claude**): the T002 matrix on 18.6 and 26.0 (bars, info card, clock pill over
       near-white and near-black), compared against the baseline. On iOS 26 only the scrims may
       differ. Downscale before reading.
+      **2026-09-15, iOS 26.5:** bars, info card and clock pill are unchanged against the baseline;
+      only the scrims differ (longer, eased band). The new-photos card is darker by design (310 T037).
+      **Below 26 the re-capture ran on iOS 17.5, not 18.6:** the simulator name "iPad Pro 11-inch
+      (M4)" exists on both runtimes and XcodeBuildMCP resolved it to the 17.5 device (xcresult
+      `osVersion` 17.5). Same soft-glass path, closer to the Framepad floor. Over near-white the bar
+      glyphs, info card, clock pill and new-photos card all sit on dark-grey soft glass and read,
+      where the 18.6 baseline washed out; over near-black everything reads.
 - [ ] T010 **Jan (HITL)**: eyeball on **Framepad** (iPad Pro 10.5, iOS 17.7.10, the deployment floor)
       over a near-white and a near-black photo, via `.claude/scripts/framepad.sh` (recipes in
       `docs/device-testing.md`). Queue it in `docs/hitl.md`.
-- [ ] T011 `test_sim` whole classes `SoftGlassTierTests`, `UITestPhotoToneSeamTests`,
+- [x] T011 `test_sim` whole classes `SoftGlassTierTests`, `UITestPhotoToneSeamTests`,
       `SlideshowChromeUITests`, `ClockOverlayUITests`, `PhotoInfoUITests`, `AlbumBrowserUITests`
       (its card uses `glassCard`, `AlbumBrowserView.swift:141`) (**Claude**). The full XCUITest suite
       runs at the worklist's final gate (WP5).
-- [ ] T012 Facts, **same commit as T005/T006**: `product-facts.yaml` **LOOK-03** →
+- [x] T012 Facts, **same commit as T005/T006**: `product-facts.yaml` **LOOK-03** →
       `implementation: verified` on the T009 captures; remove `mismatch`/`candidate_issue`; refresh
       `evidence` (tier lines in `View+Compat.swift`, scrim lines in `SlideshowChrome.swift`,
       `SoftGlassTierTests.swift`). If T010 later disagrees, set it back to `mismatch`. Run

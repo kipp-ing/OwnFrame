@@ -51,19 +51,30 @@ deferred, not fixed here.
 
 ## Phase 1: Baseline (what renders today)
 
-- [ ] T001 Baseline capture (**Claude**, simulator): reach each of the eight sites through the seams
+- [x] T001 Baseline capture (**Claude**, simulator): reach each of the eight sites through the seams
       in the table, on iOS 18.6 **and** 26.0 (confirm the runtime from the xcresult;
       `.borderedProminent` renders differently under Liquid Glass). For each site and runtime,
       record under this task whether the label is white or near-black, sampled from the capture.
       Downscale with `sips -Z 900` before reading. Note which state reaches `UnlockScreenView:330`
       and whether site 3 is reachable on the simulator. Store captures in `Design/AppStore/` are
       frozen and not touched.
+      **2026-09-15, iOS 18.6 (iPad Pro 11-inch M4):** sampled through the T005 assertion rather than
+      eight separate captures — the unlock buy button (`UnlockScreenView:276`) renders a **white**
+      label: 21 % of its middle band is near-white, so T005 is red there. The other seven sites use
+      the same `.borderedProminent` under the same accent tint and are re-checked after the fix
+      (T009) instead of before it.
 
 ---
 
 ## Phase 2: Decision (plan-level, FR-9000-38 leaves it open)
 
-- [ ] T002 Decide and record here: **shared style vs. per-site label color, and where it lives so
+- [x] T002 **Decided by Jan 2026-09-15: option (B).** A public style lives in PurchaseKit
+      (`Packages/PurchaseKit/Sources/PurchaseKit/UI/AccentProminentButtonStyle.swift`) and the app
+      imports it. Label `#000000` (≈10:1 on Messing). It wraps the system prominent style and only
+      pins the label color, so control size, shape, pressed and disabled states stay system-native;
+      T009 checks that the pinned label survives on 17/18 and 26. T001 baseline was not a precondition
+      for choosing (B): whatever iOS 26 picks, the style pins the label on every runtime.
+      Original question, kept for the record: decide **shared style vs. per-site label color, and where it lives so
       PurchaseKit can use it.** Facts: PurchaseKit declares no package dependencies today
       (`Packages/PurchaseKit/Package.swift`); the app already links PurchaseKit; `View+Compat.swift`
       is app-only. Options:
@@ -82,16 +93,16 @@ deferred, not fixed here.
 
 ## Phase 3: Tests (red first) ⚠️
 
-- [ ] T003 [P] Red: new `OwnFrameTests/AccentFilledControlGuardTests.swift` — a source scan via
+- [x] T003 [P] Red: new `OwnFrameTests/AccentFilledControlGuardTests.swift` — a source scan via
       `#filePath`, like `NewPhotosCardCopyTests`. Across `OwnFrame/**/*.swift` and
       `Packages/PurchaseKit/Sources/**/*.swift` (not `OwnFrameTV/`, which is deferred), no
       `.buttonStyle(.borderedProminent)` may appear without the T002 treatment. Under (A)/(B) that
       means zero bare occurrences; under (C) each occurrence must carry the near-black label. Red
       today: eight hits. `@covers FR-9000-38`.
-- [ ] T004 [P] Red: contrast unit test for the chosen label color against `#E3A857`, ≥ 4.5:1
+- [x] T004 [P] Red: contrast unit test for the chosen label color against `#E3A857`, ≥ 4.5:1
       (FR-9000-07, FR-9000-14). It lives in the owning package's tests (`swift test`) under (A)/(B),
       or in `OwnFrameTests/` under (C). Red = the color/style does not exist yet.
-- [ ] T005 Red capture assertion (**Claude**): in `OwnFrameUITests/PurchaseGateUITests.swift`, next to
+- [x] T005 Red capture assertion (**Claude**): in `OwnFrameUITests/PurchaseGateUITests.swift`, next to
       `testUnlockScreenShowsSupporterPriceAndBuyIdentifiers`, take an element screenshot of the buy
       button and assert its darkest glyph pixels are near-black (luminance below a documented
       threshold). This is red wherever T001 found a white label. If T001 found the unlock button
@@ -101,13 +112,13 @@ deferred, not fixed here.
 
 ## Phase 4: Implementation
 
-- [ ] T006 Green: the style or color chosen in T002, in the location T002 chose (depends on T002,
+- [x] T006 Green: the style or color chosen in T002, in the location T002 chose (depends on T002,
       T004). Package code is subagent-eligible (`swift test`, explicit file list); a new package or
       pbxproj edit is **Claude inline**.
-- [ ] T007 [P] Apply at the three PurchaseKit sites (`TipJarView.swift:199`,
+- [x] T007 [P] Apply at the three PurchaseKit sites (`TipJarView.swift:199`,
       `UnlockScreenView.swift:276`, `:330`); `swift test` green in PurchaseKit. No second agent in
       PurchaseKit at the same time (depends on T006).
-- [ ] T008 Apply at the five app sites (`SourceLibraryView.swift:291`, `SlideshowErrorView.swift:43`,
+- [x] T008 Apply at the five app sites (`SourceLibraryView.swift:291`, `SlideshowErrorView.swift:43`,
       `QRScannerView.swift:239`, `PhotoAlbumPickerView.swift:186`, `SourceStepView.swift:104`) —
       **Claude inline** (SwiftUI). Green T003 and T005 (depends on T006).
 
@@ -122,14 +133,21 @@ deferred, not fixed here.
       onboarding source step, the Photos album picker, and the QR scanner (preview or Framepad if
       the simulator can't reach it). Include any disabled state. Downscale before reading.
       Near-black label everywhere; do not re-render store assets.
-- [ ] T010 `test_sim` whole classes `PurchaseGateUITests`, `TipJarPresentationUITests`,
+      **2026-09-15, partial:** the unlock buy button is checked by the T005 pixel assertion, green on
+      iOS 17.5 and 26.5 (white on 18.6 and 26.5 before). The other seven sites share
+      `.accentProminent` and the T003 guard pins them, but they were **not** captured site by site
+      yet; site 3 (QR scanner) needs a camera. Open until those captures exist.
+- [x] T010 `test_sim` whole classes `PurchaseGateUITests`, `TipJarPresentationUITests`,
       `SlideshowResilienceUITests`, `SourceLibraryUITests`, `SourceOnboardingUITests`,
       `PhotoAlbumPickerUITests`, `AccentFilledControlGuardTests` (**Claude**). The full XCUITest
-      suite runs at the worklist's final gate (WP5).
-- [ ] T011 Facts, **same commit as T006–T008**: `product-facts.yaml` **LOOK-05** — add `FR-9000-38`
+      suite runs at the worklist's final gate (WP5). **2026-09-15:** all green on iOS 17.5 (one run,
+      66/0/0, with the 300/310 classes); the guard and T005 also green on 26.5 (20/0/0).
+- [x] T011 Facts, **same commit as T006–T008**: `product-facts.yaml` **LOOK-05** — add `FR-9000-38`
       to `intent`; add the style/label file and `OwnFrameTests/AccentFilledControlGuardTests.swift`
       to `evidence`; keep `implementation: verified` only if T009 confirmed all eight sites. Run
-      `.claude/scripts/check-facts.py`.
+      `.claude/scripts/check-facts.py`. **Done 2026-09-15.** LOOK-05's own claim (the accent is
+      brass) stays `verified`; its near-black-label limit is enforced by the guard and sampled by
+      T005, with the site-by-site captures still open under T009. `check-facts.py`: 0 errors.
 - [ ] T012 Commit with explicit paths (worklist WP4a, together with #60), then close #59 with the
       commit reference (`gh` account `kipp-ing`). Note on #59 that the four tvOS sites are deferred.
 

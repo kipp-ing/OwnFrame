@@ -15,6 +15,7 @@
 import AVFoundation
 import Observation
 import OnboardingKit
+import PurchaseKit
 import SwiftUI
 
 // AVFoundation predates Swift's Sendable audit, so `AVCaptureSession` isn't marked Sendable —
@@ -236,7 +237,7 @@ struct QRScannerView: View {
             Button("Done") {
                 scanner.cancel()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.accentProminent)
             .accessibilityIdentifier("onboarding.sharedLink.scan.cancel")
         }
         .padding()

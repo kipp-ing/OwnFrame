@@ -15,6 +15,7 @@
 import ImmichClient
 import OnboardingKit
 import PhotoLibraryKit
+import PurchaseKit
 import SwiftUI
 
 struct SourceStepView: View {
@@ -101,7 +102,7 @@ private struct AddedSourcesBar: View {
             Button(action: onContinue) {
                 Text("Continue").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.accentProminent)
             .accessibilityIdentifier("onboarding.source.continue")
         }
         .padding()

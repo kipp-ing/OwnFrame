@@ -196,7 +196,7 @@ public struct TipJarView: View {
                     Text("Tip", bundle: .module)
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.accentProminent)
             // Any tip in flight locks every row: one tap, one charge.
             .disabled(busy != nil)
             .accessibilityLabel(Text("Tip \(tip.displayName), \(tip.displayPrice)", bundle: .module))

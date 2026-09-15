@@ -8,6 +8,7 @@
 //  copy names the actionable fix instead of a generic hint (FR-310-05).
 //
 
+import PurchaseKit
 import SlideshowKit
 import SwiftUI
 import UIKit
@@ -40,7 +41,7 @@ struct SlideshowErrorView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button("Try again", action: onRetry)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.accentProminent)
                 .accessibilityIdentifier("slideshow.retry")
             if let onFixConnection {
                 Button("Edit connection", action: onFixConnection)
