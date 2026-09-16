@@ -151,7 +151,40 @@ sequence, in order. Nothing here is optional.
 5. **Full XCUITest suite green before the merge** — house rule; screenshots miss
    UI-test regressions.
 
-## Layer 4 — real hardware
+### Which simulator OS — a policy, not a pinned number (2026-09-16)
+
+Don't hardcode a specific point release (an earlier WP5 checklist said "18.6 and 26.0"; Jan
+called that out as useless once 26.0 stopped being installed). Gate on **4 legs**: {oldest
+supported, newest available} × {iPad, iPhone}.
+
+- **Oldest supported** = our deployment floor **major** version (CLAUDE.md: iOS/iPadOS 17+), at
+  **its own newest patch** — not the major's original release. Check the real number against
+  Apple, not memory (see [[verify-against-primary-source]]): as of 2026-09-16 that's iOS 17.7.11.
+- **Newest available** = whatever is currently ahead of everyone else, GA or public beta,
+  whichever is further along right now. As of 2026-09-16 that's iOS/iPadOS 27.0 GA (released
+  2026-09-14) — no 27.1 public beta exists yet, so GA is the newest leg.
+- Re-derive both numbers each gate session — they drift every few weeks. `xcrun simctl list
+  runtimes` shows what's actually installed here; it will not always have the literal newest
+  patch of an aged-out major, because Apple stops shipping new simulator images for a major once
+  it's superseded (here: 17.5 is the newest installable 17.x *simulator*, even though 17.7.11
+  shipped to real devices). When that gap exists, say so explicitly in the gate report and lean
+  on the real hardware rig instead — Framepad (iOS 17.7.10) and FramePhone (whatever they're
+  currently on, see [device-testing.md](device-testing.md)) are the authoritative check for the
+  true oldest/newest patch; the simulator leg is the closest available proxy, not a replacement.
+- iPad device: `iPad Pro 11-inch (M4)` on both legs (existing gate convention). iPhone device:
+  no fixed convention yet — FramePhone's real hardware is an iPhone 13 mini, so reusing that
+  model for the simulator legs keeps device-vs-simulator comparisons apples-to-apples (see the
+  iOS 27 confound-closed section below); pick a screen-size-diverse model deliberately if you
+  want layout stress instead.
+
+**Known gap (2026-09-16, issue #77):** a freshly-created iOS 27.0 simulator (`xcrun simctl
+create`) loops a SpringBoard "Sign in to Apple Account" dialog on launch, over the app's
+onboarding screen — Cancel does not clear it, it reappears immediately, and `erase` +
+reboot doesn't help either. Blocks all UI automation on that device. Not reproduced on
+simulators that already existed before this was discovered (17.5/18.6/26.5), so a first-run
+account-probe state on a brand-new device is suspected, not proven. The first WP5 run under
+this policy (2026-09-16) only got the two 17.5 ("oldest supported") legs done; the 27.0
+("newest available") legs are blocked on #77, not silently skipped.
 
 Some contracts cannot be proved in a simulator at all (real MQTT/TLS, real CloudKit,
 panel smoothness, soak). Those run on the physical frame — see
@@ -340,6 +373,10 @@ of hanging the run.
   run went 7 min → 29 min with spurious hittability failures across unrelated tests.
   `xcrun simctl erase <id>` (shut down first) restores normal timing — do that before
   trusting a bad full-suite run late in a session.
+- **`SettingsStorageUITests/testClearResetsTheUsageLabelAfterConfirmation`** failed once in a
+  full-suite run (2026-09-16, iPad Pro 11" M4, 17.5) with "Application … is not running" —
+  green 3/3 in isolation immediately after. Harness-like, matches the `BrokerSetupUITests`
+  shape above.
 
 ### SwiftUI landmines
 

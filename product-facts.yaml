@@ -5,8 +5,8 @@
 #                 unverified (not confirmed in code, or needs a device) | n/a (nothing to build)
 # evidence paths are repo-relative; ":n" suffixes are line numbers at commit 7867732.
 schema: 1
-updated: 2026-09-13
-verified_commit: 73ff5f0
+updated: 2026-09-16
+verified_commit: 404ae81
 purpose: "OwnFrame turns an iPad or iPhone you already own into a digital photo frame that is easy to set up, needs no fiddling, and picks up new photos from an album on its own. The whole core frame is free; one optional one-time purchase adds extras."
 audience:
   - "People looking for a digital photo frame who have a spare iPad or iPhone (for example an old one in a drawer)"
@@ -128,7 +128,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-02", "FR-210-06", "FR-210-10", "FR-210-11", "FR-130-03"]
     implementation: verified
-    evidence: ["Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:141-150,172-180", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39"]
+    evidence: ["Packages/ImmichClient/Sources/ImmichClient/SharedLinkResolver.swift:80-88,121-139", "Packages/OnboardingKit/Sources/OnboardingKit/SharedLinkSecretStore.swift:10-39"]
 
   - id: SRC-06
     fact: "An Immich link can be added by scanning the QR code Immich shows for a shared album, in first-run setup and in Settings."
@@ -142,7 +142,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["J-02", "FR-220-04", "FR-220-05", "FR-220-06", "FR-120-12"]
     implementation: verified
-    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:47-72", "OwnFrame/Onboarding/SharedLinkSetupView.swift:94,132", "OwnFrame/Onboarding/SharedLinkAddForm.swift:51", "Packages/OnboardingKit/Sources/OnboardingKit/ScannedShareLink.swift:32-50"]
+    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:68-140", "OwnFrame/Onboarding/SharedLinkSetupView.swift:94,132", "OwnFrame/Onboarding/SharedLinkAddForm.swift:51", "Packages/OnboardingKit/Sources/OnboardingKit/ScannedShareLink.swift:32-50"]
 
   - id: SRC-07
     fact: "OwnFrame appears in the iOS Share Sheet: an Immich link shared into it is resolved and becomes the playing source (asking for a password once if needed), or opens pre-filled setup on a fresh install."
@@ -204,12 +204,12 @@ facts:
     limits:
       - "One active source at a time; sources are never combined into one slideshow."
       - "Every source is checked before it is saved."
-      - "Reordering is specified (FR-120-03) but was not confirmed in the code check."
+      - "Reordering (drag via Edit) is implemented and persists."
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-120-01", "FR-120-03", "FR-120-04", "FR-120-06", "FR-120-09", "FR-120-11"]
     implementation: verified
-    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23", "OwnFrame/Slideshow/SourceLibraryView.swift:7,43-51,85-88", "OwnFrame/OwnFrameApp.swift:458-467"]
+    evidence: ["Packages/OnboardingKit/Sources/OnboardingKit/Source.swift:15-23", "OwnFrame/Slideshow/SourceLibraryView.swift:7,43-51,85-88", "OwnFrame/OwnFrameApp.swift:458-467", "Packages/OnboardingKit/Sources/OnboardingKit/SourceLibraryViewModel.swift:326"]
 
   - id: SRC-12
     fact: "The Immich server address and API key can be changed later in Settings and are checked before saving; a reset clears the connection and returns to setup."
@@ -808,7 +808,7 @@ facts:
     platforms: [ios, ipados]
     intent: []
     implementation: verified
-    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:47-72"]
+    evidence: ["OwnFrame/Onboarding/QRScannerView.swift:68-140"]
 
   # ------------------------------------------------------------------ REMOTE — Home Assistant over MQTT
   - id: REMOTE-01
@@ -848,7 +848,7 @@ facts:
     platforms: [ios, ipados]
     intent: ["FR-710-05", "FR-710-06", "FR-710-25", "FR-900-11"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:307-308,330-341", "Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-89", "OwnFrameTests/SlideshowRemoteControlAdapterTests.swift", "OwnFrameTests/HAControlRoundTripTests.swift"]
+    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:284,313,330-339", "Packages/ImmichClient/Sources/ImmichClient/ImmichPhotoSource.swift:71-89", "OwnFrameTests/SlideshowRemoteControlAdapterTests.swift", "OwnFrameTests/HAControlRoundTripTests.swift"]
 
   - id: REMOTE-04
     fact: "Can optionally publish the current photo itself to Home Assistant as an image."
@@ -1061,11 +1061,12 @@ facts:
     limits:
       - "With a broker configured, the current photo's date goes to Home Assistant."
       - "The photo image goes only when image publishing is switched on."
+      - "For a Photos source, the source's own label also reaches Home Assistant as the album name (always, not opt-in)."
     gated: n/a
     platforms: [ios, ipados]
     intent: ["FR-900-12", "FR-900-14"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:307-308", "Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-16"]
+    evidence: ["OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:289-290", "Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-16"]
 
   - id: PRIV-08
     fact: "Asks for Photos access only when a Photos source is chosen, camera access only for QR scanning, and local-network access for Immich servers on the local network."

@@ -151,13 +151,21 @@ Revised package order:
 - [x] **#73 reset leftovers:** delete Immich-link passwords on Reset (red test first). Landing screen: Jan had no
       preference (2026-09-14), so Reset stays on the connection step and FR-200-24 is unchanged.
 
-### WP5 — #66 + final gate
-- [ ] Subagent: #66 comments + "Uhr-Overlay" → "Uhr-Einblendung"
-- [ ] App catalog: Xcode's build extraction adds the key **"New photos card"** (older code, not WP2) with no German
-      value. Add it with a DE translation and put it on Jan's German string list. Commit only the key, not Xcode's
-      reformatting of the whole file (found 2026-09-14 after WP2).
-- [ ] Full gate: host packages; iOS suite on 18.6 **and** 26.0 (confirm the runtime from the xcresult, check the
-      StoreKit skip count)
-- [ ] `check-facts.py`, bump `verified_commit`; list new German strings for Jan; note in `docs/store-story.md` that the
-      captures predate #59/#60/#61
+### WP5 — #66 + final gate — ✅ DONE 2026-09-16 (gate partial, see below)
+- [x] #66 comments + "Uhr-Overlay" → "Uhr-Einblendung" — all five fixed in `404ae81` (2026-09-15); closed
+      with a confirming comment this session.
+- [x] App catalog "New photos card" German value — added in `404ae81`; already on Jan's list (`hitl.md` §2c).
+- [~] Full gate: host packages **all green** (949 tests, 12 packages). Simulator legs redefined this session
+      from the stale "18.6/26.0" pin to the 4-leg policy in `docs/testing.md` — only the two **oldest-supported
+      (17.5)** legs actually ran (iPad Pro 11" M4: 215/0/69 after confirming one flake in isolation, see
+      `docs/testing.md` known-flakes; iPhone SE 3rd gen: 212/0/69 after filing the one reproducible failure as
+      #76 — a scroll-reachability issue specific to that device/OS, not a product regression). The
+      **newest-available (27.0) legs are blocked**: a fresh 27.0 simulator loops a system Apple-ID sign-in
+      dialog that neither Cancel nor erase+reboot clears (#77) — dropped from this session's gate on Jan's
+      call rather than spending more time chasing it blind.
+- [x] `check-facts.py` → 0 errors, 0 re-verify warnings; `verified_commit` bumped to `404ae81`. Semantic
+      re-verify (not just line-number drift) of all 45 flagged facts found one real gap (PRIV-07, closed,
+      see `hitl.md` §2c) and one stale caveat (SRC-11, reordering is implemented, caveat removed); a handful
+      of evidence line-number corrections besides. German string list in `hitl.md` §2c already complete —
+      #66 was comments-only, nothing new to add.
 - [ ] Push / `publish-public.sh` only on Jan's word
