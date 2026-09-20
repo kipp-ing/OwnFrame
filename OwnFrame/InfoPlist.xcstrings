@@ -1,0 +1,24 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSCameraUsageDescription" : {
+      "comment" : "Camera permission alert shown before the first QR scan. Explains that the camera is used only to read a shared-album QR code and nothing is captured or stored (issue #81).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OwnFrame nutzt die Kamera nur, um den QR-Code eines geteilten Albums zu lesen. Es wird kein Foto aufgenommen oder gespeichert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OwnFrame uses the camera only to read a shared-album QR code. No photo is captured or stored."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}
