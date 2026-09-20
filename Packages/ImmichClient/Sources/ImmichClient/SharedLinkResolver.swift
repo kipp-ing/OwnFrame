@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-public struct SharedLinkResolution: Sendable, Equatable {
+public struct SharedLinkResolution: Sendable, Equatable, Codable {
     public let key: String
     public let albumID: String
     public let expiresAt: Date?

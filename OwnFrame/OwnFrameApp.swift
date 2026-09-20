@@ -265,6 +265,11 @@ struct OwnFrameApp: App {
         let sourceStore = UserDefaultsSourceLibraryStore()
         let secretStore = KeychainSharedLinkSecretStore()
         let sharedLinkResolver = SharedLinkResolver()
+        // A cold launch while offline has no network to resolve a shared-link source's slug
+        // with; this is the last successful resolution to fall back to instead of stalling on
+        // a black screen forever (issue #80). The share key it holds grants server access like
+        // an API key, so it lives in the Keychain, never UserDefaults (Constitution III).
+        let sharedLinkResolutionCache = KeychainSharedLinkResolutionStore()
         // The Share Extension writes an incoming share URL here (App Group, URL only); the
         // host consumes it on launch/foreground/open-URL (210, US2).
         let pendingLinkStore = AppGroupPendingSharedLinkStore()
@@ -375,7 +380,8 @@ struct OwnFrameApp: App {
                 albumBaseURL: config.loadBaseURL(),
                 apiKey: keychain.read(),
                 secretStore: secretStore,
-                sharedLinkResolver: sharedLinkResolver
+                sharedLinkResolver: sharedLinkResolver,
+                resolutionCache: sharedLinkResolutionCache
             )
             return try? await resolver.resolve(active)
         }

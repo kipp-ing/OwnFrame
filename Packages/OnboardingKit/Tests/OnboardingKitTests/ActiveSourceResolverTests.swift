@@ -113,6 +113,105 @@ import Testing
     }
 }
 
+// MARK: - Offline fallback for a shared-link source (issue #80 — cold-launch black screen)
+
+// @covers issue #80
+@Test func activeSourceResolverCachesASuccessfulSharedLinkResolutionForLaterOfflineFallback() async throws {
+    let source = Source(
+        id: "source-1",
+        label: "Shared",
+        kind: .sharedLink(baseURL: URL(string: "https://shared.example.test")!, slug: "summer")
+    )
+    let cache = InMemorySharedLinkResolutionStore()
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: nil,
+        apiKey: nil,
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver(
+            result: .success(SharedLinkResolution(key: "share-key", albumID: "resolved-album", expiresAt: nil))
+        ),
+        resolutionCache: cache
+    )
+
+    _ = try await resolver.resolve(source)
+
+    let cached = try #require(cache.read(forSourceID: "source-1"))
+    #expect(cached.key == "share-key")
+    #expect(cached.albumID == "resolved-album")
+}
+
+// @covers issue #80
+@Test func activeSourceResolverFallsBackToTheCachedResolutionWhenTheNetworkIsUnreachable() async throws {
+    let source = Source(
+        id: "source-1",
+        label: "Shared",
+        kind: .sharedLink(baseURL: URL(string: "https://shared.example.test")!, slug: "summer")
+    )
+    let cache = InMemorySharedLinkResolutionStore(resolutionsBySourceID: [
+        "source-1": SharedLinkResolution(key: "cached-key", albumID: "cached-album", expiresAt: nil),
+    ])
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: nil,
+        apiKey: nil,
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver(result: .failure(ImmichError.unreachable)),
+        resolutionCache: cache
+    )
+
+    let resolved = try await resolver.resolve(source)
+
+    #expect(resolved.serverConfig.baseURL == URL(string: "https://shared.example.test")!)
+    #expect(resolved.serverConfig.auth == .shareKey("cached-key"))
+    #expect(resolved.albumID == "cached-album")
+}
+
+// @covers issue #80
+@Test func activeSourceResolverStillThrowsUnreachableWhenNoCacheExistsYet() async {
+    let source = Source(
+        id: "source-1",
+        label: "Shared",
+        kind: .sharedLink(baseURL: URL(string: "https://shared.example.test")!, slug: "summer")
+    )
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: nil,
+        apiKey: nil,
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver(result: .failure(ImmichError.unreachable)),
+        resolutionCache: InMemorySharedLinkResolutionStore()
+    )
+
+    // A source never resolved online at least once has nothing to fall back to — the very
+    // first launch still needs a real network answer, exactly as before this fix.
+    await #expect(throws: ImmichError.unreachable) {
+        _ = try await resolver.resolve(source)
+    }
+}
+
+// @covers issue #80
+@Test func activeSourceResolverNeverFallsBackToTheCacheForANonUnreachableFailure() async {
+    let source = Source(
+        id: "source-1",
+        label: "Shared",
+        kind: .sharedLink(baseURL: URL(string: "https://shared.example.test")!, slug: "summer")
+    )
+    // A cache entry exists, but a wrong password is a real answer from the server — it must
+    // still surface as one rather than being masked by a stale cached success.
+    let cache = InMemorySharedLinkResolutionStore(resolutionsBySourceID: [
+        "source-1": SharedLinkResolution(key: "cached-key", albumID: "cached-album", expiresAt: nil),
+    ])
+    let resolver = ActiveSourceResolver(
+        albumBaseURL: nil,
+        apiKey: nil,
+        secretStore: InMemorySharedLinkSecretStore(),
+        sharedLinkResolver: StubSharedLinkResolver(result: .failure(ImmichError.wrongPassword)),
+        resolutionCache: cache
+    )
+
+    await #expect(throws: ImmichError.wrongPassword) {
+        _ = try await resolver.resolve(source)
+    }
+}
+
 // A photo-library source has no Immich server to resolve against — the app builds its
 // provider directly by SourceKind (900). This Immich-only resolver rejects it calmly rather
 // than fabricating a server config, and never crashes.

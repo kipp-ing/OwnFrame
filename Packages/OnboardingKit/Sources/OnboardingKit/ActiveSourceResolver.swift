@@ -19,17 +19,20 @@ public struct ActiveSourceResolver: Sendable {
     private let apiKey: String?
     private let secretStore: any SharedLinkSecretStore
     private let sharedLinkResolver: any SharedLinkResolving
+    private let resolutionCache: any SharedLinkResolutionStore
 
     public init(
         albumBaseURL: URL?,
         apiKey: String?,
         secretStore: any SharedLinkSecretStore,
-        sharedLinkResolver: any SharedLinkResolving
+        sharedLinkResolver: any SharedLinkResolving,
+        resolutionCache: any SharedLinkResolutionStore = InMemorySharedLinkResolutionStore()
     ) {
         self.albumBaseURL = albumBaseURL
         self.apiKey = apiKey
         self.secretStore = secretStore
         self.sharedLinkResolver = sharedLinkResolver
+        self.resolutionCache = resolutionCache
     }
 
     public func resolve(_ source: Source) async throws -> ResolvedSource {
@@ -46,7 +49,21 @@ public struct ActiveSourceResolver: Sendable {
             )
         case let .sharedLink(baseURL, slug):
             let password = secretStore.readPassword(forSourceID: source.id)
-            let resolution = try await sharedLinkResolver.resolve(baseURL: baseURL, slug: slug, password: password)
+            let resolution: SharedLinkResolution
+            do {
+                resolution = try await sharedLinkResolver.resolve(baseURL: baseURL, slug: slug, password: password)
+                resolutionCache.save(resolution, forSourceID: source.id)
+            } catch ImmichError.unreachable {
+                // A cold launch while offline (issue #80) has no network to resolve the slug
+                // with — fall back to the last successful resolution rather than stalling the
+                // whole slideshow on a black screen. Only for "unreachable": every other
+                // failure (wrong password, expired/invalid link) is a real answer from the
+                // server and must still surface as one.
+                guard let cached = resolutionCache.read(forSourceID: source.id) else {
+                    throw ImmichError.unreachable
+                }
+                resolution = cached
+            }
             return ResolvedSource(
                 serverConfig: ServerConfig(baseURL: baseURL, auth: .shareKey(resolution.key)),
                 albumID: resolution.albumID
