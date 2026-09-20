@@ -36,7 +36,7 @@ private final class StoreFixture {
         }
         self.defaults = defaults
         self.client = client
-        self.store = EntitlementStore(client: client, cache: cache)
+        self.store = EntitlementStore(client: client, cache: cache, sleep: { _ in })
     }
 
     /// Reads the snapshot back through a fresh cache instance — proves it really hit defaults.
@@ -49,7 +49,8 @@ private final class StoreFixture {
         let freshClient = StoreClientFake()
         let store = EntitlementStore(
             client: freshClient,
-            cache: EntitlementSnapshotCache(defaults: defaults.defaults)
+            cache: EntitlementSnapshotCache(defaults: defaults.defaults),
+            sleep: { _ in }
         )
         return (store, freshClient)
     }
@@ -255,6 +256,55 @@ private final class StoreFixture {
     #expect(fixture.client.callLog == [.restore])
     #expect(fixture.client.ownedTransactionsCallCount == 0)
     #expect(fixture.store.current == [.supporter])
+}
+
+// MARK: - refreshUntilOwns(): tolerates the StoreKit propagation lag right after a purchase (#79)
+//
+// Found on a real device (2026-09-20): buying the Supporter Unlock sometimes only showed as
+// unlocked after a *second* tap on "Unlock". A single `refresh()` right after `purchase()`
+// reports success can read `ownedTransactions()` before StoreKit's own local transaction store
+// has caught up with the purchase it just made. `StoreFixture`'s store is built with a no-op
+// `sleep`, so these stay instant regardless of how many attempts the real implementation waits.
+
+@MainActor
+// @covers issue #79
+@Test func refreshUntilOwnsSucceedsOnTheFirstQueryWhenAlreadyReflected() async {
+    let fixture = StoreFixture()
+    fixture.client.enqueueOwned(.supporter)
+
+    await fixture.store.refreshUntilOwns(.supporter)
+
+    #expect(fixture.store.current == EntitlementSet.all)
+    #expect(fixture.client.ownedTransactionsCallCount == 1)
+}
+
+@MainActor
+// @covers issue #79
+@Test func refreshUntilOwnsRetriesWhenTheFirstQueryIsStillStale() async {
+    let fixture = StoreFixture()
+    // The first query right after a purchase misses it — the propagation lag this reproduces —
+    // and only the second reflects it.
+    fixture.client.enqueueOwned()
+    fixture.client.setDefaultOwnedTransactions(
+        .success([OwnedTransaction(productID: ProductID.supporter.rawValue, isRevoked: false)])
+    )
+
+    await fixture.store.refreshUntilOwns(.supporter)
+
+    #expect(fixture.store.current == EntitlementSet.all)
+    #expect(fixture.client.ownedTransactionsCallCount == 2)
+}
+
+@MainActor
+// @covers issue #79
+@Test func refreshUntilOwnsGivesUpAfterThreeAttemptsRatherThanLoopingForever() async {
+    let fixture = StoreFixture()
+    fixture.client.setDefaultOwnedTransactions(.success([]))
+
+    await fixture.store.refreshUntilOwns(.supporter)
+
+    #expect(fixture.store.current == [])
+    #expect(fixture.client.ownedTransactionsCallCount == 3)
 }
 
 // ===========================================================================================

@@ -126,8 +126,9 @@ public final class PurchaseViewModel {
             switch try await client.purchase(id) {
             case .success:
                 // Ownership is re-resolved and persisted by the store; the outcome alone is never
-                // treated as a grant.
-                await store.refresh()
+                // treated as a grant. `refreshUntilOwns` tolerates the brief StoreKit propagation
+                // lag right after a purchase instead of settling for a stale read (issue #79).
+                await store.refreshUntilOwns(id)
                 phase = .completed(store.current)
 
             case .pending:

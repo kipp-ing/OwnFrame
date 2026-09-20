@@ -22,6 +22,9 @@ public final class EntitlementStore {
     @ObservationIgnored private let cache: EntitlementSnapshotCache
     /// The single live ``listenForUpdates()`` consumer, or nil before it starts.
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
+    /// The wait between ``refreshUntilOwns(_:)`` attempts. Real `Task.sleep` in production;
+    /// tests inject a no-op so the retry path stays instant (no real sleeps in this suite).
+    @ObservationIgnored private let sleep: @Sendable (Duration) async -> Void
 
     deinit { updatesTask?.cancel() }
 
@@ -39,10 +42,15 @@ public final class EntitlementStore {
     /// Deliberately starts no task and touches `client` in no way — a caller may inspect
     /// `current` immediately after construction with no intervening suspension. Listening for
     /// store updates is opt-in via ``listenForUpdates()``.
-    public init(client: any StoreClient, cache: EntitlementSnapshotCache) {
+    public init(
+        client: any StoreClient,
+        cache: EntitlementSnapshotCache,
+        sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
+    ) {
         self.client = client
         self.cache = cache
         self.current = cache.load()?.entitlements ?? EntitlementSet.none
+        self.sleep = sleep
     }
 
     /// Re-resolves ownership from the store, then applies and persists the result.
@@ -51,6 +59,25 @@ public final class EntitlementStore {
     public func refresh() async {
         guard let transactions = try? await client.ownedTransactions() else { return }
         apply(EntitlementResolver.resolve(transactions))
+    }
+
+    /// Refreshes, then retries a couple more times if `id`'s grant still isn't reflected in
+    /// `current` (issue #79).
+    ///
+    /// Right after `StoreClient.purchase(_:)` reports success, its local transaction store can
+    /// briefly lag before `ownedTransactions()` reflects the new purchase — so a single `refresh()`
+    /// straight after a buy can read the pre-purchase entitlements. The outcome is still never
+    /// treated as a grant on its own (FR-1100-13's principle): this polls the real resolve instead
+    /// of assuming, and gives up after 3 attempts rather than looping forever if the entitlement
+    /// genuinely never lands.
+    public func refreshUntilOwns(_ id: ProductID) async {
+        for attempt in 0..<3 {
+            await refresh()
+            if ProductCatalog.grants(id).isSubset(of: current) { return }
+            if attempt < 2 {
+                await sleep(.milliseconds(300))
+            }
+        }
     }
 
     /// Runs the platform restore, then refreshes (FR-1100-11).

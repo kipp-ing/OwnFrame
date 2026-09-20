@@ -51,7 +51,7 @@ private final class UnlockFixture {
         let client = StoreClientFake()
         client.setDefaultOwnedTransactions(.success(owned.map(OwnedTransaction.owning)))
 
-        let store = EntitlementStore(client: client, cache: cache)
+        let store = EntitlementStore(client: client, cache: cache, sleep: { _ in })
 
         self.defaults = defaults
         self.client = client
@@ -288,6 +288,29 @@ private extension PurchasePhase {
     // FR-1100-10: the resolved set is persisted, so the next launch starts entitled offline.
     let persisted = try #require(EntitlementSnapshotCache(defaults: fixture.defaults.defaults).load())
     #expect(persisted.entitlements == [.supporter])
+}
+
+/// Issue #79: on a real device, buying only showed as unlocked after a second tap on "Unlock" —
+/// the first `ownedTransactions()` query right after a successful purchase can still miss the
+/// StoreKit-local transaction that `purchase()` itself just created. `buy()` must not settle for
+/// that stale read: it should end up reflecting ownership from the one purchase alone.
+@MainActor
+// @covers issue #79
+@Test func aSuccessfulPurchaseStillCompletesWhenTheFirstOwnershipQueryIsStillStale() async throws {
+    let fixture = UnlockFixture(tier: .supporter)
+    fixture.stocks([.supporter])
+    await fixture.model.load()
+    fixture.client.enqueuePurchase(.success)
+    // The propagation lag: the very next ownedTransactions() call still reports nothing owned;
+    // only calls after that reflect the purchase.
+    fixture.client.enqueueOwnedTransactions([])
+    fixture.storeNowReportsOwned(.supporter)
+
+    await fixture.model.buy(.supporter)
+
+    #expect(fixture.store.current == EntitlementSet.all)
+    let completed = try #require(fixture.model.phase.completedEntitlements)
+    #expect(completed == EntitlementSet.all)
 }
 
 // MARK: - Restore (FR-1100-11)
