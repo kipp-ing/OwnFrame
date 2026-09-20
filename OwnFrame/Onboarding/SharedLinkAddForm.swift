@@ -49,6 +49,7 @@ struct SharedLinkAddForm: View {
                 .fullScreenCover(isPresented: $showScanner) {
                     if let qrScanner {
                         QRScannerView(scanner: qrScanner)
+                            .task { await driveScan(qrScanner) }
                     }
                 }
             TextField("Name (optional)", text: $labelText)
@@ -109,29 +110,38 @@ struct SharedLinkAddForm: View {
         }
     }
 
-    /// Presents the camera QR scanner and routes the decoded code through the very same
-    /// resolve-first flow `submit()` uses (120, FR-120-12) — `addScannedSharedLink` calls
-    /// `scanner.scan()` itself, so this Task drives the whole scan, not just its result.
-    /// Unlike the first-run path, this form has a name field, so the typed name rides
-    /// along instead of being discarded. A cancelled scan (dismiss, or no usable
-    /// camera/permission) is a silent no-op that leaves manual entry untouched; an invalid
-    /// code surfaces the same inline error `submit()` uses, via `addState`.
+    /// Presents the camera QR scanner. Only creates the scanner and requests the cover — the
+    /// scan itself starts from `driveScan(_:)`, run via `.task` on the presented cover's
+    /// content (see the `.fullScreenCover` above), never from here (issue #82).
     private func startScan() {
         sourceLibrary.resetSharedLinkAdd()
         let scanner = QRScanner()
         qrScanner = scanner
         showScanner = true
-        Task {
-            await sourceLibrary.addScannedSharedLink(using: scanner, label: labelText)
-            showScanner = false
-            switch sourceLibrary.addState {
-            case .needsPassword:
-                showPasswordPrompt = true
-            case .resolved:
-                finishAdd()
-            default:
-                break
-            }
+    }
+
+    /// Routes the decoded code through the very same resolve-first flow `submit()` uses (120,
+    /// FR-120-12) — `addScannedSharedLink` calls `scanner.scan()` itself, so this drives the
+    /// whole scan, not just its result. Unlike the first-run path, this form has a name field,
+    /// so the typed name rides along instead of being discarded. A cancelled scan (dismiss, or
+    /// no usable camera/permission) is a silent no-op that leaves manual entry untouched; an
+    /// invalid code surfaces the same inline error `submit()` uses, via `addState`.
+    ///
+    /// Run via `.task` on the presented `QRScannerView`, not fired alongside `showScanner =
+    /// true` in `startScan()`: `scan()`'s first suspension point requests camera permission,
+    /// which shows a system alert — starting that race against the `.fullScreenCover`
+    /// transition still animating in stalled the cover on a black screen after granting
+    /// access (issue #82). `.task` only runs once the cover has actually finished presenting.
+    private func driveScan(_ scanner: QRScanner) async {
+        await sourceLibrary.addScannedSharedLink(using: scanner, label: labelText)
+        showScanner = false
+        switch sourceLibrary.addState {
+        case .needsPassword:
+            showPasswordPrompt = true
+        case .resolved:
+            finishAdd()
+        default:
+            break
         }
     }
 
