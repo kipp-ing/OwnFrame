@@ -236,6 +236,7 @@ final class SourceLibraryUITests: XCTestCase {
         XCTAssertTrue(url.waitForExistence(timeout: 3))
         url.tap()
         url.typeText("https://demo.example.com/s/abc123")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["sources.add.submit"].tap()
 
         XCTAssertTrue(app.buttons["Urlaub 2026"].waitForExistence(timeout: 5),

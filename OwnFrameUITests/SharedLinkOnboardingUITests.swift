@@ -35,6 +35,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         sharedLinkChoice.tap()
 
         enterLink(app, "https://demo.example.com/s/abc123")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.start"].tap()
 
         // No password prompt for a non-protected link — it goes straight to the slideshow.
@@ -53,12 +54,14 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         app.launch()
 
         enterLink(app, "https://demo.example.com/s/protected")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.start"].tap()
 
         let password = app.textFields["onboarding.sharedLink.password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5), "a protected link should prompt for a password")
         password.tap()
         password.typeText("letmein")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.password.continue"].tap()
 
         assertSlideshowPlays(app, assets: ["asset-4", "asset-5", "asset-6"])
@@ -73,6 +76,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         app.launch()
 
         enterLink(app, "https://demo.example.com/s/missing")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.start"].tap()
 
         let error = app.staticTexts["onboarding.sharedLink.error"]
@@ -100,6 +104,7 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         sharedLinkChoice.tap()
 
         enterLink(app, "https://demo.example.com/s/abc123")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.start"].tap()
 
         assertSlideshowPlays(app, assets: ["asset-4", "asset-5", "asset-6"])
@@ -124,10 +129,11 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         waitForExpectations(timeout: 5)
     }
 
-    /// 220 SC-220-05 + issue #82 — a simulator has no camera, so Scan QR must land on the
-    /// calm "paste the link instead" fallback and stay there until Done. Guards two device
-    /// bugs found 2026-09-25: the cover rendered EMPTY (stale `isPresented` + `if let`, #82),
-    /// and a failed scan dismissed the cover before the fallback could ever be seen.
+    /// 220 SC-220-05 + issue #82 — Scan QR must never open an EMPTY cover (#82: stale
+    /// `isPresented` + `if let` rendered it black). Without a usable camera (iOS 17/18
+    /// simulators) it must land on the calm "paste the link instead" fallback and stay there
+    /// until Done — a failed scan used to dismiss the cover before the fallback showed. iOS 27
+    /// simulators offer a camera, so there the live scanner's Cancel is the proof instead.
     @MainActor
     func testScanWithoutUsableCameraShowsFallbackUntilDone() throws {
         let app = XCUIApplication()
@@ -138,14 +144,23 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         XCTAssertTrue(scan.waitForExistence(timeout: 5), "the link step should offer Scan QR")
         scan.tap()
 
-        let fallback = app.staticTexts["onboarding.sharedLink.scan.unavailable"]
-        XCTAssertTrue(fallback.waitForExistence(timeout: 10),
-                      "no usable camera should show the paste-the-link fallback, not an empty cover")
-        sleep(2)
-        XCTAssertTrue(fallback.exists, "the fallback must stay until the user dismisses it")
+        // A simulator that has a camera may ask first — deny, so the fallback path runs.
+        let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if permission.waitForExistence(timeout: 3) { permission.buttons.element(boundBy: 0).tap() }
 
-        app.buttons["onboarding.sharedLink.scan.cancel"].tap()
+        let fallback = app.staticTexts["onboarding.sharedLink.scan.unavailable"]
+        let cancel = app.buttons["onboarding.sharedLink.scan.cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10),
+                      "the scanner cover must show its controls, never an empty black cover (#82)")
+        let sawFallback = fallback.exists
+        sleep(2) // a failed scan used to dismiss the cover right here
+        XCTAssertTrue(cancel.exists, "the cover must stay until the user dismisses it")
+        if sawFallback {
+            XCTAssertTrue(fallback.exists, "the fallback must stay until the user dismisses it")
+        }
+
+        cancel.tap()
         XCTAssertTrue(app.textFields["onboarding.sharedLink.url"].waitForExistence(timeout: 5),
-                      "Done should return to the link field")
+                      "Cancel/Done should return to the link field")
     }
 }

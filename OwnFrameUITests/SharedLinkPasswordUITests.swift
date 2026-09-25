@@ -67,6 +67,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         XCTAssertTrue(password.waitForExistence(timeout: 5), "a protected link should prompt for a password")
         password.tap()
         password.typeText("nope")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.password.continue"].tap()
 
         XCTAssertTrue(app.staticTexts["onboarding.sharedLink.password.error"].waitForExistence(timeout: 5),
@@ -81,6 +82,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         XCTAssertTrue(retry.waitForExistence(timeout: 5))
         retry.tap()
         retry.typeText("letmein")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.password.continue"].tap()
 
         XCTAssertTrue(app.buttons["onboarding.source.continue"].waitForExistence(timeout: 10),
@@ -108,6 +110,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         let label = app.textFields["sources.add.label"]
         label.tap()
         label.typeText("Shared Album")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["sources.add.submit"].tap()
 
         // The add sheet dismisses on success and the new row appears in the manager.
@@ -129,12 +132,14 @@ final class SharedLinkPasswordUITests: XCTestCase {
         openSourcesAddSharedLink(app)
 
         enterURL(app, prefix: "sources.add", "https://demo.example.com/s/protected")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["sources.add.submit"].tap()
 
         let password = app.textFields["sources.add.password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5), "a protected link should prompt for a password")
         password.tap()
         password.typeText("nope")
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["sources.add.password.continue"].tap()
 
         XCTAssertTrue(app.staticTexts["sources.add.password.error"].waitForExistence(timeout: 5),
@@ -158,6 +163,7 @@ final class SharedLinkPasswordUITests: XCTestCase {
         keyField.tap()
         keyField.typeText("dummy-key")
 
+        app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.connection.continue"].tap()
     }
 
