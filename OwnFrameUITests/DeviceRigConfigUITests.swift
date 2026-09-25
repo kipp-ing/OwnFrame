@@ -158,7 +158,10 @@ final class DeviceRigConfigUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 30)
 
         mark("background")
-        XCUIDevice.shared.press(.home)
+        // A real app switch. `XCUIDevice.press(.home)` did NOT background the app the way a
+        // person does on iPad jk (26.6.1): no teardown ever fired, while a devicectl launch of
+        // Safari published offline within 7 s (2026-09-25).
+        XCUIApplication(bundleIdentifier: "com.apple.mobilesafari").activate()
         Thread.sleep(forTimeInterval: 30)
 
         mark("foreground")

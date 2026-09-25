@@ -157,7 +157,8 @@ final class DeviceAcceptanceUITests: XCTestCase {
         }
         share.tap()
         let target = try ownFrameShareTarget(in: safari)
-        target.tap()
+        sleep(1) // a tap on a still-coasting row only stops the scroll
+        target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap() // the icon
 
         let message = safari.descendants(matching: .any)["share.confirmation.message"]
         guard message.waitForExistence(timeout: 20) else {
@@ -188,15 +189,19 @@ final class DeviceAcceptanceUITests: XCTestCase {
         let appRow = safari.descendants(matching: .any)
             .matching(NSPredicate(format: "label IN %@", ["Mail"])).firstMatch
         XCTAssertTrue(appRow.waitForExistence(timeout: 10), "the share sheet should open")
-        let row = appRow.frame // a fixed strip: Mail itself scrolls away after the first drag
+        // Drag from where Mail first sat — inside the popover (a touch outside an iPad share
+        // popover dismisses it) — 250 pt left; the point stays inside the row as it scrolls.
+        let row = appRow.frame
         let origin = safari.coordinate(withNormalizedOffset: .zero)
-        for _ in 0..<6 {
-            if target.exists && target.isHittable { return target }
-            if more.exists && more.isHittable { break }
-            origin.withOffset(CGVector(dx: row.midX + 180, dy: row.midY))
-                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: row.midX - 180, dy: row.midY)))
+        // On-screen by frame: `isHittable` throws for a cell scrolled out of the row.
+        func visible(_ e: XCUIElement) -> Bool { e.exists && e.frame.minX >= 0 && e.frame.maxX <= safari.frame.maxX }
+        for _ in 0..<10 {
+            if visible(target) { return target }
+            if visible(more) { break }
+            origin.withOffset(CGVector(dx: row.midX, dy: row.midY))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: row.midX - 120, dy: row.midY)))
         }
-        if more.exists {
+        if visible(more) {
             more.tap()
             if target.waitForExistence(timeout: 10) { return target }
         }
