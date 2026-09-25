@@ -229,6 +229,12 @@ hermetic suite could not see (#82 not actually fixed, the camera fallback never 
 Network text English-only, and no retry on the link path). Hermetic guards were added where
 possible.
 
+The protected-link test reads its link and password from the login Keychain item
+`ownframe-protected-link` (account = the link), or from `TEST_RUNNER_PROTECTED_LINK` /
+`TEST_RUNNER_PROTECTED_PASSWORD`. Its first real run (2026-09-25) found #88: after one wrong
+password the prompt ignored the right one. The simulator test had hidden that by cancelling
+between attempts. Same day, after the fix: iPad jk (26.6.1) 4/4, host packages 968 tests green.
+
 ## Requirement traceability — `.claude/scripts/coverage.py`
 
 Prose status rots. `CLAUDE.md` recorded "153/0/9 green" and on 2026-07-21 that was simply
