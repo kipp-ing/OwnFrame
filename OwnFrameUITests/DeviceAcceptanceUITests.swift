@@ -122,6 +122,7 @@ final class DeviceAcceptanceUITests: XCTestCase {
         answerLocalNetworkAlertIfShown(app)
 
         try typeIntoPasswordField(app, "definitely-not-the-password")
+        app.releaseKeyboardFocus() // #75
         app.buttons["onboarding.sharedLink.password.continue"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.sharedLink.password.error"]
                         .waitForExistence(timeout: 30),
@@ -129,6 +130,7 @@ final class DeviceAcceptanceUITests: XCTestCase {
         attach(app, "05-wrong-password")
 
         try typeIntoPasswordField(app, password)
+        app.releaseKeyboardFocus() // #75
         app.buttons["onboarding.sharedLink.password.continue"].tap()
         let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
         XCTAssertTrue(slideshow.waitForExistence(timeout: long), "the right password should start the slideshow")
@@ -163,6 +165,7 @@ final class DeviceAcceptanceUITests: XCTestCase {
         XCTAssertTrue(url.waitForExistence(timeout: 15), "the link field should appear")
         url.tap()
         url.typeText(link)
+        app.releaseKeyboardFocus() // #75
         app.buttons["onboarding.sharedLink.start"].tap()
     }
 
