@@ -88,16 +88,20 @@ final class DeviceSoakUITests: XCTestCase {
         let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
         XCTAssertTrue(slideshow.waitForExistence(timeout: long))
         let end = Date().addingTimeInterval(hours * 3600)
-        var last = slideshow.value as? String ?? ""
         var round = 0
         while Date() < end {
-            Thread.sleep(forTimeInterval: 600)
+            // Sample every 20 s: comparing only the ends of a 10-minute window aliases on a
+            // small album (A → B → A reads as "stuck" — seen on Framepad's 2-photo album).
+            let windowStart = slideshow.value as? String ?? ""
+            var moved = false
+            for _ in 0..<30 {
+                Thread.sleep(forTimeInterval: 20)
+                if (slideshow.value as? String ?? "") != windowStart { moved = true }
+            }
             round += 1
             XCTAssertTrue(slideshow.exists, "round \(round): the slideshow should still be on screen")
             assertNoPurchaseUI(app)
-            let now = slideshow.value as? String ?? ""
-            XCTAssertNotEqual(now, last, "round \(round): no new photo in 10 minutes")
-            last = now
+            XCTAssertTrue(moved, "round \(round): no new photo in 10 minutes")
             if round % 6 == 0 { attach(app, "hour-\(round / 6)") }
         }
     }
