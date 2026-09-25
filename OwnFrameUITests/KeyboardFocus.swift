@@ -19,7 +19,12 @@ import XCTest
 extension XCUIApplication {
     @MainActor
     func releaseKeyboardFocus() {
-        guard keyboards.firstMatch.exists else { return }
-        typeText("\n")
+        // Key on FOCUS, not on a visible keyboard: with the simulator's hardware keyboard
+        // connected there is no software keyboard at all, yet the field keeps focus and the
+        // tap is still swallowed (fresh iOS 27.0 simulator, 2026-09-25).
+        let focused = descendants(matching: .any)
+            .matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        guard focused.exists else { return }
+        focused.typeText("\n")
     }
 }
