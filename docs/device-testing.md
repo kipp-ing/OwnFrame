@@ -88,6 +88,13 @@ means nothing for Xcode, which uses a separate CoreDevice pairing:
 
 Each of these cost a real debugging cycle at least once.
 
+- **"Timed out while enabling automation mode" on every run = the device wants its passcode.**
+  iOS periodically re-authorizes UI Automation: the screen shows *"iPad-Code für „XCTest“
+  eingeben — Enable UI Automation"*, and every runner fails to initialize until a person types
+  the code. `devicectl device info lockState` still says unlocked, so check the screen instead:
+  `xcrun devicectl device capture screenshot --device <udid> --destination shot.png`
+  (seen on iPad jk 2026-09-25, after ~9 h of device runs). Long soaks can hit this mid-run.
+
 - **Xcode 27 cannot run device tests on iOS 17 (issue #84).** Its developer-disk-image
   `testmanagerd` crashes on an actor-isolation assertion in `_IDE_deleteAttachments`
   whenever Xcode deletes a passed or skipped test's attachments. The runner restarts after
