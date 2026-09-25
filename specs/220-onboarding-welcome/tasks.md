@@ -234,7 +234,9 @@ SpringBoard.
       the slideshow.
       *2026-09-25:* the Local Network text was English-only (fixed: `InfoPlist.xcstrings`), and
       the link path had no retry while that alert is up, so "Server not reachable" stuck after
-      allowing (fix in progress: `SourceLibraryViewModel` gets the `submitConnection` retry).
+      allowing — fixed: `SourceLibraryViewModel` now retries `.unreachable` (~12 s, 8 × 1.5 s).
+      Demo-link test green on iPad jk after both fixes. Still open: the protected variant needs
+      a protected test link + password in the env.
 - [ ] T024 HA identity survives delete + reinstall (spec 700, release-blocking; `hitl.md` §4
       "Identity"): `device-accept.sh identity` runs the existing rig configuration, snapshots
       the broker's `ownframe/+/availability` device ids, uninstalls, reinstalls, reconfigures,

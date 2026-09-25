@@ -361,6 +361,91 @@ func sharedLinkWithoutAlbumNameStoresTheHostFallback(_ albumName: String?) async
     #expect(store.load().sources.map(\.label) == [geoBaseURL.host!])
 }
 
+// MARK: - Local Network permission retry (found on device 2026-09-25)
+
+@MainActor
+@Test func resolveSharedLinkRetriesUnreachableThenSucceeds() async {
+    for failures in [1, 2] {
+        let store = InMemorySourceLibraryStore()
+        let resolver = ScriptedResolver(Array(repeating: .failure(ImmichError.unreachable), count: failures) + [.success])
+        var sleeps: [Duration] = []
+        let vm = makeRetryingViewModel(store: store, resolver: resolver) { sleeps.append($0) }
+
+        await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+        #expect(resolver.requests.count == failures + 1)
+        #expect(sleeps.count == failures)
+        #expect(vm.sources.count == 1)
+        #expect(vm.addState == .resolved(sourceID: vm.sources.first?.id ?? "<none>"))
+        #expect(store.load().sources.count == 1)
+    }
+}
+
+@MainActor
+@Test func resolveSharedLinkGivesUpAfterRetryLimitWithTheSameError() async {
+    let store = InMemorySourceLibraryStore()
+    let resolver = ScriptedResolver(Array(repeating: .failure(ImmichError.unreachable), count: 10))
+    let vm = makeRetryingViewModel(store: store, resolver: resolver, retryLimit: 4)
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    #expect(resolver.requests.count == 5)
+    #expect(vm.addState == .error(ConnectionError.message(for: .unreachable)))
+    #expect(vm.sources.isEmpty)
+    #expect(store.load().sources.isEmpty)
+}
+
+@MainActor
+@Test func resolveSharedLinkDoesNotRetryDeterministicErrors() async {
+    for error in [ImmichError.passwordRequired, .invalidShareLink, .wrongPassword] {
+        let resolver = ScriptedResolver([.failure(error), .success])
+        var sleeps: [Duration] = []
+        let vm = makeRetryingViewModel(resolver: resolver) { sleeps.append($0) }
+
+        await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+        #expect(resolver.requests.count == 1)
+        #expect(sleeps.isEmpty)
+        #expect(vm.sources.isEmpty)
+    }
+}
+
+@MainActor
+@Test func confirmSharedLinkPasswordRetriesUnreachableThenSucceeds() async {
+    let store = InMemorySourceLibraryStore()
+    let secretStore = InMemorySharedLinkSecretStore()
+    let resolver = ScriptedResolver([
+        .failure(ImmichError.passwordRequired),
+        .failure(ImmichError.unreachable),
+        .failure(ImmichError.unreachable),
+        .success,
+    ])
+    let vm = makeRetryingViewModel(store: store, secretStore: secretStore, resolver: resolver)
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+    #expect(vm.addState == .needsPassword)
+
+    await vm.confirmSharedLinkPassword("pw")
+
+    #expect(resolver.requests.map(\.password) == [nil, "pw", "pw", "pw"])
+    #expect(vm.sources.count == 1)
+    let id = vm.sources.first?.id ?? "<none>"
+    #expect(vm.addState == .resolved(sourceID: id))
+    #expect(secretStore.readPassword(forSourceID: id) == "pw")
+}
+
+@MainActor
+@Test func resolveSharedLinkStaysResolvingDuringRetries() async {
+    let resolver = ScriptedResolver([.failure(ImmichError.unreachable), .success])
+    var statesDuringSleep: [SharedLinkAddState] = []
+    var vm: SourceLibraryViewModel!
+    vm = makeRetryingViewModel(resolver: resolver) { _ in statesDuringSleep.append(vm.addState) }
+
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+
+    #expect(statesDuringSleep == [.resolving])
+}
+
 // MARK: - Helpers
 
 @MainActor
@@ -376,6 +461,50 @@ private func makeViewModel(
         resolver: resolver,
         onSwitchActive: onSwitchActive
     )
+}
+
+@MainActor
+private func makeRetryingViewModel(
+    store: InMemorySourceLibraryStore = InMemorySourceLibraryStore(),
+    secretStore: InMemorySharedLinkSecretStore = InMemorySharedLinkSecretStore(),
+    resolver: any SharedLinkResolving,
+    retryLimit: Int = 4,
+    sleep: @escaping @MainActor (Duration) -> Void = { _ in }
+) -> SourceLibraryViewModel {
+    SourceLibraryViewModel(
+        store: store,
+        secretStore: secretStore,
+        resolver: resolver,
+        resolveRetryLimit: retryLimit,
+        resolveRetryDelay: .zero,
+        sleep: { await sleep($0) }
+    )
+}
+
+/// Resolver that plays back a fixed script of outcomes, one per call (the last one repeats).
+private final class ScriptedResolver: SharedLinkResolving, @unchecked Sendable {
+    enum Outcome {
+        case success
+        case failure(ImmichError)
+    }
+
+    private var script: [Outcome]
+    private(set) var requests: [(baseURL: URL, slug: String, password: String?)] = []
+
+    init(_ script: [Outcome]) {
+        self.script = script
+    }
+
+    func resolve(baseURL: URL, slug: String, password: String?) async throws -> SharedLinkResolution {
+        requests.append((baseURL, slug, password))
+        let outcome = script.count > 1 ? script.removeFirst() : script[0]
+        switch outcome {
+        case .success:
+            return SharedLinkResolution(key: "k", albumID: "a", expiresAt: nil, albumName: "Iceland 2021")
+        case let .failure(error):
+            throw error
+        }
+    }
 }
 
 /// Resolver modelling a password-gated link: `correctPassword == nil` ⇒ no password

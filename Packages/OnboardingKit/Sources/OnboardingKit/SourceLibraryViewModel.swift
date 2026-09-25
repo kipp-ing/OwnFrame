@@ -21,17 +21,32 @@ public final class SourceLibraryViewModel {
     @ObservationIgnored private let secretStore: any SharedLinkSecretStore
     @ObservationIgnored private let resolver: any SharedLinkResolving
     @ObservationIgnored private let onSwitchActive: (String) -> Void
+    // Bounded auto-retry for the shared-link resolve, mirroring OnboardingViewModel. On a
+    // fresh install the first request fails while the iOS Local Network permission prompt
+    // is up; retrying lets the resolve complete once the user grants access instead of
+    // leaving a stale "Server not reachable." (found on device 2026-09-25). ~12 s, longer
+    // than OnboardingViewModel's ~5 s: a person reads that alert (iOS 26 adds a map) before
+    // tapping Allow. Injected so tests run instantly with a no-op sleep.
+    @ObservationIgnored private let resolveRetryLimit: Int
+    @ObservationIgnored private let resolveRetryDelay: Duration
+    @ObservationIgnored private let sleep: (Duration) async -> Void
 
     public init(
         store: any SourceLibraryStore,
         secretStore: any SharedLinkSecretStore,
         resolver: any SharedLinkResolving,
-        onSwitchActive: @escaping (String) -> Void = { _ in }
+        onSwitchActive: @escaping (String) -> Void = { _ in },
+        resolveRetryLimit: Int = 8,
+        resolveRetryDelay: Duration = .seconds(1.5),
+        sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     ) {
         self.store = store
         self.secretStore = secretStore
         self.resolver = resolver
         self.onSwitchActive = onSwitchActive
+        self.resolveRetryLimit = resolveRetryLimit
+        self.resolveRetryDelay = resolveRetryDelay
+        self.sleep = sleep
         self.library = store.load()
     }
 
@@ -194,7 +209,7 @@ public final class SourceLibraryViewModel {
         do {
             // Validate the link (and password, if any) before persisting anything; nothing
             // is written on failure (Constitution III — no half-written secret).
-            resolution = try await resolver.resolve(baseURL: pending.baseURL, slug: pending.slug, password: password)
+            resolution = try await resolveRetryingUnreachable(pending, password: password)
         } catch ImmichError.passwordRequired {
             addState = .needsPassword
             return
@@ -209,6 +224,26 @@ public final class SourceLibraryViewModel {
         let savedID = persistResolvedLink(pending, albumName: resolution.albumName, password: password)
         pendingLink = nil
         addState = .resolved(sourceID: savedID)
+    }
+
+    /// Resolve the link, retrying briefly on `.unreachable`. On a fresh install the first
+    /// request fails while the iOS Local Network permission prompt is still up; a few
+    /// bounded retries let the resolve complete once the user taps "Allow" (found on device
+    /// 2026-09-25). `addState` stays `.resolving` throughout. Deterministic failures
+    /// (password required, wrong password, invalid link) are not retried.
+    private func resolveRetryingUnreachable(
+        _ pending: (baseURL: URL, slug: String, label: String),
+        password: String?
+    ) async throws -> SharedLinkResolution {
+        var attempt = 0
+        while true {
+            do {
+                return try await resolver.resolve(baseURL: pending.baseURL, slug: pending.slug, password: password)
+            } catch ImmichError.unreachable where attempt < resolveRetryLimit {
+                attempt += 1
+                await sleep(resolveRetryDelay)
+            }
+        }
     }
 
     /// Persist a resolved link, deduping by `(baseURL, slug)`: an existing shared-link
