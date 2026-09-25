@@ -1,17 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%@ was sent for approval. The unlock switches on by itself once it is approved — there is nothing else to do here." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ wurde zur Genehmigung gesendet. Die Freischaltung schaltet sich von selbst ein, sobald sie genehmigt ist — hier ist nichts weiter zu tun."
-          }
-        }
-      }
-    },
     "%@ — yours, on every device signed in to your Apple Account." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -254,6 +243,18 @@
         }
       }
     },
+    "Purchase not completed yet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kauf noch nicht abgeschlossen"
+          }
+        }
+      },
+      "comment" : "Unlock screen, purchase came back PENDING. StoreKit reports that for Ask to Buy AND for purchases that need a confirmation in the Apple Account, so the copy must not promise an approval (Jan approved the wording 2026-09-25). No retry button: a second tap could charge twice (FR-1100-15)."
+    },
     "Recovers unlocks you already bought with this Apple Account." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -452,17 +453,6 @@
         }
       }
     },
-    "Waiting for approval" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warte auf Freigabe"
-          }
-        }
-      }
-    },
     "What you get" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -484,6 +474,18 @@
           }
         }
       }
+    },
+    "Your purchase of %@ is still waiting — for example for a parent's approval or a confirmation in your Apple Account. The unlock switches on by itself as soon as it goes through. You can close this screen." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Kauf von %@ wartet noch – zum Beispiel auf die Zustimmung eines Elternteils oder eine Bestätigung in deinem Apple-Account. Die Freischaltung schaltet sich von selbst ein, sobald er durch ist. Du kannst dieses Fenster schließen."
+          }
+        }
+      },
+      "comment" : "Unlock screen, purchase came back PENDING. StoreKit reports that for Ask to Buy AND for purchases that need a confirmation in the Apple Account, so the copy must not promise an approval (Jan approved the wording 2026-09-25). No retry button: a second tap could charge twice (FR-1100-15)."
     },
     "Your purchase went through. It may take a moment to appear." : {
       "extractionState" : "manual",

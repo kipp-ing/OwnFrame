@@ -187,11 +187,12 @@ public struct UnlockScreenView: View {
                 notice(
                     identifier: "unlock.pending",
                     symbol: "hourglass",
-                    title: String(localized: "Waiting for approval", bundle: .module),
-                    // Terminal for this session: no retry button, because the approval arrives on
-                    // its own and a second tap would risk a second charge (FR-1100-15).
+                    title: String(localized: "Purchase not completed yet", bundle: .module),
+                    // Terminal for this session: no retry button, because the purchase completes on
+                    // its own and a second tap would risk a second charge (FR-1100-15). Pending is
+                    // Ask to Buy OR a confirmation in the Apple Account, so the copy promises neither.
                     message: String(
-                        localized: "\(displayName(of: id, using: model)) was sent for approval. The unlock switches on by itself once it is approved — there is nothing else to do here.",
+                        localized: "Your purchase of \(displayName(of: id, using: model)) is still waiting — for example for a parent's approval or a confirmation in your Apple Account. The unlock switches on by itself as soon as it goes through. You can close this screen.",
                         bundle: .module
                     )
                 )
