@@ -13,8 +13,9 @@
 # session trustworthy.
 #
 # EXPECT_LANG=de|en: the device's system language, which the permission alerts must use (the
-# scheme runs the app in English, so the runner can't tell). Protected-link test: TEST_RUNNER_PROTECTED_LINK / TEST_RUNNER_PROTECTED_PASSWORD in the env
-# (skips when unset). Identity: MQTT password from the env or the login Keychain item
+# scheme runs the app in English, so the runner can't tell). Protected-link test: link + password
+# from TEST_RUNNER_PROTECTED_LINK / TEST_RUNNER_PROTECTED_PASSWORD, else from the login Keychain
+# item `ownframe-protected-link` (account = the link); skips when neither is there. Identity: MQTT password from the env or the login Keychain item
 # `ownframe-mqtt`, exactly like framepad.sh. UNINSTALLS the app — local settings are lost;
 # purchases come back via StoreKit.
 set -u
@@ -100,6 +101,13 @@ if [ "${1:-}" = identity ]; then
   else echo "IDENTITY FAILED — a different (or no) live device id after delete + reinstall"; exit 1; fi
   exit 0
 fi
+
+if [ -z "${TEST_RUNNER_PROTECTED_LINK:-}" ]; then
+  TEST_RUNNER_PROTECTED_LINK="$(security find-generic-password -s ownframe-protected-link 2>/dev/null \
+    | sed -n 's/^ *"acct"<blob>="\(.*\)"$/\1/p')"
+  TEST_RUNNER_PROTECTED_PASSWORD="$(security find-generic-password -s ownframe-protected-link -w 2>/dev/null || true)"
+fi
+export TEST_RUNNER_PROTECTED_LINK TEST_RUNNER_PROTECTED_PASSWORD
 
 [ $# -gt 0 ] && TESTS=("$@")
 fail=0

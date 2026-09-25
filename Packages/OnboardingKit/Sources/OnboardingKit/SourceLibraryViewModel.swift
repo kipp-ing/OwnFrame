@@ -186,7 +186,12 @@ public final class SourceLibraryViewModel {
     /// unless `addState == .needsPassword`. A correct password ⇒ source saved + password
     /// written to the Keychain secret store; `wrongPassword` ⇒ `.error`, nothing persisted.
     public func confirmSharedLinkPassword(_ password: String) async {
-        guard case .needsPassword = addState, pendingLink != nil else { return }
+        // `.error` too: after a wrong password the prompt stays open for another try.
+        switch addState {
+        case .needsPassword, .error: break
+        default: return
+        }
+        guard pendingLink != nil else { return }
         await attemptResolve(password: password)
     }
 

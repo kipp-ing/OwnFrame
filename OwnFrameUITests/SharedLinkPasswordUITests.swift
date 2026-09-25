@@ -75,13 +75,13 @@ final class SharedLinkPasswordUITests: XCTestCase {
         XCTAssertFalse(app.buttons["onboarding.source.continue"].exists,
                        "nothing should be persisted on a wrong password")
 
-        // Cancel and retry with the correct password → the source is added.
-        app.buttons["onboarding.sharedLink.password.cancel"].tap()
-        app.buttons["onboarding.sharedLink.add"].tap()
-        let retry = app.textFields["onboarding.sharedLink.password"]
-        XCTAssertTrue(retry.waitForExistence(timeout: 5))
-        retry.tap()
-        retry.typeText("letmein")
+        // Retry in the SAME prompt with the correct password → the source is added. (It used to
+        // cancel and start over, which hid that the prompt ignored every retry after an error.)
+        password.tap()
+        if let old = password.value as? String, !old.isEmpty, old != password.placeholderValue {
+            password.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count))
+        }
+        password.typeText("letmein")
         app.releaseKeyboardFocus() // #75: iOS 26+ swallows a synthesized tap while a field has focus
         app.buttons["onboarding.sharedLink.password.continue"].tap()
 

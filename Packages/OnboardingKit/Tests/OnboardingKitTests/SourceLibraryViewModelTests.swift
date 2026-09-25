@@ -253,6 +253,23 @@ private let geoBaseURL = URL(string: "https://bilder.kippings.de")!
     #expect(store.load().sources.isEmpty)
 }
 
+// The prompt stays open after a wrong password with Continue enabled, so a second try in the
+// same prompt must be resolved — not silently dropped (found on iPad jk, 2026-09-25: after
+// one typo the right password did nothing until the person cancelled and started over).
+@MainActor
+// @covers FR-210-08
+@Test func confirmSharedLinkRightPasswordAfterAWrongOneResolves() async {
+    let secretStore = InMemorySharedLinkSecretStore()
+    let vm = makeViewModel(secretStore: secretStore, resolver: PasswordGatedResolver(correctPassword: "pw"))
+    await vm.resolveSharedLink(urlString: geoURL, label: "Geo")
+    await vm.confirmSharedLinkPassword("bad")
+
+    await vm.confirmSharedLinkPassword("pw")
+
+    #expect(vm.sources.count == 1)
+    #expect(secretStore.readPassword(forSourceID: vm.sources[0].id) == "pw")
+}
+
 @MainActor
 // @covers FR-210-09, FR-210-17
 @Test func resolveSharedLinkMalformedURLErrorsWithoutNetwork() async {
