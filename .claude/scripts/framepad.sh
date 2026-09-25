@@ -17,7 +17,7 @@
 #
 set -euo pipefail
 
-DEVICE_ID="${FRAMEPAD_DEVICE_ID:-E7B3970E-8FD1-546B-8A1F-EC9A85167731}"
+DEVICE_ID="${FRAMEPAD_DEVICE_ID:-12865abf7eec21ea87485b4b2e84a4811453cb1a}"
 BUNDLE_ID="ing.kipp.Immich-Slideshow"
 PROJECT="OwnFrame.xcodeproj"
 SCHEME="OwnFrame"
@@ -50,7 +50,11 @@ xcb() {
 }
 
 require_device() {
-  xcrun devicectl list devices 2>/dev/null | grep -q "$DEVICE_ID.*connected" \
+  # Capture first: `grep -q` exits on the first match, and under pipefail the SIGPIPE it
+  # sends devicectl fails the whole pipeline — a connected device then reads as missing.
+  local devices
+  devices="$(xcrun devicectl list devices 2>/dev/null || true)"
+  grep -q "$DEVICE_ID.*connected" <<<"$devices" \
     || die "Framepad not connected (is it awake and unlocked? a reboot leaves it locked)"
 }
 

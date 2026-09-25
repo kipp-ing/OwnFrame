@@ -8,12 +8,13 @@ trap below is already encoded in it.
 
 ## The device
 
-**Framepad** — iPad Pro 10.5-inch (A1701, iPad7,3), **iOS 17.7.10**. This is the app's
+**Framepad** — iPad Pro 10.5-inch (A1701, iPad7,3), **iOS 17.7.11** (factory-restored and
+re-commissioned 2026-09-25; it was 17.7.10 before). This is the app's
 exact deployment floor, which makes it the most valuable device available: anything that
 works here works on everything newer.
 
 ```bash
-xcrun devicectl list devices     # id E7B3970E-8FD1-546B-8A1F-EC9A85167731
+xcrun devicectl list devices     # UDID 12865abf7eec21ea87485b4b2e84a4811453cb1a
 ```
 
 Developer mode is enabled and signing works out of the box (Apple Development,
@@ -24,10 +25,10 @@ container**.
 
 | Name | Model | OS | Role |
 |---|---|---|---|
-| **Framepad** | iPad Pro 10.5 (iPad7,3) | 17.7.10 | the deployment floor; **caps at iOS 17 forever** |
+| **Framepad** | iPad Pro 10.5 (iPad7,3) | 17.7.11 | the deployment floor; **caps at iOS 17 forever** |
 | **FramePhone** | iPhone 13 mini (iPhone14,4) | **27.0** | the iOS 27 beta device (see below) |
-| iPad jk | iPad Pro 11-inch (M4) | 26.5.2 | modern iPad, real hardware |
-| jk in da house | iPhone 16 Pro | 26.5.2 | modern iPhone, real hardware |
+| iPad jk | iPad Pro 11-inch (M4) | 26.6.1 | modern iPad, real hardware |
+| jk in da house | iPhone 16 Pro | 26.6.1 | modern iPhone, real hardware |
 
 Framepad can never run iOS 27, so **the frame Jan actually runs is unaffected by the iOS 27
 release.** iOS 27 is a *customer* risk (users on modern iPads auto-update), not a rig risk.
@@ -35,10 +36,10 @@ release.** iOS 27 is a *customer* risk (users on modern iPads auto-update), not 
 ## FramePhone — the iOS 27 device
 
 ```bash
-xcrun devicectl list devices     # id 5DB5F6B0-0800-543A-A733-6F7F4959C87F
+xcrun devicectl list devices     # UDID 00008110-000568303444801E
 ```
 
-`framepad.sh` drives it unchanged via `FRAMEPAD_DEVICE_ID=5DB5F6B0-0800-543A-A733-6F7F4959C87F`.
+`framepad.sh` drives it unchanged via `FRAMEPAD_DEVICE_ID=00008110-000568303444801E`.
 
 **Xcode 26.6 (SDK 26.5) drives an iOS 27 device without the Xcode 27 beta.** Build, install,
 `devicectl process launch --console`, and full XCUITest all work. Expect two harmless log lines
@@ -68,9 +69,37 @@ Two device settings must be on, and **neither can be set from the CLI**:
    `Run Destination Preflight … "Unlock Framepad to Continue"` — it *waits* rather than
    failing, so a run can hang indefinitely mid-suite.
 
+### Commissioning a restored device (2026-09-25, Framepad after a factory restore)
+
+The UDID survives a restore; the pairing does not. Finder showing the device as connected
+means nothing for Xcode, which uses a separate CoreDevice pairing:
+
+1. `xcrun devicectl manage pair --device <udid>` and tap **Trust** on the device. Until this
+   runs, `devicectl` lists it `available` without `(paired)`, Xcode ignores it, and
+   **Privacy & Security → Developer Mode is not offered at all**.
+2. Turn on Developer Mode (the device restarts; confirm with "Turn On").
+3. `xcrun devicectl device info ddiServices --device <udid>` mounts the developer disk
+   image. Only after that does **Settings → Developer** (holding the UI Automation switch)
+   appear on iOS 17. `devicectl` then reports `connected`.
+4. Enable UI Automation and set Auto-Lock → Never (above). The device name `devicectl` shows
+   can lag behind a rename in Settings until the next reconnect.
+
 ## Build/run traps
 
 Each of these cost a real debugging cycle at least once.
+
+- **Xcode 27 cannot run device tests on iOS 17 (issue #84).** Its developer-disk-image
+  `testmanagerd` crashes on an actor-isolation assertion in `_IDE_deleteAttachments`
+  whenever Xcode deletes a passed or skipped test's attachments. The runner restarts after
+  every other test, and you get ~17 fake red tests plus `Lost connection to testmanagerd`.
+  Crash reports: `xcrun devicectl device info files --device <udid> --domain-type
+  systemCrashLogs | grep testmanagerd`. Patching the `.xctestrun` to `keepAlways` stops the
+  crash, but the runner then hangs. **Run the iOS 17 leg with Xcode 26.6 installed alongside**
+  (`DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer`). iOS 26.6 devices are
+  unaffected.
+- **`framepad.sh` said "not connected" for a connected device** (fixed 2026-09-25):
+  `devicectl … | grep -q` under `set -o pipefail` fails the pipeline through the SIGPIPE,
+  because `grep -q` exits on the first match. Capture the output first, then grep.
 
 - **`-allowProvisioningUpdates` is required.** The UI-test runner needs its own profile
   (`ing.kipp.Immich-SlideshowUITests.xctrunner`) and automatic signing is off. Without the
