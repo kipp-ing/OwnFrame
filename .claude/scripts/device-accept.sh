@@ -2,7 +2,9 @@
 # device-accept.sh — seam-free device acceptance (specs/220-onboarding-welcome/tasks.md Phase 7).
 #
 #   device-accept.sh <udid> build              build-for-testing for that device
-#   device-accept.sh <udid> [test…]            run DeviceAcceptanceUITests, a FRESH install per test
+#   device-accept.sh <udid> [test…]            run DeviceAcceptanceUITests (or Class/test), a FRESH install per test
+#   device-accept.sh <udid> resilience         offline cold launch (#80) + 2 min offline recovery (cable!)
+#   device-accept.sh <udid> availability       PR #49: HA stays online with Settings open, bg tears down
 #   device-accept.sh <udid> identity           T024: HA identity survives delete + reinstall
 #                                              (needs mosquitto_sub; the frame joins the live broker)
 #
@@ -67,7 +69,7 @@ run() {
   return $rc
 }
 
-if [ "${1:-}" = identity ]; then
+if [ "${1:-}" = identity ] || [ "${1:-}" = availability ]; then
   [ -n "${MQTT_PASSWORD:-}" ] || MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
   [ -n "$MQTT_PASSWORD" ] || { echo "no MQTT password (env or Keychain ownframe-mqtt)" >&2; exit 1; }
   sub=(mosquitto_sub -h "${MQTT_HOST:-home.kippings.de}" -p "${MQTT_PORT:-8883}" -u "${MQTT_USER:-car}"
@@ -88,6 +90,26 @@ if [ "${1:-}" = identity ]; then
     run "identity-$1" OwnFrameUITests/DeviceRigConfigUITests/testConfigureFrameWithSharedLinkAndBroker \
       TEST_RUNNER_DEVICE_RIG=1 TEST_RUNNER_MQTT_PASSWORD="$MQTT_PASSWORD"
   }
+  if [ "$1" = availability ]; then
+    # PR #49 (hitl §4): record the frame's topics with wall-clock stamps while the rig test
+    # walks slideshow → Settings → Done → background → foreground, then line both up.
+    # SKIP_RIG=1 reuses a frame the rig already configured (the rig takes ~20 min: every
+    # keystroke waits out the slideshow's never-idle animations).
+    [ -n "${SKIP_RIG:-}" ] || { uninstall; rig first || exit 1; }
+    id=$(live_id)
+    sleep 10 # let that launch settle, else the runner can time out enabling automation mode
+    [ "$(echo "$id" | grep -c .)" = 1 ] || { echo "expected exactly one live device id, got:"; echo "$id"; exit 1; }
+    rec="$OUT/availability.mqtt"
+    "${sub[@]}" -t "ownframe/$id/availability" -t "ownframe/$id/frame_status/state" -F '%U %t %p' > "$rec" 2>/dev/null &
+    recpid=$!
+    run availability OwnFrameUITests/DeviceRigConfigUITests/testSettingsOverSlideshowThenBackground \
+      TEST_RUNNER_DEVICE_RIG=1; rc=$?
+    kill $recpid 2>/dev/null
+    "${sub[@]}" -t "homeassistant/+/$id/+/config" -v -W 6 2>/dev/null \
+      | awk '{print ($0 ~ /command_topic/) ? "control" : "sensor"}' | sort | uniq -c | sed 's/^/  discovery: /'
+    python3 "$(dirname "$0")/check-availability.py" "$OUT/availability.log" "$rec" || rc=1
+    exit $rc
+  fi
   rig first || exit 1
   before=$(live_id)
   [ "$(echo "$before" | grep -c .)" = 1 ] || { echo "expected exactly one live device id, got:"; echo "$before"; exit 1; }
@@ -109,10 +131,13 @@ if [ -z "${TEST_RUNNER_PROTECTED_LINK:-}" ]; then
 fi
 export TEST_RUNNER_PROTECTED_LINK TEST_RUNNER_PROTECTED_PASSWORD
 
-[ $# -gt 0 ] && TESTS=("$@")
+# resilience: airplane mode through Control Center — the device must be on a CABLE.
+if [ "${1:-}" = resilience ]; then TESTS=(testOfflineColdLaunchResumesTheSlideshow testTwoMinutesOfflineThenRecovers)
+elif [ $# -gt 0 ]; then TESTS=("$@"); fi
 fail=0
 for t in "${TESTS[@]}"; do
   uninstall
-  run "$t" "$CLASS/$t" TEST_RUNNER_DEVICE_ACCEPT=1 TEST_RUNNER_EXPECT_LANG="${EXPECT_LANG:-}" || fail=1
+  only="$CLASS/$t"; [[ $t == */* ]] && only="OwnFrameUITests/$t"   # Class/test runs another class
+  run "${t//\//-}" "$only" TEST_RUNNER_DEVICE_ACCEPT=1 TEST_RUNNER_EXPECT_LANG="${EXPECT_LANG:-}" || fail=1
 done
 exit $fail

@@ -137,6 +137,152 @@ final class DeviceAcceptanceUITests: XCTestCase {
         attach(app, "06-protected-slideshow")
     }
 
+    // MARK: - Share Sheet round trip (hitl §6, 210 T025/T061–T062, FR-210-31)
+
+    /// Safari → Share → OwnFrame: the extension says "Open OwnFrame to start", Done closes it,
+    /// and a cold OwnFrame launch picks the link up into setup (the app is unconfigured).
+    @MainActor
+    func testShareSheetFromSafariHandsTheLinkToAColdApp() throws {
+        let app = launchFresh() // installs a fresh app, so the extension is registered
+        app.terminate()
+
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        XCUIDevice.shared.system.open(URL(string: Self.demoLink)!)
+        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20), "Safari should open the link")
+        sleep(3) // let the page settle so Share shares the page URL
+
+        let share = safari.buttons["ShareButton"]
+        guard share.waitForExistence(timeout: 20) else {
+            attachTree(safari, "safari-no-share-button"); XCTFail("Safari's Share button"); return
+        }
+        share.tap()
+        let target = try ownFrameShareTarget(in: safari)
+        target.tap()
+
+        let message = safari.descendants(matching: .any)["share.confirmation.message"]
+        guard message.waitForExistence(timeout: 20) else {
+            attachTree(safari, "no-extension-ui"); XCTFail("the extension's confirmation"); return
+        }
+        assertInDeviceLanguage(message, german: "um zu starten", english: "Open OwnFrame",
+                               what: "the share confirmation (FR-210-31)")
+        attach(safari, "share-confirmation")
+        safari.descendants(matching: .any)["share.confirmation.done"].tap()
+        XCTAssertTrue(message.waitForNonExistence(timeout: 10), "Done should close the extension")
+
+        app.launch()
+        let url = app.textFields["onboarding.sharedLink.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 30), "the shared link should open link setup")
+        XCTAssertEqual(url.value as? String, Self.demoLink, "the shared link should be prefilled")
+        attach(app, "share-picked-up")
+    }
+
+    /// OwnFrame in the share sheet: in the app row, or behind "More" on a device where it was
+    /// never used before.
+    @MainActor
+    private func ownFrameShareTarget(in safari: XCUIApplication) throws -> XCUIElement {
+        let named = NSPredicate(format: "label == 'OwnFrame'")
+        let target = safari.descendants(matching: .any).matching(named).firstMatch
+        let more = safari.descendants(matching: .any)
+            .matching(NSPredicate(format: "label IN %@", ["More", "Mehr"])).firstMatch
+        // The app row scrolls sideways; Mail sits in it on every device we test on.
+        let appRow = safari.descendants(matching: .any)
+            .matching(NSPredicate(format: "label IN %@", ["Mail"])).firstMatch
+        XCTAssertTrue(appRow.waitForExistence(timeout: 10), "the share sheet should open")
+        let row = appRow.frame // a fixed strip: Mail itself scrolls away after the first drag
+        let origin = safari.coordinate(withNormalizedOffset: .zero)
+        for _ in 0..<6 {
+            if target.exists && target.isHittable { return target }
+            if more.exists && more.isHittable { break }
+            origin.withOffset(CGVector(dx: row.midX + 180, dy: row.midY))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: row.midX - 180, dy: row.midY)))
+        }
+        if more.exists {
+            more.tap()
+            if target.waitForExistence(timeout: 10) { return target }
+        }
+        attachTree(safari, "share-sheet")
+        throw XCTSkip("OwnFrame not found in the share sheet — see the share-sheet attachment")
+    }
+
+    @MainActor
+    private func attachTree(_ app: XCUIApplication, _ name: String) {
+        let tree = XCTAttachment(string: app.debugDescription)
+        tree.name = name; tree.lifetime = .keepAlways; add(tree)
+        attach(app, name)
+    }
+
+    // MARK: - Resilience (hitl §4 resilience smoke, §5 #80) — needs the device on a cable
+
+    /// #80 / UNATT-13: a cold launch while offline resumes the slideshow from the cache
+    /// instead of stalling on a black screen.
+    @MainActor
+    func testOfflineColdLaunchResumesTheSlideshow() throws {
+        let app = try startDemoSlideshowAndLetItAdvance()
+
+        goOffline(app)
+        app.terminate()
+        app.launch()
+
+        let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(slideshow.waitForExistence(timeout: 45),
+                      "an offline cold launch should resume from the cache (#80: black screen)")
+        XCTAssertFalse(app.descendants(matching: .any)["slideshow.error"].exists,
+                       "cached photos exist, so no error should show")
+        attach(app, "offline-cold-launch")
+    }
+
+    /// Resilience smoke: two minutes without a network keep the slideshow on screen, and it
+    /// keeps advancing once the network is back.
+    @MainActor
+    func testTwoMinutesOfflineThenRecovers() throws {
+        let app = try startDemoSlideshowAndLetItAdvance()
+        let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+
+        goOffline(app)
+        sleep(120)
+        XCTAssertTrue(slideshow.exists, "the slideshow should stay on screen while offline")
+        XCTAssertFalse(app.descendants(matching: .any)["slideshow.error"].exists,
+                       "a network drop over cached photos should stay calm")
+        attach(app, "offline-2min")
+
+        AirplaneMode.set(false, returningTo: app)
+        AirplaneMode.assertServer(Self.probeURL, reachable: true)
+        for round in 1...2 {
+            let before = slideshow.value as? String ?? ""
+            let moved = expectation(for: NSPredicate(format: "value != %@", before), evaluatedWith: slideshow)
+            wait(for: [moved], timeout: 150)
+            attach(app, "online-again-\(round)")
+        }
+    }
+
+    /// A public host, NOT the demo server: split-horizon DNS makes that one a LAN address from
+    /// inside, and the runner process has no Local Network permission — a probe of it fails
+    /// even online, which would make every "offline" check pass vacuously.
+    private static let probeURL = URL(string: "https://www.apple.com/library/test/success.html")!
+
+    @MainActor
+    private func startDemoSlideshowAndLetItAdvance() throws -> XCUIApplication {
+        let app = launchFresh()
+        enterLink(app, Self.demoLink)
+        answerLocalNetworkAlertIfShown(app)
+        let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(slideshow.waitForExistence(timeout: long), "the demo link should start the slideshow")
+        // One advance, so more than the first photo is cached before the network goes.
+        let first = slideshow.value as? String ?? ""
+        wait(for: [expectation(for: NSPredicate(format: "value != %@", first), evaluatedWith: slideshow)],
+             timeout: 150)
+        return app
+    }
+
+    /// Airplane mode on, proven by a failed probe; switched off again however the test ends —
+    /// this is a person's iPad.
+    @MainActor
+    private func goOffline(_ app: XCUIApplication) {
+        addTeardownBlock { @MainActor in AirplaneMode.set(false, returningTo: XCUIApplication()) }
+        AirplaneMode.set(true, returningTo: app)
+        AirplaneMode.assertServer(Self.probeURL, reachable: false)
+    }
+
     // MARK: - Helpers
 
     @MainActor

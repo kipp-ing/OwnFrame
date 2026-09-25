@@ -131,6 +131,48 @@ final class DeviceRigConfigUITests: XCTestCase {
         }
     }
 
+    /// PR #49 / FR-700-23, FR-710-24 (hitl §4): Settings over the slideshow keeps the frame
+    /// available in HA while `frame_status` goes running → inactive → running; backgrounding
+    /// still tears down. The broker side is checked by `device-accept.sh availability`, which
+    /// records the frame's topics and lines them up with the `RIGMARK` lines printed here —
+    /// asserting it from inside the app would only re-test the app's own belief.
+    @MainActor
+    func testSettingsOverSlideshowThenBackground() throws {
+        let app = XCUIApplication()
+        app.launchArguments = []
+        app.launch()
+        let slideshow = app.descendants(matching: .any)
+            .matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(slideshow.waitForExistence(timeout: long),
+                      "a configured frame should boot straight into the slideshow")
+        Thread.sleep(forTimeInterval: 60) // connect + announce
+
+        mark("settings-open")
+        try openSettings(app)
+        attach(app, "pr49-settings-open")
+        Thread.sleep(forTimeInterval: 30)
+
+        mark("settings-close")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(slideshow.waitForExistence(timeout: 15), "Done should return to the slideshow")
+        Thread.sleep(forTimeInterval: 30)
+
+        mark("background")
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 30)
+
+        mark("foreground")
+        app.activate()
+        XCTAssertTrue(slideshow.waitForExistence(timeout: 30))
+        Thread.sleep(forTimeInterval: 45)
+        mark("end")
+    }
+
+    /// A wall-clock marker in the test log, lined up with the broker recording afterwards.
+    private func mark(_ name: String) {
+        print("RIGMARK \(name) \(Date().timeIntervalSince1970)")
+    }
+
     // MARK: - Steps
 
     /// Drives first-run onboarding to the demo link. Tolerates an already-configured frame so the
