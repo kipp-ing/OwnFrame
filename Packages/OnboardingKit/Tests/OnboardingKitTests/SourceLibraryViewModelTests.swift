@@ -100,6 +100,27 @@ import Testing
     #expect(store.load().sources.isEmpty)
 }
 
+// Issue #80's offline fallback keeps a link's resolved share key in the Keychain. Like the
+// password, it must not outlive its source.
+@MainActor
+// @covers FR-120-14
+@Test func sourceLibraryViewModelRemoveSharedLinkDeletesCachedResolution() async {
+    let resolutionCache = InMemorySharedLinkResolutionStore()
+    let viewModel = SourceLibraryViewModel(
+        store: InMemorySourceLibraryStore(),
+        secretStore: InMemorySharedLinkSecretStore(),
+        resolver: StubResolver(),
+        resolutionCache: resolutionCache
+    )
+    await viewModel.resolveSharedLink(urlString: geoURL, label: "Geo")
+    let id = viewModel.sources[0].id
+    resolutionCache.save(SharedLinkResolution(key: "share-key", albumID: "a1", expiresAt: nil), forSourceID: id)
+
+    viewModel.remove(id: id)
+
+    #expect(resolutionCache.read(forSourceID: id) == nil)
+}
+
 // 120 T040 (FR-120-14): only a link has a password — removing an album source deletes none.
 @MainActor
 // @covers FR-120-14

@@ -12,6 +12,8 @@ import Security
 public protocol SharedLinkResolutionStore: Sendable {
     func save(_ resolution: SharedLinkResolution, forSourceID id: String)
     func read(forSourceID id: String) -> SharedLinkResolution?
+    /// Like a link password, a cached share key never outlives its source (FR-120-14).
+    func delete(forSourceID id: String)
 }
 
 public struct KeychainSharedLinkResolutionStore: SharedLinkResolutionStore {
@@ -49,6 +51,10 @@ public struct KeychainSharedLinkResolutionStore: SharedLinkResolutionStore {
         guard status == errSecSuccess, let data = result as? Data else { return nil }
         return try? JSONDecoder().decode(SharedLinkResolution.self, from: data)
     }
+
+    public func delete(forSourceID id: String) {
+        SecItemDelete(baseQuery(forSourceID: id) as CFDictionary)
+    }
 }
 
 public final class InMemorySharedLinkResolutionStore: SharedLinkResolutionStore, @unchecked Sendable {
@@ -64,5 +70,9 @@ public final class InMemorySharedLinkResolutionStore: SharedLinkResolutionStore,
 
     public func read(forSourceID id: String) -> SharedLinkResolution? {
         resolutionsBySourceID[id]
+    }
+
+    public func delete(forSourceID id: String) {
+        resolutionsBySourceID[id] = nil
     }
 }

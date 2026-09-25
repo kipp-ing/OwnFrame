@@ -319,8 +319,9 @@ struct OwnFrameApp: App {
             keychain: keychain,
             sourceStore: sourceStore,
             // The same Keychain service the source library saves link passwords in, so
-            // Reset can delete them (120, FR-120-14).
-            secretStore: secretStore
+            // Reset can delete them (120, FR-120-14); likewise the cached share keys (#80).
+            secretStore: secretStore,
+            resolutionCache: sharedLinkResolutionCache
         )
 
         // Resume at the first missing step on launch; a complete state (key + base URL +
@@ -475,6 +476,7 @@ struct OwnFrameApp: App {
                 store: sourceStore,
                 secretStore: secretStore,
                 resolver: sharedLinkResolver,
+                resolutionCache: sharedLinkResolutionCache,
                 onSwitchActive: onSwitchActive
             )
         }

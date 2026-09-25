@@ -92,4 +92,41 @@ struct OnboardingResetTests {
         #expect(secretStore.readPassword(forSourceID: link.id) == nil)
         #expect(sourceStore.load().sources.isEmpty)
     }
+
+    // #80's offline fallback keeps a link's resolved share key in the Keychain. It grants
+    // server access like an API key, so Reset must delete it from the real Keychain too.
+    @Test func resetDeletesCachedShareKeysFromTheRealKeychain() throws {
+        let suiteName = "de.kippings.ImmichSlideshow.tests.reset.shareKeys"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let resolutionCache = KeychainSharedLinkResolutionStore(
+            service: "de.kippings.ImmichSlideshow.tests.reset.sharedLinkResolution"
+        )
+        let linkBaseURL = try #require(URL(string: "https://photos.example.test"))
+        let link = Source(id: "link-1", label: "Family", kind: .sharedLink(baseURL: linkBaseURL, slug: "family"))
+        resolutionCache.delete(forSourceID: link.id) // clean slate
+        defer { resolutionCache.delete(forSourceID: link.id) }
+        resolutionCache.save(
+            SharedLinkResolution(key: "share-key", albumID: "a1", expiresAt: nil),
+            forSourceID: link.id
+        )
+
+        let viewModel = OnboardingViewModel(
+            api: { ImmichClient(config: $0) },
+            config: UserDefaultsConfigStore(defaults: defaults),
+            keychain: KeychainAPIKeyStore(
+                service: "de.kippings.ImmichSlideshow.tests.reset.shareKeys.apiKey",
+                account: "reset-account"
+            ),
+            sourceStore: InMemorySourceLibraryStore(library: SourceLibrary(sources: [link], activeID: link.id)),
+            resolutionCache: resolutionCache
+        )
+        #expect(resolutionCache.read(forSourceID: link.id)?.key == "share-key")
+
+        viewModel.reset()
+
+        #expect(resolutionCache.read(forSourceID: link.id) == nil)
+    }
 }

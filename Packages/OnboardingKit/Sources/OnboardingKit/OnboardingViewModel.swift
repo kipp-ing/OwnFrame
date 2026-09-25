@@ -24,6 +24,8 @@ public enum OnboardingPathChoice: Sendable, Equatable {
     @ObservationIgnored private let sourceStore: any SourceLibraryStore
     // Shared-link passwords, deleted together with their sources on Reset (120, FR-120-14).
     @ObservationIgnored private let secretStore: any SharedLinkSecretStore
+    // The offline-fallback share keys (#80), deleted with the passwords on Reset.
+    @ObservationIgnored private let resolutionCache: any SharedLinkResolutionStore
     // Bounded auto-retry for the connection validation. The first request on a fresh
     // install fails while the iOS Local Network permission prompt is up; retrying a few
     // times lets validation complete once the user grants access instead of surfacing a
@@ -38,6 +40,7 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         keychain: KeychainStore,
         sourceStore: any SourceLibraryStore = InMemorySourceLibraryStore(),
         secretStore: any SharedLinkSecretStore = InMemorySharedLinkSecretStore(),
+        resolutionCache: any SharedLinkResolutionStore = InMemorySharedLinkResolutionStore(),
         connectionRetryLimit: Int = 4,
         connectionRetryDelay: Duration = .seconds(1.2),
         sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) }
@@ -47,6 +50,7 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         self.keychain = keychain
         self.sourceStore = sourceStore
         self.secretStore = secretStore
+        self.resolutionCache = resolutionCache
         self.connectionRetryLimit = connectionRetryLimit
         self.connectionRetryDelay = connectionRetryDelay
         self.sleep = sleep
@@ -201,6 +205,7 @@ public enum OnboardingPathChoice: Sendable, Equatable {
         for source in sourceStore.load().sources {
             if case .sharedLink = source.kind {
                 secretStore.deletePassword(forSourceID: source.id)
+                resolutionCache.delete(forSourceID: source.id)
             }
         }
         sourceStore.clear()

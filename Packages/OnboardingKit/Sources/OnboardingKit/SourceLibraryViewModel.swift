@@ -19,6 +19,8 @@ public final class SourceLibraryViewModel {
 
     @ObservationIgnored private let store: any SourceLibraryStore
     @ObservationIgnored private let secretStore: any SharedLinkSecretStore
+    // The offline-fallback share keys (#80), deleted together with their sources.
+    @ObservationIgnored private let resolutionCache: any SharedLinkResolutionStore
     @ObservationIgnored private let resolver: any SharedLinkResolving
     @ObservationIgnored private let onSwitchActive: (String) -> Void
     // Bounded auto-retry for the shared-link resolve, mirroring OnboardingViewModel. On a
@@ -35,6 +37,7 @@ public final class SourceLibraryViewModel {
         store: any SourceLibraryStore,
         secretStore: any SharedLinkSecretStore,
         resolver: any SharedLinkResolving,
+        resolutionCache: any SharedLinkResolutionStore = InMemorySharedLinkResolutionStore(),
         onSwitchActive: @escaping (String) -> Void = { _ in },
         resolveRetryLimit: Int = 8,
         resolveRetryDelay: Duration = .seconds(1.5),
@@ -43,6 +46,7 @@ public final class SourceLibraryViewModel {
         self.store = store
         self.secretStore = secretStore
         self.resolver = resolver
+        self.resolutionCache = resolutionCache
         self.onSwitchActive = onSwitchActive
         self.resolveRetryLimit = resolveRetryLimit
         self.resolveRetryDelay = resolveRetryDelay
@@ -344,6 +348,7 @@ public final class SourceLibraryViewModel {
     public func remove(id: String) {
         if case .sharedLink = library.sources.first(where: { $0.id == id })?.kind {
             secretStore.deletePassword(forSourceID: id)
+            resolutionCache.delete(forSourceID: id)
         }
 
         var library = self.library

@@ -404,6 +404,29 @@ import ImmichClient
     #expect(sourceStore.load().sources.isEmpty)
 }
 
+// Issue #80's offline fallback keeps a link's resolved share key in the Keychain; Reset
+// deletes it along with the link's password.
+// @covers FR-120-14, FR-200-24
+@MainActor @Test func resetDeletesTheCachedResolutionOfEverySavedLink() {
+    let baseURL = URL(string: "https://bilder.example.test")!
+    var library = SourceLibrary()
+    library.add(Source(id: "link-1", label: "Geo", kind: .sharedLink(baseURL: baseURL, slug: "geo")))
+    let resolutionCache = InMemorySharedLinkResolutionStore(resolutionsBySourceID: [
+        "link-1": SharedLinkResolution(key: "share-key", albumID: "a1", expiresAt: nil),
+    ])
+    let vm = OnboardingViewModel(
+        api: { _ in AlbumsAPI(result: .success([])) },
+        config: InMemoryConfigStore(),
+        keychain: InMemoryKeychainStore(),
+        sourceStore: InMemorySourceLibraryStore(library: library),
+        resolutionCache: resolutionCache
+    )
+
+    vm.reset()
+
+    #expect(resolutionCache.read(forSourceID: "link-1") == nil)
+}
+
 @MainActor private func makeVM(
     api: any ImmichAPI,
     config: InMemoryConfigStore = .init(),
