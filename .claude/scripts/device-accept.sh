@@ -4,6 +4,7 @@
 #   device-accept.sh <udid> build              build-for-testing for that device
 #   device-accept.sh <udid> [test…]            run DeviceAcceptanceUITests, a FRESH install per test
 #   device-accept.sh <udid> identity           T024: HA identity survives delete + reinstall
+#                                              (needs mosquitto_sub; the frame joins the live broker)
 #
 # Every test needs camera/Local Network permission undetermined and no source configured, so
 # the app is uninstalled before each one, one runner launch per test. The runner uses a copy
@@ -68,24 +69,35 @@ run() {
 if [ "${1:-}" = identity ]; then
   [ -n "${MQTT_PASSWORD:-}" ] || MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
   [ -n "$MQTT_PASSWORD" ] || { echo "no MQTT password (env or Keychain ownframe-mqtt)" >&2; exit 1; }
-  ids() {
-    mosquitto_sub -h "${MQTT_HOST:-home.kippings.de}" -p "${MQTT_PORT:-8883}" -u "${MQTT_USER:-car}" \
-      -P "$MQTT_PASSWORD" --cafile /etc/ssl/cert.pem -t 'ownframe/+/availability' -v -W 6 2>/dev/null \
-      | awk '$2!="" {split($1,a,"/"); print a[2]}' | sort -u
+  sub=(mosquitto_sub -h "${MQTT_HOST:-home.kippings.de}" -p "${MQTT_PORT:-8883}" -u "${MQTT_USER:-car}"
+       -P "$MQTT_PASSWORD" --cafile /etc/ssl/cert.pem)
+  # The device id that is LIVE right now: launch the app and collect ids from fresh messages
+  # only (-R drops stale retained ones). A snapshot of retained topics alone would pass even if
+  # the reinstalled app never reached the broker — a false green.
+  live_id() {
+    local tmp; tmp=$(mktemp)
+    "${sub[@]}" -t 'ownframe/+/#' -v -R -W 45 > "$tmp" 2>/dev/null &
+    local pid=$!
+    sleep 2
+    xcrun devicectl device process launch --device "$dev" "$BUNDLE_ID" >/dev/null 2>&1
+    wait $pid
+    awk '{split($1,a,"/"); print a[2]}' "$tmp" | sort -u; rm -f "$tmp"
   }
   rig() {
     run "identity-$1" OwnFrameUITests/DeviceRigConfigUITests/testConfigureFrameWithSharedLinkAndBroker \
       TEST_RUNNER_DEVICE_RIG=1 TEST_RUNNER_MQTT_PASSWORD="$MQTT_PASSWORD"
   }
   rig first || exit 1
-  sleep 10; before=$(ids); echo "device ids on the broker before reinstall:"; echo "$before" | sed 's/^/    /'
+  before=$(live_id)
+  [ "$(echo "$before" | grep -c .)" = 1 ] || { echo "expected exactly one live device id, got:"; echo "$before"; exit 1; }
+  echo "live device id before reinstall: $before"
   uninstall
   xcrun devicectl device install app --device "$dev" "$app" >/dev/null || exit 1
   rig again || exit 1
-  sleep 10; after=$(ids)
-  new=$(comm -13 <(echo "$before") <(echo "$after"))
-  if [ -z "$new" ]; then echo "IDENTITY OK — no new device id after delete + reinstall"
-  else echo "IDENTITY FAILED — new device id(s) after reinstall (a duplicate device in HA):"; echo "$new" | sed 's/^/    /'; exit 1; fi
+  after=$(live_id)
+  echo "live device id after reinstall:  ${after:-<none>}"
+  if [ "$after" = "$before" ]; then echo "IDENTITY OK — the reinstalled frame publishes under the same device id"
+  else echo "IDENTITY FAILED — a different (or no) live device id after delete + reinstall"; exit 1; fi
   exit 0
 fi
 

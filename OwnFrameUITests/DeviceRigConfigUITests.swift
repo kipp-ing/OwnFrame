@@ -163,6 +163,13 @@ final class DeviceRigConfigUITests: XCTestCase {
 
         app.buttons["onboarding.sharedLink.start"].tap()
 
+        // After a reinstall iOS asks for Local Network access again (the demo host resolves to a
+        // LAN IP from inside). Allow is the second button on every supported iOS.
+        let localNetwork = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if localNetwork.waitForExistence(timeout: 15) {
+            localNetwork.buttons.element(boundBy: 1).tap()
+        }
+
         // The demo link is password-free; if that ever changes this assert is the early warning.
         XCTAssertFalse(app.textFields["onboarding.sharedLink.password"].waitForExistence(timeout: 5),
                        "the demo link is expected to be password-free")
@@ -203,7 +210,15 @@ final class DeviceRigConfigUITests: XCTestCase {
         set(app, "broker.username", to: Self.brokerUser)
         set(app, "broker.password", to: password, secure: true)
 
+        // No onSubmit on the broker fields, so Return only drops focus — without that, iOS 26+
+        // swallows the synthesized Save tap (#75).
+        app.releaseKeyboardFocus()
         let save = app.buttons["broker.save"]
+        var swipes = 0
+        while !(save.exists && save.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
         XCTAssertTrue(save.waitForExistence(timeout: 10), "broker editor should offer Save")
         save.tap()
     }
@@ -214,13 +229,26 @@ final class DeviceRigConfigUITests: XCTestCase {
     /// previous value, and `typeText` appends.
     @MainActor
     private func set(_ app: XCUIApplication, _ identifier: String, to value: String, secure: Bool = false) {
-        let field = secure
-            ? app.secureTextFields[identifier].exists
-                ? app.secureTextFields[identifier] : app.textFields[identifier]
-            : app.textFields[identifier].exists
-                ? app.textFields[identifier] : app.secureTextFields[identifier]
+        let plain = app.textFields[identifier]
+        let hidden = app.secureTextFields[identifier]
+        func resolved() -> XCUIElement? {
+            if secure { return hidden.exists ? hidden : plain.exists ? plain : nil }
+            return plain.exists ? plain : hidden.exists ? hidden : nil
+        }
 
-        XCTAssertTrue(field.waitForExistence(timeout: 15), "\(identifier) should exist")
+        // A SwiftUI Form only materialises rows once they scroll into view (seen on iPadOS 26,
+        // iPad jk, 2026-09-25) — `waitForExistence` alone never finds a field below the fold.
+        var found = plain.waitForExistence(timeout: 5) || hidden.exists
+        var searchSwipes = 0
+        while !found && searchSwipes < 8 {
+            app.swipeUp()
+            searchSwipes += 1
+            found = resolved() != nil
+        }
+        guard let field = resolved() else {
+            XCTFail("\(identifier) should exist")
+            return
+        }
 
         // The inline MQTT section sits below the fold on a 10.5" screen, and the keyboard covers
         // more of it with each field. `exists` is true for off-screen elements but `tap()` on a

@@ -237,10 +237,16 @@ SpringBoard.
       allowing — fixed: `SourceLibraryViewModel` now retries `.unreachable` (~12 s, 8 × 1.5 s).
       Demo-link test green on iPad jk after both fixes. Still open: the protected variant needs
       a protected test link + password in the env.
-- [ ] T024 HA identity survives delete + reinstall (spec 700, release-blocking; `hitl.md` §4
+- [X] T024 HA identity survives delete + reinstall (spec 700, release-blocking; `hitl.md` §4
       "Identity"): `device-accept.sh identity` runs the existing rig configuration, snapshots
       the broker's `ownframe/+/availability` device ids, uninstalls, reinstalls, reconfigures,
       and fails if any new device id appeared (a new id = a duplicate `_2` device in HA).
+      *Done 2026-09-25, green on iPad jk:* live id `FCE9EA58…` before and after. The check compares
+      the id seen in LIVE messages (`mosquitto_sub -R` while the script relaunches the app), not
+      the retained-topic snapshot first planned: that snapshot picked up a different device's
+      retained id and would have passed even if the reinstalled app never connected. The rig
+      test also learned iOS 26: scroll until lazily created form fields exist, answer the Local
+      Network alert after a reinstall, release keyboard focus before Save (#75).
 
 ---
 
