@@ -177,20 +177,57 @@ supported, newest available} × {iPad, iPhone}.
   iOS 27 confound-closed section below); pick a screen-size-diverse model deliberately if you
   want layout stress instead.
 
-**Known gap (2026-09-16, issue #77):** a freshly-created iOS 27.0 simulator (`xcrun simctl
-create`) loops a SpringBoard "Sign in to Apple Account" dialog on launch, over the app's
-onboarding screen — Cancel does not clear it, it reappears immediately, and `erase` +
-reboot doesn't help either. Blocks all UI automation on that device. Not reproduced on
-simulators that already existed before this was discovered (17.5/18.6/26.5), so a first-run
-account-probe state on a brand-new device is suspected, not proven. The first WP5 run under
-this policy (2026-09-16) only got the two 17.5 ("oldest supported") legs done; the 27.0
-("newest available") legs are blocked on #77, not silently skipped.
+**Gate run 2026-09-25 (Xcode 27.0 27A266a)** — oldest supported = iOS 17 (newest device patch
+17.7.11; newest installable simulator 17.5), newest available = iOS/iPadOS 27.0 GA:
+
+| Leg | Result (passed / failed / skipped) | Notes |
+|---|---|---|
+| Host packages | 965 green, 12 packages | 960 at session start + 5 link-retry tests (OnboardingKit 214, rerun after the change) |
+| iPad Pro 11" (M4) 17.5 sim | 113 / 0 / 73 | StoreKit 7/7 included |
+| iPhone SE (3rd gen) 17.5 sim | 112 / 1 / 73 | the 1 is the known #76 (broker host field) |
+| iPad Pro 11" (M4) 27.0 sim, freshly created | 106 / 0 / 73 | after `3f36472` (5 focus-cluster reds before it); StoreKit skipped: hangs on 26.4+/27 sims (#54) |
+| iPhone 13 mini 27.0 sim | 105 / 1 / 73 | the 1 is `SlideshowChromeUITests.testChromeInsetsStableAcrossOrientationAndKenBurns`, reproduces alone (#86) |
+| iPad jk, iPadOS 26.6.1 (hardware) | 104 / 8 / 69 before today's fixes | 5 StoreKit (#54), 3 of the #75 focus cluster |
+| Framepad, iOS 17.7.11 (hardware) | not runnable as a suite | #84: Xcode 27's testmanagerd crashes on iOS 17 |
+
+The 73 skips are the usual 69 (screenshot, rig and live-smoke tests without their env) plus the
+4 `DeviceAcceptanceUITests`, which only run on hardware through `device-accept.sh`.
+
+- **#77 is gone:** a freshly created 27.0 simulator runs UI automation without the sign-in loop.
+- **#75 / iOS 26+ focus artifact:** while a text field has keyboard focus, a synthesized tap on
+  a form or sheet button is swallowed (a finger works). Tests call
+  `XCUIApplication.releaseKeyboardFocus()` (`OwnFrameUITests/KeyboardFocus.swift`) before
+  submit/continue taps. It keys on `hasKeyboardFocus`, because a fresh simulator has a
+  hardware keyboard connected and shows no software keyboard.
+- **StoreKit** is proven on the 17.5 simulator and as the first bundle on Framepad. On 26.x/27
+  it fails (jk) or hangs (27.0 simulator), so those legs run `-skip-testing:OwnFrameTests/StoreKitClientTests`.
 
 Some contracts cannot be proved in a simulator at all (real MQTT/TLS, real CloudKit,
 panel smoothness, soak). Those run on the physical frame — see
 [device-testing.md](device-testing.md) for the device rig, the CLI recipes, and an
 honest list of what genuinely needs hardware versus what is merely missing a test
 target.
+
+## Device acceptance — seam-free tests on real hardware (2026-09-25)
+
+`OwnFrameUITests/DeviceAcceptanceUITests.swift` runs the production path (no `--uitest`
+seams) against real permission alerts, the real network and the real demo link. It's the
+first class that answers SpringBoard alerts (permission buttons by position: deny first, allow
+second). Driven by `.claude/scripts/device-accept.sh`, which **uninstalls the app before every
+test**, because each one needs undetermined permissions:
+
+```bash
+.claude/scripts/device-accept.sh <udid> build
+EXPECT_LANG=de .claude/scripts/device-accept.sh <udid>            # T022/T023 (220 Phase 7)
+.claude/scripts/device-accept.sh <udid> identity                  # T024: HA identity after reinstall
+```
+
+`EXPECT_LANG` is the device's system language. The scheme runs the app in English, so the
+runner can't tell that the device is German. iOS 26+ devices only, because on iOS 17 only the
+first test per daemon start is trustworthy (#84). Its first run found four real bugs the
+hermetic suite could not see (#82 not actually fixed, the camera fallback never shown, the Local
+Network text English-only, and no retry on the link path). Hermetic guards were added where
+possible.
 
 ## Requirement traceability — `.claude/scripts/coverage.py`
 
