@@ -32,7 +32,7 @@ extension AVCaptureSession: @unchecked @retroactive Sendable {}
 /// since `AVCaptureMetadataOutputObjectsDelegate` is an `@objc` protocol).
 @MainActor
 @Observable
-final class QRScanner: NSObject, CodeScanning {
+final class QRScanner: NSObject, CodeScanning, Identifiable {
     enum State: Equatable {
         case idle
         case permissionDenied
@@ -65,6 +65,11 @@ final class QRScanner: NSObject, CodeScanning {
     /// Scans until a QR code is decoded and returns its raw string payload, or `nil` if
     /// scanning ended without one (permission denied, no camera, or the view was dismissed
     /// via `cancel()`). Resumes its continuation exactly once, guarded by `didResume`.
+    /// The scan ended on the calm fallback (camera denied or missing). The cover must then
+    /// stay up until the user taps Done — dismissing it with the scan's result hid the
+    /// fallback before it could be read (SC-220-05, found on device 2026-09-25).
+    var showsFallback: Bool { state == .permissionDenied || state == .noCamera }
+
     func scan() async -> String? {
         didResume = false
         cancelRequested = false
@@ -188,6 +193,7 @@ extension QRScanner: AVCaptureMetadataOutputObjectsDelegate {
 /// more than once (idempotent past the first resume).
 struct QRScannerView: View {
     let scanner: QRScanner
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
@@ -236,6 +242,7 @@ struct QRScannerView: View {
                 .accessibilityIdentifier("onboarding.sharedLink.scan.unavailable")
             Button("Done") {
                 scanner.cancel()
+                dismiss() // the scan already returned, so nothing else closes the cover
             }
             .buttonStyle(.accentProminent)
             .accessibilityIdentifier("onboarding.sharedLink.scan.cancel")

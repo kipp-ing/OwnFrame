@@ -204,6 +204,42 @@ UITests stay green.
       `NSCameraUsageDescription` copy) — ship gate on the real frame iPad, riding the
       SAME device day as the 900 quickstart and the 800 (SC-800-02/03) gates
 
+## Phase 7: Device acceptance automation (added 2026-09-25, Jan: "automate what can be")
+
+Seam-free XCUITests that take the automatable half of T021 and the `docs/hitl.md` device
+items off the manual list. Class `OwnFrameUITests/DeviceAcceptanceUITests.swift`, gated by
+`TEST_RUNNER_DEVICE_ACCEPT=1` (skips everywhere else, like `DeviceRigConfigUITests`). Each
+test expects a FRESH install (camera + Local Network permission undetermined), so
+`.claude/scripts/device-accept.sh` uninstalls the app before every single test (which also
+sidesteps issue #84 on iOS 17). The first class in the suite that answers system alerts via
+SpringBoard.
+
+- [X] T022 Camera permission → live scanner (SC-220-02 first half, issues #82 + #81): welcome →
+      Immich link → Scan QR; the SpringBoard camera alert shows `NSCameraUsageDescription`
+      in the device's language (German text on a German device — #81); allow it; the
+      scanner stays usable (Cancel hittable, no `scan.unavailable`) and Cancel returns to
+      the link field (the #82 hang never returned). Deny variant → the
+      `scan.unavailable` fallback (SC-220-05). Scanning a physical code stays manual.
+      *Done 2026-09-25, green on iPad jk (iPadOS 26.6.1, `EXPECT_LANG=de`).* The first run found
+      two real bugs, both fixed test-first: #82 was NOT fixed by `8c87def` (the cover used
+      `isPresented:` + `if let` on state set in the same step, so it rendered empty and never
+      asked for the camera; now `fullScreenCover(item:)`), and a failed scan closed the cover
+      before the fallback showed. Hermetic guard: `SharedLinkOnboardingUITests.
+      testScanWithoutUsableCameraShowsFallbackUntilDone` (a simulator has no camera).
+- [ ] T023 Fresh install → Immich link → running slideshow (210 shared-link-only onboarding):
+      the Local Network alert is answered if iOS shows it; the demo link reaches
+      `slideshow.image` and the photo advances. Protected variant: link + password from
+      `TEST_RUNNER_PROTECTED_LINK` / `TEST_RUNNER_PROTECTED_PASSWORD` (skips when unset);
+      a wrong password shows `onboarding.sharedLink.password.error`, the right one reaches
+      the slideshow.
+      *2026-09-25:* the Local Network text was English-only (fixed: `InfoPlist.xcstrings`), and
+      the link path had no retry while that alert is up, so "Server not reachable" stuck after
+      allowing (fix in progress: `SourceLibraryViewModel` gets the `submitConnection` retry).
+- [ ] T024 HA identity survives delete + reinstall (spec 700, release-blocking; `hitl.md` §4
+      "Identity"): `device-accept.sh identity` runs the existing rig configuration, snapshots
+      the broker's `ownframe/+/availability` device ids, uninstalls, reinstalls, reconfigures,
+      and fails if any new device id appeared (a new id = a duplicate `_2` device in HA).
+
 ---
 
 ## Dependencies & Execution Order

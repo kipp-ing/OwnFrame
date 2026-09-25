@@ -20,7 +20,6 @@ struct SharedLinkSetupView: View {
     @State private var passwordText = ""
     @State private var showPasswordPrompt = false
     @State private var qrScanner: QRScanner?
-    @State private var showScanner = false
 
     /// `prefill` seeds the link field — used when a link is shared into the app while it
     /// is still unconfigured (210, US2 → `IncomingSharedLink.prefillOnboarding`).
@@ -89,11 +88,12 @@ struct SharedLinkSetupView: View {
         .sheet(isPresented: $showPasswordPrompt, onDismiss: { passwordText = "" }) {
             passwordPrompt
         }
-        .fullScreenCover(isPresented: $showScanner) {
-            if let qrScanner {
-                QRScannerView(scanner: qrScanner)
-                    .task { await driveScan(qrScanner) }
-            }
+        // `item:`, not `isPresented:` + `if let` — with the Bool, the cover's content read a
+        // stale `qrScanner` (still nil), rendered empty and black, and its `.task` never ran,
+        // so the camera was never even requested (issue #82, found on device 2026-09-25).
+        .fullScreenCover(item: $qrScanner) { scanner in
+            QRScannerView(scanner: scanner)
+                .task { await driveScan(scanner) }
         }
     }
 
@@ -129,7 +129,6 @@ struct SharedLinkSetupView: View {
         sourceLibrary.resetSharedLinkAdd()
         let scanner = QRScanner()
         qrScanner = scanner
-        showScanner = true
     }
 
     /// Routes a decoded code through the same resolve-first flow `start()` uses (220,
@@ -138,14 +137,16 @@ struct SharedLinkSetupView: View {
     /// camera/permission) is a silent no-op that leaves manual entry untouched; an invalid
     /// code shows the same inline error surface `start()` uses, via `addState`.
     ///
-    /// Run via `.task` on the presented `QRScannerView`, not fired alongside `showScanner =
-    /// true` in `startScan()`: `scan()`'s first suspension point requests camera permission,
+    /// Run via `.task` on the presented `QRScannerView`, not fired from `startScan()`:
+    /// `scan()`'s first suspension point requests camera permission,
     /// which shows a system alert — starting that race against the `.fullScreenCover`
     /// transition still animating in stalled the cover on a black screen after granting
     /// access (issue #82). `.task` only runs once the cover has actually finished presenting.
     private func driveScan(_ scanner: QRScanner) async {
         await sourceLibrary.addScannedSharedLink(using: scanner, label: "")
-        showScanner = false
+        // Camera denied or missing: the cover stays on its fallback until Done (SC-220-05).
+        guard !scanner.showsFallback else { return }
+        qrScanner = nil
         switch sourceLibrary.addState {
         case .needsPassword:
             showPasswordPrompt = true

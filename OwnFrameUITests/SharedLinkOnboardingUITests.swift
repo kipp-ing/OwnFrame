@@ -123,4 +123,29 @@ final class SharedLinkOnboardingUITests: XCTestCase {
         expectation(for: plays, evaluatedWith: image)
         waitForExpectations(timeout: 5)
     }
+
+    /// 220 SC-220-05 + issue #82 — a simulator has no camera, so Scan QR must land on the
+    /// calm "paste the link instead" fallback and stay there until Done. Guards two device
+    /// bugs found 2026-09-25: the cover rendered EMPTY (stale `isPresented` + `if let`, #82),
+    /// and a failed scan dismissed the cover before the fallback could ever be seen.
+    @MainActor
+    func testScanWithoutUsableCameraShowsFallbackUntilDone() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest", "--uitest-shared-link-only"]
+        app.launch()
+
+        let scan = app.buttons["onboarding.sharedLink.scan"]
+        XCTAssertTrue(scan.waitForExistence(timeout: 5), "the link step should offer Scan QR")
+        scan.tap()
+
+        let fallback = app.staticTexts["onboarding.sharedLink.scan.unavailable"]
+        XCTAssertTrue(fallback.waitForExistence(timeout: 10),
+                      "no usable camera should show the paste-the-link fallback, not an empty cover")
+        sleep(2)
+        XCTAssertTrue(fallback.exists, "the fallback must stay until the user dismisses it")
+
+        app.buttons["onboarding.sharedLink.scan.cancel"].tap()
+        XCTAssertTrue(app.textFields["onboarding.sharedLink.url"].waitForExistence(timeout: 5),
+                      "Done should return to the link field")
+    }
 }

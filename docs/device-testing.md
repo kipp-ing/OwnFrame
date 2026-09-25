@@ -93,10 +93,13 @@ Each of these cost a real debugging cycle at least once.
   whenever Xcode deletes a passed or skipped test's attachments. The runner restarts after
   every other test, and you get ~17 fake red tests plus `Lost connection to testmanagerd`.
   Crash reports: `xcrun devicectl device info files --device <udid> --domain-type
-  systemCrashLogs | grep testmanagerd`. Patching the `.xctestrun` to `keepAlways` stops the
-  crash, but the runner then hangs. **Run the iOS 17 leg with Xcode 26.6 installed alongside**
-  (`DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer`). iOS 26.6 devices are
-  unaffected.
+  systemCrashLogs | grep testmanagerd`. **No workaround works** (all tried 2026-09-25):
+  Xcode 26.6 side by side mounts the same system-wide DDI (`/Library/Developer/
+  DeveloperDiskImages`, owned by the newest Xcode); one test per launch still crashes when the
+  launch ends and hangs the next one; `keepAlways` attachment lifetimes don't stop it either.
+  Only the first test after the daemon (re)starts is trustworthy, so single-test rig runs
+  (`framepad.sh rig/gates/diag`) work and a full suite doesn't. The iOS 17 gate leg is the 17.5
+  simulator plus hand checks until Apple fixes it. iOS 26.6 devices are unaffected.
 - **`framepad.sh` said "not connected" for a connected device** (fixed 2026-09-25):
   `devicectl … | grep -q` under `set -o pipefail` fails the pipeline through the SIGPIPE,
   because `grep -q` exits on the first match. Capture the output first, then grep.

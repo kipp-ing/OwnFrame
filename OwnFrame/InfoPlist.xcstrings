@@ -18,6 +18,24 @@
           }
         }
       }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Local Network permission alert shown on the first request to a server on the same network. Explains why OwnFrame asks. The English value must match INFOPLIST_KEY_NSLocalNetworkUsageDescription in the project (found untranslated on a German device, 2026-09-25).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OwnFrame verbindet sich mit deinem Immich-Fotoserver, um Alben und Fotos zu laden. Erlaube den Zugriff auf das lokale Netzwerk, wenn dein Server im selben Netzwerk ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OwnFrame connects to your Immich photo server to load albums and photos. Allow local network access if your server is on the same network."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
