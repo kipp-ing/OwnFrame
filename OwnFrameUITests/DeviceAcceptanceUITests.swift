@@ -260,6 +260,51 @@ final class DeviceAcceptanceUITests: XCTestCase {
         }
     }
 
+    /// Resilience smoke, "add a photo server-side → appears within one refresh interval"
+    /// (FR-310-06, 60 min, production value — no refresh seam). Uploads into the device-test
+    /// album (`immich-test-album.sh`) while the frame plays it, then expects the new-photos card
+    /// (FR-310-15, on by default and free) and the photo itself. The card is up for only 5 s, so
+    /// both are polled together; the upload is deleted again however the test ends.
+    @MainActor
+    func testNewServerPhotoAppearsWithinOneRefresh() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let link = env["ARRIVAL_LINK"], let albumID = env["ARRIVAL_ALBUM"],
+              let key = env["IMMICH_UPLOAD_KEY"], let url = URL(string: link),
+              let server = URL(string: "\(url.scheme ?? "https")://\(url.host ?? "")") else {
+            throw XCTSkip("set TEST_RUNNER_ARRIVAL_LINK / _ARRIVAL_ALBUM / _IMMICH_UPLOAD_KEY (device-accept.sh arrival)")
+        }
+        let app = launchFresh()
+        enterLink(app, link)
+        answerLocalNetworkAlertIfShown(app)
+        let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(slideshow.waitForExistence(timeout: long), "the test album should start the slideshow")
+        attach(app, "arrival-01-before")
+
+        let assetID = try ImmichTestUpload.uploadNewPhoto(server: server, key: key, albumID: albumID)
+        addTeardownBlock { ImmichTestUpload.delete(server: server, key: key, assetID: assetID) }
+        let uploaded = Date()
+
+        let card = app.descendants(matching: .any)["slideshow.newPhotosCard"]
+        var cardSeen: TimeInterval?
+        var photoSeen: TimeInterval?
+        // One refresh interval plus slack; then up to a few advances to reach the photo.
+        let deadline = uploaded.addingTimeInterval(70 * 60)
+        while Date() < deadline && (cardSeen == nil || photoSeen == nil) {
+            if cardSeen == nil, card.exists {
+                cardSeen = Date().timeIntervalSince(uploaded)
+                attach(app, "arrival-02-card")
+            }
+            if photoSeen == nil, (slideshow.value as? String) == assetID {
+                photoSeen = Date().timeIntervalSince(uploaded)
+                attach(app, "arrival-03-photo")
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        XCTAssertNotNil(cardSeen, "the new-photos card should announce the arrival within one refresh interval")
+        XCTAssertNotNil(photoSeen, "the uploaded photo should be shown after the refresh")
+        print("arrival: card after \(cardSeen.map { Int($0) } ?? -1) s, photo after \(photoSeen.map { Int($0) } ?? -1) s")
+    }
+
     /// A public host, NOT the demo server: split-horizon DNS makes that one a LAN address from
     /// inside, and the runner process has no Local Network permission — a probe of it fails
     /// even online, which would make every "offline" check pass vacuously.
@@ -315,7 +360,16 @@ final class DeviceAcceptanceUITests: XCTestCase {
         let url = app.textFields["onboarding.sharedLink.url"]
         XCTAssertTrue(url.waitForExistence(timeout: 15), "the link field should appear")
         url.tap()
-        url.typeText(link)
+        // Read back and retype: a synthesized keystroke can drop silently (Framepad 2026-09-26).
+        for _ in 0..<3 {
+            let old = url.value as? String ?? ""
+            if !old.isEmpty, old != url.placeholderValue {
+                url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count))
+            }
+            url.typeText(link)
+            if (url.value as? String) == link { break }
+        }
+        XCTAssertEqual(url.value as? String, link, "the link field should hold exactly the link")
         app.releaseKeyboardFocus() // #75
         app.buttons["onboarding.sharedLink.start"].tap()
     }

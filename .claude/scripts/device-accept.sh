@@ -4,6 +4,8 @@
 #   device-accept.sh <udid> build              build-for-testing for that device
 #   device-accept.sh <udid> [test…]            run DeviceAcceptanceUITests (or Class/test), a FRESH install per test
 #   device-accept.sh <udid> resilience         offline cold launch (#80) + 2 min offline recovery (cable!)
+#   device-accept.sh <udid> arrival            a photo uploaded to the test album appears within one
+#                                              refresh (~65 min; immich-test-album.sh once before)
 #   device-accept.sh <udid> availability       PR #49: HA stays online with Settings open, bg tears down
 #   device-accept.sh <udid> identity           T024: HA identity survives delete + reinstall
 #                                              (needs mosquitto_sub; the frame joins the live broker)
@@ -12,7 +14,7 @@
 # the app is uninstalled before each one, one runner launch per test. The runner uses a copy
 # of the .xctestrun with attachments kept (the screenshots are the evidence). iOS 26+ devices
 # only: on iOS 17, Xcode 27's testmanagerd crash (issue #84) leaves just the first test of a
-# session trustworthy.
+# session trustworthy — except single-test modes (arrival), which fit that limit.
 #
 # EXPECT_LANG=de|en: the device's system language, which the permission alerts must use (the
 # scheme runs the app in English, so the runner can't tell). Protected-link test: link + password
@@ -131,8 +133,20 @@ if [ -z "${TEST_RUNNER_PROTECTED_LINK:-}" ]; then
 fi
 export TEST_RUNNER_PROTECTED_LINK TEST_RUNNER_PROTECTED_PASSWORD
 
+# arrival: the test album + upload key from the Keychain (immich-test-album.sh made both).
+if [ "${1:-}" = arrival ]; then
+  TEST_RUNNER_ARRIVAL_LINK="$(security find-generic-password -s ownframe-test-album 2>/dev/null \
+    | sed -n 's/^ *"acct"<blob>="\(.*\)"$/\1/p')"
+  TEST_RUNNER_ARRIVAL_ALBUM="$(security find-generic-password -s ownframe-test-album -w 2>/dev/null || true)"
+  TEST_RUNNER_IMMICH_UPLOAD_KEY="$(security find-generic-password -a immich-upload -s ownframe-immich-upload -w 2>/dev/null || true)"
+  [ -n "$TEST_RUNNER_ARRIVAL_LINK" ] && [ -n "$TEST_RUNNER_IMMICH_UPLOAD_KEY" ] \
+    || { echo "no test album or upload key — run immich-test-album.sh first" >&2; exit 1; }
+  export TEST_RUNNER_ARRIVAL_LINK TEST_RUNNER_ARRIVAL_ALBUM TEST_RUNNER_IMMICH_UPLOAD_KEY
+fi
+
 # resilience: airplane mode through Control Center — the device must be on a CABLE.
 if [ "${1:-}" = resilience ]; then TESTS=(testOfflineColdLaunchResumesTheSlideshow testTwoMinutesOfflineThenRecovers)
+elif [ "${1:-}" = arrival ]; then TESTS=(testNewServerPhotoAppearsWithinOneRefresh)
 elif [ $# -gt 0 ]; then TESTS=("$@"); fi
 fail=0
 for t in "${TESTS[@]}"; do
