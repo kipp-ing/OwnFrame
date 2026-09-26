@@ -306,10 +306,25 @@ final class DeviceRigConfigUITests: XCTestCase {
         XCTAssertTrue(field.isHittable, "\(identifier) should be reachable after scrolling")
         field.tap()
 
-        if let existing = field.value as? String, !existing.isEmpty, !existing.hasPrefix("•") {
-            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
+        // Read the field back and retype on a mismatch: on Framepad (iOS 17) a synthesized
+        // keystroke was silently dropped and the frame saved broker host "hme.kippings.de"
+        // (2026-09-26), which then failed TLS instead of failing here. A secure field only
+        // exposes bullets, so there the length is what can be checked.
+        func matches() -> Bool {
+            let current = field.value as? String ?? ""
+            return secure ? current.count == value.count && current.allSatisfy { $0 == "•" }
+                          : current == value
         }
-        field.typeText(value)
+        for _ in 0..<3 {
+            let existing = field.value as? String ?? ""
+            // An empty field reports its placeholder as its value; deleting that many is harmless.
+            if !existing.isEmpty {
+                field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
+            }
+            field.typeText(value)
+            if matches() { return }
+        }
+        XCTFail("\(identifier) did not take the typed value after 3 attempts")
     }
 
     /// Screenshots are the ONLY way to observe this device — there is no devicectl screenshot and

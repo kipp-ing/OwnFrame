@@ -216,6 +216,12 @@ exercising the HA contract; that is exactly what hardware is for.
 
 ## MQTT / Home Assistant on device
 
+- **Read the broker host off the wire, not the rig's word for it.** A dropped synthesized keystroke once
+  saved `hme.kippings.de` on Framepad (2026-09-26); the wildcard DNS resolved it and TLS failed with
+  `CERTIFICATE_VERIFY_FAILED` while the rig reported green. The app log only says `ChannelError 0` after 10 s.
+  The device syslog names the real endpoint and the trust outcome: `brew install libimobiledevice`, then
+  `idevicesyslog -u <udid> --no-colors > log` during a launch and `grep 'OwnFrame.*\[C[0-9]' log` for the
+  `nw_connection` lines (`[C2 host:8883 …]`). The rig now reads every field back and retypes on a mismatch.
 - **MQTT is foreground-only**, the same class of constraint as `isIdleTimerDisabled` and
   `UIScreen.brightness` (see CLAUDE.md "Constraints"). A `devicectl process launch` against
   a sleeping screen never foregrounds the app, so it never connects and publishes nothing.
