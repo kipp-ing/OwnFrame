@@ -3,7 +3,9 @@
 #
 #   soak.sh <udid> offline-entitled [hours=24]   SC-1100-04: entitled + offline; clock on, airplane
 #                                                on, a relaunch checkpoint every hours/4, one reboot
-#                                                in the middle; airplane off again however it ends
+#                                                in the middle; airplane off again however it ends.
+#                                                NO_REBOOT=1 skips the reboot (a device with a
+#                                                passcode) — SC-1100-04's restart then stays open
 #   soak.sh <udid> free-tier [hours=4]           SC-1100-02: an UNPURCHASED frame plays for hours
 #                                                with no purchase UI (one test: fits iOS 17 / #84)
 #
@@ -39,7 +41,7 @@ case $mode in
     step checkpoint-0 testSoakCheckpoint TEST_RUNNER_EXPECT_CLOCK=1 || fail=1
     for i in 1 2 3 4; do
       sleep $gap
-      if [ $i = 2 ]; then
+      if [ $i = 2 ] && [ -z "${NO_REBOOT:-}" ]; then
         xcrun devicectl device reboot --device "$dev" >/dev/null 2>&1
         sleep 180 # boot + CoreDevice reconnect
         echo "$(date '+%F %T') rebooted"
