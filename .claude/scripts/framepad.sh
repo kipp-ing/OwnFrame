@@ -30,9 +30,9 @@ cd "$REPO_ROOT"
 mkdir -p "$OUT"
 
 # Broker password: the environment wins, else the login Keychain item `ownframe-mqtt`
-# (created once by Jan with `security add-generic-password -a car -s ownframe-mqtt -w`).
+# (created once by Jan with `security add-generic-password -a mqtt-car -s ownframe-mqtt -w`).
 if [ -z "${MQTT_PASSWORD:-}" ]; then
-  MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
+  MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-mqtt-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
 fi
 
 die() { echo "error: $*" >&2; exit 1; }
@@ -134,7 +134,7 @@ cmd_ha_check() {
   local dev="${1:-}"
   [ -n "$dev" ] || die "usage: framepad.sh ha-check <device-uuid>   (from the HAControl log line)"
   local sub=(mosquitto_sub -h "${MQTT_HOST:-home.kippings.de}" -p "${MQTT_PORT:-8883}"
-             -u "${MQTT_USER:-car}" -P "${MQTT_PASSWORD:?set MQTT_PASSWORD}"
+             -u "${MQTT_USER:-mqtt-car}" -P "${MQTT_PASSWORD:?set MQTT_PASSWORD}"
              --cafile /etc/ssl/cert.pem)
 
   echo "=== availability"

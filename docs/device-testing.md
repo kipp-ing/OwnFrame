@@ -246,7 +246,7 @@ exercising the HA contract; that is exactly what hardware is for.
   `ownframe/<device-id>` for every frame since the `immichslideshow/` → `ownframe/` rename
   (2026-07-22).
 
-  `hactl` needs no MQTT credentials. Broker: `home.kippings.de:8883`, user `car`,
+  `hactl` needs no MQTT credentials. Broker: `home.kippings.de:8883`, user `mqtt-car`,
   `--cafile /etc/ssl/cert.pem` (publicly-trusted ZeroSSL chain, no TLS exception). A lone
   `Connection Refused: not authorised` is **transient — retry** before concluding the
   credentials are stale.

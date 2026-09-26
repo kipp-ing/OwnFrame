@@ -35,7 +35,7 @@ final class DeviceRigConfigUITests: XCTestCase {
 
     private static let brokerHost = "home.kippings.de"
     private static let brokerPort = "8883"
-    private static let brokerUser = "car"
+    private static let brokerUser = "mqtt-car"
 
     /// Generous throughout: this is a 2017 iPad Pro on iOS 17.7.10 fetching real photos over the
     /// real network. Simulator-calibrated timeouts produce flakes that look like product bugs.

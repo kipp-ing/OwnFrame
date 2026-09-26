@@ -70,9 +70,9 @@ run() {
 }
 
 if [ "${1:-}" = identity ] || [ "${1:-}" = availability ]; then
-  [ -n "${MQTT_PASSWORD:-}" ] || MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
+  [ -n "${MQTT_PASSWORD:-}" ] || MQTT_PASSWORD="$(security find-generic-password -a "${MQTT_USER:-mqtt-car}" -s ownframe-mqtt -w 2>/dev/null || true)"
   [ -n "$MQTT_PASSWORD" ] || { echo "no MQTT password (env or Keychain ownframe-mqtt)" >&2; exit 1; }
-  sub=(mosquitto_sub -h "${MQTT_HOST:-home.kippings.de}" -p "${MQTT_PORT:-8883}" -u "${MQTT_USER:-car}"
+  sub=(mosquitto_sub -h "${MQTT_HOST:-home.kippings.de}" -p "${MQTT_PORT:-8883}" -u "${MQTT_USER:-mqtt-car}"
        -P "$MQTT_PASSWORD" --cafile /etc/ssl/cert.pem)
   # The device id that is LIVE right now: launch the app and collect ids from fresh messages
   # only (-R drops stale retained ones). A snapshot of retained topics alone would pass even if
