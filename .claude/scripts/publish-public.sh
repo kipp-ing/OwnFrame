@@ -40,10 +40,11 @@ git filter-repo "${filter_args[@]}" --invert-paths
 # never the secret itself. 746e55c (2026-07-05) committed the real broker password
 # for user `car` in an integration test (GitGuardian alert 2026-09-26; rotated).
 cat > "$SCRATCH/redact.txt" <<'RULES'
-regex:(username: "car", password: "REDACTED"]*"==>\1REDACTED"
+regex:(username: "car", password:\s")[^"]*"==>\1REDACTED"
 RULES
 git filter-repo --force --replace-text "$SCRATCH/redact.txt"
-if git log -p --all | grep -E 'username: "car", password: "REDACTED"ABORT: an unredacted broker password is still in the filtered history" >&2
+if git log -p --all | grep -E 'username: "car", password:[ ]"' | grep -vq 'REDACTED'; then
+  echo "ABORT: an unredacted broker password is still in the filtered history" >&2
   exit 1
 fi
 
