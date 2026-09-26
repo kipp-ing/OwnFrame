@@ -164,7 +164,19 @@ final class SlideshowChromeUITests: XCTestCase {
         // Toggle Ken Burns on live (forces fill framing) and verify the same control doesn't shift.
         settingsButton.tap()
         let kenBurnsToggle = app.switches["settings.kenBurns"]
-        XCTAssertTrue(kenBurnsToggle.waitForExistence(timeout: 3))
+        // A SwiftUI Form only materialises rows once they scroll into view: in landscape on a
+        // small phone (FramePhone, iPhone 13 mini, 2026-09-26) the row starts below the fold.
+        // Drag the Form's own list in short steps: an app-level swipe lands beside the landscape
+        // sheet, and a flick's momentum carries the row past the viewport between snapshots.
+        let form = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch : app.tables.firstMatch
+        var steps = 0
+        while !(kenBurnsToggle.waitForExistence(timeout: steps == 0 ? 3 : 1) && kenBurnsToggle.isHittable)
+                && steps < 8 {
+            form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+                .press(forDuration: 0.1, thenDragTo: form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
+            steps += 1
+        }
+        XCTAssertTrue(kenBurnsToggle.isHittable, "the Ken Burns row should scroll into view")
         kenBurnsToggle.tap()
         app.buttons["Done"].tap()
 

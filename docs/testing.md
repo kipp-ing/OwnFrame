@@ -467,6 +467,13 @@ of hanging the run.
 
 ### iOS 27 on real hardware (session 2026-07-27)
 
+**Full suite on iOS 27.0 GA, FramePhone (iPhone 13 mini), 2026-09-26:** 189 UI tests executed, 83 skipped
+(opt-in captures, device rigs, soaks), 1 failure, plus 109 Swift Testing app-hosted tests green. The one red,
+`testChromeInsetsStableAcrossOrientationAndKenBurns`, was the harness: in landscape on a 375-pt-high phone the Ken
+Burns row starts below the fold, an app-level swipe misses the sheet and a flick's momentum carries the row past
+between snapshots. It now drags the Form's own list in short steps; the class is 7/7 on FramePhone and on the
+iPad 18.6 simulator. No iOS 27 product failure.
+
 iOS 27 shipped developer beta 1 on 2026-06-08 and is in public beta; GA is expected ~2026-09-14.
 FramePhone (iPhone 13 mini) now runs **27.0**. Findings from the first session against it:
 
