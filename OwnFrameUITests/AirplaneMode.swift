@@ -20,6 +20,11 @@ enum AirplaneMode {
     /// switch can't be found or doesn't take.
     static func set(_ on: Bool, returningTo app: XCUIApplication,
                     file: StaticString = #filePath, line: UInt = #line) {
+        // The edge-swipe coordinates below only hit Control Center in portrait: in landscape
+        // SpringBoard's normalized frame maps them to another edge and the app's menu bar opens
+        // instead (jk, iPadOS 26, soak run 2026-09-26). DeviceAcceptanceUITests forced portrait
+        // in setUp, which is why the helper only ever passed there.
+        XCUIDevice.shared.orientation = .portrait
         openControlCenter()
         let toggle = button()
         XCTAssertTrue(toggle.waitForExistence(timeout: 10),

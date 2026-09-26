@@ -1,17 +1,15 @@
 #!/bin/zsh
 # soak.sh — the hitl.md §7 soaks on a real, already configured frame (DeviceSoakUITests).
 #
-#   soak.sh <udid> offline-entitled [hours=24]   SC-1100-04: entitled + offline; clock on, airplane
-#                                                on, a relaunch checkpoint every hours/4, one reboot
-#                                                in the middle; airplane off again however it ends.
-#                                                NO_REBOOT=1 skips the reboot (a device with a
-#                                                passcode) — SC-1100-04's restart then stays open
+#   soak.sh <udid> offline-entitled [hours=24]   SC-1100-04: entitled + offline; clock on, then ONE
+#                                                test: airplane on, a relaunch checkpoint every
+#                                                hours/4, airplane off in its teardown. No device
+#                                                reboot (it would end the runner) — a hand check
 #   soak.sh <udid> free-tier [hours=4]           SC-1100-02: an UNPURCHASED frame plays for hours
 #                                                with no purchase UI (one test: fits iOS 17 / #84)
 #
 # Build first with `device-accept.sh <udid> build` (same DerivedData). The device must be on a
-# CABLE (airplane mode cuts Wi-Fi) and, for the reboot, have no passcode — else the post-reboot
-# checkpoint fails at the lock screen and says so. Results: accept-out/<udid>/soak-*.
+# CABLE (airplane mode cuts Wi-Fi). Results: accept-out/<udid>/soak-*.
 set -u
 dev=${1:?usage: soak.sh <udid> offline-entitled|free-tier [hours]}; mode=${2:?mode}
 DD="${ACCEPT_DD:-$HOME/Library/Developer/Xcode/DerivedData/AcceptRig-$dev}"
@@ -33,23 +31,14 @@ step() { # step <label> <test> [env…]
 
 case $mode in
   offline-entitled)
-    hours=${3:-24}; gap=$(( hours * 3600 / 4 ))
+    # One runner session for the whole soak: offline, iOS won't launch a NEW runner (developer
+    # certificate unverifiable), so per-checkpoint steps can't work. The test switches airplane
+    # mode itself and back off in its teardown; if the runner dies mid-soak, switch it off by hand.
+    hours=${3:-24}
     step prepare testSoakPrepareClockOn || exit 1
-    trap 'step airplane-off testSoakAirplane TEST_RUNNER_AIRPLANE=off' EXIT
-    step airplane-on testSoakAirplane TEST_RUNNER_AIRPLANE=on || exit 1
-    fail=0
-    step checkpoint-0 testSoakCheckpoint TEST_RUNNER_EXPECT_CLOCK=1 || fail=1
-    for i in 1 2 3 4; do
-      sleep $gap
-      if [ $i = 2 ] && [ -z "${NO_REBOOT:-}" ]; then
-        xcrun devicectl device reboot --device "$dev" >/dev/null 2>&1
-        sleep 180 # boot + CoreDevice reconnect
-        echo "$(date '+%F %T') rebooted"
-      fi
-      step checkpoint-$i testSoakCheckpoint TEST_RUNNER_EXPECT_CLOCK=1 || fail=1
-    done
-    [ $fail = 0 ] && echo "SOAK PASSED (offline-entitled, ${hours} h)" || echo "SOAK FAILED — see $OUT/soak-*"
-    exit $fail ;;
+    step offline-entitled testOfflineEntitledSoak TEST_RUNNER_EXPECT_CLOCK=1 TEST_RUNNER_HOURS="$hours" \
+      && echo "SOAK PASSED (offline-entitled, ${hours} h, no device reboot)" \
+      || { echo "SOAK FAILED — see $OUT/soak-offline-entitled.*"; exit 1; } ;;
   free-tier)
     hours=${3:-4}
     step free-tier testFreeTierPlaybackShowsNoPurchaseUI TEST_RUNNER_HOURS="$hours" \

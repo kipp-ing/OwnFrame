@@ -3,9 +3,9 @@
 //  OwnFrameUITests
 //
 //  Soaks (hitl.md §7) on a REAL, already configured frame, production path (no launch
-//  arguments). Short steps that `.claude/scripts/soak.sh` strings together over hours — a
-//  24 h test would die with its runner — plus one long free-tier run, which is a single test
-//  so it also fits iOS 17's one-trustworthy-test-per-daemon limit (#84).
+//  arguments), driven by `.claude/scripts/soak.sh`. The long runs are single tests: offline,
+//  iOS won't start a new runner at all, and on iOS 17 only one test per daemon start is
+//  trustworthy (#84). The 4 h free-tier run proved a runner survives hours.
 //
 //  Skipped unless `SOAK=1`; the script sets it.
 //
@@ -32,6 +32,37 @@ final class DeviceSoakUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = []
         app.launch()
+        checkpoint(app, "checkpoint")
+    }
+
+    /// SC-1100-04 in ONE runner session: airplane on, a relaunch checkpoint every `HOURS`/4
+    /// (default 24), airplane off. Separate steps can't work offline: iOS refuses to launch a
+    /// test runner while it can't verify the developer certificate ("Developer App Certificate
+    /// is not trusted", jk 2026-09-26), so every step after airplane-on would fail to start.
+    /// No device reboot: that would end this runner too (SC-1100-04's restart stays a hand check).
+    @MainActor
+    func testOfflineEntitledSoak() throws {
+        continueAfterFailure = true // one bad checkpoint must not skip the rest, or airplane-off
+        let hours = Double(env["HOURS"] ?? "") ?? 24
+        let app = XCUIApplication()
+        app.launchArguments = []
+        app.launch()
+        addTeardownBlock { @MainActor in AirplaneMode.set(false, returningTo: app) }
+        AirplaneMode.set(true, returningTo: app)
+        // Really offline, not just a switch: Wi-Fi can stay up in airplane mode.
+        AirplaneMode.assertServer(URL(string: "https://bilder.kippings.de")!, reachable: false)
+        checkpoint(app, "checkpoint-0")
+        for i in 1...4 {
+            Thread.sleep(forTimeInterval: hours * 3600 / 4)
+            app.terminate()
+            app.launch()
+            checkpoint(app, "checkpoint-\(i)")
+            AirplaneMode.assertServer(URL(string: "https://bilder.kippings.de")!, reachable: false)
+        }
+    }
+
+    @MainActor
+    private func checkpoint(_ app: XCUIApplication, _ name: String) {
         let slideshow = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
         XCTAssertTrue(slideshow.waitForExistence(timeout: long), "the frame should resume its slideshow")
         assertNoPurchaseUI(app)
@@ -42,7 +73,7 @@ final class DeviceSoakUITests: XCTestCase {
         let first = slideshow.value as? String ?? ""
         wait(for: [expectation(for: NSPredicate(format: "value != %@", first), evaluatedWith: slideshow)],
              timeout: 180)
-        attach(app, "checkpoint")
+        attach(app, name)
     }
 
     /// Turns the clock overlay on (a Supporter feature), so checkpoints can see the entitlement.
