@@ -153,9 +153,11 @@ visual gate is captures, because material blur cannot be asserted numerically.
       `osVersion` 17.5). Same soft-glass path, closer to the Framepad floor. Over near-white the bar
       glyphs, info card, clock pill and new-photos card all sit on dark-grey soft glass and read,
       where the 18.6 baseline washed out; over near-black everything reads.
-- [ ] T010 **Jan (HITL)**: eyeball on **Framepad** (iPad Pro 10.5, iOS 17.7.10, the deployment floor)
+- [x] T010 **Jan (HITL)**: eyeball on **Framepad** (iPad Pro 10.5, iOS 17.7.10, the deployment floor)
       over a near-white and a near-black photo, via `.claude/scripts/framepad.sh` (recipes in
       `docs/device-testing.md`). Queue it in `docs/hitl.md`.
+      *Done 2026-09-27:* `ChromeLegibilityCaptureUITests` on Framepad (17.7.11) and FramePhone (27.0);
+      Jan: "#72 ist gut". LOOK-03 stays `verified`.
 - [x] T011 `test_sim` whole classes `SoftGlassTierTests`, `UITestPhotoToneSeamTests`,
       `SlideshowChromeUITests`, `ClockOverlayUITests`, `PhotoInfoUITests`, `AlbumBrowserUITests`
       (its card uses `glassCard`, `AlbumBrowserView.swift:141`) (**Claude**). The full XCUITest suite
@@ -165,7 +167,7 @@ visual gate is captures, because material blur cannot be asserted numerically.
       `evidence` (tier lines in `View+Compat.swift`, scrim lines in `SlideshowChrome.swift`,
       `SoftGlassTierTests.swift`). If T010 later disagrees, set it back to `mismatch`. Run
       `.claude/scripts/check-facts.py`.
-- [ ] T013 Commit with explicit paths (WP4a; before or with 310 T037). Close #72 once T010 is done;
+- [x] T013 Commit with explicit paths (WP4a; before or with 310 T037). Close #72 once T010 is done;
       until then, comment on #72 naming T010 as the open step.
 
 ---
