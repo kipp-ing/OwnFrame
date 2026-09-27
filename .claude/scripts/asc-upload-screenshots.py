@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Upload App Store screenshots to App Store Connect, both locales.
 
-Usage (defaults reproduce the v1.0 iPad-13" upload of 2026-07-11):
+Usage (the 1.2 upload, one folder per locale — <dir>/en and <dir>/de):
 
-    python3 .claude/scripts/asc-upload-screenshots.py \
-        --dir ~/Library/Developer/Xcode/ImmichSlideshow-dist/screenshots-v1.0 \
-        --display-type APP_IPAD_PRO_3GEN_129 \
-        --files 03-hero-chapel.png 05-hero-iceberg.png ...
+    python3 .claude/scripts/asc-upload-screenshots.py --version 1.2 --per-locale \
+        --dir tmp/store-upload-1.2/ipad --display-type APP_IPAD_PRO_3GEN_129 \
+        --files 01.png 02.png 03.png 04.png 05.png
+
+Without --per-locale every locale gets the same files from <dir> (the v1.0 behaviour).
+Only a version in PREPARE_FOR_SUBMISSION accepts screenshots.
 
 The set for the display type is created if missing and CLEARED before upload
 (idempotent, safe to re-run). File order = display order in the store listing.
@@ -18,14 +20,13 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 import urllib.request
 
 API = "https://api.appstoreconnect.apple.com/v1"
-# appStoreVersionLocalizations of app 6784154405, version 1.0 (e425bae6-…).
-LOCALES = {
-    "en-US": "7caa665a-0a53-4161-a902-65931623a3f8",
-    "de-DE": "df44b6b9-23a2-4f56-ad74-ce29198e1e77",
-}
+APP_ID = "6784154405"
+# Store locale -> the per-locale folder name the renderer writes (content.json "locales").
+LOCALE_DIRS = {"en-US": "en", "de-DE": "de"}
 DEFAULT_ORDER = [
     "03-hero-chapel.png",
     "05-hero-iceberg.png",
@@ -57,6 +58,31 @@ def call(method: str, url: str, body=None, headers=None, raw=False):
     with urllib.request.urlopen(req) as r:
         data = r.read()
         return json.loads(data) if data else {}
+
+
+def version_localizations(version: str) -> dict:
+    """locale -> appStoreVersionLocalization id for the app's iOS version `version`."""
+    versions = call("GET", f"{API}/apps/{APP_ID}/appStoreVersions"
+                           f"?filter[versionString]={version}&filter[platform]=IOS")
+    if not versions.get("data"):
+        raise SystemExit(f"no iOS appStoreVersion {version!r} on app {APP_ID}")
+    vid = versions["data"][0]["id"]
+    locs = call("GET", f"{API}/appStoreVersions/{vid}/appStoreVersionLocalizations")
+    return {l["attributes"]["locale"]: l["id"] for l in locs["data"]}
+
+
+def wait_delivered(set_id: str, expected: int, timeout: int = 300):
+    """FR-9010-40: every asset must reach COMPLETE; COMPLETE alone still needs an eyeball."""
+    deadline = time.time() + timeout
+    while True:
+        shots = call("GET", f"{API}/appScreenshotSets/{set_id}/appScreenshots?limit=50")["data"]
+        states = [s["attributes"]["assetDeliveryState"]["state"] for s in shots]
+        if len(states) == expected and all(st == "COMPLETE" for st in states):
+            print(f"  delivered: {expected}/{expected} COMPLETE")
+            return
+        if any(st == "FAILED" for st in states) or time.time() > deadline:
+            raise SystemExit(f"  delivery not complete for set {set_id}: {states}")
+        time.sleep(5)
 
 
 def ensure_set(loc_id: str, display_type: str) -> str:
@@ -113,7 +139,10 @@ def upload_one(set_id: str, path: str) -> str:
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--version", required=True, help="appStoreVersion versionString, e.g. 1.2")
     p.add_argument("--dir", required=True, help="directory containing the PNGs")
+    p.add_argument("--per-locale", action="store_true",
+                   help="read each locale's files from <dir>/<en|de>/ instead of <dir>")
     p.add_argument("--display-type", required=True,
                    help="ASC screenshotDisplayType, e.g. APP_IPAD_PRO_3GEN_129, APP_IPHONE_69")
     p.add_argument("--files", nargs="+", default=DEFAULT_ORDER,
@@ -121,13 +150,15 @@ def main():
     args = p.parse_args()
     directory = os.path.expanduser(args.dir)
 
-    for locale, loc_id in LOCALES.items():
+    for locale, loc_id in version_localizations(args.version).items():
+        src = os.path.join(directory, LOCALE_DIRS[locale]) if args.per_locale else directory
         set_id = ensure_set(loc_id, args.display_type)
-        print(f"{locale}: set {set_id} ({args.display_type})")
+        print(f"{locale}: set {set_id} ({args.display_type}) from {src}")
         clear_set(set_id)
         for fname in args.files:
-            shot_id = upload_one(set_id, os.path.join(directory, fname))
+            shot_id = upload_one(set_id, os.path.join(src, fname))
             print(f"  {fname} -> {shot_id}")
+        wait_delivered(set_id, len(args.files))
     print("done")
 
 
