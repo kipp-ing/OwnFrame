@@ -7,8 +7,9 @@ import Observation
 /// - **Launch** — `current` is seeded from the snapshot cache *synchronously*, with no await and
 ///   no store contact, so an unattended frame renders entitled on its very first pass while
 ///   offline (FR-1100-10).
-/// - **Refresh success** — `current` becomes the resolved set and is persisted. This is the only
-///   path that can shrink it, which is how a revocation takes effect (FR-1100-12).
+/// - **Refresh success** — tiers the store reports as owned are added, tiers it reports as
+///   *revoked* are removed, and the result is persisted. A tier the answer simply omits stays:
+///   only an explicit revocation shrinks the set (FR-1100-10, FR-1100-12).
 /// - **Refresh failure / offline** — `current` is left alone (last known good). Nothing is
 ///   persisted; a failed query means "unknown", never "owns nothing".
 @MainActor
@@ -58,7 +59,13 @@ public final class EntitlementStore {
     /// A failed query leaves `current` untouched: offline is not evidence of non-ownership.
     public func refresh() async {
         guard let transactions = try? await client.ownedTransactions() else { return }
-        apply(EntitlementResolver.resolve(transactions))
+        // Only an explicit revocation shrinks the set; a product merely missing from the answer
+        // keeps its tier. Offline for 6-12 h, `currentEntitlements` stopped listing the owned
+        // unlock without throwing, and applying that as "owns nothing" relocked the SC-1100-04
+        // soak (iPad jk, 2026-09-27). A live transaction still wins over a revoked duplicate.
+        let live = EntitlementResolver.resolve(transactions)
+        let revoked = EntitlementResolver.revoked(transactions)
+        apply(current.subtracting(revoked).union(live))
     }
 
     /// Refreshes, then retries a couple more times if `id`'s grant still isn't reflected in

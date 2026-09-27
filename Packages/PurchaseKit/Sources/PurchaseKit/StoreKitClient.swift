@@ -104,6 +104,16 @@ public struct StoreKitClient: StoreClient {
                 )
             )
         }
+        // A refund drops the product from `currentEntitlements`, and an omission is NOT a
+        // revocation for EntitlementStore (FR-1100-10: offline, StoreKit omitted a live unlock
+        // after 6-12 h). So refunds are reported explicitly from each product's latest
+        // transaction, which keeps its `revocationDate`. Offline or unverified → nothing added.
+        for product in ProductCatalog.unlocks where !owned.contains(where: { $0.productID == product.rawValue }) {
+            if let result = await Transaction.latest(for: product.rawValue),
+               let transaction = Self.verifiedOrNil(result), transaction.revocationDate != nil {
+                owned.append(OwnedTransaction(productID: transaction.productID, isRevoked: true))
+            }
+        }
         return owned
     }
 

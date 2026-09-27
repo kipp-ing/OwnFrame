@@ -18,4 +18,13 @@ public enum EntitlementResolver {
             resolved.formUnion(ProductCatalog.grants(product))
         }
     }
+
+    /// The tiers the store *explicitly* took back: grants of revoked transactions. Absence is
+    /// never in here — a product missing from the answer tells nothing (FR-1100-10).
+    public static func revoked(_ transactions: [OwnedTransaction]) -> EntitlementSet {
+        transactions.reduce(into: EntitlementSet.none) { revoked, transaction in
+            guard transaction.isRevoked, let product = ProductID(rawValue: transaction.productID) else { return }
+            revoked.formUnion(ProductCatalog.grants(product))
+        }
+    }
 }

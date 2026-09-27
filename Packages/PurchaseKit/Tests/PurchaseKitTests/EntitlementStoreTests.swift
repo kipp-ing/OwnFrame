@@ -396,23 +396,36 @@ private func waitFor(
 
 // MARK: - Refresh success: the one legitimate shrink (FR-1100-12)
 
-/// Without this test, "never shrink on failure" could be satisfied by never shrinking at all —
-/// which would silently break revocation. A *store-confirmed* smaller set must take effect and
-/// must be persisted, so the relock survives a relaunch instead of flapping back. With a single
-/// unlock the only smaller set is empty, reached here by a successful resolve that reports nothing
-/// owned (distinct from the revocation path below).
+/// SC-1100-04 soak on iPad jk (2026-09-26/27): after 6-12 h in airplane mode, StoreKit's
+/// `currentEntitlements` stopped listing the owned unlock *without throwing*, the empty answer
+/// was applied as "owns nothing", and the clock relocked mid-soak. An answer that merely lacks a
+/// product is not a revocation (FR-1100-10): only a transaction the store marks revoked may shrink
+/// the set (FR-1100-12). The entitlement stays, in memory and in the cache.
 @MainActor
-// @covers FR-1100-12
-@Test func aSuccessfulResolveToASmallerSetShrinksAndPersists() async throws {
+// @covers FR-1100-10, FR-1100-12
+@Test func anAnswerThatOmitsTheUnlockIsNotARevocation() async throws {
     let fixture = StoreFixture(seed: EntitlementSet.all)
     fixture.client.enqueueOwnedTransactions([])
 
     await fixture.store.refresh()
 
-    #expect(fixture.store.current == EntitlementSet.none)
-    #expect(!fixture.store.current.contains(.supporter))
+    #expect(fixture.store.current == EntitlementSet.all)
     let persisted = try #require(fixture.persistedSnapshot)
-    #expect(persisted.entitlements == EntitlementSet.none)
+    #expect(persisted.entitlements == EntitlementSet.all)
+    #expect(fixture.relaunch().store.current == EntitlementSet.all)
+}
+
+/// The same through the updates stream: a re-resolve that omits the unlock keeps it.
+@MainActor
+// @covers FR-1100-10
+@Test func anUpdateWhoseReResolveOmitsTheUnlockKeepsIt() async throws {
+    let fixture = StoreFixture(seed: EntitlementSet.all)
+    fixture.store.listenForUpdates()
+    fixture.client.enqueueOwnedTransactions([])
+    fixture.client.emitUpdate()
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(fixture.store.current == EntitlementSet.all)
+    fixture.client.finishUpdates()
 }
 
 /// A refund of the unlock: the set empties, and it empties in the cache too.

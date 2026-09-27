@@ -349,6 +349,10 @@ never prompts for tips on its own.
   at the next entitlement refresh, gracefully: all user configuration and data are preserved
   (per FR-1100-14), no crash, and no disruption of a running slideshow beyond the gated
   capability itself stopping at the next natural boundary.
+  *Clarified 2026-09-27 (SC-1100-04 soak finding):* "store-reported" means an explicit revoked
+  transaction. A store answer that merely omits an owned product is NOT a revocation and MUST NOT
+  relock anything — offline for 6-12 h, StoreKit's current-entitlements query omitted the owned
+  unlock without an error, and treating that as "owns nothing" relocked a frame (FR-1100-10).
 - **FR-1100-13** *(never claw back)*: Any capability that has been available without payment
   in any publicly released App Store version MUST remain free permanently. Moving a
   previously-free-in-public capability behind any gate is prohibited, regardless of tier

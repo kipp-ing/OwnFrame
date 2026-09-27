@@ -169,6 +169,12 @@ final class StoreKitClientTests: XCTestCase {
 
         let refundedOut = try await waitUntil { try await self.activelyOwns(client, .supporter) == false }
         XCTAssertTrue(refundedOut, "a refunded unlock must no longer be actively owned")
+
+        // The store only relocks on an EXPLICIT revocation (an omission is not one, FR-1100-10),
+        // and `currentEntitlements` drops refunded rows — so the adapter must report the refund.
+        let reported = try await client.ownedTransactions()
+        XCTAssertTrue(reported.contains { $0.productID == ProductID.supporter.rawValue && $0.isRevoked },
+                      "the refund must surface as a revoked transaction, not as an absence")
     }
 
     // MARK: - 4. Ask to Buy: deferral then approval (FR-1100-15)
