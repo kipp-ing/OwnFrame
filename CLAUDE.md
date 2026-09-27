@@ -145,6 +145,10 @@ filtering local `main` through `git-filter-repo` and force-pushing — it does *
 `docs/design/quiet-glass-2026-07-18.html` (the design record specs 500/510/9000 cite — not
 App-Store material despite living next to it).
 
+There is **no** separate store repo on Forgejo (`git.kipp.ing`, checked 2026-09-27) — App Store material lives
+only here. **What is live in ASC for 1.2** (screenshots, texts, IAP text, review notes, ASC ids):
+`Design/AppStore/release-1.2/README.md` — look there, never guess from `tmp/` renders.
+
 To publish new source-code commits to the public mirror: `.claude/scripts/publish-public.sh`. It
 clones `main` to a scratch dir, filters it, and force-pushes — never touches this working repo.
 Because it's a force-push, the public repo's commit hashes change on every run (issues aren't
