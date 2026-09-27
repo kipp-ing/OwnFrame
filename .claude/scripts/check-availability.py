@@ -34,9 +34,10 @@ def last_before(kind, t):
     return vals[-1] if vals else None
 
 def seen(kind, payload, start, end):
-    return any(k == kind and p == payload and start <= ts <= end for ts, k, p in events)
+    return any(k == kind and p == payload and start - SKEW <= ts <= end for ts, k, p in events)
 
 SLACK = 15  # seconds for a publish to land after a UI step
+SKEW = 2    # markers use the device clock, the recording the Mac's; FramePhone ran ~0.1 s ahead
 checks = [
     ("online before Settings", last_before("availability", marks["settings-open"]) == "online"),
     ("running before Settings", last_before("status", marks["settings-open"]) == "running"),

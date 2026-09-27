@@ -246,10 +246,26 @@ final class DeviceRigConfigUITests: XCTestCase {
             "set TEST_RUNNER_MQTT_PASSWORD — the rig never hard-codes the broker password"
         )
 
-        // No navigation row to tap: in the unentitled path the broker editor is rendered INLINE
-        // in the settings form (the DisclosureGroup was removed because an always-present
-        // collapsed one starved a sibling Section's async `.task`). So the fields are already on
-        // this screen — just below the fold on a 10.5" display.
+        // Unentitled, the broker editor is rendered INLINE in the settings form (an always-present
+        // DisclosureGroup starved a sibling Section's async `.task`), just below the fold on a
+        // 10.5" display. An ENTITLED frame keeps the collapsed "MQTT" DisclosureGroup, so expand
+        // it first (FramePhone, owning the sandbox Supporter Unlock, 2026-09-27).
+        let mqtt = app.descendants(matching: .any).matching(identifier: "settings.mqtt").firstMatch
+        var steps = 0
+        // The label inside a DisclosureGroup reports itself non-hittable, so wait for it to sit
+        // on screen and tap its coordinate instead.
+        func onScreen(_ e: XCUIElement) -> Bool {
+            e.exists && !e.frame.isEmpty && app.frame.insetBy(dx: 0, dy: 80).contains(e.frame)
+        }
+        while !onScreen(mqtt) && steps < 16 {
+            dragFormUp(app)
+            steps += 1
+        }
+        let editorShown = app.textFields["broker.host"].exists || app.secureTextFields["broker.host"].exists
+        if !editorShown, onScreen(mqtt) {
+            mqtt.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            attach(app, "03b-mqtt-expanded")
+        }
         set(app, "broker.host", to: Self.brokerHost)
         set(app, "broker.port", to: Self.brokerPort)
         set(app, "broker.username", to: Self.brokerUser)
@@ -260,8 +276,8 @@ final class DeviceRigConfigUITests: XCTestCase {
         app.releaseKeyboardFocus()
         let save = app.buttons["broker.save"]
         var swipes = 0
-        while !(save.exists && save.isHittable) && swipes < 6 {
-            app.swipeUp()
+        while !(save.exists && save.isHittable) && swipes < 12 {
+            dragFormUp(app)
             swipes += 1
         }
         XCTAssertTrue(save.waitForExistence(timeout: 10), "broker editor should offer Save")
@@ -283,10 +299,16 @@ final class DeviceRigConfigUITests: XCTestCase {
 
         // A SwiftUI Form only materialises rows once they scroll into view (seen on iPadOS 26,
         // iPad jk, 2026-09-25) — `waitForExistence` alone never finds a field below the fold.
+        // The previous field's keyboard covers the lower list, where the drags start (iPhone).
+        if app.keyboards.firstMatch.exists { app.releaseKeyboardFocus() }
+
+        // Short drags on the Form's own list, not app-level flicks: on an iPhone the settings
+        // sheet leaves the flick beside the list, and a flick's momentum carries a row past the
+        // viewport between snapshots (FramePhone, 2026-09-27).
         var found = plain.waitForExistence(timeout: 5) || hidden.exists
         var searchSwipes = 0
-        while !found && searchSwipes < 8 {
-            app.swipeUp()
+        while !found && searchSwipes < 16 {
+            dragFormUp(app)
             searchSwipes += 1
             found = resolved() != nil
         }
@@ -300,7 +322,7 @@ final class DeviceRigConfigUITests: XCTestCase {
         // non-hittable one fails, so scroll it into view first.
         var swipes = 0
         while !field.isHittable && swipes < 8 {
-            app.swipeUp()
+            dragFormUp(app)
             swipes += 1
         }
         XCTAssertTrue(field.isHittable, "\(identifier) should be reachable after scrolling")
@@ -325,6 +347,14 @@ final class DeviceRigConfigUITests: XCTestCase {
             if matches() { return }
         }
         XCTFail("\(identifier) did not take the typed value after 3 attempts")
+    }
+
+    @MainActor
+    private func dragFormUp(_ app: XCUIApplication) {
+        let form = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch : app.tables.firstMatch
+        guard form.exists else { app.swipeUp(); return }
+        form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            .press(forDuration: 0.1, thenDragTo: form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)))
     }
 
     /// Screenshots are the ONLY way to observe this device — there is no devicectl screenshot and
