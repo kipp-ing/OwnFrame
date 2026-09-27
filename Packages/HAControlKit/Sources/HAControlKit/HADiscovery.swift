@@ -13,6 +13,7 @@ public enum HADiscovery {
             "command_topic": HATopics.commandTopic(deviceID: deviceID, entity: entity),
             "state_topic": HATopics.stateTopic(deviceID: deviceID, entity: entity),
             "name": name(for: entity),
+            "default_entity_id": defaultEntityID(for: entity, deviceID: deviceID),
             "device": [
                 "identifiers": [deviceID],
                 "name": deviceName,
@@ -109,56 +110,66 @@ public enum HADiscovery {
         return (try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])) ?? Data()
     }
 
+    /// FR-700-24: `<component>.ownframe_<short>_<entity>`, from the identity only — every frame is
+    /// named "OwnFrame" by default, and HA's name-derived ids gave the second frame `_2`. HA uses
+    /// it only at first registration, so frames registered earlier keep their ids.
+    static func defaultEntityID(for entity: HAEntity, deviceID: String) -> String {
+        let short = String(deviceID.lowercased().filter { $0.isLetter || $0.isNumber }.prefix(4))
+        let slug = name(for: entity).lowercased().replacingOccurrences(of: " ", with: "_")
+        return "\(HATopics.component(for: entity)).ownframe_\(short)_\(slug)"
+    }
+
+    /// FR-700-25: HA prefixes every friendly name with the device (frame) name, so no "Slideshow".
     private static func name(for entity: HAEntity) -> String {
         switch entity {
         case .playback:
-            "Slideshow Playback"
+            "Playback"
         case .brightness:
-            "Slideshow Brightness"
+            "Brightness"
         case .album:
-            "Slideshow Album"
+            "Album"
         case .order:
-            "Slideshow Order"
+            "Order"
         case .duration:
-            "Slideshow Duration"
+            "Duration"
         case .transition:
-            "Slideshow Transition"
+            "Transition"
         case .kenBurns:
-            "Slideshow Ken Burns"
+            "Ken Burns"
         case .fit:
-            "Slideshow Fit"
+            "Fit"
         case .quality:
-            "Slideshow Quality"
+            "Quality"
         case .clock:
-            "Slideshow Clock"
+            "Clock"
         case .clockCorner:
-            "Slideshow Clock Place"
+            "Clock Place"
         case .clockStyle:
-            "Slideshow Clock Style"
+            "Clock Style"
         case .clockSize:
-            "Slideshow Clock Size"
+            "Clock Size"
         case .clockDate:
-            "Slideshow Clock Date"
+            "Clock Date"
         case .next:
-            "Slideshow Next"
+            "Next"
         case .previous:
-            "Slideshow Previous"
+            "Previous"
         case .currentPhoto:
-            "Slideshow Current Photo"
+            "Current Photo"
         case .currentPhotoImage:
-            "Slideshow Current Photo Image"
+            "Current Photo Image"
         case .phase:
-            "Slideshow Phase"
+            "Phase"
         case .photoCount:
-            "Slideshow Photo Count"
+            "Photo Count"
         case .version:
-            "Slideshow Version"
+            "Version"
         case .battery:
-            "Slideshow Battery"
+            "Battery"
         case .charging:
-            "Slideshow Charging"
+            "Charging"
         case .frameStatus:
-            "Slideshow Frame Status"
+            "Frame Status"
         }
     }
 }

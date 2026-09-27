@@ -21,7 +21,7 @@ public enum HATopics {
         "homeassistant/\(component(for: entity))/\(deviceID)/\(entity.rawValue)/config"
     }
 
-    private static func component(for entity: HAEntity) -> String {
+    static func component(for entity: HAEntity) -> String {
         switch entity {
         case .playback:
             "switch"

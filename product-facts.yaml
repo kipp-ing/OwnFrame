@@ -892,11 +892,12 @@ facts:
     verdict: does
     limits:
       - "Default name 'OwnFrame'; the identity is kept in the keychain."
+      - "Entity ids carry a short fixed code per frame (e.g. sensor.ownframe_a85a_battery), so several frames never clash; frames registered before this change keep their existing ids."
     gated: free
     platforms: [ios, ipados]
-    intent: ["FR-700-16", "FR-700-21", "FR-700-22"]
+    intent: ["FR-700-16", "FR-700-21", "FR-700-22", "FR-700-24", "FR-700-25"]
     implementation: verified
-    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:3-22", "OwnFrame/OwnFrameApp.swift:282-287"]
+    evidence: ["Packages/HAControlKit/Sources/HAControlKit/HATopics.swift:3-22", "OwnFrame/OwnFrameApp.swift:282-287", "Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift:113-121", "Packages/HAControlKit/Tests/HAControlKitTests/HADiscoveryTests.swift"]
 
   - id: REMOTE-08
     fact: "Works directly with Apple Home / HomeKit."

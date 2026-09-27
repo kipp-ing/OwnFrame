@@ -239,16 +239,15 @@ exercising the HA contract; that is exactly what hardware is for.
 
   ```bash
   .claude/scripts/framepad.sh ha-check <device-id>
-  hactl --dir /Users/jan/dev/repos/hactl-dev/jansHA ent ls --pattern '*photo_frame*'
+  hactl --dir /Users/jan/dev/repos/hactl-dev/jansHA ent ls --pattern '*ownframe_<short>*'
   ```
 
-  **The `*photo_frame*` pattern is right for the existing rig and wrong for a new one.** HA
-  freezes an `entity_id` at first discovery, so the Framepad's entities keep the
-  `photo_frame_slideshow_*` slugs minted under the pre-OwnFrame device name; renaming the frame
-  changes only the display name (FR-700-22), and the identity survives delete+reinstall (#15),
-  so those slugs will not change on their own. A **freshly configured** frame registers under
-  today's default name `OwnFrame` (`OwnFrame (Apple TV)` on tvOS) and slugs to `*ownframe*` —
-  match on that instead. Broker-side topic greps are unaffected by either: the root is
+  **Entity ids since FR-700-24 (2026-09-27): `<domain>.ownframe_<first 4 of the device id>_<entity>`**,
+  e.g. `sensor.ownframe_a85a_battery` — suggested via `default_entity_id`, independent of the frame
+  name, so match on `*ownframe_<short>*`. HA freezes an `entity_id` at first registration, so frames
+  registered earlier keep their old name-derived ids (`ownframe_slideshow_*`, `_2`/`_3` where two
+  frames were both "OwnFrame"; pre-rename rigs `photo_frame_slideshow_*`) until their entities are
+  removed and rediscovered. Broker-side topic greps are unaffected by either: the root is
   `ownframe/<device-id>` for every frame since the `immichslideshow/` → `ownframe/` rename
   (2026-07-22).
 

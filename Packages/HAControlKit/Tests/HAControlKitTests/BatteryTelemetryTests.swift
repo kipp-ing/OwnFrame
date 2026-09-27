@@ -45,7 +45,7 @@ struct BatteryTelemetryTests {
         #expect(json["unit_of_measurement"] as? String == "%")
         #expect(json["state_class"] as? String == "measurement")
         #expect(json["entity_category"] as? String == "diagnostic")
-        #expect(json["name"] as? String == "Slideshow Battery")
+        #expect(json["name"] as? String == "Battery")
     }
 
     @Test
@@ -59,7 +59,7 @@ struct BatteryTelemetryTests {
         #expect(json["payload_on"] as? String == "ON")
         #expect(json["payload_off"] as? String == "OFF")
         #expect(json["entity_category"] as? String == "diagnostic")
-        #expect(json["name"] as? String == "Slideshow Charging")
+        #expect(json["name"] as? String == "Charging")
     }
 
     // MARK: - Echo / state (T019)

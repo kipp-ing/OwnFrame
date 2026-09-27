@@ -168,6 +168,20 @@ said what "unexpected disconnect" excludes.)*
   by its own diagnostic sensor (710's `frame_status`) — it MUST NOT be encoded as a third value on
   this topic, which is HA-discovery-binary (online/offline only).
 
+*(FR-700-24/25, added 2026-09-27 on Jan's decision: every frame is named "OwnFrame" by default, so HA's
+name-derived entity ids collided — the second frame got `_2`, the third `_3` — observed on jk + Framepad.)*
+
+- **FR-700-24**: Each discovery config MUST suggest its entity id via HA's `default_entity_id`, as
+  `<component>.ownframe_<short>_<entity>`, where `<short>` is the first four alphanumerics of the frame
+  identity, lowercased, and `<entity>` is the snake-cased entity name (e.g. `sensor.ownframe_a85a_battery`).
+  It is derived from the identity only, never from the frame name, so two frames never collide by default,
+  a rename never changes it (FR-700-22), and a reinstall reproduces it (FR-700-16). HA applies it only at
+  first registration: existing entities keep their ids. The four-character fragment is not the frame's
+  name and is never shown in the app (FR-700-20).
+- **FR-700-25**: Entity names MUST NOT repeat a word HA already shows: HA prefixes every entity's friendly
+  name with the device (frame) name, so entities are named for what they are ("Battery", "Brightness"),
+  not "Slideshow Battery".
+
 ### Key Entities *(include if feature involves data)*
 
 - **Broker Configuration**: Host, port, username, and password supplied by broker setup; credentials originate from the Keychain. It carries the frame identity for convenience but is **not its owner** — identity outlives any broker configuration (FR-700-16).

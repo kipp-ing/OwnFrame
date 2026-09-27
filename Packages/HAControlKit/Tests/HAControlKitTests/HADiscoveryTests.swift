@@ -25,6 +25,55 @@ struct HADiscoveryTests {
         #expect(device["name"] as? String == "Slideshow")
     }
 
+    // @covers FR-700-24
+    @Test
+    func discoverySuggestsAnEntityIDFromTheIdentityNotTheName() throws {
+        let id = "A85AFA17-91E9-4722-9F06-80FEC688515A"
+        let battery = try Self.object(from: HADiscovery.config(
+            for: .battery, deviceID: id, deviceName: "OwnFrame", albumOptions: []))
+        #expect(battery["default_entity_id"] as? String == "sensor.ownframe_a85a_battery")
+
+        // Snake-cased from the display name, in the entity's own HA domain.
+        let place = try Self.object(from: HADiscovery.config(
+            for: .clockCorner, deviceID: id, deviceName: "OwnFrame", albumOptions: []))
+        #expect(place["default_entity_id"] as? String == "select.ownframe_a85a_clock_place")
+        let light = try Self.object(from: HADiscovery.config(
+            for: .brightness, deviceID: id, deviceName: "OwnFrame", albumOptions: []))
+        #expect(light["default_entity_id"] as? String == "light.ownframe_a85a_brightness")
+
+        // A rename never moves it (FR-700-22); a second frame never collides with the first.
+        let renamed = try Self.object(from: HADiscovery.config(
+            for: .battery, deviceID: id, deviceName: "Wohnzimmer", albumOptions: []))
+        #expect(renamed["default_entity_id"] as? String == "sensor.ownframe_a85a_battery")
+        let other = try Self.object(from: HADiscovery.config(
+            for: .battery, deviceID: "FCE9EA58-6BF9-4BE1-8621-88BCFD849D50", deviceName: "OwnFrame", albumOptions: []))
+        #expect(other["default_entity_id"] as? String == "sensor.ownframe_fce9_battery")
+    }
+
+    // @covers FR-700-24
+    @Test
+    func everyEntitySuggestsAnIDInItsDiscoveryDomain() throws {
+        for entity in HAEntity.allCases {
+            let json = try Self.object(from: HADiscovery.config(
+                for: entity, deviceID: "dev1", deviceName: "OwnFrame", albumOptions: []))
+            let suggested = try #require(json["default_entity_id"] as? String, "\(entity) has no default_entity_id")
+            let domain = HATopics.discoveryConfigTopic(deviceID: "dev1", entity: entity).split(separator: "/")[1]
+            #expect(suggested.hasPrefix("\(domain).ownframe_dev1_"), "\(entity): \(suggested)")
+            #expect(suggested.allSatisfy { $0.isLowercase || $0.isNumber || $0 == "_" || $0 == "." })
+        }
+    }
+
+    // @covers FR-700-25
+    @Test
+    func entityNamesDoNotRepeatSlideshow() throws {
+        for entity in HAEntity.allCases {
+            let json = try Self.object(from: HADiscovery.config(
+                for: entity, deviceID: "dev1", deviceName: "OwnFrame", albumOptions: []))
+            let name = try #require(json["name"] as? String)
+            #expect(!name.contains("Slideshow"), "\(entity): \(name)")
+        }
+    }
+
     // @covers FR-700-13
     @Test
     func brightnessDiscoveryIsDimmableLightWithBrightnessTopics() throws {
@@ -193,11 +242,11 @@ struct HADiscoveryTests {
 
         // Entity id / topics stay `clock_corner` (retained-state compatibility), but
         // the options widen to the seven ClockCornerSetting raws and the display name
-        // becomes "Slideshow Clock Place" (510 data-model).
+        // becomes "Clock Place" (510 data-model; no "Slideshow" since FR-700-25).
         #expect(json["unique_id"] as? String == "dev1_clock_corner")
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockCorner))
         #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockCorner))
-        #expect(json["name"] as? String == "Slideshow Clock Place")
+        #expect(json["name"] as? String == "Clock Place")
 
         let options = try #require(json["options"] as? [String])
         #expect(options == ["topLeading", "topCenter", "topTrailing", "bottomLeading", "bottomCenter", "bottomTrailing", "random"])
@@ -213,7 +262,7 @@ struct HADiscoveryTests {
         #expect(json["unique_id"] as? String == "dev1_clock_style")
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockStyle))
         #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockStyle))
-        #expect(json["name"] as? String == "Slideshow Clock Style")
+        #expect(json["name"] as? String == "Clock Style")
 
         let options = try #require(json["options"] as? [String])
         #expect(options == ["digits", "pill", "analog"])
@@ -229,7 +278,7 @@ struct HADiscoveryTests {
         #expect(json["unique_id"] as? String == "dev1_clock_size")
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .clockSize))
         #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .clockSize))
-        #expect(json["name"] as? String == "Slideshow Clock Size")
+        #expect(json["name"] as? String == "Clock Size")
 
         let options = try #require(json["options"] as? [String])
         #expect(options == ["room", "cozy"])
@@ -254,7 +303,7 @@ struct HADiscoveryTests {
 
         #expect(json["unique_id"] as? String == "dev1_current_photo")
         #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
-        #expect(json["name"] as? String == "Slideshow Current Photo")
+        #expect(json["name"] as? String == "Current Photo")
 
         let device = try #require(json["device"] as? [String: Any])
         #expect(device["identifiers"] as? [String] == ["dev1"])
@@ -275,7 +324,7 @@ struct HADiscoveryTests {
 
         #expect(json["unique_id"] as? String == "dev1_current_photo_image")
         #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
-        #expect(json["name"] as? String == "Slideshow Current Photo Image")
+        #expect(json["name"] as? String == "Current Photo Image")
 
         let device = try #require(json["device"] as? [String: Any])
         #expect(device["identifiers"] as? [String] == ["dev1"])
@@ -291,7 +340,7 @@ struct HADiscoveryTests {
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .next))
         #expect(json["payload_press"] as? String == "PRESS")
         #expect(json["state_topic"] == nil)
-        #expect(json["name"] as? String == "Slideshow Next")
+        #expect(json["name"] as? String == "Next")
     }
 
     // @covers FR-710-04
@@ -303,7 +352,7 @@ struct HADiscoveryTests {
         #expect(json["command_topic"] as? String == HATopics.commandTopic(deviceID: "dev1", entity: .previous))
         #expect(json["payload_press"] as? String == "PRESS")
         #expect(json["state_topic"] == nil)
-        #expect(json["name"] as? String == "Slideshow Previous")
+        #expect(json["name"] as? String == "Previous")
     }
 
     // @covers FR-710-07

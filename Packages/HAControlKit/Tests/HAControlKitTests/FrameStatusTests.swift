@@ -22,7 +22,7 @@ struct FrameStatusTests {
         #expect(json["availability_topic"] as? String == HATopics.availability(deviceID: "dev1"))
         #expect(json["entity_category"] as? String == "diagnostic")
         #expect(json["command_topic"] == nil)
-        #expect(json["name"] as? String == "Slideshow Frame Status")
+        #expect(json["name"] as? String == "Frame Status")
     }
 
     // @covers FR-710-24
