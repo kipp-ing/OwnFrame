@@ -48,6 +48,7 @@ final class DeviceSoakUITests: XCTestCase {
         app.launchArguments = []
         app.launch()
         addTeardownBlock { @MainActor in AirplaneMode.set(false, returningTo: app) }
+        answerAccountPasswordPromptIfShown()
         AirplaneMode.set(true, returningTo: app)
         // Really offline, not just a switch: Wi-Fi can stay up in airplane mode.
         AirplaneMode.assertServer(URL(string: "https://bilder.kippings.de")!, reachable: false)
@@ -59,6 +60,19 @@ final class DeviceSoakUITests: XCTestCase {
             checkpoint(app, "checkpoint-\(i)")
             AirplaneMode.assertServer(URL(string: "https://bilder.kippings.de")!, reachable: false)
         }
+    }
+
+    /// A StoreKit sync (e.g. a Restore on this device) can leave iOS's sandbox account password
+    /// alert up; it sits above Control Center and blocks the airplane switch (jk, 2026-09-27).
+    /// Answered from `SANDBOX_PASSWORD` (soak.sh reads the Keychain), submitted with Return.
+    @MainActor
+    private func answerAccountPasswordPromptIfShown() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let field = springboard.secureTextFields.firstMatch
+        guard field.waitForExistence(timeout: 3), let password = env["SANDBOX_PASSWORD"] else { return }
+        field.tap()
+        field.typeText(password + "\n")
+        _ = field.waitForNonExistence(timeout: 15)
     }
 
     @MainActor

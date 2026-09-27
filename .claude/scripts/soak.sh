@@ -37,6 +37,7 @@ case $mode in
     hours=${3:-24}
     step prepare testSoakPrepareClockOn || exit 1
     step offline-entitled testOfflineEntitledSoak TEST_RUNNER_EXPECT_CLOCK=1 TEST_RUNNER_HOURS="$hours" \
+      TEST_RUNNER_SANDBOX_PASSWORD="$(security find-generic-password -s ownframe-sandbox -w 2>/dev/null || true)" \
       && echo "SOAK PASSED (offline-entitled, ${hours} h, no device reboot)" \
       || { echo "SOAK FAILED — see $OUT/soak-offline-entitled.*"; exit 1; } ;;
   free-tier)
