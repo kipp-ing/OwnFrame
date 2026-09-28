@@ -67,6 +67,42 @@ reads differs from the target, so where iOS does not drift it never writes.
    document any learning beyond that; its support page only advises turning Auto-Brightness off and
    on again if it "isn't adapting correctly" ([support.apple.com/109351](https://support.apple.com/en-us/109351)).
 
+8. **A lock/unlock undid only the last write** (jk, Jan locked and unlocked by hand). Afterwards, with
+   nothing written: lit 0.75–0.85, covered 0.40 — the 0.20 write was gone, but the curve did not go
+   back to the first run's 0.55 / 0.00; it matched the state after the 0.80 writes. So "restores the
+   original value" (finding 7) does not mean "as before the app's first write". Whether iOS restores
+   a value saved at some earlier point or keeps an undocumented learned preference is open. Either
+   way, OwnFrame cannot rely on the lock to undo its writes.
+
+## Research (2026-09-28, primary sources first)
+
+- **No way to read the light or the Auto-Brightness state.** `UIScreen` has `brightness`,
+  `brightnessDidChangeNotification` and `wantsSoftwareDimming`, nothing about the sensor
+  ([UIScreen](https://developer.apple.com/documentation/uikit/uiscreen)); `UIAccessibility` has no
+  Auto-Brightness, True Tone, Night Shift or Reduce White Point status. SensorKit's ambient light
+  sensor needs `com.apple.developer.sensorkit.reader.allow`, granted only for an Apple-approved
+  research study ([entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.sensorkit.reader.allow),
+  verified). The camera could be a light proxy, but at the cost of a camera permission and the
+  in-use indicator on a frame that should just show photos — out of scope.
+- **Learning:** Apple documents none; "auto-brightness learns you" claims are blog-only.
+- **`UIScreen.main` is deprecated since iOS 26.0** ([doc](https://developer.apple.com/documentation/uikit/uiscreen/main),
+  verified); Apple points to the window scene's screen. The plan should reach the screen through the
+  scene, not `UIScreen.main`.
+- **`wantsSoftwareDimming`** lets the system dim "lower than the hardware is normally capable of"
+  in software ([doc](https://developer.apple.com/documentation/uikit/uiscreen/wantssoftwaredimming),
+  verified) — a candidate for 400's below-minimum dim instead of more `brightness` writes.
+- **Only the user can set** Auto-Brightness, Reduce White Point, True Tone, Night Shift and Low Power
+  Mode (readable, not settable). Apple warns turning Auto-Brightness off "may increase power
+  consumption" ([iPad guide](https://support.apple.com/guide/ipad/adjust-screen-brightness-color-balance-ipad997d972d/ipados)).
+- **Comparable apps (secondary):** Kiosk Pro's night mode dims to minimum on a schedule and restores
+  "the previously-set brightness level" at wake; photo-frame apps offer scheduled dimming and tell
+  users to set Auto-Lock to Never. None documents holding a level against auto-brightness. A Home
+  Assistant kiosk discussion (July 2026, a user, not a maintainer) reports that setting a brightness
+  "inhibits" iPadOS auto-brightness and proposes exactly our split: leave the system default, or a
+  fixed brightness ([discussion](https://github.com/orgs/home-assistant/discussions/2403)).
+- **Known issues:** only user bug reports on Apple's forums (e.g. iOS 18 beta dimming to minimum
+  after unlock); no Apple engineer statement on app writes and auto-brightness.
+
 **What this means for the design.** A frame never locks (the idle timer is off), so without OwnFrame's
 own restore, a Fixed session or a remote 0 % would keep shifting the iPad's brightness after leaving
 the slideshow, until the next lock. That makes FR-400-11 (restore the session baseline on exit) and
@@ -81,8 +117,7 @@ small. It does not change the design either: the hold loop (FR-410-04) only writ
 reads differs from the target, so where iOS does not drift it never writes. Framepad was left at the
 written 0.80 at the end of the run.
 
-Still to measure (device checks, see SC-410-07): that a lock/unlock really restores the pre-app value
-(finding 7; needs a hand on the button); Framepad with a stronger light change (phone placed exactly
+Still to measure (device checks, see SC-410-07): Framepad with a stronger light change (phone placed exactly
 over the sensor next to the front camera); and the behaviour with system Auto-Brightness turned off.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -242,6 +277,8 @@ stop; relaunch → the in-app setting is back and the preset is unchanged.
 
 - A remote **mode** command is a session override too (D-410-2 extended from the level to the mode,
   for one consistent rule: remote is for now, in-app is for keeps).
+- The hold loop may react to `brightnessDidChangeNotification` in addition to (or instead of) the
+  1 s check; the plan decides, SC-410-02 is the bar.
 - The hold interval of 1 s is the measured-good value on jk; the plan may pick a shorter one if
   Framepad needs it.
 - 400's software dim below the hardware minimum stays as it is and is only used in Fixed/override.
