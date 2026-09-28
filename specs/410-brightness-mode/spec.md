@@ -52,9 +52,38 @@ also runs while the app is frontmost and is readable, but it reacted only weakly
 small. It does not change the design either: the hold loop (FR-410-04) only writes when the value it
 reads differs from the target, so where iOS does not drift it never writes.
 
-Still to measure (device checks, see SC-410-07): Framepad with a stronger light change (phone placed
-exactly over the sensor next to the front camera); whether app writes leave a lasting offset on the user's auto-brightness curve after the app
-exits; and the behaviour with system Auto-Brightness turned off.
+6. **An app write outlives the app and moves the whole auto-brightness curve** (jk, later the same
+   night). After tests 2–3 had written 0.80, a probe that wrote nothing read lit 0.85 / covered 0.40
+   (first run: 0.55 / 0.00). After writing 0.20 and killing the app, a fresh read-only probe read
+   lit 0.20 / covered 0.00. iOS keeps adapting to light, but around the app's last value, and it does
+   not restore anything when the app goes away. On Framepad (iOS 17.7) the level even stayed frozen
+   at the written 0.80 for 105 s after the app was killed, covered and lit, while before the write it
+   still moved in 0.05 steps (weak stimulus, see below).
+7. **Apple's primary source agrees and names the reset** ([`UIScreen.brightness`](https://developer.apple.com/documentation/uikit/uiscreen/brightness),
+   read 2026-09-28): *"Brightness changes remain in effect until the person locks their device, even
+   if the person closes your app before then. The next time the person unlocks the device, the
+   system restores the brightness setting to the original value in Settings or Control Center."*
+   So an app write acts like moving the Control Center slider until the next lock. Apple does not
+   document any learning beyond that; its support page only advises turning Auto-Brightness off and
+   on again if it "isn't adapting correctly" ([support.apple.com/109351](https://support.apple.com/en-us/109351)).
+
+**What this means for the design.** A frame never locks (the idle timer is off), so without OwnFrame's
+own restore, a Fixed session or a remote 0 % would keep shifting the iPad's brightness after leaving
+the slideshow, until the next lock. That makes FR-400-11 (restore the session baseline on exit) and
+FR-410-10 (restore once when going back to Automatic) load-bearing, not cosmetic. It is also one more
+reason for D-410-1: in Automatic nothing is written, so nothing needs undoing.
+
+**Framepad (iPad Pro 10.5, iOS 17.7, the deployment floor), same rig, 2026-09-28:** auto-brightness
+also runs while the app is frontmost and is readable, but it reacted only weakly to the phone (lit
+0.15, covered 0.05–0.10, vs. 0.55/0.00 on jk). A written 0.80 **held for 60 s covered and 40 s lit**
+(no drift). That is not proof that iOS 17 never drifts, because the light change the sensor saw was
+small. It does not change the design either: the hold loop (FR-410-04) only writes when the value it
+reads differs from the target, so where iOS does not drift it never writes. Framepad was left at the
+written 0.80 at the end of the run.
+
+Still to measure (device checks, see SC-410-07): that a lock/unlock really restores the pre-app value
+(finding 7; needs a hand on the button); Framepad with a stronger light change (phone placed exactly
+over the sensor next to the front camera); and the behaviour with system Auto-Brightness turned off.
 
 ## User Scenarios & Testing *(mandatory)*
 
