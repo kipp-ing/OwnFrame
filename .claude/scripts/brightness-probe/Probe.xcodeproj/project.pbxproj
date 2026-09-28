@@ -1,0 +1,27 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		A1 /* ProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2; };
+		A2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeApp.swift; sourceTree = "<group>"; };
+		A3 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Probe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A4 = {isa = PBXGroup; children = (A5, A6); sourceTree = "<group>"; };
+		A5 = {isa = PBXGroup; children = (A2); path = Probe; sourceTree = "<group>"; };
+		A6 = {isa = PBXGroup; children = (A3); name = Products; sourceTree = "<group>"; };
+		A7 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A1); runOnlyForDeploymentPostprocessing = 0; };
+		A8 = {isa = PBXNativeTarget; buildConfigurationList = B1; buildPhases = (A7); buildRules = (); dependencies = (); name = Probe; productName = Probe; productReference = A3; productType = "com.apple.product-type.application"; };
+		A9 = {isa = PBXProject; buildConfigurationList = B2; compatibilityVersion = "Xcode 14.0"; mainGroup = A4; productRefGroup = A6; projectDirPath = ""; projectRoot = ""; targets = (A8); };
+		C1 = {isa = XCBuildConfiguration; buildSettings = {
+			PRODUCT_BUNDLE_IDENTIFIER = ing.kipp.BrightnessProbe; PRODUCT_NAME = "$(TARGET_NAME)";
+			DEVELOPMENT_TEAM = 8Z4SNYUKQ2; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UIRequiresFullScreen = YES;
+			SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos;
+			MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; }; name = Debug; };
+		C2 = {isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; }; name = Debug; };
+		B1 = {isa = XCConfigurationList; buildConfigurations = (C1); defaultConfigurationName = Debug; };
+		B2 = {isa = XCConfigurationList; buildConfigurations = (C2); defaultConfigurationName = Debug; };
+	};
+	rootObject = A9;
+}

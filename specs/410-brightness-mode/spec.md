@@ -6,6 +6,14 @@
 
 **Status**: Draft — specced 2026-09-28 from Jan's call; not planned, no code yet.
 
+**Next session (handoff, 2026-09-28):** run Spec Kit plan → tasks for this spec, then build it TDD
+(PowerKit host tests first: fake screen with iOS-like drift, injected clock for the night window).
+Start from the Decisions, then FR-410-01…19. Device rig: `.claude/scripts/brightness-probe/probe.sh`
+(runbook in `docs/device-testing.md` "Brightness probe rig"); FramePhone lies on **iPad jk's** light
+sensor; jk's system Auto-Brightness was left **off** — check `docs/hitl.md` §2b before measuring.
+Open device check: SC-410-07 (Framepad under a strong light change). Open confirm for Jan: the
+assumption that a remote *mode* command is session-only (Assumptions).
+
 **Input**: Sub-spec of topic 400. Resolves the 400 Roadmap item "Brightness memory and automatic
 brightness — its own feature spec" (#67, D-08), and removes the cause of #91 (a Home Assistant source
 switch reset brightness to 255). Jan, 2026-09-28: *"we need an auto mode from normal iOS, more or less

@@ -260,6 +260,25 @@ exercising the HA contract; that is exactly what hardware is for.
   duration entity is min 3 / max 600 / step 1 versus six UI presets) — any HA-settable
   setting must render off-menu values.
 
+## Brightness probe rig (spec 410)
+
+`.claude/scripts/brightness-probe/probe.sh` — a throwaway app (`ing.kipp.BrightnessProbe`, not
+OwnFrame) logs `UIScreen.brightness` every 0.5 s on a target iPad, while **FramePhone lies face-down on
+the target's ambient light sensor** as a switchable light source (probe `--mode light` = white at full
+brightness, `--mode dark` = black). Recipes: `probe.sh build`, `probe.sh install <udid>…`,
+`probe.sh cycle <target> "light:25 dark:40 light:30" <log> [--set 0.8 --at 10] [--reassert 1]`,
+`probe.sh show <log>`. Results so far: `specs/410-brightness-mode/spec.md` findings 1–10.
+
+- **Every write is sticky.** An app's brightness write outlives the app until the next lock and shifts
+  the auto-brightness curve; a lock/unlock only undoes the last write. Note the target's level before
+  and after a run, and expect a changed baseline after any `--set` run.
+- **The probe's `light`/`dark` modes write 1.0/0.0** — launch them only on the light-source phone.
+  Killing a target probe = relaunching it with `--terminate-existing` in `watch` mode.
+- **The sensor positions differ:** jk (M4) reacts strongly (lit 0.55 / covered 0.00); Framepad (10.5",
+  sensor beside the front camera) barely reacts while stationary (finding 10).
+- **An app cannot read or set the system Auto-Brightness switch**, so the device's setting is only
+  knowable from the person holding it — ask, and record it with the run.
+
 ## What only hardware can prove
 
 Keep this list honest — it decides what needs a scarce device day versus what can be
