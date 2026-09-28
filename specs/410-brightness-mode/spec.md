@@ -74,6 +74,13 @@ reads differs from the target, so where iOS does not drift it never writes.
    a value saved at some earlier point or keeps an undocumented learned preference is open. Either
    way, OwnFrame cannot rely on the lock to undo its writes.
 
+9. **With system Auto-Brightness off, nothing moves** (jk, Jan switched it off). With nothing written,
+   0.65 stayed 0.65 through covered and lit phases; a written 0.60 then held for 85 s through
+   lit/covered/lit with no drift. So for a covered-sensor frame, turning Auto-Brightness off is the
+   clean fix on the iOS side, and Fixed mode's hold loop then simply never needs to write. Fixed
+   still matters for users who leave it on (Apple warns that turning it off "may increase power
+   consumption"), and the in-app hint may name the iOS setting as the alternative (FR-410-11).
+
 ## Research (2026-09-28, primary sources first)
 
 - **No way to read the light or the Auto-Brightness state.** `UIScreen` has `brightness`,
@@ -118,7 +125,7 @@ reads differs from the target, so where iOS does not drift it never writes. Fram
 written 0.80 at the end of the run.
 
 Still to measure (device checks, see SC-410-07): Framepad with a stronger light change (phone placed exactly
-over the sensor next to the front camera); and the behaviour with system Auto-Brightness turned off.
+over the sensor next to the front camera); (Auto-Brightness off: done, finding 9).
 
 ## User Scenarios & Testing *(mandatory)*
 
