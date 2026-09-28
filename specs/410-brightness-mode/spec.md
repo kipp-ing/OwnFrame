@@ -45,8 +45,15 @@ screen at full brightness vs. black screen).
 5. **An app cannot switch the system Auto-Brightness setting**, and the app has no reliable way to
    know whether it is on.
 
-Still to measure (device checks, see SC-410-07): the same on Framepad (iOS 17.7, the deployment
-floor); whether app writes leave a lasting offset on the user's auto-brightness curve after the app
+**Framepad (iPad Pro 10.5, iOS 17.7, the deployment floor), same rig, 2026-09-28:** auto-brightness
+also runs while the app is frontmost and is readable, but it reacted only weakly to the phone (lit
+0.15, covered 0.05–0.10, vs. 0.55/0.00 on jk). A written 0.80 **held for 60 s covered and 40 s lit**
+(no drift). That is not proof that iOS 17 never drifts, because the light change the sensor saw was
+small. It does not change the design either: the hold loop (FR-410-04) only writes when the value it
+reads differs from the target, so where iOS does not drift it never writes.
+
+Still to measure (device checks, see SC-410-07): Framepad with a stronger light change (phone placed
+exactly over the sensor next to the front camera); whether app writes leave a lasting offset on the user's auto-brightness curve after the app
 exits; and the behaviour with system Auto-Brightness turned off.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -197,7 +204,8 @@ stop; relaunch → the in-app setting is back and the preset is unchanged.
   every change (no hard-coded 1.0).
 - **SC-410-06**: #91's reproduction (`device-accept.sh … ha-parity` rapid source switches) ends with
   brightness unchanged in Automatic and at the held target in Fixed.
-- **SC-410-07** *(device check)*: Findings 1–3 reproduced on Framepad (iOS 17.7); a check that
+- **SC-410-07** *(device check)*: Findings 1–3 reproduced on Framepad (iOS 17.7) — findings 1 and
+  the no-drift case recorded 2026-09-28, drift under a strong light change still open; a check that
   leaving the app after Fixed leaves no lasting shift on the iOS auto-brightness curve; behaviour
   with system Auto-Brightness off recorded.
 
