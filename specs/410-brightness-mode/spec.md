@@ -83,8 +83,12 @@ reads differs from the target, so where iOS does not drift it never writes.
 
 10. **Framepad (iOS 17.7) barely follows the light while it stays still.** With Auto-Brightness
     confirmed on, a read-only run sat at 0.20 for 95 s through lit/covered/lit. Jan's hand check:
-    it seems to adjust only once the iPad is physically moved. Not yet measured under the probe, and
-    the cause (hardware generation, iOS 17, or a motion trigger) is unknown. If it holds, a
+    it seems to adjust only once the iPad is physically moved. Probe run with timed moves (3 min):
+    covered for 40 s → no change (0.25); move 1 while covered → no change; lit for 40 s → no
+    change; move 2 while lit → about 14 s later the first and only reaction of the run (0.25 → 0.60,
+    then a ramp down to 0.10). So the only adjustment followed a move, but the first move changed
+    nothing: the motion idea is plausible, not proven. The cause (hardware generation, iOS 17, or a
+    motion trigger) stays unknown. If it holds, a
     wall-mounted frame of that generation hardly adjusts in Automatic. Automatic stays the default
     (it is what iOS does), but it makes Fixed plus Home Assistant/Shortcuts the practical path on
     such frames, and the Fixed hint should also cover "brightness does not follow the room".
