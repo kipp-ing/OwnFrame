@@ -823,6 +823,9 @@ private struct RootView: View {
             slideshow = await factories.makeSlideshow(themeStore)
             api = await factories.makeAPI()
             registerAdapter()
+            // The swap replaces SlideshowView on the SAME PowerManager: announce it, so the
+            // outgoing view's disappear doesn't restore the system brightness (#91).
+            powerManager?.handOver()
             connectionGeneration += 1
         }
     }

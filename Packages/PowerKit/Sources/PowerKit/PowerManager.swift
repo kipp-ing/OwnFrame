@@ -10,6 +10,7 @@ public final class PowerManager {
     private var baselineBrightness: Double?
     private var didChangeBrightness = false
     private var rampTask: Task<Void, Never>?
+    private var pendingHandovers = 0
 
     public private(set) var isKeepingAwake = false
 
@@ -97,7 +98,29 @@ public final class PowerManager {
         isKeepingAwake = true
     }
 
+    /// A successor surface is about to replace the current one — a slideshow generation swap
+    /// (issue #91). The outgoing surface's disappear then belongs to the swap, not to an exit:
+    /// the session (baseline, the level set so far, keep-awake) passes to the successor.
+    /// SwiftUI does not order the old disappear against the new appear, so this is announced
+    /// up front instead of inferred from the order.
+    public func handOver() {
+        pendingHandovers += 1
+    }
+
+    /// The slideshow surface went away. Consumes a pending ``handOver()`` and keeps the
+    /// session; without one it is a genuine exit and tears down like ``deactivate()``.
+    public func surfaceDisappeared() {
+        if pendingHandovers > 0 {
+            pendingHandovers -= 1
+            return
+        }
+        deactivate()
+    }
+
+    /// Unconditional teardown (e.g. reset): restores the baseline, releases keep-awake, and
+    /// drops any hand-over whose outgoing disappear never fired (a swap under a modal cover).
     public func deactivate() {
+        pendingHandovers = 0
         rampTask?.cancel()
         rampTask = nil
         screen.isIdleTimerDisabled = false

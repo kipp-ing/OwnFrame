@@ -240,7 +240,9 @@ struct SlideshowView: View {
             case .keepAlive:
                 break
             case .tearDown:
-                powerManager.deactivate()
+                // A generation swap announced a hand-over: the successor keeps the level
+                // and the keep-awake hold (#91). Otherwise a genuine exit.
+                powerManager.surfaceDisappeared()
                 Task { await stopCoordinator() }
             }
         }
