@@ -299,7 +299,7 @@ private final class GateFixture {
         )
         adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: GateStubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: GateStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             themeStore: store
         )
         configStore = RecordingBrokerConfigStore(stored: broker)

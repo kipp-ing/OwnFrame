@@ -67,14 +67,15 @@ struct OwnFrameApp: App {
         // PHKitGateway in production, a scripted in-memory fake under `--uitest` so the
         // hermetic tests never hit a real permission prompt or library.
         let makePhotoLibraryGateway: @MainActor @Sendable () -> any PhotoLibraryGateway
-        // Keeps the display awake during the slideshow and can control brightness.
-        // Backed by the live screen in production, a fake under `--uitest` so the
-        // hermetic test never touches real device brightness.
-        let makePowerManager: @MainActor @Sendable () -> PowerManager
+        // Keeps the display awake during the slideshow and decides brightness (410: the
+        // policy over PowerManager's mechanics). Backed by the live screen and the persisted
+        // brightness settings in production, a fake under `--uitest` so the hermetic test
+        // never touches real device brightness.
+        let makeBrightness: @MainActor @Sendable () -> BrightnessController
         // The ONE remote-control adapter per slideshow generation (800, FR-800-02):
         // built synchronously, broker or not — HA and the App Intents drive the same
         // instance. The last parameter is the app-level source switch (900, FR-900-11).
-        let makeAdapter: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter
+        let makeAdapter: @MainActor @Sendable (SlideshowViewModel, BrightnessController, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter
         // The HA coordinator over an already-built adapter; nil without a broker
         // config. Its best-effort album fetch lands via `adapter.updateAlbums` (800).
         let makeCoordinator: @MainActor @Sendable (SlideshowRemoteControlAdapter) async -> HAControlCoordinator?
@@ -224,8 +225,8 @@ struct OwnFrameApp: App {
                     SourceLibraryViewModel(store: sourceStore, secretStore: secretStore, resolver: resolver, onSwitchActive: onSwitchActive)
                 },
                 makePhotoLibraryGateway: { @MainActor @Sendable in photoGateway },
-                makePowerManager: { @MainActor @Sendable in UITestSupport.makePowerManager() },
-                makeAdapter: { @MainActor @Sendable slideshow, powerManager, themeStore, onSwitchSource in
+                makeBrightness: { @MainActor @Sendable in UITestSupport.makeBrightness() },
+                makeAdapter: { @MainActor @Sendable slideshow, brightness, themeStore, onSwitchSource in
                     let library = sourceStore.load()
                     let isPhotoLibrarySource: Bool = {
                         if case .photoLibrary = library.active?.kind { return true }
@@ -233,7 +234,7 @@ struct OwnFrameApp: App {
                     }()
                     return SlideshowRemoteControlAdapter(
                         slideshow: slideshow,
-                        powerManager: powerManager,
+                        brightness: brightness,
                         currentAlbumID: config.load()?.selectedAlbumID,
                         sources: library.sources,
                         activeSourceID: library.active?.id,
@@ -482,16 +483,25 @@ struct OwnFrameApp: App {
         }
 
         // Production: drive the real device screen. The PowerManager gates all
-        // effects to the foreground itself (Konstitution V).
-        let makePowerManager: @MainActor @Sendable () -> PowerManager = {
-            PowerManager(screen: UIScreenController())
+        // effects to the foreground itself (Konstitution V); the controller decides whether
+        // to write at all (410 — Automatic by default writes nothing).
+        let makeBrightness: @MainActor @Sendable () -> BrightnessController = {
+            #if DEBUG
+            // 410 device rig (SC-410-02): Fixed in memory + a console trace, both opt-in flags.
+            return BrightnessController(
+                power: PowerManager(screen: BrightnessTraceSeam.screen(UIScreenController())),
+                store: BrightnessTraceSeam.store() ?? UserDefaultsBrightnessStore()
+            )
+            #else
+            return BrightnessController(power: PowerManager(screen: UIScreenController()), store: UserDefaultsBrightnessStore())
+            #endif
         }
         // 800 (FR-800-02): the ONE adapter per slideshow generation, built
         // synchronously — broker or not — so App Intents and HA drive the same
         // instance. Current-photo metadata/image come from the slideshow's own source
         // (FR-710-25), never an API-key client; the select options come from the source
         // library (900, FR-900-11).
-        let makeAdapter: @MainActor @Sendable (SlideshowViewModel, PowerManager, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter = { slideshow, powerManager, themeStore, onSwitchSource in
+        let makeAdapter: @MainActor @Sendable (SlideshowViewModel, BrightnessController, UserDefaultsThemeStore, @escaping @MainActor (String) -> Void) -> SlideshowRemoteControlAdapter = { slideshow, brightness, themeStore, onSwitchSource in
             let library = sourceStore.load()
             let isPhotoLibrarySource: Bool = {
                 if case .photoLibrary = library.active?.kind { return true }
@@ -499,7 +509,7 @@ struct OwnFrameApp: App {
             }()
             return SlideshowRemoteControlAdapter(
                 slideshow: slideshow,
-                powerManager: powerManager,
+                brightness: brightness,
                 currentAlbumID: config.load()?.selectedAlbumID,
                 sources: library.sources,
                 activeSourceID: library.active?.id,
@@ -551,6 +561,7 @@ struct OwnFrameApp: App {
                 // never changes with the name, so renaming cannot orphan an entity.
                 deviceName: frameNameStore.name,
                 battery: adapter,
+                brightnessMode: adapter,
                 enabledEntities: enabledEntities,
                 mode: mode
             )
@@ -600,7 +611,7 @@ struct OwnFrameApp: App {
             switchActiveSource: switchActiveSource,
             makeSourceLibraryViewModel: makeSourceLibraryViewModel,
             makePhotoLibraryGateway: { @MainActor @Sendable in PHKitGateway() },
-            makePowerManager: makePowerManager,
+            makeBrightness: makeBrightness,
             makeAdapter: makeAdapter,
             makeCoordinator: { @MainActor @Sendable adapter in await gatedMakeCoordinator(adapter) },
             controlRegistry: controlRegistry,
@@ -649,7 +660,7 @@ private struct RootView: View {
     let factories: OwnFrameApp.Factories
 
     @State private var slideshow: SlideshowViewModel?
-    @State private var powerManager: PowerManager?
+    @State private var brightness: BrightnessController?
     @State private var api: (any ImmichAPI)?
     // The generation-scoped STRONG owner of the remote-control adapter (800): the
     // registry only holds it weakly and the coordinator exists only with a broker,
@@ -698,8 +709,8 @@ private struct RootView: View {
     private var content: some View {
         if onboarding.step == .done {
             // `api` is nil for a Photos-library source (900) — never a gate for the show.
-            if let slideshow, let powerManager, let remoteAdapter {
-                SlideshowView(viewModel: slideshow, powerManager: powerManager, api: api,
+            if let slideshow, let brightness, let remoteAdapter {
+                SlideshowView(viewModel: slideshow, brightness: brightness, api: api,
                               isPhotoLibrarySource: activeSourceIsPhotoLibrary,
                               activeSourceLabel: activeSourceLabel,
                               // FR-700-23 "any other sheet/full-screen surface": these two
@@ -714,7 +725,7 @@ private struct RootView: View {
                     factories.controlRegistry.isConfigured = false
                     self.remoteAdapter = nil
                     self.slideshow = nil
-                    self.powerManager = nil
+                    self.brightness = nil
                     self.api = nil
                     onboarding.reset()
                 },
@@ -742,7 +753,7 @@ private struct RootView: View {
                     .ignoresSafeArea()
                     .task {
                         slideshow = await factories.makeSlideshow(themeStore)
-                        powerManager = factories.makePowerManager()
+                        brightness = factories.makeBrightness()
                         api = await factories.makeAPI()
                         registerAdapter()
                     }
@@ -823,9 +834,9 @@ private struct RootView: View {
             slideshow = await factories.makeSlideshow(themeStore)
             api = await factories.makeAPI()
             registerAdapter()
-            // The swap replaces SlideshowView on the SAME PowerManager: announce it, so the
-            // outgoing view's disappear doesn't restore the system brightness (#91).
-            powerManager?.handOver()
+            // The swap replaces SlideshowView on the SAME brightness session: announce it, so
+            // the outgoing view's disappear doesn't restore the system brightness (#91).
+            brightness?.handOver()
             connectionGeneration += 1
         }
     }
@@ -835,8 +846,8 @@ private struct RootView: View {
     /// intents registry, and handed to the HA coordinator when a broker exists.
     /// Registration implies a configured frame; reset is the only way back.
     private func registerAdapter() {
-        guard let slideshow, let powerManager else { return }
-        let adapter = factories.makeAdapter(slideshow, powerManager, themeStore, { id in switchSource(id: id) })
+        guard let slideshow, let brightness else { return }
+        let adapter = factories.makeAdapter(slideshow, brightness, themeStore, { id in switchSource(id: id) })
         remoteAdapter = adapter
         factories.controlRegistry.isConfigured = true
         factories.controlRegistry.register(adapter)
@@ -1174,9 +1185,20 @@ enum UITestSupport {
     }
 
     @MainActor
-    static func makePowerManager() -> PowerManager {
-        // In-memory screen so the hermetic UI test never dims/locks the real device.
-        PowerManager(screen: StubScreenController())
+    static func makeBrightness() -> BrightnessController {
+        #if DEBUG
+        // 410 device rig: `--brightness-trace` drives the REAL screen under the hermetic stub
+        // slideshow, so SC-410-02 can be measured on hardware without touching its config.
+        if ProcessInfo.processInfo.arguments.contains("--brightness-trace") {
+            return BrightnessController(
+                power: PowerManager(screen: BrightnessTraceSeam.screen(UIScreenController())),
+                store: BrightnessTraceSeam.store() ?? InMemoryBrightnessStore()
+            )
+        }
+        #endif
+        // In-memory screen and settings so the hermetic UI test never dims/locks the real
+        // device and every launch starts from the Automatic default.
+        return BrightnessController(power: PowerManager(screen: StubScreenController()), store: InMemoryBrightnessStore())
     }
 }
 

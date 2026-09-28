@@ -71,6 +71,12 @@ public enum HATopics {
             "binary_sensor"
         case .frameStatus:
             "sensor"
+        case .brightnessMode:
+            "select"
+        case .nightWindow:
+            "switch"
+        case .nightActive:
+            "binary_sensor"
         }
     }
 }

@@ -6,10 +6,20 @@ public final class PowerManager {
     private let screen: any ScreenControlling
     private let clock: any PowerClock
     private let config: PowerConfig
-    private var isForegroundActive = false
+    public private(set) var isForegroundActive = false
     private var baselineBrightness: Double?
     private var didChangeBrightness = false
     private var rampTask: Task<Void, Never>?
+    /// Bumped by every brightness request, so a restore can tell whether a newer write
+    /// landed while its soft dim ran (410 review).
+    private var writeGeneration = 0
+
+    /// The brightness captured when this foreground session began (FR-400-10).
+    public var baseline: Double? { baselineBrightness }
+    /// Whether the app wrote brightness in this session, so an exit restores (FR-400-11).
+    public var hasChangedBrightness: Bool { didChangeBrightness }
+    /// A soft dim is in flight; a hold loop must not fight it (410, FR-410-04).
+    public var isRamping: Bool { rampTask != nil }
     private var pendingHandovers = 0
 
     public private(set) var isKeepingAwake = false
@@ -47,6 +57,7 @@ public final class PowerManager {
         }
 
         didChangeBrightness = true
+        writeGeneration += 1
         rampTask?.cancel()
         rampTask = nil
 
@@ -75,9 +86,23 @@ public final class PowerManager {
             }
         }
 
-        await rampTask?.value
-        if rampTask?.isCancelled == false {
+        let task = rampTask
+        await task?.value
+        if rampTask == task {
             rampTask = nil
+        }
+    }
+
+    /// 410 (FR-410-10): hand brightness back to iOS — move to `value` once, then the session
+    /// counts as unchanged, so the exit restore does not write again.
+    public func restore(to value: Double, animated: Bool) async {
+        guard isForegroundActive else { return }
+        // `setBrightness` bumps the generation before its first suspension.
+        let generation = writeGeneration + 1
+        await setBrightness(value, animated: animated)
+        // Only if no newer write replaced this restore while it ran.
+        if generation == writeGeneration, !isRamping {
+            didChangeBrightness = false
         }
     }
 
@@ -120,14 +145,20 @@ public final class PowerManager {
     /// Unconditional teardown (e.g. reset): restores the baseline, releases keep-awake, and
     /// drops any hand-over whose outgoing disappear never fired (a swap under a modal cover).
     public func deactivate() {
+        deactivate(restoringTo: nil)
+    }
+
+    /// Teardown that restores `value` instead of the session baseline (410: the pre-night
+    /// brightness outranks a baseline captured during the night). Still only if the app wrote.
+    public func deactivate(restoringTo value: Double?) {
         pendingHandovers = 0
         rampTask?.cancel()
         rampTask = nil
         screen.isIdleTimerDisabled = false
         isKeepingAwake = false
 
-        if didChangeBrightness, let baselineBrightness {
-            screen.brightness = baselineBrightness
+        if didChangeBrightness, let restore = value ?? baselineBrightness {
+            screen.brightness = restore
         }
 
         baselineBrightness = nil

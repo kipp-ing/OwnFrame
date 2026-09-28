@@ -14,8 +14,9 @@ struct HAControlCoordinatorModeTests {
 
     @Test
     func readOnlySensorsAreExactlyTheNonCommandEntities() {
-        // frame_status joined the read-only set 2026-07-26 (FR-710-24 free telemetry).
-        let sensors: Set<HAEntity> = [.currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus]
+        // frame_status joined the read-only set 2026-07-26 (FR-710-24 free telemetry);
+        // night_active joined it later (410, FR-410-19 free telemetry).
+        let sensors: Set<HAEntity> = [.currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .nightActive]
         for entity in HAEntity.allCases {
             #expect(entity.isReadOnlySensor == sensors.contains(entity),
                     "\(entity.rawValue): isReadOnlySensor mismatch")

@@ -505,10 +505,10 @@ struct SlideshowRemoteControlAdapterTests {
             ticker: StubTicker(),
             settingsStore: store
         )
-        let powerManager = PowerManager(screen: StubScreen())
+        let brightness = BrightnessController(power: PowerManager(screen: StubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false)
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: powerManager,
+            brightness: brightness,
             currentAlbumID: currentAlbumID,
             sources: sources,
             activeSourceID: activeSourceID,
@@ -575,13 +575,13 @@ struct SlideshowRemoteControlAdapterTests {
             ticker: BlockingTicker(),
             settingsStore: store
         )
-        let powerManager = PowerManager(screen: StubScreen())
+        let brightness = BrightnessController(power: PowerManager(screen: StubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false)
         let optionsStore = InMemoryHAPublishOptionsStore()
         optionsStore.options = options
 
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: powerManager,
+            brightness: brightness,
             albums: albumsAtInit ? [Album(id: "album-1", name: "Family")] : [],
             themeStore: store,
             metadataCache: MetadataCache(limit: 64),
@@ -634,7 +634,7 @@ struct SlideshowRemoteControlAdapterTests {
 
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: StubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: StubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             themeStore: store,
             metadataCache: MetadataCache(limit: 64),
             publishOptions: optionsStore
@@ -842,4 +842,53 @@ final class LinkRoutingTransport: HTTPTransport, @unchecked Sendable {
 private final class StubScreen: ScreenControlling {
     var brightness: Double = 0.5
     var isIdleTimerDisabled = false
+}
+
+// MARK: - 410 brightness through the BrightnessController (T012)
+
+extension SlideshowRemoteControlAdapterTests {
+    private func makeBrightnessAdapter(screenAt value: Double, settings: BrightnessSettings = BrightnessSettings())
+        -> (SlideshowRemoteControlAdapter, BrightnessController, InMemoryBrightnessStore, StubScreen) {
+        let screen = StubScreen()
+        screen.brightness = value
+        let store = InMemoryBrightnessStore(settings: settings)
+        let controller = BrightnessController(
+            power: PowerManager(screen: screen, clock: ImmediateClock()),
+            store: store,
+            runsTickLoop: false
+        )
+        let slideshow = SlideshowViewModel(source: StubAPI(), collectionID: "album-1", ticker: StubTicker(), settingsStore: UserDefaultsThemeStore(defaults: UserDefaults(suiteName: "410.adapter.brightness")!))
+        let adapter = SlideshowRemoteControlAdapter(slideshow: slideshow, brightness: controller)
+        return (adapter, controller, store, screen)
+    }
+
+    /// SC-410-05: Home Assistant starts from the effective brightness, never a hard-coded 1.0.
+    @Test func brightnessReportsTheEffectiveValueFromTheStart() {
+        let (adapter, _, _, _) = makeBrightnessAdapter(screenAt: 0.35)
+        #expect(adapter.brightness == 0.35)
+    }
+
+    /// FR-410-07 / SC-410-04: a remote level is a session override — held, never remembered.
+    @Test func remoteBrightnessIsASessionOverride() async {
+        let (adapter, controller, store, screen) = makeBrightnessAdapter(screenAt: 0.5)
+        await controller.activate()
+        await adapter.setBrightness(0.2)
+        #expect(screen.brightness == 0.2)
+        #expect(adapter.brightness == 0.2)
+        #expect(store.settings == BrightnessSettings())
+    }
+
+    /// FR-410-09: a controller change echoes to Home Assistant through the local-change path.
+    @Test func controllerChangesEchoAsLocalChanges() async {
+        let (adapter, controller, _, _) = makeBrightnessAdapter(screenAt: 0.5)
+        var echoes = 0
+        adapter.onLocalChange = { echoes += 1 }
+        await controller.activate()
+        await controller.setMode(.fixed)
+        #expect(echoes >= 1)
+    }
+}
+
+private struct ImmediateClock: PowerClock {
+    func sleep(for duration: Duration) async throws {}
 }

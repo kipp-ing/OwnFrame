@@ -21,7 +21,7 @@ import SwiftUI
 import ThemeKit
 
 struct SlideshowSettingsView: View {
-    let powerManager: PowerManager
+    let brightnessController: BrightnessController
     // The shared display-preferences store, bound live by the display-option rows (008).
     @Bindable var themeStore: UserDefaultsThemeStore
     // Connection editor seams (009): the editor view model and a callback so a saved
@@ -59,7 +59,9 @@ struct SlideshowSettingsView: View {
     // Locked broker view (US5): masked stored config + unlock offer for an unentitled frame.
     // Non-nil while a Restore is in flight, so the row shows progress and can't be double-tapped.
     @State private var isRestoring = false
-    @State private var brightness: Double
+    // 410: the in-app brightness choices — the only place the remembered mode, preset and
+    // night window change (FR-410-06). Seeded from the controller, written back on change.
+    @State private var brightnessSettings: BrightnessSettings
     @State private var showResetDialog = false
     // Storage section state (320): live usage (refreshed on appear and after
     // Clear), the selected budget step, and the Clear confirmation.
@@ -85,7 +87,7 @@ struct SlideshowSettingsView: View {
     @State private var mqttExpanded: Bool
 
     init(
-        powerManager: PowerManager,
+        brightness: BrightnessController,
         themeStore: UserDefaultsThemeStore,
         makeConnectionViewModel: @escaping () -> ConnectionSettingsViewModel? = { nil },
         onConnectionChanged: @escaping (ConnectionValidationOutcome) -> Void = { _ in },
@@ -98,7 +100,7 @@ struct SlideshowSettingsView: View {
         snapshotStore: (any SourceSnapshotStoring)? = nil,
         budgetStore: (any CacheBudgetStore)? = nil
     ) {
-        self.powerManager = powerManager
+        self.brightnessController = brightness
         self.themeStore = themeStore
         self.makeConnectionViewModel = makeConnectionViewModel
         self.onConnectionChanged = onConnectionChanged
@@ -111,7 +113,7 @@ struct SlideshowSettingsView: View {
         self.snapshotStore = snapshotStore
         self.budgetStore = budgetStore
         _selectedBudget = State(initialValue: budgetStore?.load() ?? .default)
-        _brightness = State(initialValue: powerManager.currentBrightness)
+        _brightnessSettings = State(initialValue: brightness.settings)
         _connectionViewModel = State(initialValue: makeConnectionViewModel())
         _sourceLibraryViewModel = State(initialValue: makeSourceLibraryViewModel())
         let broker = BrokerSetupViewModel(store: BrokerSettingsStoreFactory.make())
@@ -126,18 +128,8 @@ struct SlideshowSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    HStack(spacing: 12) {
-                        Image(systemName: "sun.min").foregroundStyle(.secondary)
-                        Slider(value: $brightness, in: 0...1)
-                            .accessibilityIdentifier("settings.brightness")
-                        Image(systemName: "sun.max").foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text("Brightness")
-                } footer: {
-                    Text("Only takes effect in the foreground while the slideshow is running.")
-                }
+                brightnessSection
+                nightSection
 
                 Section {
                     Picker(selection: $themeStore.settings.order) {
@@ -481,8 +473,19 @@ struct SlideshowSettingsView: View {
                 }
             }
         }
-        .onChange(of: brightness) { _, newValue in
-            Task { await powerManager.setBrightness(newValue, animated: false) }
+        .onChange(of: brightnessSettings.mode) { _, mode in
+            Task { await brightnessController.setMode(mode) }
+        }
+        .onChange(of: brightnessSettings.preset) { _, preset in
+            Task { await brightnessController.setPreset(preset) }
+        }
+        .onChange(of: brightnessSettings.night) { _, night in
+            Task { await brightnessController.setNightWindow(night) }
+        }
+        // Home Assistant can switch the night window while the sheet is open; follow it so the
+        // next in-app edit never writes a stale value back.
+        .onChange(of: brightnessController.settings) { _, settings in
+            if brightnessSettings != settings { brightnessSettings = settings }
         }
         // Presented ONLY from a locked-row tap. Never auto-presented, and never reachable
         // from playback (SC-1100-02).
@@ -502,6 +505,86 @@ struct SlideshowSettingsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Brightness (410)
+
+    /// Automatic leaves brightness to iOS (the default, D-410-1); Fixed holds the level set
+    /// here — for a frame whose light sensor is covered (FR-410-11: OwnFrame never claims to
+    /// measure the room).
+    @ViewBuilder
+    private var brightnessSection: some View {
+        Section {
+            Picker("Brightness", selection: $brightnessSettings.mode) {
+                Text("Automatic").tag(BrightnessMode.automatic)
+                Text("Fixed").tag(BrightnessMode.fixed)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("settings.brightness")
+
+            if brightnessSettings.mode == .fixed {
+                HStack(spacing: 12) {
+                    Image(systemName: "sun.min").foregroundStyle(.secondary)
+                    Slider(value: $brightnessSettings.preset, in: 0...1)
+                        .accessibilityIdentifier("settings.brightness.level")
+                        .accessibilityLabel(Text("Brightness level"))
+                    Image(systemName: "sun.max").foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Brightness")
+        } footer: {
+            if brightnessSettings.mode == .fixed {
+                Text("For a frame whose light sensor is covered: keeps the level you set while the slideshow runs. Turning off Auto-Brightness in iOS Settings works too.")
+            } else {
+                Text("Leaves brightness to the system, as usual.")
+            }
+        }
+    }
+
+    /// FR-410-13/16/18: a free night window — very dim, photos keep playing, a tap peeks.
+    @ViewBuilder
+    private var nightSection: some View {
+        Section {
+            Toggle(isOn: $brightnessSettings.night.isEnabled) {
+                Label("Dim at night", systemImage: "moon")
+            }
+            .accessibilityIdentifier("settings.night")
+
+            if brightnessSettings.night.isEnabled {
+                DatePicker("From", selection: minuteBinding(\.startMinute), displayedComponents: .hourAndMinute)
+                    .accessibilityIdentifier("settings.night.start")
+                DatePicker("To", selection: minuteBinding(\.endMinute), displayedComponents: .hourAndMinute)
+                    .accessibilityIdentifier("settings.night.end")
+                HStack(spacing: 12) {
+                    Image(systemName: "moon.fill").foregroundStyle(.secondary)
+                    Slider(value: $brightnessSettings.night.level, in: 0...NightWindow.maxLevel)
+                        .accessibilityIdentifier("settings.night.level")
+                        .accessibilityLabel(Text("Night brightness"))
+                    Image(systemName: "sun.min").foregroundStyle(.secondary)
+                }
+            }
+        } footer: {
+            if brightnessSettings.night.isEnabled {
+                Text("The frame stays very dim during these hours and the photos keep playing. Tap the screen to see them brighter for a minute.")
+            }
+        }
+    }
+
+    /// Binds a minutes-after-midnight field to a DatePicker's time of day (local wall clock).
+    private func minuteBinding(_ keyPath: WritableKeyPath<NightWindow, Int>) -> Binding<Date> {
+        Binding(
+            get: {
+                let minute = brightnessSettings.night[keyPath: keyPath]
+                return Calendar.current.date(
+                    bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()
+                ) ?? Date()
+            },
+            set: { date in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                brightnessSettings.night[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+            }
+        )
     }
 
     // MARK: - Entitlement gates (1100)
@@ -535,7 +618,11 @@ struct SlideshowSettingsView: View {
     let root = FileManager.default.temporaryDirectory
         .appendingPathComponent("settings-preview-\(UUID().uuidString)", isDirectory: true)
     return SlideshowSettingsView(
-        powerManager: PowerManager(screen: PreviewScreenController()),
+        brightness: BrightnessController(
+            power: PowerManager(screen: PreviewScreenController()),
+            store: InMemoryBrightnessStore(),
+            runsTickLoop: false
+        ),
         themeStore: UserDefaultsThemeStore(
             defaults: UserDefaults(suiteName: "preview.theme") ?? .standard
         ),

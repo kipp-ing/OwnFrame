@@ -38,7 +38,7 @@ struct HAControlRoundTripTests {
         )
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: RoundTripStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             themeStore: store
         )
         let transport = RecordingTransport()
@@ -101,7 +101,7 @@ struct HAControlRoundTripTests {
         var switched: [String] = []
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: RoundTripStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             sources: [
                 Source(id: "src-a1", label: "Wohnzimmer", kind: .album(albumID: "album-1")),
                 Source(id: "src-photos", label: "Family", kind: .photoLibrary(collectionID: "pl-family")),
@@ -140,7 +140,7 @@ struct HAControlRoundTripTests {
         )
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: RoundTripStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             isPhotoLibrarySource: true
         )
 
@@ -179,7 +179,7 @@ struct HAControlRoundTripTests {
         )
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: RoundTripStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             themeStore: store
         )
 
@@ -232,7 +232,7 @@ struct HAControlRoundTripTests {
         )
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: RoundTripStubScreen())
+            brightness: BrightnessController(power: PowerManager(screen: RoundTripStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false)
         )
         let transport = RecordingTransport()
         let coordinator = HAControlCoordinator(
@@ -286,7 +286,7 @@ struct HAControlRoundTripTests {
         )
         let adapter = SlideshowRemoteControlAdapter(
             slideshow: slideshow,
-            powerManager: PowerManager(screen: RoundTripStubScreen()),
+            brightness: BrightnessController(power: PowerManager(screen: RoundTripStubScreen()), store: InMemoryBrightnessStore(), runsTickLoop: false),
             albums: [Album(id: "album-1", name: "Family")],
             themeStore: store
         )

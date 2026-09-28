@@ -4,16 +4,15 @@
 
 **Created**: 2026-09-28
 
-**Status**: Draft — specced 2026-09-28 from Jan's call; not planned, no code yet.
+**Status**: Built 2026-09-28 (plan + tasks: [`plan.md`](./plan.md), [`tasks.md`](./tasks.md)). Host tests
+green (PowerKit 70, HAControlKit 154, AppIntentsKit 42); iOS 17.5 sim OwnFrameTests + SettingsUITests
+123/0; tvOS builds. **Device (iPad jk, iOS 26.6.1, OwnFrame itself via `ownframe-cycle.sh`):**
+Automatic wrote nothing through light/dark (SC-410-01 on device); Fixed 0.80 held 171/172 samples
+covered + lit (SC-410-02 met); Fixed 0.00 held in light. That run found finding 11 below and its fix.
 
-**Next session (handoff, 2026-09-28):** run Spec Kit plan → tasks for this spec, then build it TDD
-(PowerKit host tests first: fake screen with iOS-like drift, injected clock for the night window).
-Start from the Decisions, then FR-410-01…19. Device rig: `.claude/scripts/brightness-probe/probe.sh`
-(runbook in `docs/device-testing.md` "Brightness probe rig"); FramePhone lies on **iPad jk's** light
-sensor; jk's Auto-Brightness is on with a manually dimmed slider (curve lit 0.30 / covered 0.20) —
-see `docs/hitl.md` §2b before measuring.
-Open device check: SC-410-07 (Framepad under a strong light change). Open confirm for Jan: the
-assumption that a remote *mode* command is session-only (Assumptions).
+**Open (see `docs/hitl.md` §2b/§4):** SC-410-06 (#91's `ha-parity` rerun on jk), SC-410-07 (Framepad,
+iOS 17.7, strong light change), a real night-window evening on a frame, and Jan's review of the full
+text plus plan decisions P-1…P-6 (notably P-5: effective-mode telemetry only via the gated select).
 
 **Input**: Sub-spec of topic 400. Resolves the 400 Roadmap item "Brightness memory and automatic
 brightness — its own feature spec" (#67, D-08), and removes the cause of #91 (a Home Assistant source
@@ -112,6 +111,14 @@ reads differs from the target, so where iOS does not drift it never writes.
     wall-mounted frame of that generation hardly adjusts in Automatic. Automatic stays the default
     (it is what iOS does), but it makes Fixed plus Home Assistant/Shortcuts the practical path on
     such frames, and the Fixed hint should also cover "brightness does not follow the room".
+
+11. **Software dimming breaks the hold** (jk, 2026-09-28 night, OwnFrame's own trace). With
+    `UIScreen.wantsSoftwareDimming = true` — which 400's screen controller set on *every* write —
+    iOS kept moving an app-written level with the light: Fixed 0.80 re-applied every second still
+    slid 0.80 → 0.00 while covered (4 % of samples at target, 99 writes). With the flag off the same
+    run held 123/123 without a single re-apply, and the probe (which never sets it) held 109/117.
+    So software dimming is now only turned on for levels below 0.02 (the darkest night levels, where
+    it is the point); Fixed 0.00 with it on still held 151/152 in light.
 
 ## Research (2026-09-28, primary sources first)
 

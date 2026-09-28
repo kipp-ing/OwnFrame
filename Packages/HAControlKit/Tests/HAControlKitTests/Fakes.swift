@@ -118,6 +118,41 @@ final class FakeSettingsControl: SettingsControlling {
     }
 }
 
+/// Injectable brightness-mode/night-window source for the host tests (410) — the app's
+/// `BrightnessController` adapter provides the real one.
+@MainActor
+final class FakeBrightnessModeControlling: BrightnessModeControlling {
+    var brightnessMode: BrightnessModeSetting
+    var isNightActive: Bool
+    var isNightWindowEnabled: Bool
+    var onBrightnessModeChange: (@MainActor () -> Void)?
+
+    private(set) var setBrightnessModeCalls: [BrightnessModeSetting] = []
+    private(set) var setNightWindowEnabledCalls: [Bool] = []
+
+    init(mode: BrightnessModeSetting = .auto, isNightActive: Bool = false, isNightWindowEnabled: Bool = false) {
+        self.brightnessMode = mode
+        self.isNightActive = isNightActive
+        self.isNightWindowEnabled = isNightWindowEnabled
+    }
+
+    func setBrightnessMode(_ mode: BrightnessModeSetting) {
+        setBrightnessModeCalls.append(mode)
+        brightnessMode = mode
+    }
+
+    func setNightWindowEnabled(_ isOn: Bool) {
+        setNightWindowEnabledCalls.append(isOn)
+        isNightWindowEnabled = isOn
+    }
+
+    /// Test lever: fire the coordinator's hook exactly as the real adapter would, without
+    /// mutating state itself (mirrors `FakeBatteryReporting.emit`).
+    func emitChange() {
+        onBrightnessModeChange?()
+    }
+}
+
 @MainActor
 final class FakePhotoReporting: PhotoReporting {
     var currentPhotoReport: PhotoReport

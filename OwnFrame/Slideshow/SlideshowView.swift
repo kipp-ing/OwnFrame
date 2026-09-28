@@ -21,7 +21,7 @@ import ThemeKit
 
 struct SlideshowView: View {
     let viewModel: SlideshowViewModel
-    let powerManager: PowerManager
+    let brightness: BrightnessController
     // nil for a Photos-library source (900, US1): there is no Immich behind it, so the
     // Immich-backed surfaces (photo info, album browser) hide until T031/T032 bring
     // source-neutral parity.
@@ -180,8 +180,9 @@ struct SlideshowView: View {
         .animation(swapAnimation, value: viewModel.currentAssetID)
         .task {
             // Entering the slideshow: keep the display awake while it runs in the
-            // foreground (FR-001). Idle timer is normalized again on disappear.
-            powerManager.activate()
+            // foreground (FR-001). Idle timer is normalized again on disappear. The brightness
+            // policy (410) applies its level with a soft dim, so it must not delay `start()`.
+            Task { await brightness.activate() }
             // 310/9010 slot 5 capture seam: force the card on, let `start()` see the
             // fake gateway's plain 3-asset list, then arm the gateway (an explicit
             // switch, not a fetch count — see `UITestNewPhotosCardSeam`) and drive one
@@ -242,7 +243,7 @@ struct SlideshowView: View {
             case .tearDown:
                 // A generation swap announced a hand-over: the successor keeps the level
                 // and the keep-awake hold (#91). Otherwise a genuine exit.
-                powerManager.surfaceDisappeared()
+                brightness.surfaceDisappeared()
                 Task { await stopCoordinator() }
             }
         }
@@ -284,7 +285,7 @@ struct SlideshowView: View {
             switch newPhase {
             case .active:
                 viewModel.resume()
-                powerManager.willEnterForeground()
+                Task { await brightness.willEnterForeground() }
                 // The second latch boundary (FR-1100-12): a purchase or refund that landed
                 // while backgrounded takes effect now, not mid-photo.
                 relatchAmbience()
@@ -301,7 +302,7 @@ struct SlideshowView: View {
                 // (FR-700-23) and always releases the keep-awake (FR-400-03) — even
                 // when a sheet is up, unlike the modal-cover branch in onDisappear.
                 if SlideshowSurfaceLifecycle.decision(for: .leftForeground, isModalPresented: anyModalPresented) == .tearDown {
-                    powerManager.didEnterBackground()
+                    brightness.didEnterBackground()
                     Task { await stopCoordinator() }
                 }
             }
@@ -326,7 +327,7 @@ struct SlideshowView: View {
         }
         .sheet(isPresented: $showSettings) {
             SlideshowSettingsView(
-                powerManager: powerManager,
+                brightness: brightness,
                 themeStore: themeStore,
                 makeConnectionViewModel: makeConnectionViewModel,
                 onConnectionChanged: onConnectionChanged,
@@ -341,7 +342,7 @@ struct SlideshowView: View {
                     // handing over: the idle timer must come back for onboarding
                     // (FR-400-02) and HA should see a prompt, graceful offline. (The
                     // lease's deinit is the backstop, but reset deserves the tidy path.)
-                    powerManager.deactivate()
+                    brightness.deactivate()
                     Task { await stopCoordinator() }
                     onReset()
                 },
@@ -436,6 +437,8 @@ struct SlideshowView: View {
     // MARK: - Chrome reveal + auto-hide
 
     private func toggleChrome() {
+        // 410 (FR-410-18): a tap at night also peeks the day level for about a minute.
+        Task { await brightness.userTapped() }
         if chromeVisible { hideChrome() } else { revealChrome() }
     }
 

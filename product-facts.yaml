@@ -444,7 +444,7 @@ facts:
     verdict: partial
     limits:
       - "Image quality applies only to photos loaded after the change."
-      - "Screen brightness is not a remembered setting (see UNATT-02)."
+      - "Brightness settings live in their own section and are remembered too (see UNATT-02, UNATT-19)."
     gated: free
     platforms: [ios, ipados]
     intent: ["FR-500-04", "FR-500-05", "FR-500-16"]
@@ -606,19 +606,36 @@ facts:
     evidence: ["Packages/PowerKit/Sources/PowerKit/PowerManager.swift:32-39,83-89", "OwnFrame/Slideshow/UIScreenController.swift:43-46", "OwnFrame/Slideshow/SlideshowView.swift:184"]
 
   - id: UNATT-02
-    fact: "An in-app brightness slider dims the screen gradually, including software dimming below the hardware minimum toward near black."
+    fact: "Brightness is Automatic by default: OwnFrame leaves it to iOS and writes nothing. A Fixed mode holds a level set in the app and remembers it across launches, for a frame whose light sensor is covered; it dims gradually, down to software dimming below the hardware minimum toward near black."
     verdict: partial
     limits:
-      - "Foreground only."
+      - "Foreground only; when the app is not in front, iOS owns brightness."
       - "Built-in screen only."
       - "Near black is not off; the display stays on."
-    detail: "The chosen level is not persisted yet: after a relaunch, or on leaving the slideshow, the screen returns to the system brightness, and the level is not re-applied when the app returns to the foreground (for example after lock and unlock). If the app is force-quit, the earlier brightness may not be restored."
-    todo: "Brightness memory is specced in specs/410-brightness-mode (2026-09-28: Automatic default, Fixed preset for a covered sensor, remote values session-only; #67) but not built. Until then, never claim the level is remembered."
+      - "OwnFrame cannot read the light sensor or detect a covered sensor; the person chooses Fixed."
+      - "In Fixed, a change made in Control Center is set back to the chosen level."
+      - "In Automatic, how well brightness follows the room is up to iOS and the hardware (an older iPad Pro barely adjusted while standing still)."
+      - "Levels set from Home Assistant or Shortcuts last for the running session only; they never replace the level set in the app."
+      - "Holding the level on real hardware is measured on iOS 26 (iPad Pro M4); the iOS 17 frame is not yet checked under a strong light change."
     gated: free
     platforms: [ios, ipados]
-    intent: ["J-32", "FR-400-05", "FR-400-07", "FR-400-08", "FR-400-09", "FR-400-11"]
+    intent: ["J-32", "D-410-1", "D-410-2", "FR-410-01", "FR-410-03", "FR-410-04", "FR-410-06", "FR-410-07", "FR-410-11", "FR-400-07", "FR-400-08", "FR-400-09", "FR-400-11"]
     implementation: verified
-    evidence: ["OwnFrame/Slideshow/UIScreenController.swift:28-41", "OwnFrame/Slideshow/SlideshowSettingsView.swift:62,114,129-140", "Packages/PowerKit/Sources/PowerKit/PowerManager.swift:32-39,84-107"]
+    evidence: ["Packages/PowerKit/Sources/PowerKit/BrightnessController.swift", "Packages/PowerKit/Sources/PowerKit/BrightnessSettings.swift", "Packages/PowerKit/Tests/PowerKitTests/BrightnessControllerTests.swift", "OwnFrame/Slideshow/SlideshowSettingsView.swift", "OwnFrame/Slideshow/UIScreenController.swift:28-41"]
+
+  - id: UNATT-19
+    fact: "A night window (off by default) keeps the frame very dim between two times of day while the photos keep playing; a tap shows them brighter for about a minute."
+    verdict: partial
+    limits:
+      - "Foreground only; the window applies as soon as the app is in front inside it."
+      - "Very dim, not off: the display stays on, and there is one window per day."
+      - "The latest event wins: a Home Assistant or Shortcuts level set during the night holds until the window ends."
+      - "Not yet checked on a real device overnight."
+    gated: free
+    platforms: [ios, ipados]
+    intent: ["D-410-4", "D-410-5", "D-410-6", "D-410-7", "D-410-8", "FR-410-13", "FR-410-14", "FR-410-15", "FR-410-16", "FR-410-17", "FR-410-18"]
+    implementation: verified
+    evidence: ["Packages/PowerKit/Sources/PowerKit/BrightnessController.swift", "Packages/PowerKit/Sources/PowerKit/BrightnessSettings.swift", "Packages/PowerKit/Tests/PowerKitTests/BrightnessControllerTests.swift", "OwnFrame/Slideshow/SlideshowSettingsView.swift", "OwnFrame/Slideshow/SlideshowView.swift"]
 
   - id: UNATT-03
     fact: "Turns the display off or puts the device to sleep."
@@ -827,7 +844,7 @@ facts:
     evidence: ["Packages/HAControlKit/Sources/HAControlMQTT/NIOMQTTTransport.swift:31-62", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/BrokerSetupViewModel.swift:5", "Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift:10-20"]
 
   - id: REMOTE-02
-    fact: "Sends free read-only status to Home Assistant: availability, current photo, slideshow phase, photo count, app version, frame status (running/inactive) and, on battery devices, battery level and charging."
+    fact: "Sends free read-only status to Home Assistant: availability, current photo, slideshow phase, photo count, app version, frame status (running/inactive), whether the night window is active and, on battery devices, battery level and charging."
     verdict: partial
     limits:
       - "Only while the app is in the foreground on the slideshow."
@@ -865,13 +882,14 @@ facts:
     evidence: ["Packages/HAControlKit/Sources/HAControlKit/HAPublishOptions.swift:13-21", "OwnFrame/OwnFrameApp.swift:533-535", "OwnFrame/Slideshow/SlideshowRemoteControlAdapter.swift:345-351"]
 
   - id: REMOTE-05
-    fact: "Home Assistant can control the frame: pause/play, brightness, which saved source plays, every display setting (order, duration, transition, Ken Burns, fit, quality, clock on/position/style/size/date), and next/previous; changes echo back to Home Assistant."
+    fact: "Home Assistant can control the frame: pause/play, brightness, brightness mode (automatic/fixed), the night window on/off, which saved source plays, every display setting (order, duration, transition, Ken Burns, fit, quality, clock on/position/style/size/date), and next/previous; changes echo back to Home Assistant."
     verdict: partial
     limits:
       - "Requires the Supporter Unlock; without it the controls are not published, earlier ones are removed, and commands are ignored."
       - "Commands work only while the app is in the foreground on the frame."
       - "The source control switches between saved sources; Home Assistant cannot add sources."
       - "The new-photos card setting is not controllable."
+      - "Brightness and brightness mode set from Home Assistant last for the running session; the app's own setting returns after a relaunch."
     gated: supporter
     platforms: [ios, ipados, tvos]
     intent: ["J-12", "J-33", "FR-700-07", "FR-700-08", "FR-710-01", "FR-710-02", "FR-710-03", "FR-120-07", "FR-1100-03"]

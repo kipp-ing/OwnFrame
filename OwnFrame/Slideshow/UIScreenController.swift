@@ -25,6 +25,9 @@ final class UIScreenController: ScreenControlling {
         return (windowScenes.first { $0.activationState == .foregroundActive } ?? windowScenes.first)?.screen
     }
 
+    /// Levels below this use software dimming (the darkest night levels).
+    static let softwareDimmingThreshold = 0.02
+
     var brightness: Double {
         // Fall back BRIGHT when no window scene resolves (scene activation, Stage
         // Manager/external-display transitions): consumers seed UI from this value
@@ -34,8 +37,10 @@ final class UIScreenController: ScreenControlling {
             guard let screen = activeScreen else { return }
             // Allow dimming below the hardware minimum (software-emulated) so the
             // slideshow can reach a near-black "night" level — we can dim the panel
-            // but never power it off (Konstitution V / project constraints).
-            screen.wantsSoftwareDimming = true
+            // but never power it off (Konstitution V / project constraints). Only at the
+            // very bottom: with software dimming on, iOS keeps moving an app-written level
+            // with the light, so a Fixed level would not hold (410, jk 2026-09-28).
+            screen.wantsSoftwareDimming = newValue < Self.softwareDimmingThreshold
             screen.brightness = CGFloat(newValue)
         }
     }

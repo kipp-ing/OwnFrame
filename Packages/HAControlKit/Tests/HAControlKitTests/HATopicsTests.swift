@@ -30,8 +30,9 @@ struct HATopicsTests {
 
     @Test
     func haEntityAllCasesCount() {
-        // 21 core + battery + charging (1200 US3) + frame_status (FR-710-24, 2026-07-26).
-        #expect(HAEntity.allCases.count == 24)
+        // 21 core + battery + charging (1200 US3) + frame_status (FR-710-24, 2026-07-26) +
+        // brightness_mode + night_window + night_active (410, FR-410-08/FR-410-19).
+        #expect(HAEntity.allCases.count == 27)
     }
 
     // @covers FR-710-01, FR-710-08

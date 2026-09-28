@@ -336,7 +336,7 @@ final class PurchaseGateUITests: XCTestCase {
             "--uitest-reset-theme", "--uitest-entitlements=\(entitlements)",
         ]
         app.launch()
-        XCTAssertTrue(app.sliders["settings.brightness"].waitForExistence(timeout: 10),
+        XCTAssertTrue(app.descendants(matching: .any)["settings.brightness"].waitForExistence(timeout: 10),
                       "settings should be open")
         return app
     }

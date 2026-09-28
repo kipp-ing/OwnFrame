@@ -105,6 +105,20 @@ public enum HADiscovery {
             json["image_topic"] = HATopics.stateTopic(deviceID: deviceID, entity: entity)
             json["content_type"] = "image/jpeg"
             break
+        case .brightnessMode:
+            // 410, FR-410-08: session-override select, `auto`/`fixed`.
+            json["options"] = BrightnessModeSetting.allCases.map(\.rawValue)
+        case .nightWindow:
+            // 410, FR-410-19: remote switch for the app's night window.
+            json["payload_on"] = "ON"
+            json["payload_off"] = "OFF"
+        case .nightActive:
+            // 410, FR-410-19: read-only diagnostic binary_sensor — free telemetry, same
+            // shape as `charging` minus its battery-specific device_class.
+            json["command_topic"] = nil
+            json["entity_category"] = "diagnostic"
+            json["payload_on"] = "ON"
+            json["payload_off"] = "OFF"
         }
 
         return (try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])) ?? Data()
@@ -170,6 +184,12 @@ public enum HADiscovery {
             "Charging"
         case .frameStatus:
             "Frame Status"
+        case .brightnessMode:
+            "Brightness Mode"
+        case .nightWindow:
+            "Night Window"
+        case .nightActive:
+            "Night Active"
         }
     }
 }

@@ -15,7 +15,8 @@ import ThemeKit
 import UIKit
 
 /// Bridges Home-Assistant remote control onto the running app: pause/play onto the
-/// `SlideshowViewModel`, brightness onto the foreground-gated `PowerManager`, and the
+/// `SlideshowViewModel`, brightness onto the `BrightnessController` (410: a remote level is a
+/// session override, never the remembered preset), and the
 /// source select onto the app-level source switch (900, FR-900-11 — the select lists the
 /// saved LIBRARY's sources of every kind; the app owns the cross-backend rebuild). Also
 /// mirrors the full `ThemeSettings` surface to HA (`SettingsControlling`): remote applies
@@ -24,7 +25,7 @@ import UIKit
 @MainActor
 public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     private let slideshow: SlideshowViewModel
-    private let powerManager: PowerManager
+    private let brightnessController: BrightnessController
     private var albums: [Album]
     private let currentAlbumID: String?
     /// The saved source library (900): the select's options. When empty, the legacy
@@ -40,10 +41,9 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     // Single source of truth is the ViewModel's own `isPaused` (see `observePlayback`)
     // so chrome-driven and HA-driven pauses can never drift apart.
     public var playbackState: PlaybackState { slideshow.isPaused ? .paused : .playing }
-    // Current target brightness (0.0–1.0). The PowerManager itself owns the actual
-    // screen and only applies it in the foreground (Konstitution V); we mirror the
-    // requested target so HA echoes a stable value.
-    public private(set) var brightness: Double
+    // The effective brightness (410, FR-410-09/SC-410-05): the held level, or what iOS shows in
+    // Automatic — rate-limited by the controller so a slow auto ramp does not flood HA.
+    public var brightness: Double { brightnessController.reportedBrightness }
     public var albumOptions: [String] {
         sources.isEmpty ? albums.map(\.name) : sources.map(\.label)
     }
@@ -57,6 +57,7 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     public var onSettingsChange: (@MainActor () -> Void)?
     public var onPhotoChange: (@MainActor (PhotoReport) -> Void)?
     public var onBatteryChange: (@MainActor () -> Void)?
+    public var onBrightnessModeChange: (@MainActor () -> Void)?
 
     // Battery telemetry (710 FR-710-23): UIDevice battery monitoring, bridged into an
     // `AsyncStream<Void>` so the change callback fires on the main actor without capturing
@@ -76,26 +77,24 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
 
     public init(
         slideshow: SlideshowViewModel,
-        powerManager: PowerManager,
+        brightness: BrightnessController,
         albums: [Album] = [],
         currentAlbumID: String? = nil,
         sources: [Source] = [],
         activeSourceID: String? = nil,
         onSelectSource: ((String) -> Void)? = nil,
         isPhotoLibrarySource: Bool = false,
-        initialBrightness: Double = 1.0,
         themeStore: (any ThemeSettingsStore)? = nil,
         metadataCache: MetadataCache = MetadataCache(limit: 64),
         publishOptions: (any HAPublishOptionsStore)? = nil
     ) {
         self.slideshow = slideshow
-        self.powerManager = powerManager
+        self.brightnessController = brightness
         self.albums = albums
         self.currentAlbumID = currentAlbumID
         self.sources = sources
         self.onSelectSource = onSelectSource
         self.isPhotoLibrarySource = isPhotoLibrarySource
-        self.brightness = min(max(initialBrightness, 0), 1)
         let activeSource = sources.first { $0.id == activeSourceID }
         let legacyAlbumName = albums.first { $0.id == currentAlbumID }?.name
         self.currentAlbum = activeSource?.label ?? legacyAlbumName
@@ -116,6 +115,7 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
         observeCurrentPhoto()
         observePlayback()
         observeBattery()
+        observeBrightness()
     }
 
     deinit {
@@ -164,9 +164,16 @@ public final class SlideshowRemoteControlAdapter: PlaybackControlling {
     }
 
     public func setBrightness(_ value: Double) async {
-        let clamped = min(max(value, 0), 1)
-        brightness = clamped
-        await powerManager.setBrightness(clamped, animated: true)
+        await brightnessController.remoteSetLevel(value)
+    }
+
+    /// 410: every change of the reported brightness, the effective mode or the night state
+    /// echoes to Home Assistant through the same local-change path as playback.
+    private func observeBrightness() {
+        brightnessController.onChange = { [weak self] in
+            self?.onLocalChange?()
+            self?.onBrightnessModeChange?()
+        }
     }
 
     /// The album list arrives after init (800): the adapter is built synchronously at
@@ -489,5 +496,26 @@ extension SlideshowRemoteControlAdapter: SettingsControlling {
                 showDate: snapshot.clockDate
             )
         )
+    }
+}
+
+// MARK: - BrightnessModeControlling (410, FR-410-08/19)
+
+extension SlideshowRemoteControlAdapter: BrightnessModeControlling {
+    public var brightnessMode: BrightnessModeSetting {
+        brightnessController.effectiveMode == .automatic ? .auto : .fixed
+    }
+
+    public var isNightActive: Bool { brightnessController.isNightActive }
+
+    public var isNightWindowEnabled: Bool { brightnessController.settings.night.isEnabled }
+
+    /// A remote mode is a session override (D-410-2): the remembered mode stays as set in-app.
+    public func setBrightnessMode(_ mode: BrightnessModeSetting) {
+        Task { await brightnessController.remoteSetMode(mode == .auto ? .automatic : .fixed) }
+    }
+
+    public func setNightWindowEnabled(_ isOn: Bool) {
+        Task { await brightnessController.remoteSetNightWindowEnabled(isOn) }
     }
 }

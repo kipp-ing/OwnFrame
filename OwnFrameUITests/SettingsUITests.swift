@@ -38,10 +38,21 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
         settingsButton.tap()
 
-        // Live brightness control.
-        let slider = app.sliders["settings.brightness"]
-        XCTAssertTrue(slider.waitForExistence(timeout: 3), "brightness slider should appear")
+        // 410: Automatic is the default and shows no level; Fixed reveals the level slider.
+        let mode = app.descendants(matching: .any)["settings.brightness"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 3), "brightness mode should appear")
+        XCTAssertFalse(app.sliders["settings.brightness.level"].exists, "Automatic shows no level")
+        mode.buttons["Fixed"].tap()
+        let slider = app.sliders["settings.brightness.level"]
+        XCTAssertTrue(slider.waitForExistence(timeout: 3), "Fixed shows the level slider")
         slider.adjust(toNormalizedSliderPosition: 0.4)
+
+        // The night window is off by default and reveals its rows when switched on.
+        let night = app.switches["settings.night"]
+        XCTAssertTrue(night.waitForExistence(timeout: 2))
+        XCTAssertFalse(app.sliders["settings.night.level"].exists)
+        night.switches.firstMatch.tap()
+        XCTAssertTrue(app.sliders["settings.night.level"].waitForExistence(timeout: 3))
 
         // Every Display option is live now — the clock overlay was the last placeholder
         // and shipped in 510. The live Clock toggle is present.

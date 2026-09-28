@@ -70,7 +70,7 @@ final class TipJarPresentationUITests: XCTestCase {
         if UIDevice.current.userInterfaceIdiom == .pad {
             XCUIDevice.shared.orientation = .landscapeLeft
         }
-        XCTAssertTrue(app.sliders["settings.brightness"].waitForExistence(timeout: 10),
+        XCTAssertTrue(app.descendants(matching: .any)["settings.brightness"].waitForExistence(timeout: 10),
                       "settings should be open")
         return app
     }

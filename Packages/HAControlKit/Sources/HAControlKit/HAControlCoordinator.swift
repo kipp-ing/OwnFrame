@@ -29,6 +29,10 @@ public final class HAControlCoordinator {
     /// Optional battery telemetry source (spec 710 FR-710-23). `nil` (or `hasBattery ==
     /// false`, e.g. Apple TV) means the `battery`/`charging` entities are omitted entirely.
     private let battery: (any BatteryReporting)?
+    /// Optional brightness-mode/night-window source (410, FR-410-08/FR-410-19). `nil` (tvOS,
+    /// which keeps driving `PowerManager` directly) means `brightness_mode`/`night_window`/
+    /// `night_active` are omitted entirely — same shape as battery without a source.
+    private let brightnessMode: (any BrightnessModeControlling)?
     private let configStore: any BrokerConfigStore
     private let deviceName: String
     private let enabledEntities: Set<HAEntity>
@@ -53,6 +57,7 @@ public final class HAControlCoordinator {
         configStore: any BrokerConfigStore,
         deviceName: String,
         battery: (any BatteryReporting)? = nil,
+        brightnessMode: (any BrightnessModeControlling)? = nil,
         enabledEntities: Set<HAEntity> = [.playback],
         mode: Mode = .full
     ) {
@@ -61,6 +66,7 @@ public final class HAControlCoordinator {
         self.settings = settings
         self.photoReporter = photoReporter
         self.battery = battery
+        self.brightnessMode = brightnessMode
         self.configStore = configStore
         self.deviceName = deviceName
         self.enabledEntities = enabledEntities
@@ -172,6 +178,10 @@ public final class HAControlCoordinator {
             // both entirely otherwise (no discovery, no state) so Apple TV shows neither
             // (FR-710-23).
             if entity.isBatteryEntity && !hasBatterySource { continue }
+            // brightness_mode/night_window/night_active exist only with a
+            // BrightnessModeControlling source — omit all three entirely otherwise, same
+            // shape as battery (410, FR-410-08/FR-410-19).
+            if entity.isBrightnessModeEntity && !hasBrightnessModeSource { continue }
 
             try? await transport.publish(MQTTMessage(
                 topic: HATopics.discoveryConfigTopic(deviceID: deviceID, entity: entity),
@@ -220,6 +230,15 @@ public final class HAControlCoordinator {
                 self?.scheduleBatteryEcho()
             }
         }
+
+        // Brightness-mode telemetry (night_active) is free too, but only wired with a
+        // source; the change callback itself decides which of the three to re-echo
+        // depending on entitlement (410, FR-410-08/FR-410-19).
+        if hasBrightnessModeSource {
+            brightnessMode?.onBrightnessModeChange = { [weak self] in
+                self?.scheduleBrightnessModeEcho()
+            }
+        }
     }
 
     /// Re-echo `battery`/`charging` after the source signals a change. Detached from the
@@ -229,6 +248,20 @@ public final class HAControlCoordinator {
             guard let self else { return }
             if self.enabledEntities.contains(.battery) { await self.echo(.battery) }
             if self.enabledEntities.contains(.charging) { await self.echo(.charging) }
+        }
+    }
+
+    /// Re-echo `brightness_mode`/`night_window`/`night_active` after the source signals a
+    /// change. `night_active` is free telemetry and always re-echoed when enabled; the two
+    /// controls are gated entities and re-echoed only in `.full` mode — an unentitled frame
+    /// never had them published/subscribed in the first place (410, FR-410-08/FR-410-19).
+    private func scheduleBrightnessModeEcho() {
+        Task { [weak self] in
+            guard let self else { return }
+            if self.enabledEntities.contains(.nightActive) { await self.echo(.nightActive) }
+            guard self.mode == .full else { return }
+            if self.enabledEntities.contains(.brightnessMode) { await self.echo(.brightnessMode) }
+            if self.enabledEntities.contains(.nightWindow) { await self.echo(.nightWindow) }
         }
     }
 
@@ -344,8 +377,18 @@ public final class HAControlCoordinator {
                 await photoReporter?.showNext()
             case .previous:
                 await photoReporter?.showPrevious()
+            case .brightnessMode:
+                // Unknown option (e.g. a retained rollback value) is ignored gracefully,
+                // like the other selects (410, FR-410-08).
+                if let value = BrightnessModeSetting(rawValue: payload) {
+                    brightnessMode?.setBrightnessMode(value)
+                }
+            case .nightWindow:
+                if let value = switchBool(payload) {
+                    brightnessMode?.setNightWindowEnabled(value)
+                }
             case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging,
-                 .frameStatus:
+                 .frameStatus, .nightActive:
                 break
             }
 
@@ -442,6 +485,17 @@ public final class HAControlCoordinator {
         case .frameStatus:
             // Exactly two values (FR-710-24); the availability binding covers "offline".
             payload = surfaceVisible ? "running" : "inactive"
+        case .brightnessMode:
+            // No source → nothing to echo (announce already omitted it, but guard so a
+            // stray echo can't publish a stale value, mirrors `charging`).
+            guard let brightnessMode else { return }
+            payload = brightnessMode.brightnessMode.rawValue
+        case .nightWindow:
+            guard let brightnessMode else { return }
+            payload = brightnessMode.isNightWindowEnabled ? "ON" : "OFF"
+        case .nightActive:
+            guard let brightnessMode else { return }
+            payload = brightnessMode.isNightActive ? "ON" : "OFF"
         case .next, .previous, .currentPhoto, .currentPhotoImage:
             payload = ""  // routed above; kept for switch exhaustiveness
         }
@@ -492,7 +546,7 @@ public final class HAControlCoordinator {
         switch entity {
         case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate:
             true
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive:
             false
         }
     }
@@ -521,7 +575,7 @@ public final class HAControlCoordinator {
             snapshot.clockSize.rawValue
         case .clockDate:
             snapshot.clockDate ? "ON" : "OFF"
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive:
             ""
         }
     }
@@ -567,7 +621,7 @@ public final class HAControlCoordinator {
         case .clockDate:
             guard let value = switchBool(payload) else { return }
             snapshot.clockDate = value
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive:
             return
         }
 
@@ -600,6 +654,13 @@ public final class HAControlCoordinator {
     /// for `battery`/`charging` so batteryless devices (Apple TV) publish neither (FR-710-23).
     private var hasBatterySource: Bool {
         battery?.hasBattery ?? false
+    }
+
+    /// Whether a brightness-mode source is present. Gates discovery/state/echo for
+    /// `brightness_mode`/`night_window`/`night_active` so tvOS (no source) publishes none of
+    /// them (410, FR-410-08/FR-410-19).
+    private var hasBrightnessModeSource: Bool {
+        brightnessMode != nil
     }
 
     private func ensureDeviceID() -> String? {
