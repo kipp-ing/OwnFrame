@@ -278,6 +278,9 @@ brightness, `--mode dark` = black). Recipes: `probe.sh build`, `probe.sh install
   sensor beside the front camera) barely reacts while stationary (finding 10).
 - **An app cannot read or set the system Auto-Brightness switch**, so the device's setting is only
   knowable from the person holding it — ask, and record it with the run.
+- **A flat trace does not mean Auto-Brightness is off.** A manually dimmed slider compresses the curve
+  (jk 2026-09-28: lit 0.30 / covered 0.20, 10–20 s per step), and a 15 s/30 s cycle read as a flat 0.10
+  and was misread as "off". Hold each phase ≥ 40 s before concluding anything.
 
 ## What only hardware can prove
 

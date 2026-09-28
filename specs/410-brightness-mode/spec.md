@@ -10,7 +10,8 @@
 (PowerKit host tests first: fake screen with iOS-like drift, injected clock for the night window).
 Start from the Decisions, then FR-410-01…19. Device rig: `.claude/scripts/brightness-probe/probe.sh`
 (runbook in `docs/device-testing.md` "Brightness probe rig"); FramePhone lies on **iPad jk's** light
-sensor; jk's system Auto-Brightness was left **off** — check `docs/hitl.md` §2b before measuring.
+sensor; jk's Auto-Brightness is on with a manually dimmed slider (curve lit 0.30 / covered 0.20) —
+see `docs/hitl.md` §2b before measuring.
 Open device check: SC-410-07 (Framepad under a strong light change). Open confirm for Jan: the
 assumption that a remote *mode* command is session-only (Assumptions).
 
