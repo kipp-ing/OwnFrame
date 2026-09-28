@@ -24,6 +24,17 @@ brightness at all, what it remembers, and who may change it.
   Reason: a night automation setting 0 % must not bring the frame back near black after a morning
   relaunch (the D-08 trap).
 - **D-410-3 — A new sub-spec** (this one), not a 400 amendment.
+- **D-410-4 — A night window in the app** (Jan, later the same day: *"a blaring display at night is
+  awful, bad app"*). The user sets a from–to time; inside it the frame is very dim. This reverses
+  the earlier "no in-app scheduler" line in 400 (amended alongside).
+- **D-410-5 — Last event wins.** Window start, window end, Home Assistant and Shortcuts commands are
+  all events; the most recent one holds until the next. No priority table.
+- **D-410-6 — Night means "very dim", not "off".** Photos keep playing at the darkest level; there
+  is no black-screen/paused night level (iOS cannot switch the display off anyway).
+- **D-410-7 — A tap at night peeks.** It brings the day level for about a minute, then the frame
+  fades back to night.
+- **D-410-8 — The night window is free.** A blaring display at night is a core quality problem, like
+  brightness itself; only Home Assistant *control* stays Supporter-gated (1100).
 
 ## Device findings the design rests on (iPad jk, iPad Pro 11-inch M4, iOS 26.6.1, 2026-09-28)
 
@@ -218,7 +229,52 @@ stop; relaunch → the in-app setting is back and the preset is unchanged.
    the **effective** brightness — the value read from the screen in Automatic, the held target
    otherwise — never a hard-coded value.
 
+### User Story 4 - Dark at night, without any automation (Priority: P1)
+
+A user sets a night window, say 23:00–07:00. At 23:00 the frame fades to very dim and the photos
+keep playing; at 07:00 it goes back to its day mode. If it crashes or relaunches at 02:00, it comes
+up dim, never blaring. Home Assistant can still brighten it for a movie night, until the next
+window event.
+
+**Why this priority**: A frame that lights up a dark bedroom or living room at night is a bad app,
+whatever the day mode is — and on frames whose auto-brightness barely reacts (finding 10) it is the
+only thing that keeps nights dark without Home Assistant.
+
+**Independent Test**: With an injected clock, a fake screen controller and a fake MQTT transport:
+cross the window start and end, relaunch inside the window, send a Home Assistant level inside the
+window and cross the end; assert the levels and the order of writes.
+
+**Acceptance Scenarios**:
+
+1. **Given** a night window is set, **When** its start time passes while the slideshow runs in the
+   foreground, **Then** brightness fades softly (400 soft dim) to the night level and the photos
+   keep playing.
+2. **Given** the night window is active, **When** its end time passes, **Then** the frame returns to
+   its day mode: in Fixed to the preset; in Automatic to the brightness from before the night, after
+   which OwnFrame stops writing.
+3. **Given** a time inside the window, **When** the app launches or returns to the foreground,
+   **Then** the night level applies at once (the window is a state, not only two moments).
+4. **Given** the night window is active, **When** Home Assistant or Shortcuts sets a level, **Then**
+   that level holds (last event wins) until the next window event, a relaunch, or the in-app control.
+5. **Given** a Home Assistant level set during the day, **When** the window starts, **Then** the night
+   level applies (the window start is the newer event).
+6. **Given** the night window is active, **When** the user taps the screen, **Then** the day level
+   shows for about a minute and the frame then fades back to night; repeated taps extend the peek.
+7. **Given** the night window is active, **Then** Home Assistant sees it (a "night active" state), and
+   an entitled Home Assistant can switch the app's window on or off (for people who schedule in HA).
+
 ### Edge Cases
+
+- **Crash or relaunch at night after an Automatic day**: the night write outlives the app until the
+  next lock (finding 6/7), so a baseline captured at a night relaunch would be the night level. The
+  brightness to return to at window end is therefore the one captured **before the night began**,
+  and it is remembered across launches (FR-410-17). Otherwise the frame would stay dark all day.
+- **Window across midnight, DST and time-zone changes**: the window is evaluated in local wall-clock
+  time on every check; a start equal to the end means no window.
+- **App not frontmost at the window start**: nothing happens (foreground-only, FR-400-09); the night
+  level applies as soon as the app is foreground inside the window.
+- **Peek while a Home Assistant level holds**: the peek shows the day level and returns to the
+  *current* holder (the Home Assistant level), not to the night level.
 
 - **Night 0 % then a crash/relaunch**: the frame comes up in its in-app setting (Automatic or the
   preset), not at 0 %. Home Assistant may re-send its value; OwnFrame does not remember it.
@@ -262,14 +318,37 @@ stop; relaunch → the in-app setting is back and the preset is unchanged.
   and restore the session baseline once (FR-400-11).
 - **FR-410-11**: The in-app Fixed control MUST explain its purpose (a covered light sensor) and MUST
   NOT claim OwnFrame measures the room or detects a covered sensor (finding 4).
-- **FR-410-12**: The mode and preset are ordinary settings (UserDefaults, like 500's display
-  options); they are not secrets.
+- **FR-410-12**: The mode, preset and night window are ordinary settings (UserDefaults, like 500's
+  display options); they are not secrets.
+- **FR-410-13**: The user MUST be able to set a night window (start and end in local time, off by
+  default) and a night level from the dark end of the range; the default night level MUST be the
+  darkest the frame can show (hardware minimum plus 400's software dim).
+- **FR-410-14**: Brightness MUST follow **last event wins** over these events: window start, window
+  end, a Home Assistant or Shortcuts command, and the in-app control. The newest event's level holds
+  (with the hold loop, FR-410-04) until the next event.
+- **FR-410-15**: At launch and at every foreground return, the frame MUST derive its level from the
+  current time: inside the window the night level, outside it the day mode (Automatic or the preset).
+  A session override does not survive a relaunch (D-410-2).
+- **FR-410-16**: The night window MUST keep the slideshow running (D-410-6) and MUST fade into and out
+  of the night level (FR-400-07).
+- **FR-410-17**: When the night begins in Automatic, the brightness at that moment MUST be captured
+  and remembered across launches; at window end in Automatic, OwnFrame MUST restore it once and then
+  stop writing.
+- **FR-410-18**: A tap during the window MUST show the day level for about one minute (repeated taps
+  extend it), then fade back to the level of the current event holder. A peek is not an event.
+- **FR-410-19**: Home Assistant MUST get a free "night active" state and a Supporter-gated switch that
+  turns the app's night window on or off. The night window itself is free (D-410-8).
 
 ### Key Entities
 
 - **Brightness Mode**: Automatic or Fixed, remembered.
 - **Preset Level**: The remembered fixed level, 0.0–1.0, set only in-app.
 - **Session Override**: An in-memory level (or mode) from Home Assistant/Shortcuts, gone on relaunch.
+- **Night Window**: Start and end in local time plus a night level; off by default.
+- **Event Holder**: The newest of window start/end, remote command or in-app control — whose level
+  currently holds.
+- **Pre-Night Baseline**: The brightness captured when a night began in Automatic, remembered across
+  launches, restored once at window end.
 - **Effective Brightness**: What the frame shows now — read from the screen in Automatic, the held
   target otherwise; the single value every surface reports.
 
@@ -292,6 +371,15 @@ stop; relaunch → the in-app setting is back and the preset is unchanged.
   leaving the app after Fixed leaves no lasting shift on the iOS auto-brightness curve; behaviour
   with system Auto-Brightness off recorded.
 
+- **SC-410-08**: With an injected clock, crossing the window start fades to the night level and the
+  window end returns to the day mode; a launch inside the window starts at the night level.
+- **SC-410-09**: A relaunch inside the window after an Automatic day, followed by the window end,
+  restores the remembered pre-night brightness — never the night level.
+- **SC-410-10**: A Home Assistant level inside the window holds until the window end and no longer; a
+  daytime Home Assistant level is replaced by the night level at the window start.
+- **SC-410-11**: A tap at night shows the day level and the frame is back at the holder's level
+  within 70 s of the last tap.
+
 ## Assumptions
 
 - A remote **mode** command is a session override too (D-410-2 extended from the level to the mode,
@@ -300,11 +388,14 @@ stop; relaunch → the in-app setting is back and the preset is unchanged.
   1 s check; the plan decides, SC-410-02 is the bar.
 - The hold interval of 1 s is the measured-good value on jk; the plan may pick a shorter one if
   Framepad needs it.
-- 400's software dim below the hardware minimum stays as it is and is only used in Fixed/override.
+- 400's software dim below the hardware minimum stays as it is and is only used when a level is held
+  (Fixed, override or night).
+- The night level is adjustable within the dark end of the range; the plan fixes the exact bounds.
+- The peek length of about one minute is a starting value; the plan may tune it.
 
 ## Out of Scope
 
 - Detecting a covered sensor, or reading the ambient light sensor (no public API).
 - Toggling the system Auto-Brightness setting.
-- An in-app night schedule — schedules live in Home Assistant or Shortcuts (400 Roadmap).
+- A black-screen or paused night level (D-410-6), and more than one night window per day.
 - Presence-driven sleep/wake (`730`), which will build on the session override.
