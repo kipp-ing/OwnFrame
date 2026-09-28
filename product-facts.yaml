@@ -613,7 +613,7 @@ facts:
       - "Built-in screen only."
       - "Near black is not off; the display stays on."
     detail: "The chosen level is not persisted yet: after a relaunch, or on leaving the slideshow, the screen returns to the system brightness, and the level is not re-applied when the app returns to the foreground (for example after lock and unlock). If the app is force-quit, the earlier brightness may not be restored."
-    todo: "Brightness memory is deferred to its own feature spec (Jan, 2026-09-14: HA, ambient light, auto, night time; #67, 400 Roadmap). Until then, never claim the level is remembered."
+    todo: "Brightness memory is specced in specs/410-brightness-mode (2026-09-28: Automatic default, Fixed preset for a covered sensor, remote values session-only; #67) but not built. Until then, never claim the level is remembered."
     gated: free
     platforms: [ios, ipados]
     intent: ["J-32", "FR-400-05", "FR-400-07", "FR-400-08", "FR-400-09", "FR-400-11"]

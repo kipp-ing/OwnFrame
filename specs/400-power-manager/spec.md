@@ -5,7 +5,7 @@
 **Created**: 2026-06-23
 
 **Status**: Active — text aligned 2026-09-14 (#69: deployment floor). Remembered brightness (#67, D-08) is
-**deferred to its own feature spec** by Jan's call the same day — see Roadmap.
+specced in its own sub-spec, [`410-brightness-mode`](../410-brightness-mode/spec.md) (2026-09-28) — see Roadmap.
 
 **Input**: Consolidated from `specs/004-power-manager/spec.md`: keep the display awake during foreground slideshow use, control brightness within iPadOS limits, and restore normal device behavior when the slideshow exits.
 
@@ -92,7 +92,7 @@ When the slideshow exits, the app restores the idle timer and, if it changed bri
 ### Roadmap / Deferred (not yet built)
 
 - Expose a sleep/wake capability where "sleep" softly dims to near black and "wake" restores prior brightness, driven by an external, source-agnostic presence signal. The app must not include an in-app scheduler; schedule and sensor logic live outside this module.
-- **Brightness memory and automatic brightness — its own feature spec, not yet written** *(recorded 2026-09-14, #67; Jan: "a new feature, new spec needed")*. Decision D-08 (a dimmed frame should hold its level) stands, but *which* level to remember is a design question: the in-app slider, Home Assistant and Shortcuts can all set brightness, and a night automation that sets 0 % must not bring the frame up near black after a morning relaunch. The spec is to cover together: remembered level and who may set it, the ambient light sensor / automatic brightness, night-time behaviour, and the relation to presence sleep/wake (`730`). Findings to carry over from the 2026-09-14 review: re-applying on foreground must re-capture the baseline per foreground session (FR-400-10/11, SC-400-05), and the Home Assistant light reports a hard-coded 1.0 at start instead of the applied level (`SlideshowRemoteControlAdapter` `initialBrightness`).
+- **Brightness memory and automatic brightness — now specced as [`410-brightness-mode`](../410-brightness-mode/spec.md) (2026-09-28)**; the original note follows. *(recorded 2026-09-14, #67; Jan: "a new feature, new spec needed")*. Decision D-08 (a dimmed frame should hold its level) stands, but *which* level to remember is a design question: the in-app slider, Home Assistant and Shortcuts can all set brightness, and a night automation that sets 0 % must not bring the frame up near black after a morning relaunch. The spec is to cover together: remembered level and who may set it, the ambient light sensor / automatic brightness, night-time behaviour, and the relation to presence sleep/wake (`730`). Findings to carry over from the 2026-09-14 review: re-applying on foreground must re-capture the baseline per foreground session (FR-400-10/11, SC-400-05), and the Home Assistant light reports a hard-coded 1.0 at start instead of the applied level (`SlideshowRemoteControlAdapter` `initialBrightness`).
 - Reserved sub-spec `730` under topic 700: Home Assistant control surface for presence-driven sleep/wake. Acceptance preserved from the source: given a sleep/no-presence command, when it arrives, then brightness ramps to near black without stopping playback; given wake/presence returns, when it arrives, then brightness restores; HA/MQTT now and possible later on-device camera input must drive the same engine boundary.
 
 ## Success Criteria *(mandatory)*
