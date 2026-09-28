@@ -64,5 +64,5 @@ assertions, both green.
 ## HA parity spot-check (Phase 4)
 
 With a Photos source active: HA source select lists it, current-photo *metadata* publishes
-date (+ coordinates if present, no placeName — R7), image publishing only under the existing
+date only (no coordinates, no placeName — R7, PRIV-07), image publishing only under the existing
 global opt-in (FR-900-11/12).

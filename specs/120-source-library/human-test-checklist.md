@@ -11,6 +11,20 @@ and visual polish. Tick each box; note the build/commit and device.
 - **Real shared links:** unprotected `https://<host>/s/geo2026` · protected
   `https://<host>/s/korsika2026` (password `12345678`)
 
+> **Status 2026-09-28 — superseded; do not run this list as a whole.** Written for PR #8, before
+> the welcome screen (220) and link-first onboarding (210). Where each part lives now:
+> - §1 / §2 onboarding: device acceptance on real hardware (`device-accept.sh`: demo link,
+>   protected link with a wrong then right password, 4/4 on iPad jk) plus `SourceOnboardingUITests`
+>   / `SharedLinkOnboardingUITests` in the simulator. The "Connection screen first" flow no longer exists.
+> - §3 source manager: `SourceLibraryUITests` (add/remove, switch swaps the running slideshow);
+>   rename, duplicate names and reorder in `SourceLibraryTests` / `SourceLibraryViewModelTests`
+>   (host); a real source switch on device by `device-accept.sh <udid> ha-parity`.
+> - §4 upgrade from a pre-120 build: obsolete — no pre-120 build was ever released.
+> - §5 logs: `LOGCHECK=1 device-accept.sh` records the device log during the link tests and fails
+>   on the password or a share key in any OwnFrame process line. Reset leaving link passwords
+>   behind is issue #73.
+> - §6 robustness: resilience + availability runs (hitl §4); orientation by the simulator suites.
+
 > Fresh start: delete the app first (or Settings → Reset) so onboarding runs from step 1.
 
 ## 1. Onboarding — album source (US2)

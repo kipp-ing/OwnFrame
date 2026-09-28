@@ -93,6 +93,46 @@ final class DeviceAcceptanceUITests: XCTestCase {
                       "Done should return to the link field")
     }
 
+    /// The same camera grant, from Settings → Sources → + → Immich link on a configured frame
+    /// (Framepad 2026-09-28: the scanner closed right after "Allow", worked on the 3rd try).
+    /// There the cover hangs on a row of a lazy Form list, unlike onboarding.
+    @MainActor
+    func testSettingsScannerStaysOpenAfterCameraAllowed() throws {
+        let app = launchFresh()
+        enterLink(app, Self.demoLink)
+        answerLocalNetworkAlertIfShown(app)
+        let image = app.descendants(matching: .any).matching(identifier: "slideshow.image").firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: long), "the demo link should start the slideshow")
+
+        let settings = app.buttons["slideshow.chrome.settings"]
+        for _ in 0..<3 where !settings.isHittable {
+            image.tap()
+            _ = settings.waitForExistence(timeout: 2)
+        }
+        settings.tap()
+        let sources = app.descendants(matching: .any).matching(identifier: "settings.sources").firstMatch
+        if !sources.waitForExistence(timeout: 5) { app.scrollUntilExists(sources) }
+        sources.tap()
+        app.buttons["sources.add"].tap()
+        let type = app.segmentedControls["sources.add.type"]
+        XCTAssertTrue(type.waitForExistence(timeout: 10))
+        type.buttons.element(boundBy: 1).tap() // Immich link
+        let scan = app.buttons["sources.add.scan"]
+        XCTAssertTrue(scan.waitForExistence(timeout: 10), "Scan QR should be offered in Settings")
+        scan.tap()
+
+        let alert = try systemAlert("camera permission")
+        alert.buttons.element(boundBy: 1).tap() // allow
+        let cancel = app.buttons["onboarding.sharedLink.scan.cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 15), "the scanner should open after Allow")
+        sleep(5) // the reported failure: it closed on its own shortly after the grant
+        attach(app, "settings-scanner-after-allow")
+        XCTAssertTrue(cancel.exists, "the scanner should still be open 5 s after Allow")
+        cancel.tap()
+        XCTAssertTrue(app.textFields["sources.add.url"].waitForExistence(timeout: 10),
+                      "Cancel should return to the add form")
+    }
+
     // MARK: - T023 fresh install → Immich link → running slideshow
 
     @MainActor
@@ -145,7 +185,34 @@ final class DeviceAcceptanceUITests: XCTestCase {
     func testShareSheetFromSafariHandsTheLinkToAColdApp() throws {
         let app = launchFresh() // installs a fresh app, so the extension is registered
         app.terminate()
+        shareDemoLinkFromSafari()
 
+        app.launch()
+        let url = app.textFields["onboarding.sharedLink.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 30), "the shared link should open link setup")
+        XCTAssertEqual(url.value as? String, Self.demoLink, "the shared link should be prefilled")
+        attach(app, "share-picked-up")
+    }
+
+    /// T061–T062, the running half: OwnFrame stays alive in the background while the link is
+    /// shared; switching back to it picks the link up without a relaunch.
+    @MainActor
+    func testShareSheetFromSafariHandsTheLinkToARunningApp() throws {
+        let app = launchFresh()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
+        shareDemoLinkFromSafari() // Safari comes to the front; OwnFrame is only backgrounded
+        XCTAssertNotEqual(app.state, .notRunning, "OwnFrame should still be running in the background")
+
+        app.activate()
+        let url = app.textFields["onboarding.sharedLink.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 30), "the running app should pick the link up")
+        XCTAssertEqual(url.value as? String, Self.demoLink, "the shared link should be prefilled")
+        attach(app, "share-picked-up-running")
+    }
+
+    /// Safari → Share → OwnFrame → the extension's confirmation (screenshot) → Done.
+    @MainActor
+    private func shareDemoLinkFromSafari() {
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         XCUIDevice.shared.system.open(URL(string: Self.demoLink)!)
         XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20), "Safari should open the link")
@@ -156,7 +223,9 @@ final class DeviceAcceptanceUITests: XCTestCase {
             attachTree(safari, "safari-no-share-button"); XCTFail("Safari's Share button"); return
         }
         share.tap()
-        let target = try ownFrameShareTarget(in: safari)
+        guard let target = try? ownFrameShareTarget(in: safari) else {
+            XCTFail("OwnFrame not found in the share sheet — see the share-sheet attachment"); return
+        }
         sleep(1) // a tap on a still-coasting row only stops the scroll
         target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap() // the icon
 
@@ -169,12 +238,6 @@ final class DeviceAcceptanceUITests: XCTestCase {
         attach(safari, "share-confirmation")
         safari.descendants(matching: .any)["share.confirmation.done"].tap()
         XCTAssertTrue(message.waitForNonExistence(timeout: 10), "Done should close the extension")
-
-        app.launch()
-        let url = app.textFields["onboarding.sharedLink.url"]
-        XCTAssertTrue(url.waitForExistence(timeout: 30), "the shared link should open link setup")
-        XCTAssertEqual(url.value as? String, Self.demoLink, "the shared link should be prefilled")
-        attach(app, "share-picked-up")
     }
 
     /// OwnFrame in the share sheet: in the app row, or behind "More" on a device where it was

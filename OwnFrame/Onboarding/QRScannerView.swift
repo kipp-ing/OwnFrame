@@ -15,6 +15,7 @@
 import AVFoundation
 import Observation
 import OnboardingKit
+import os
 import PurchaseKit
 import SwiftUI
 
@@ -41,6 +42,11 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
     }
 
     private(set) var state: State = .idle
+
+    // Diagnostics for on-device scanner reports (Framepad 2026-09-28: closed after "Allow",
+    // then an "invalid link" on the next try). Never logs a decoded payload beyond its host —
+    // the path carries the share key.
+    @ObservationIgnored private let log = Logger(subsystem: "ing.kipp.Immich-Slideshow", category: "QRScanner")
 
     // None of these drive SwiftUI directly (only `state` does) — `@ObservationIgnored` also
     // sidesteps an `@Observable`-macro/`lazy` interaction issue on `previewLayer` below.
@@ -75,6 +81,7 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
         cancelRequested = false
 
         let authStatus = AVCaptureDevice.authorizationStatus(for: .video)
+        log.notice("scan: camera authorization \(authStatus.rawValue, privacy: .public)")
         let granted: Bool
         switch authStatus {
         case .authorized:
@@ -90,6 +97,7 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
         // Cancelled while the permission prompt (or the OS's own async dispatch of it) was
         // in flight — no continuation exists yet, so bail out here instead of proceeding to
         // create one that would never be resumed.
+        log.notice("scan: access granted \(granted, privacy: .public), cancel requested \(self.cancelRequested, privacy: .public)")
         guard !cancelRequested else { return nil }
 
         guard granted else {
@@ -125,6 +133,7 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
         session.commitConfiguration()
 
         state = .scanning
+        log.notice("scan: session configured, starting")
 
         return await withCheckedContinuation { continuation in
             // The closure below runs synchronously (no suspension since the prior line) so
@@ -149,12 +158,17 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
     /// and a no-op if the scan already resumed (a code was decoded, or permission/camera
     /// setup already failed synchronously).
     func cancel() {
+        if !didResume { log.notice("scan: cancel while \(String(describing: self.state), privacy: .public)") }
         cancelRequested = true
         resume(with: nil)
     }
 
     private func resume(with value: String?) {
         guard !didResume else { return }
+        if let value {
+            let host = URL(string: value)?.host ?? "<not a URL>"
+            log.notice("scan: decoded a code for host \(host, privacy: .public), \(value.count, privacy: .public) chars")
+        }
         didResume = true
         state = .idle
         let session = self.session

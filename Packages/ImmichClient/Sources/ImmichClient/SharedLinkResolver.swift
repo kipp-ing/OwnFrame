@@ -70,6 +70,7 @@ public struct SharedLinkResolver: SharedLinkResolving {
                 throw ImmichError.invalidResponse
             }
 
+            log.notice("resolve as \(parameter.rawValue, privacy: .public) on \(baseURL.host ?? "?", privacy: .public): HTTP \(httpResponse.statusCode, privacy: .public)")
             switch httpResponse.statusCode {
             case 200..<300:
                 let resolution = try decodeResolution(from: data)
