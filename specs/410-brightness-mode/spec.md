@@ -81,6 +81,14 @@ reads differs from the target, so where iOS does not drift it never writes.
    still matters for users who leave it on (Apple warns that turning it off "may increase power
    consumption"), and the in-app hint may name the iOS setting as the alternative (FR-410-11).
 
+10. **Framepad (iOS 17.7) barely follows the light while it stays still.** With Auto-Brightness
+    confirmed on, a read-only run sat at 0.20 for 95 s through lit/covered/lit. Jan's hand check:
+    it seems to adjust only once the iPad is physically moved. Not yet measured under the probe, and
+    the cause (hardware generation, iOS 17, or a motion trigger) is unknown. If it holds, a
+    wall-mounted frame of that generation hardly adjusts in Automatic. Automatic stays the default
+    (it is what iOS does), but it makes Fixed plus Home Assistant/Shortcuts the practical path on
+    such frames, and the Fixed hint should also cover "brightness does not follow the room".
+
 ## Research (2026-09-28, primary sources first)
 
 - **No way to read the light or the Auto-Brightness state.** `UIScreen` has `brightness`,
