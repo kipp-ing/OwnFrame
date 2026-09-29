@@ -25,6 +25,33 @@ import SwiftUI
 // `@unchecked Sendable` records that as a deliberate, reviewed choice rather than a race.
 extension AVCaptureSession: @unchecked @retroactive Sendable {}
 
+/// Retries a throwing step a few times with a short pause. The camera input can fail right
+/// after the person taps "Allow", or right after OwnFrame comes back to the foreground, and
+/// then succeed a moment later (Framepad 2026-09-29: "not allowed" on the first try, flawless
+/// on the second). Returns `nil` once `attempts` are spent or `shouldStop` turns true.
+enum CameraStartRetry {
+    @MainActor
+    static func firstSuccess<T>(
+        attempts: Int,
+        delay: Duration,
+        shouldStop: () -> Bool = { false },
+        onFailure: (Int, any Error) -> Void = { _, _ in },
+        _ attempt: () throws -> T
+    ) async -> T? {
+        for number in 1...max(attempts, 1) {
+            do {
+                return try attempt()
+            } catch {
+                onFailure(number, error)
+                if shouldStop() || number == attempts { return nil }
+                try? await Task.sleep(for: delay)
+                if shouldStop() { return nil }
+            }
+        }
+        return nil
+    }
+}
+
 /// Owns the capture session and bridges the metadata-output delegate callback to a single
 /// `async` result, conforming to `CodeScanning` so it drops straight into
 /// `addScannedSharedLink(using:label:)`. Uses `@Observable` (Observation), not Combine's
@@ -59,6 +86,9 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
     // exists; without this flag that cancel would be dropped (nothing to resume yet) and the
     // continuation created afterwards would then never be resumed, hanging forever.
     @ObservationIgnored private var cancelRequested = false
+    @ObservationIgnored private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    @ObservationIgnored private var rotationObservation: NSKeyValueObservation?
+    @ObservationIgnored private var lifecycleObservers: [any NSObjectProtocol] = []
 
     /// The live preview layer for `QRScannerView` to host. Created lazily against `session`
     /// so it exists even before `scan()` has configured/started the session.
@@ -77,6 +107,13 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
     var showsFallback: Bool { state == .permissionDenied || state == .noCamera }
 
     func scan() async -> String? {
+        // A second scan on the same scanner (the cover's `.task` restarted) takes over from the
+        // first instead of failing against the session the first one already configured —
+        // that failure read as "Camera access is off" (Framepad 2026-09-29).
+        if let previous = continuation {
+            continuation = nil
+            previous.resume(returning: nil)
+        }
         didResume = false
         cancelRequested = false
 
@@ -105,32 +142,12 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
             return nil
         }
 
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device) else {
+        guard await configureSessionIfNeeded() else {
+            guard !cancelRequested else { return nil }
             state = .noCamera
             return nil
         }
-
-        session.beginConfiguration()
-        guard session.canAddInput(input) else {
-            session.commitConfiguration()
-            state = .noCamera
-            return nil
-        }
-        session.addInput(input)
-
-        let output = AVCaptureMetadataOutput()
-        guard session.canAddOutput(output) else {
-            session.commitConfiguration()
-            state = .noCamera
-            return nil
-        }
-        session.addOutput(output)
-        // The delegate must be set, and the output added to the session, before the
-        // supported metadata object types can be restricted to QR only.
-        output.setMetadataObjectsDelegate(self, queue: metadataQueue)
-        output.metadataObjectTypes = [.qr]
-        session.commitConfiguration()
+        guard !cancelRequested else { return nil }
 
         state = .scanning
         log.notice("scan: session configured, starting")
@@ -146,10 +163,105 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
                 return
             }
             self.continuation = continuation
+            observeSessionLifecycle()
             let session = self.session
             Task.detached(priority: .userInitiated) {
                 session.startRunning()
             }
+        }
+    }
+
+    /// Adds the camera input and the QR output once per scanner. A session that already has
+    /// them (an earlier `scan()` on this scanner) is reused as is.
+    private func configureSessionIfNeeded() async -> Bool {
+        if !session.inputs.isEmpty && !session.outputs.isEmpty { return true }
+        await waitUntilActive()
+        guard let device = AVCaptureDevice.default(for: .video) else {
+            log.error("scan: no video device")
+            return false
+        }
+        let input = await CameraStartRetry.firstSuccess(
+            attempts: 6,
+            delay: .milliseconds(300),
+            shouldStop: { [weak self] in self?.cancelRequested ?? true },
+            onFailure: { [log] attempt, error in
+                let nsError = error as NSError
+                log.error("scan: camera input attempt \(attempt, privacy: .public) failed: \(nsError.domain, privacy: .public) \(nsError.code, privacy: .public)")
+            }
+        ) {
+            try AVCaptureDeviceInput(device: device)
+        }
+        guard let input else { return false }
+
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+        guard session.canAddInput(input) else {
+            log.error("scan: session refused the camera input")
+            return false
+        }
+        session.addInput(input)
+
+        let output = AVCaptureMetadataOutput()
+        guard session.canAddOutput(output) else {
+            log.error("scan: session refused the metadata output")
+            session.removeInput(input)
+            return false
+        }
+        session.addOutput(output)
+        // The delegate must be set, and the output added to the session, before the
+        // supported metadata object types can be restricted to QR only.
+        output.setMetadataObjectsDelegate(self, queue: metadataQueue)
+        output.metadataObjectTypes = [.qr]
+        startRotationTracking(for: device)
+        return true
+    }
+
+    /// Right after the permission alert closes, or after a return from another app, the app
+    /// is still inactive for a moment and the camera refuses to start. Waits up to ~2 s.
+    private func waitUntilActive() async {
+        for _ in 0..<20 where UIApplication.shared.applicationState != .active {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
+    /// Keeps the preview upright in every iPad orientation. Without it the picture was turned
+    /// sideways against the room (Framepad 2026-09-29: "weirdly mirrored").
+    private func startRotationTracking(for device: AVCaptureDevice) {
+        let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: previewLayer)
+        rotationCoordinator = coordinator
+        applyPreviewRotation(coordinator.videoRotationAngleForHorizonLevelPreview)
+        rotationObservation = coordinator.observe(\.videoRotationAngleForHorizonLevelPreview, options: [.new]) { [weak self] coordinator, _ in
+            let angle = coordinator.videoRotationAngleForHorizonLevelPreview
+            Task { @MainActor in self?.applyPreviewRotation(angle) }
+        }
+    }
+
+    private func applyPreviewRotation(_ angle: CGFloat) {
+        guard let connection = previewLayer.connection, connection.isVideoRotationAngleSupported(angle) else { return }
+        connection.videoRotationAngle = angle
+    }
+
+    /// The system stops the session when OwnFrame leaves the foreground. If it has not come
+    /// back by itself when the app is active again, start it here so the preview never stays dark.
+    private func observeSessionLifecycle() {
+        guard lifecycleObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        let restart: @Sendable (Notification) -> Void = { [weak self] _ in
+            Task { @MainActor in self?.restartIfStalled() }
+        }
+        lifecycleObservers = [
+            center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main, using: restart),
+            center.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: session, queue: .main, using: restart),
+            center.addObserver(forName: AVCaptureSession.interruptionEndedNotification, object: session, queue: .main, using: restart)
+        ]
+    }
+
+    private func restartIfStalled() {
+        guard state == .scanning, !session.isRunning else { return }
+        log.notice("scan: session stopped while scanning, restarting")
+        let session = self.session
+        Task.detached(priority: .userInitiated) {
+            session.startRunning()
         }
     }
 
@@ -171,6 +283,8 @@ final class QRScanner: NSObject, CodeScanning, Identifiable {
         }
         didResume = true
         state = .idle
+        lifecycleObservers.forEach(NotificationCenter.default.removeObserver)
+        lifecycleObservers = []
         let session = self.session
         Task.detached(priority: .userInitiated) {
             session.stopRunning()
@@ -244,12 +358,22 @@ struct QRScannerView: View {
         }
     }
 
+    // Two literals, not a ternary: `Text(cond ? "a" : "b")` takes a plain String and skips
+    // the String Catalog.
+    private var fallbackMessage: Text {
+        if scanner.state == .permissionDenied {
+            Text("Camera access is off. You can still paste the link below.")
+        } else {
+            Text("The camera couldn't start. Try again, or paste the link below.")
+        }
+    }
+
     private var fallback: some View {
         VStack(spacing: 16) {
             Image(systemName: "camera.fill")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text("Camera access is off. You can still paste the link below.")
+            fallbackMessage
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

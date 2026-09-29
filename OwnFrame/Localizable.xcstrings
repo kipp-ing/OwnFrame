@@ -2714,6 +2714,17 @@
         }
       }
     },
+    "The camera couldn't start. Try again, or paste the link below." : {
+      "comment" : "Shown in the QR scanner when the camera did not start (access is allowed).",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Kamera ist nicht gestartet. Versuch es noch einmal oder füge den Link unten ein."
+          }
+        }
+      }
+    },
     "The frame stays very dim during these hours and the photos keep playing. Tap the screen to see them brighter for a minute." : {
       "localizations" : {
         "de" : {

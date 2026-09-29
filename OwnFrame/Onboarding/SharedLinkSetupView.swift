@@ -144,6 +144,9 @@ struct SharedLinkSetupView: View {
     /// access (issue #82). `.task` only runs once the cover has actually finished presenting.
     private func driveScan(_ scanner: QRScanner) async {
         await sourceLibrary.addScannedSharedLink(using: scanner, label: "")
+        // A restarted cover `.task` hands the scan to its successor — only the live one may
+        // close the cover.
+        guard !Task.isCancelled else { return }
         // Camera denied or missing: the cover stays on its fallback until Done (SC-220-05).
         guard !scanner.showsFallback else { return }
         qrScanner = nil
