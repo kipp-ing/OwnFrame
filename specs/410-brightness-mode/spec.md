@@ -10,9 +10,10 @@ green (PowerKit 70, HAControlKit 154, AppIntentsKit 42); iOS 17.5 sim OwnFrameTe
 Automatic wrote nothing through light/dark (SC-410-01 on device); Fixed 0.80 held 171/172 samples
 covered + lit (SC-410-02 met); Fixed 0.00 held in light. That run found finding 11 below and its fix.
 
-**Open (see `docs/hitl.md` §2b/§4):** SC-410-06 (#91's `ha-parity` rerun on jk), SC-410-07 (Framepad,
-iOS 17.7, strong light change), a real night-window evening on a frame, and Jan's review of the full
-text plus plan decisions P-1…P-6 (notably P-5: effective-mode telemetry only via the gated select).
+**Done 2026-09-29:** SC-410-06 (#91's rerun on jk, Automatic + Fixed, #91 closed), SC-410-07
+(Framepad, iOS 17.7, strong light change), a real night-window evening on Framepad, the free
+`brightness_mode_status` sensor (FR-410-08, closing P-5's gap), and Jan's review. Jan agreed with the
+full text, P-1…P-6, a remote mode command being session-only, and the EN/DE copy. Nothing is open.
 
 **Input**: Sub-spec of topic 400. Resolves the 400 Roadmap item "Brightness memory and automatic
 brightness — its own feature spec" (#67, D-08), and removes the cause of #91 (a Home Assistant source
