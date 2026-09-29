@@ -15,6 +15,13 @@ jobs:
     # a defect: CI was failing the code for not compiling under a toolchain nobody ships with.
     # A red signal that everyone has to merge past is worse than no signal, so CI tracks the
     # shipping toolchain. See issue #20.
+    # Only on the public mirror (kipp-ing/OwnFrame), where macOS minutes are free. Since
+    # 2026-09-28 the private repo's runs were refused before starting ("recent account payments
+    # have failed or your spending limit needs to be increased"), so every push went red without
+    # testing anything. The private repo gets its signal from the local gate instead: all package
+    # suites plus the XcodeBuildMCP simulator run before a push (docs/testing.md). The mirror
+    # runs these same tests on every publish-public.sh.
+    if: github.repository == 'kipp-ing/OwnFrame'
     runs-on: macos-26
     timeout-minutes: 30
     steps:
