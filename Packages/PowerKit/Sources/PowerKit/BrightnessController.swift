@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 /// 410: decides **whether and when** OwnFrame writes brightness; `PowerManager` (400) keeps the
 /// mechanics. At any moment there is one target — `.automatic` (write nothing, iOS is in control)
@@ -60,6 +61,9 @@ public final class BrightnessController {
     @ObservationIgnored private var pendingHandovers = 0
     @ObservationIgnored private var lastReportAt: Date?
     @ObservationIgnored private var tickTask: Task<Void, Never>?
+    // Event trail for device reports (Framepad 2026-09-29: a peek that never ended). Levels and
+    // times only — nothing personal.
+    @ObservationIgnored private let log = Logger(subsystem: "ing.kipp.Immich-Slideshow", category: "Brightness")
 
     public init(
         power: PowerManager,
@@ -92,6 +96,7 @@ public final class BrightnessController {
     /// session: a generation swap's successor appears on the same session and keeps its holder.
     public func activate() async {
         power.activate()
+        log.notice("activate: session already active \(self.isSessionActive, privacy: .public), loop \(self.tickTask != nil, privacy: .public)")
         if isSessionActive {
             startTickLoop()
             return
@@ -129,6 +134,7 @@ public final class BrightnessController {
     /// re-applied at once (FR-410-03).
     public func willEnterForeground() async {
         power.willEnterForeground()
+        log.notice("foreground: session \(self.isSessionActive, privacy: .public), power \(self.power.isForegroundActive, privacy: .public)")
         guard isSessionActive else { return }
         if case .level(let value) = currentTarget {
             await power.setBrightness(value, animated: true)
@@ -139,6 +145,7 @@ public final class BrightnessController {
     }
 
     public func didEnterBackground() {
+        log.notice("background")
         stopTickLoop()
         power.didEnterBackground()
     }
@@ -149,6 +156,7 @@ public final class BrightnessController {
     }
 
     public func surfaceDisappeared() {
+        log.notice("surface disappeared, hand-overs \(self.pendingHandovers, privacy: .public)")
         if pendingHandovers > 0 {
             pendingHandovers -= 1
             power.surfaceDisappeared()
@@ -160,6 +168,7 @@ public final class BrightnessController {
     /// Exit: stop holding and hand back — the pre-night value outranks a baseline captured at
     /// night (plan P-6); nothing is written if the app never wrote this session.
     public func deactivate() {
+        log.notice("deactivate")
         stopTickLoop()
         pendingHandovers = 0
         power.deactivate(restoringTo: store.preNightBaseline)
@@ -192,6 +201,7 @@ public final class BrightnessController {
     /// A changed night window re-derives the night state from the time, like a launch.
     public func setNightWindow(_ window: NightWindow) async {
         let levelChanged = window.level != settings.night.level
+        log.notice("night window: on \(window.isEnabled, privacy: .public) \(window.startMinute, privacy: .public)–\(window.endMinute, privacy: .public) level \(window.level, privacy: .public)")
         settings.night = window
         store.settings = settings
         guard isSessionActive, power.isForegroundActive else { return }
@@ -226,6 +236,7 @@ public final class BrightnessController {
 
     /// A tap at night shows the day level for about a minute; repeated taps extend it.
     public func userTapped() async {
+        log.notice("tap: session \(self.isSessionActive, privacy: .public), power \(self.power.isForegroundActive, privacy: .public), night \(self.isNightActive, privacy: .public), loop \(self.tickTask != nil, privacy: .public)")
         guard isSessionActive, power.isForegroundActive, isNightActive else { return }
         let wasPeeking = peekUntil != nil
         peekUntil = now().addingTimeInterval(Self.peekDuration)
@@ -248,6 +259,7 @@ public final class BrightnessController {
         }
 
         if let peekUntil, date >= peekUntil {
+            log.notice("peek ended")
             self.peekUntil = nil
             await transition(to: currentTarget, animated: true)
             updateReport(force: true)
@@ -295,6 +307,7 @@ public final class BrightnessController {
     }
 
     private func takeOver(_ newHolder: Holder, animated: Bool) async {
+        log.notice("take over: \(String(describing: newHolder), privacy: .public)")
         holder = newHolder
         peekUntil = nil
         guard isSessionActive, power.isForegroundActive else { return }
@@ -303,6 +316,7 @@ public final class BrightnessController {
     }
 
     private func crossWindowEdge(into inside: Bool) async {
+        log.notice("window edge: night \(inside, privacy: .public)")
         isNightActive = inside
         peekUntil = nil
         if inside {
