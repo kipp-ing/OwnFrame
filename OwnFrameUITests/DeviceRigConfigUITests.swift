@@ -325,6 +325,7 @@ final class DeviceRigConfigUITests: XCTestCase {
             dragFormUp(app)
             swipes += 1
         }
+        if !field.isHittable { attach(app, "unreachable-\(identifier)") }
         XCTAssertTrue(field.isHittable, "\(identifier) should be reachable after scrolling")
         field.tap()
 
