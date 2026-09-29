@@ -77,6 +77,8 @@ public enum HATopics {
             "switch"
         case .nightActive:
             "binary_sensor"
+        case .brightnessModeStatus:
+            "sensor"
         }
     }
 }

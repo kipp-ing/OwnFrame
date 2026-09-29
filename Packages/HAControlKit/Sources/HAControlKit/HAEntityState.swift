@@ -38,6 +38,10 @@ public enum HAEntity: String, CaseIterable, Sendable {
     /// 410, FR-410-19: whether the night window is currently active. Read-only → free
     /// telemetry, like `charging`.
     case nightActive = "night_active"
+    /// 410, FR-410-08: the effective brightness mode (`auto`/`fixed`) as a read-only enum
+    /// sensor. The `brightness_mode` select carries the same value but is Supporter-gated;
+    /// this is the **free** telemetry of the effective mode, like `night_active`.
+    case brightnessModeStatus = "brightness_mode_status"
 }
 
 public extension HAEntity {
@@ -52,7 +56,7 @@ public extension HAEntity {
     var isReadOnlySensor: Bool {
         switch self {
         case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging,
-             .frameStatus, .nightActive:
+             .frameStatus, .nightActive, .brightnessModeStatus:
             true
         case .playback, .brightness, .album, .order, .duration, .transition, .kenBurns,
              .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate,
@@ -72,11 +76,12 @@ public extension HAEntity {
         self == .battery || self == .charging
     }
 
-    /// The three brightness-mode/night-window entities (410, FR-410-08/FR-410-19): published
+    /// The four brightness-mode/night-window entities (410, FR-410-08/FR-410-19): published
     /// only with a `BrightnessModeControlling` source, omitted entirely otherwise — same
     /// device-conditional shape as `isBatteryEntity`.
     var isBrightnessModeEntity: Bool {
         self == .brightnessMode || self == .nightWindow || self == .nightActive
+            || self == .brightnessModeStatus
     }
 }
 

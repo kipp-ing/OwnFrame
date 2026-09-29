@@ -178,8 +178,8 @@ public final class HAControlCoordinator {
             // both entirely otherwise (no discovery, no state) so Apple TV shows neither
             // (FR-710-23).
             if entity.isBatteryEntity && !hasBatterySource { continue }
-            // brightness_mode/night_window/night_active exist only with a
-            // BrightnessModeControlling source — omit all three entirely otherwise, same
+            // brightness_mode/night_window/night_active/brightness_mode_status exist only
+            // with a BrightnessModeControlling source — omit all four entirely otherwise, same
             // shape as battery (410, FR-410-08/FR-410-19).
             if entity.isBrightnessModeEntity && !hasBrightnessModeSource { continue }
 
@@ -193,7 +193,8 @@ public final class HAControlCoordinator {
                 ),
                 retain: true
             ))
-            if mode == .full {
+            // Read-only sensors publish no `command_topic`, so there is nothing to subscribe.
+            if mode == .full && entity.isControllable {
                 try? await transport.subscribe(HATopics.commandTopic(deviceID: deviceID, entity: entity))
             }
             await echo(entity)
@@ -231,8 +232,8 @@ public final class HAControlCoordinator {
             }
         }
 
-        // Brightness-mode telemetry (night_active) is free too, but only wired with a
-        // source; the change callback itself decides which of the three to re-echo
+        // Brightness-mode telemetry (night_active, brightness_mode_status) is free too, but
+        // only wired with a source; the change callback itself decides which to re-echo
         // depending on entitlement (410, FR-410-08/FR-410-19).
         if hasBrightnessModeSource {
             brightnessMode?.onBrightnessModeChange = { [weak self] in
@@ -251,14 +252,16 @@ public final class HAControlCoordinator {
         }
     }
 
-    /// Re-echo `brightness_mode`/`night_window`/`night_active` after the source signals a
-    /// change. `night_active` is free telemetry and always re-echoed when enabled; the two
+    /// Re-echo `brightness_mode`/`night_window`/`night_active`/`brightness_mode_status` after
+    /// the source signals a change. `night_active` and `brightness_mode_status` are free
+    /// telemetry and always re-echoed when enabled; the two
     /// controls are gated entities and re-echoed only in `.full` mode — an unentitled frame
     /// never had them published/subscribed in the first place (410, FR-410-08/FR-410-19).
     private func scheduleBrightnessModeEcho() {
         Task { [weak self] in
             guard let self else { return }
             if self.enabledEntities.contains(.nightActive) { await self.echo(.nightActive) }
+            if self.enabledEntities.contains(.brightnessModeStatus) { await self.echo(.brightnessModeStatus) }
             guard self.mode == .full else { return }
             if self.enabledEntities.contains(.brightnessMode) { await self.echo(.brightnessMode) }
             if self.enabledEntities.contains(.nightWindow) { await self.echo(.nightWindow) }
@@ -388,7 +391,7 @@ public final class HAControlCoordinator {
                     brightnessMode?.setNightWindowEnabled(value)
                 }
             case .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging,
-                 .frameStatus, .nightActive:
+                 .frameStatus, .nightActive, .brightnessModeStatus:
                 break
             }
 
@@ -485,9 +488,10 @@ public final class HAControlCoordinator {
         case .frameStatus:
             // Exactly two values (FR-710-24); the availability binding covers "offline".
             payload = surfaceVisible ? "running" : "inactive"
-        case .brightnessMode:
+        case .brightnessMode, .brightnessModeStatus:
             // No source → nothing to echo (announce already omitted it, but guard so a
-            // stray echo can't publish a stale value, mirrors `charging`).
+            // stray echo can't publish a stale value, mirrors `charging`). The free status
+            // sensor reports the same raw value as the gated select.
             guard let brightnessMode else { return }
             payload = brightnessMode.brightnessMode.rawValue
         case .nightWindow:
@@ -546,7 +550,7 @@ public final class HAControlCoordinator {
         switch entity {
         case .order, .duration, .transition, .kenBurns, .fit, .quality, .clock, .clockCorner, .clockStyle, .clockSize, .clockDate:
             true
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive, .brightnessModeStatus:
             false
         }
     }
@@ -575,7 +579,7 @@ public final class HAControlCoordinator {
             snapshot.clockSize.rawValue
         case .clockDate:
             snapshot.clockDate ? "ON" : "OFF"
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive, .brightnessModeStatus:
             ""
         }
     }
@@ -621,7 +625,7 @@ public final class HAControlCoordinator {
         case .clockDate:
             guard let value = switchBool(payload) else { return }
             snapshot.clockDate = value
-        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive:
+        case .playback, .brightness, .album, .next, .previous, .currentPhoto, .currentPhotoImage, .phase, .photoCount, .version, .battery, .charging, .frameStatus, .brightnessMode, .nightWindow, .nightActive, .brightnessModeStatus:
             return
         }
 

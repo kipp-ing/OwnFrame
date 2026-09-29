@@ -844,7 +844,7 @@ facts:
     evidence: ["Packages/HAControlKit/Sources/HAControlMQTT/NIOMQTTTransport.swift:31-62", "Packages/BrokerSetupKit/Sources/BrokerSetupKit/BrokerSetupViewModel.swift:5", "Packages/HAControlKit/Sources/HAControlKit/HADiscovery.swift:10-20"]
 
   - id: REMOTE-02
-    fact: "Sends free read-only status to Home Assistant: availability, current photo, slideshow phase, photo count, app version, frame status (running/inactive), whether the night window is active and, on battery devices, battery level and charging."
+    fact: "Sends free read-only status to Home Assistant: availability, current photo, slideshow phase, photo count, app version, frame status (running/inactive), the brightness mode in effect (automatic/fixed), whether the night window is active and, on battery devices, battery level and charging."
     verdict: partial
     limits:
       - "Only while the app is in the foreground on the slideshow."

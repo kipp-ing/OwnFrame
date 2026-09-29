@@ -84,7 +84,8 @@ wall clock, manual tick) and HAControlKit (fake transport); app target via Xcode
 `BrightnessModeControlling` (optional, like `BatteryReporting`): effective mode (`auto`/`fixed`),
 `isNightActive`, `isNightWindowEnabled`, `setBrightnessMode`, `setNightWindowEnabled`, change
 callback. Entities: `brightness_mode` select (control, gated), `night_window` switch (control,
-gated), `night_active` binary_sensor (read-only, free). Absent when no source is injected (tvOS).
+gated), `night_active` binary_sensor (read-only, free), `brightness_mode_status` enum sensor
+(read-only, free — the effective mode, FR-410-08). Absent when no source is injected (tvOS).
 
 ### App
 
@@ -117,7 +118,8 @@ from/to pickers, night level slider). Strings in the String Catalog (EN + DE).
 - **P-3 Night level bounds** 0.0…0.3, default 0.0. **Peek** 60 s.
 - **P-4 Automatic reporting** ≥ 0.05 change and ≥ 5 s apart.
 - **P-5 Mode telemetry**: the effective mode reaches HA through the gated `brightness_mode`
-  select; unentitled frames get `night_active` only. FR-410-08's "telemetry of the effective mode
-  stays free" is left for Jan (hitl §2b) rather than adding a fourth entity.
+  select and, free for every frame, a fourth read-only entity `brightness_mode_status` (enum
+  sensor, diagnostic, re-echoed on every mode change in both modes) — closes FR-410-08's
+  "telemetry of the effective mode stays free" (was an open gap for Jan, hitl §2b).
 - **P-6 Exit restore target**: pre-night baseline if remembered, else the session baseline — and
   only if the app wrote (FR-400-11 unchanged otherwise).

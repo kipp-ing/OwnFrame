@@ -26,13 +26,15 @@ struct HATopicsTests {
         #expect(HAEntity.photoCount.rawValue == "photo_count")
         #expect(HAEntity.version.rawValue == "version")
         #expect(HAEntity.frameStatus.rawValue == "frame_status")
+        #expect(HAEntity.brightnessModeStatus.rawValue == "brightness_mode_status")
     }
 
     @Test
     func haEntityAllCasesCount() {
         // 21 core + battery + charging (1200 US3) + frame_status (FR-710-24, 2026-07-26) +
-        // brightness_mode + night_window + night_active (410, FR-410-08/FR-410-19).
-        #expect(HAEntity.allCases.count == 27)
+        // brightness_mode + night_window + night_active (410, FR-410-08/FR-410-19) +
+        // brightness_mode_status (410, FR-410-08 free telemetry).
+        #expect(HAEntity.allCases.count == 28)
     }
 
     // @covers FR-710-01, FR-710-08

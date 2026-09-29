@@ -252,6 +252,98 @@ struct BrightnessModeEntitiesTests {
         await coordinator.stop()
     }
 
+    // MARK: - brightness_mode_status: free read-only effective-mode telemetry (FR-410-08)
+
+    @Test
+    func brightnessModeStatusIsAReadOnlyBrightnessModeEntity() {
+        #expect(HAEntity.brightnessModeStatus.rawValue == "brightness_mode_status")
+        #expect(HAEntity.brightnessModeStatus.isReadOnlySensor)
+        #expect(!HAEntity.brightnessModeStatus.isControllable)
+        #expect(HAEntity.brightnessModeStatus.isBrightnessModeEntity)
+        #expect(HAEntity.defaultEnabled.contains(.brightnessModeStatus))
+        #expect(HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .brightnessModeStatus)
+            == "homeassistant/sensor/dev1/brightness_mode_status/config")
+    }
+
+    @Test
+    func brightnessModeStatusDiscoveryIsADiagnosticEnumSensor() throws {
+        let json = try Self.object(from:
+            HADiscovery.config(for: .brightnessModeStatus, deviceID: "dev1", deviceName: "Slideshow", albumOptions: []))
+        #expect(json["unique_id"] as? String == "dev1_brightness_mode_status")
+        #expect(json["state_topic"] as? String == HATopics.stateTopic(deviceID: "dev1", entity: .brightnessModeStatus))
+        #expect(json["command_topic"] == nil)
+        #expect(json["entity_category"] as? String == "diagnostic")
+        #expect(json["device_class"] as? String == "enum")
+        #expect(json["options"] as? [String] == BrightnessModeSetting.allCases.map(\.rawValue))
+        #expect(json["name"] as? String == "Brightness Mode Status")
+        #expect(json["default_entity_id"] as? String == "sensor.ownframe_dev1_brightness_mode_status")
+    }
+
+    @Test
+    func unentitledPublishesBrightnessModeStatusFree() async throws {
+        let transport = FakeMQTTTransport()
+        let source = FakeBrightnessModeControlling(mode: .fixed)
+        let coordinator = makeCoordinator(transport: transport, brightnessMode: source,
+            mode: .telemetryOnly, entities: [.brightnessMode, .brightnessModeStatus])
+        await coordinator.start()
+
+        #expect(transport.published.contains {
+            $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .brightnessModeStatus) && !$0.payload.isEmpty
+        }, "brightness_mode_status discovery must publish free under telemetry-only mode")
+        #expect(lastState(transport, .brightnessModeStatus) == "fixed")
+        #expect(transport.subscriptions.isEmpty, "the status sensor must not subscribe to a command topic")
+
+        await coordinator.stop()
+    }
+
+    @Test
+    func entitledPublishesBrightnessModeStatusWithoutSubscribing() async throws {
+        let transport = FakeMQTTTransport()
+        let source = FakeBrightnessModeControlling(mode: .auto)
+        let coordinator = makeCoordinator(transport: transport, brightnessMode: source,
+            mode: .full, entities: [.brightnessModeStatus])
+        await coordinator.start()
+
+        #expect(lastState(transport, .brightnessModeStatus) == "auto")
+        #expect(!transport.subscriptions.contains(
+            HATopics.commandTopic(deviceID: "dev1", entity: .brightnessModeStatus)))
+
+        await coordinator.stop()
+    }
+
+    @Test
+    func noSourceOmitsBrightnessModeStatus() async throws {
+        let transport = FakeMQTTTransport()
+        let coordinator = makeCoordinator(transport: transport, brightnessMode: nil,
+            mode: .telemetryOnly, entities: [.brightnessModeStatus])
+        await coordinator.start()
+
+        #expect(!transport.published.contains {
+            $0.topic == HATopics.discoveryConfigTopic(deviceID: "dev1", entity: .brightnessModeStatus)
+                || $0.topic == HATopics.stateTopic(deviceID: "dev1", entity: .brightnessModeStatus)
+        })
+
+        await coordinator.stop()
+    }
+
+    @Test(arguments: [HAControlCoordinator.Mode.telemetryOnly, .full])
+    func changeCallbackReEchoesBrightnessModeStatusInBothModes(_ mode: HAControlCoordinator.Mode) async throws {
+        let transport = FakeMQTTTransport()
+        let source = FakeBrightnessModeControlling(mode: .auto)
+        let coordinator = makeCoordinator(transport: transport, brightnessMode: source,
+            mode: mode, entities: [.brightnessModeStatus])
+        await coordinator.start()
+        transport.published.removeAll()
+
+        source.brightnessMode = .fixed
+        source.emitChange()
+        await settle()
+
+        #expect(lastState(transport, .brightnessModeStatus) == "fixed")
+
+        await coordinator.stop()
+    }
+
     // MARK: - helpers
 
     private func settle() async {

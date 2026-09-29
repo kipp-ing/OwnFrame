@@ -326,7 +326,9 @@ window and cross the end; assert the levels and the order of writes.
   the app relaunches. It MUST NOT change the remembered mode or preset.
 - **FR-410-08**: Home Assistant MUST get a `brightness_mode` select entity (`auto` / `fixed`) whose
   commands act as session overrides (FR-410-07); it is part of the Supporter-gated control set, like
-  the existing brightness light (1100). Telemetry of the effective mode stays free.
+  the existing brightness light (1100). Telemetry of the effective mode stays free: a read-only
+  `brightness_mode_status` sensor (enum `auto` / `fixed`, diagnostic) reports it to every frame,
+  entitled or not.
 - **FR-410-09**: The Home Assistant light state and the Get Frame State intent MUST report the
   effective brightness (FR-410 US3-5). In Automatic the published state MUST be rate-limited and only
   sent on a change of at least one step.
@@ -352,8 +354,10 @@ window and cross the end; assert the levels and the order of writes.
   stop writing.
 - **FR-410-18**: A tap during the window MUST show the day level for about one minute (repeated taps
   extend it), then fade back to the level of the current event holder. A peek is not an event.
-- **FR-410-19**: Home Assistant MUST get a free "night active" state and a Supporter-gated switch that
-  turns the app's night window on or off. The night window itself is free (D-410-8).
+- **FR-410-19**: Home Assistant MUST get a free "night active" state (`night_active` binary_sensor)
+  and a Supporter-gated switch (`night_window`) that turns the app's night window on or off. The
+  night window itself is free (D-410-8). Free entities of this spec: `night_active`,
+  `brightness_mode_status`; gated: `brightness_mode`, `night_window`.
 
 ### Key Entities
 

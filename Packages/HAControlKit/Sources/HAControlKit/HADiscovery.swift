@@ -119,6 +119,13 @@ public enum HADiscovery {
             json["entity_category"] = "diagnostic"
             json["payload_on"] = "ON"
             json["payload_off"] = "OFF"
+        case .brightnessModeStatus:
+            // 410, FR-410-08: read-only diagnostic enum sensor of the effective mode — the
+            // free counterpart of the gated `brightness_mode` select, same option values.
+            json["command_topic"] = nil
+            json["entity_category"] = "diagnostic"
+            json["device_class"] = "enum"
+            json["options"] = BrightnessModeSetting.allCases.map(\.rawValue)
         }
 
         return (try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])) ?? Data()
@@ -190,6 +197,8 @@ public enum HADiscovery {
             "Night Window"
         case .nightActive:
             "Night Active"
+        case .brightnessModeStatus:
+            "Brightness Mode Status"
         }
     }
 }
