@@ -41,14 +41,25 @@ def spec_requirement_ids():
 
 
 def changed_since(commit, paths):
+    """Evidence files changed since `commit`, or None when `commit` is not in this history.
+
+    None happens in the public mirror: publish-public.sh rewrites every hash with
+    git-filter-repo, so the private repo's verified_commit never exists there.
+    """
     if not commit or not paths:
         return set()
+    known = subprocess.run(
+        ["git", "-C", str(ROOT), "cat-file", "-e", f"{commit}^{{commit}}"],
+        capture_output=True, text=True,
+    )
+    if known.returncode != 0:
+        return None
     out = subprocess.run(
         ["git", "-C", str(ROOT), "diff", "--name-only", f"{commit}..HEAD", "--", *sorted(paths)],
         capture_output=True, text=True,
     )
     if out.returncode != 0:
-        raise SystemExit(f"verified_commit {commit!r} is not a valid commit: {out.stderr.strip()}")
+        raise SystemExit(f"git diff from verified_commit {commit!r} failed: {out.stderr.strip()}")
     return set(out.stdout.split())
 
 
@@ -103,7 +114,11 @@ def main():
                     errors.append(f"{fid}: evidence {ev} is past the end of the file")
             evidence_files.setdefault(em.group("path"), set()).add(fid)
 
-    for path in sorted(changed_since(doc.get("verified_commit"), evidence_files)):
+    changed = changed_since(doc.get("verified_commit"), evidence_files)
+    if changed is None:
+        warnings.append(f"verified_commit {doc.get('verified_commit')!r} is not in this history "
+                        "(the public mirror rewrites hashes) — staleness check skipped")
+    for path in sorted(changed or ()):
         warnings.append(f"re-verify {', '.join(sorted(evidence_files[path]))}: {path} changed since verified_commit")
 
     if COPY_RULES.is_file():
