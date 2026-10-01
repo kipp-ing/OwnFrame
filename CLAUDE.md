@@ -176,7 +176,8 @@ reading order, then read the relevant module spec under `specs/Nxx-*/spec.md`. F
 the full spec number (`FR-700-03`). There is no single "current plan" — each module spec is the
 source of truth for its area.
 
-Release-blocking feature: `1100-purchase-gate` — **merged to `main`**; the branch is gone. Spec at
+Shipped feature: `1100-purchase-gate` — **merged to `main`; live in the App Store since 2026-10-01
+(version 1.2, IAPs approved, all territories)**; the branch is gone. Spec at
 `specs/1100-purchase-gate/spec.md`, plan at `specs/1100-purchase-gate/plan.md`
 (+ research/data-model/contracts/quickstart, 2026-07-19). Purchase gate /
 one-time unlocks: the free core stays whole (all sources + full core playback, basic
@@ -187,8 +188,8 @@ were **collapsed into that single unlock on 2026-07-23** (PR #40): `Entitlement`
 `ProductCatalog.unlocks` is `[.supporter]`. One-time purchases only, no subscriptions ever,
 never the word "lifetime"; Family Sharing + universal purchase (incl. tvOS); on-device
 entitlement caching so unattended frames work offline indefinitely; never-claw-back
-(FR-1100-13); **sequencing is release-blocking: the gated build must be the first version the
-public ever sees — approved v1.0 build 8 stays unreleased (FR-1100-17)**. No price points
+(FR-1100-13, binding from 1.2 on); **sequencing held (FR-1100-17): the gated 1.2 is the first
+version the public ever saw — v1.0 build 8 was never released**. No price points
 anywhere in this public repo — pricing is decided in App Store Connect at submission.
 **Status: code-complete and merged to `main`** — new `Packages/PurchaseKit` (entitlement model,
 `AmbienceGate` per-photo latch, `StoreClient` + host-testable resolver/cache/store, and now the
@@ -215,10 +216,9 @@ destination) with the ambience locked row, a Home-Assistant row (both Supporter-
 (`TVLockedBrokerView` masked-config banner when unentitled), and an Unlocks section (Restore +
 tip), reusing PurchaseKit UI via `fullScreenCover`; Apple-TV-simulator screenshot-verified under
 the `--uitest-entitlements` seams; the shared unlock/tip screens gained a tvOS-only opaque
-backing. **T001–T041 done. Remaining: T042 only** —
-the manual ASC/device day (create IAPs, sandbox purchase/restore/Family-Sharing/universal checks,
-release sequencing v1.0-b8-stays-unreleased → v1.1-gated-first, FR-1100-17); blocked on Jan's ASC
-access. Now purely ASC-gated — the StoreKitTest run came off this list on 2026-07-21.
+backing. **T001–T041 done. T042:** the ASC part is done — IAPs created and approved, 1.2 released
+(2026-10-01) as the first public version (FR-1100-17). Still open: the real-device purchase checks
+(restore, Family Sharing, universal, offline soak) in `docs/manual-verification.md` §D.
 
 Prior feature `1000-apple-tv` (tvOS port + 13 review fixes + Ken Burns micro-judder redesign:
 shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ahead) is
@@ -227,6 +227,6 @@ shared scoped-animation `KenBurnsMotionModifier` + `DecodedImageStore` decode-ah
 tvOS clock + FR-1000-10 pixel-shift — tick-list in `docs/manual-verification.md` ("FINAL DEVICE
 DAY"). Earlier context: `510` clock merged; `900`/`800`/`220`/`310`/`320` merged (their device
 ship-gates share that same device day). `1200-observed-fixes` (album no-server guidance, Ken Burns
-honors Fit, battery/charging HA telemetry) merged 2026-07-22 via PR #39. v1.0 build 8 is
-**approved but deliberately unreleased** — see FR-1100-17 above.
+honors Fit, battery/charging HA telemetry) merged 2026-07-22 via PR #39. v1.0 build 8 was
+**never released**; 1.2 is the first public version (2026-10-01) — see FR-1100-17 above.
 <!-- SPECKIT END -->

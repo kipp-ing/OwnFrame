@@ -3,6 +3,8 @@
 **OwnFrame** turns an iPad or iPhone into a full-screen photo frame for your own
 [Immich](https://immich.app) server, an Immich shared link, or an iCloud album.
 
+Get it on the [App Store](https://apps.apple.com/us/app/ownframe/id6784154405).
+
 ## Getting help
 
 - **Questions & bug reports:** open an issue at
