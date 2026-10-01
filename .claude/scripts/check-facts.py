@@ -9,6 +9,8 @@ Fails on:
 
 Warns (exit 0, or 1 with --strict) when a file cited as evidence changed since
 `verified_commit`: the fact behind it has to be re-checked against the code.
+In the public mirror (hashes rewritten, store specs excluded) it warns instead of failing
+when `verified_commit` is unknown or an intent id names a spec that is not in the repo.
 
 Usage: .claude/scripts/check-facts.py [--strict]
 """
@@ -100,7 +102,12 @@ def main():
         for ref in fact.get("intent") or []:
             for req in REQ_RE.findall(str(ref)):
                 if req not in known_reqs:
-                    errors.append(f"{fid}: intent {req} is not defined in any spec")
+                    spec_no = req.split("-")[1]
+                    if not any((ROOT / "specs").glob(f"{spec_no}-*/spec.md")):
+                        # The public mirror excludes some specs (publish-public.sh).
+                        warnings.append(f"{fid}: intent {req} unchecked — spec {spec_no} is not in this repo")
+                    else:
+                        errors.append(f"{fid}: intent {req} is not defined in any spec")
         for ev in fact.get("evidence") or []:
             em = EVIDENCE_RE.match(str(ev))
             path = ROOT / em.group("path")

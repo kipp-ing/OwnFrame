@@ -36,6 +36,7 @@ FACTS = textwrap.dedent("""\
         gated: free
         implementation: verified
         evidence: ["src.txt"]
+        intent: {intent}
     """)
 
 
@@ -44,7 +45,7 @@ def git(root: Path, *args: str) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
-class CheckFactsCommitTests(unittest.TestCase):
+class RepoCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
@@ -59,13 +60,14 @@ class CheckFactsCommitTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_check(self, commit: str) -> subprocess.CompletedProcess:
-        (self.root / "product-facts.yaml").write_text(FACTS.format(commit=commit))
+    def run_check(self, commit: str, intent: str = "[]") -> subprocess.CompletedProcess:
+        (self.root / "product-facts.yaml").write_text(FACTS.format(commit=commit, intent=intent))
         env = dict(os.environ, OWNFRAME_ROOT=str(self.root),
                    COPY_RULES_FILE=str(self.root / "missing-copy-rules.yaml"))
         return subprocess.run([sys.executable, str(SCRIPT)], env=env,
                               capture_output=True, text=True)
 
+class CheckFactsCommitTests(RepoCase):
     def test_unknown_commit_skips_staleness_check_with_a_warning(self):
         result = self.run_check("8315d36")  # not in this history, as in the public mirror
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -88,6 +90,26 @@ class CheckFactsCommitTests(unittest.TestCase):
         result = self.run_check(base)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("re-verify SRC-01: src.txt changed since verified_commit", result.stdout)
+
+
+class CheckFactsIntentTests(RepoCase):
+    """The mirror also lacks specs/9010-store-presentation (excluded by publish-public.sh)."""
+
+    def head(self) -> str:
+        return git(self.root, "rev-parse", "--short", "HEAD")
+
+    def test_intent_in_a_spec_absent_from_this_repo_is_a_warning(self):
+        result = self.run_check(self.head(), '["FR-9010-10"]')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("spec 9010 is not in this repo", result.stdout)
+
+    def test_unknown_intent_in_a_present_spec_is_still_an_error(self):
+        spec = self.root / "specs" / "9010-store-presentation"
+        spec.mkdir()
+        (spec / "spec.md").write_text("- **FR-9010-01**: something\n")
+        result = self.run_check(self.head(), '["FR-9010-10"]')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("intent FR-9010-10 is not defined in any spec", result.stdout)
 
 
 if __name__ == "__main__":
