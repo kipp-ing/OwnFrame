@@ -79,6 +79,11 @@ Mirrors `specs/1100-purchase-gate/quickstart.md` §5; keep the two in step. Need
 account, a second device, a family member account, and ASC access. **Nothing here is automatable**
 — StoreKit sandbox, Family Sharing, and release sequencing all require a real Apple ID.
 
+**Released 2026-10-01 (Jan):** version **1.2** — not 1.1 as planned below — is live in all
+territories, with all IAPs approved. It is the first public version; v1.0 build 8 was never
+released (FR-1100-17 / SC-1100-09 held). The sequencing and IAP-submission items below are
+history now; the sandbox/device checks further down stay open.
+
 **Do this one FIRST — it is release-blocking and cheap to check:**
 
 - [x] **FR-1100-17 / SC-1100-09 sequencing** — **audited via the ASC API 2026-07-29, and the
@@ -124,8 +129,8 @@ account, a second device, a family member account, and ASC access. **Nothing her
       harmless for a review screenshot, but re-shoot if a reviewer ever queries it.
 - [x] IAP availability set in all 175 territories (they sell wherever the app sells).
 - [x] **Build 9 attached to the 1.1 version record** (verified via the ASC API 2026-07-29).
-- [ ] **IAPs submitted for review alongside 1.1 — STILL OPEN, and the highest-consequence item
-      left.** Verified 2026-07-29: all four are `READY_TO_SUBMIT`, but that means *eligible*, not
+- [x] **IAPs submitted for review alongside 1.1 — done: all four `APPROVED` (ASC, 2026-09-14),
+      on sale since 1.2 went live (2026-10-01).** Was: STILL OPEN, and the highest-consequence item left. Verified 2026-07-29: all four are `READY_TO_SUBMIT`, but that means *eligible*, not
       *submitted*, and **no review submission exists for 1.1 yet** (the only ones on record are
       the COMPLETE v1.0 submissions of 07-12 and 07-14, each carrying a single `appStoreVersion`
       item and no IAPs). Submitting the version alone leaves the products unreviewed and ships a

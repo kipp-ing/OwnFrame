@@ -6,9 +6,10 @@
 
 **Status**: Code-complete + merged to main (2026-07-20, PR #14; the single-unlock collapse landed
 2026-07-23 in PR #40) — T001–T041 done and green (measured 2026-07-25: PurchaseKit 106 host tests,
-full iOS suite 163 passed / 0 failed / 5 skipped). **T042** — the manual App Store Connect day
-(create the IAPs, sandbox purchase/restore/Family-Sharing/universal checks, release sequencing per
-FR-1100-17) — is all that remains, blocked on ASC access. Amended 2026-07-19: **Ken Burns motion +
+full iOS suite 163 passed / 0 failed / 5 skipped). **Released 2026-10-01**: version 1.2 with all
+IAPs approved is live in all territories — the first public version, so FR-1100-17 / SC-1100-09
+held and FR-1100-13 now binds. **T042**: the ASC part is done; the real-device purchase checks
+(`docs/manual-verification.md` §D) stay open. Amended 2026-07-19: **Ken Burns motion +
 clock overlay form the ambience launch composition** (decided with Jan; possible because no
 version was ever publicly released,
 so the never-claw-back rule does not yet bind anything). Locked-row presentation refined the same
@@ -428,6 +429,8 @@ never prompts for tips on its own.
 
 ## Assumptions
 
+- *(Superseded 2026-10-01: 1.2 is released and is the first public version; v1.0 build 8 was
+  never released. Kept below as the reasoning behind the launch gating.)*
 - **Nothing has shipped publicly yet.** v1.0 (build 8) is approved but unreleased and will
   stay unreleased (FR-1100-17). Therefore features already merged internally — HA/MQTT
   remote control, App Intents, the clock overlay renderer, **and Ken Burns motion** — are

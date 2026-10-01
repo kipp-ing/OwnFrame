@@ -8,6 +8,8 @@ No fiddling
 with album creation inside the frame app — you keep managing albums in the app you already
 know and like.
 
+**[Get OwnFrame on the App Store](https://apps.apple.com/us/app/ownframe/id6784154405)**
+
 It is a standalone app — **not** a fork of the official Immich client, and it works
 entirely without Immich if you use an iCloud album.
 
@@ -47,7 +49,7 @@ the tools most other projects rely on but that seldom get direct funding.
 - **Apple Photos / iCloud albums** — use an iCloud album as the source instead of (or alongside)
   Immich. ✅ done
 - **Shortcuts & Siri** — play/pause, brightness, source switching and frame state as App Intents,
-  usable in personal automations. 🧪 built, pending hardware verification
+  usable in personal automations. ✅ done (Siri discovery on real devices still being checked)
 - **Apple TV** — the same frame on tvOS, set up without typing by syncing the iPad's
   configuration over iCloud. 🧪 built, pending hardware verification
 
