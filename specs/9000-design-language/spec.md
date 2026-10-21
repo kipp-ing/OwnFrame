@@ -25,8 +25,8 @@ record: the **OwnFrame Redesign canvas of 2026-09-01** — seven artboards (Will
 <https://claude.ai/code/artifact/1992f317-b498-48e0-b725-ca297113abcb>. This is the same
 relationship [`docs/design/quiet-glass-2026-07-18.html`](../../docs/design/quiet-glass-2026-07-18.html)
 has to specs [500](../500-display-options/spec.md) and [510](../510-clock-overlay/spec.md): the
-artifact is the design record, the spec is the binding statement of it. Work-package narrative and directional input (AP-U, AP-0) live in the private App Store/marketing
-mirror, not this repo.
+artifact is the design record, the spec is the binding statement of it. Work-package narrative and directional input (AP-U, AP-0) live in the private repo
+checked out at `private/` (`private/docs/presentation-overhaul-plan.md`, `private/Design/Reference/README.md`).
 
 ## Overview
 
@@ -341,7 +341,7 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
   `220-onboarding-welcome` for the welcome screen. New *behaviour* discovered while applying this
   language MUST be specced in the owning product spec, never absorbed here as "styling".
 - **FR-9000-36**: Store copy is governed by this spec through its sub-spec `9010-store-presentation`
-  (kept in the private App Store/marketing mirror, not this repo). A term retired here is retired in
+  (kept in the private repo checked out at `private/`). A term retired here is retired in
   the listing; a term introduced in the listing MUST exist in the app.
 - **FR-9000-37**: When the language itself changes, the **design record MUST be updated or
   superseded** and this spec's `Input` re-pointed. A language change that lives only in a commit
@@ -380,7 +380,7 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
   rows without one show a same-geometry placeholder; scrolling a 16-album list cancels in-flight
   cover loads and does not stall.
 - **SC-9000-08**: Every term marked *retired* in the vocabulary table returns **zero** hits across
-  all five string catalogs **and** across `docs/app-store-listing.md`.
+  all five string catalogs **and** across `private/docs/app-store-listing.md`.
 - **SC-9000-09**: The Apple Photos source is referred to by exactly one name across onboarding,
   Settings and the store listing; the phrase "connects to iCloud" appears nowhere.
 - **SC-9000-10**: Every user-visible German string that changed has an authored German value present
@@ -421,7 +421,7 @@ declared asset, or by a screenshot at a stated size. No FR requires a judgement 
 - **[1100-purchase-gate](../1100-purchase-gate/spec.md)** — owns the commercial language constraints
   that store copy inherits through `9010`.
 - **9010-store-presentation** — the sub-spec that applies this language to the App Store asset
-  set (private App Store/marketing mirror, not this repo).
+  set (private repo, checked out at `private/`).
 
 ## Roadmap / Deferred
 

@@ -389,7 +389,7 @@ No real server.
       change is outside this phase's expected scope.
 - [x] T033 Verification gate (**Claude**, not a subagent): XcodeBuildMCP `build_sim` + `test_sim`
       whole classes on the app scheme (runtime per `docs/testing.md`, confirm it from the xcresult).
-      Queue a live check in `docs/hitl.md`: an Immich album set to oldest-first plays oldest first,
+      Queue a live check in `private/docs/hitl.md`: an Immich album set to oldest-first plays oldest first,
       through the API key and through an Immich link.
 - [x] T034 Facts, **in the same commit as T028/T030**: in `product-facts.yaml`, **PLAY-03** →
       `implementation: verified`; drop the limit "the current build always plays newest first";

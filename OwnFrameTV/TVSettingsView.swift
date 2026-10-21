@@ -193,7 +193,7 @@ struct TVSettingsView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            // Transparency statement (docs/where-the-money-goes.md) — calm, never a nag (FR-1100-09).
+            // Transparency statement (private/docs/where-the-money-goes.md) — calm, never a nag (FR-1100-09).
             Text("Where your money goes: the Supporter Unlock covers the project's running costs — developer account, AI tools, test hardware — and everything beyond that goes back to open-source projects that serve the community. The free frame stays whole, forever.")
                 .font(.callout)
                 .foregroundStyle(.secondary)

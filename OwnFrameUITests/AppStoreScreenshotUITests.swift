@@ -27,7 +27,7 @@
 //  faster, needs no network, and localizes for free. See docs/app-store-presentation.md.
 //
 //  This rig's own demo link (`demoLink` below) is separate from the App Review demo link
-//  cited in docs/app-store-listing.md (album "2021-06-Island best of", Iceland2021) — that
+//  cited in private/docs/app-store-listing.md (album "2021-06-Island best of", Iceland2021) — that
 //  one must stay untouched; it expires 2027-07-11.
 //
 
@@ -62,7 +62,7 @@ final class AppStoreScreenshotUITests: XCTestCase {
     ///
     /// Slot 5 is not one of these — it is the UI-archetype arrival card captured separately by
     /// `testCaptureNewPhotosCard` below. All three heroes here are warm/orange-graded; the open
-    /// colour-monotony finding in docs/handover-store-slots.md is not resolved by this set.
+    /// colour-monotony finding in private/docs/handover-store-slots.md is not resolved by this set.
     private static let heroes: [(name: String, assetID: String)] = [
         ("01-hero-drawer", "4cea99f3-abe4-47d1-baa8-8de2c2dcf802"),    // kinder.png, children hugging
         ("02-hero-favourites", "32b82d07-7853-44bf-b658-13f1d8fc1e21"), // golden retriever
@@ -182,7 +182,7 @@ final class AppStoreScreenshotUITests: XCTestCase {
     /// A prior session's attempt polled up to 180s for a genuine server-side arrival and never
     /// saw one: `newPhotosCardLink`'s album is static, so a reconciler diff against an unchanging
     /// source can never look like an arrival, no matter how long the wait or how short the
-    /// refresh interval (see docs/handover-store-slots.md, "a live-capture rig was built, then
+    /// refresh interval (see private/docs/handover-store-slots.md, "a live-capture rig was built, then
     /// Jan called it"). The forced trigger below makes this deterministic — the photo is real
     /// (a genuine live source), only the card itself is forced.
     ///

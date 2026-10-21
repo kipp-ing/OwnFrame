@@ -206,7 +206,7 @@ struct SlideshowView: View {
         }
         // 9010 slot 5 live capture only: holds the arrival card up over whatever REAL photo
         // the source has playing — no reconciler, no server-side content change, no timing
-        // race (see SlideshowViewModel.debugForceArrival and docs/handover-store-slots.md).
+        // race (see SlideshowViewModel.debugForceArrival and private/docs/handover-store-slots.md).
         //
         // It re-publishes rather than forcing once. Forcing once sufficed only while the
         // capture happened immediately after `start()`; the card fades itself out after

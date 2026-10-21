@@ -293,7 +293,7 @@ outside settings.
 ## Phase 9: Polish & Cross-Cutting
 
 - [x] T039 [P] Copy audit (SC-1100-07): sweep `OwnFrame/Localizable.xcstrings`, all
-      PurchaseKit UI strings, `docs/app-store-listing.md`, `README.md`, and user-facing pages
+      PurchaseKit UI strings, `private/docs/app-store-listing.md`, `README.md`, and user-facing pages
       under `docs/` for "lifetime"/subscription terminology on the unlocks (FR-1100-05 covers
       any user-facing document); sanctioned phrasing "one-time purchase"; note the audit
       command + result in specs/1100-purchase-gate/tasks.md Status.
@@ -350,7 +350,7 @@ Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-0
 
 ## Phase 11: Transparency statement ("Where your money goes", 2026-07-20)
 
-- [x] T052 [P] `docs/where-the-money-goes.md` — English reference pledge (statement only, no
+- [x] T052 [P] `private/docs/where-the-money-goes.md` — English reference pledge (statement only, no
       transparency log). Done 2026-07-20.
 - [x] T053 Add the short in-app pledge string to the Unlocks settings footer (iOS
       `SlideshowSettingsView.swift` + tvOS `TVSettingsView.swift`) → new key in
@@ -361,7 +361,7 @@ Amendment: HA telemetry is free, only *control* is gated (FR-1100-03 / FR-1100-0
       source catalog (only the Xcode IDE does). Same pass removed four keys left behind by the
       masked-broker views this branch deleted (`Remote control needs the Automation unlock`,
       `Saved configuration`, `Unlock Automation`, `Your Home Assistant setup is saved…`).
-- [x] T055 `docs/app-store-listing.md` accuracy pass — grew past the optional pledge line into
+- [x] T055 `private/docs/app-store-listing.md` accuracy pass — grew past the optional pledge line into
       a correctness fix: the Description still sold Ken Burns motion and full Home Assistant
       control as free, which the gated build makes untrue. Reworked the slideshow + Home
       Assistant bullets to the real free/paid split, added a "WHAT'S INCLUDED, WHAT'S AN

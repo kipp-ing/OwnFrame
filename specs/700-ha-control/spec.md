@@ -8,7 +8,7 @@
 The identity half is **release-blocking for the first public release**; see US3. **Further
 amended 2026-07-26** (in-app UI presentation is not connectivity loss, FR-700-23 / SC-700-15).
 FR-700-23 is **implemented and merged** together with 710's FR-710-24 (PR #49, 2026-07-29); its live check on iOS 17 hardware is
-queued in `docs/hitl.md` §4. **Text aligned 2026-09-14** (#69): FR-700-14's select lists saved-source
+queued in `private/docs/hitl.md` §4. **Text aligned 2026-09-14** (#69): FR-700-14's select lists saved-source
 labels (FR-120-07), not album names.
 
 **Input**: Consolidated from `specs/005-hacontrol/spec.md`: secure MQTT connection, Home Assistant discovery, availability, and pause/play control for the running slideshow.

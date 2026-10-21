@@ -155,7 +155,7 @@ visual gate is captures, because material blur cannot be asserted numerically.
       where the 18.6 baseline washed out; over near-black everything reads.
 - [x] T010 **Jan (HITL)**: eyeball on **Framepad** (iPad Pro 10.5, iOS 17.7.10, the deployment floor)
       over a near-white and a near-black photo, via `.claude/scripts/framepad.sh` (recipes in
-      `docs/device-testing.md`). Queue it in `docs/hitl.md`.
+      `docs/device-testing.md`). Queue it in `private/docs/hitl.md`.
       *Done 2026-09-27:* `ChromeLegibilityCaptureUITests` on Framepad (17.7.11) and FramePhone (27.0);
       Jan: "#72 ist gut". LOOK-03 stays `verified`.
 - [x] T011 `test_sim` whole classes `SoftGlassTierTests`, `UITestPhotoToneSeamTests`,
@@ -182,5 +182,5 @@ visual gate is captures, because material blur cannot be asserted numerically.
 ## Notes
 
 - The iOS 26 glass code paths must stay unchanged; review the T005 diff for that before commit.
-- Store captures in `Design/AppStore/` are frozen and are not re-rendered.
+- Store captures in `private/Design/AppStore/` are frozen and are not re-rendered.
 - Stage with explicit paths, never `-A`.

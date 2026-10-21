@@ -4,7 +4,7 @@
 FR-9000-14's contrast consequence, and FR-9000-07 (WCAG AA).
 
 **Scope**: this file covers **only** the FR-9000-38 amendment. The rest of 9000 has no tasks here:
-the language is applied through the work packages in `docs/presentation-overhaul-plan.md` (AP-U,
+the language is applied through the work packages in `private/docs/presentation-overhaul-plan.md` (AP-U,
 AP-0 …), and applying it to specific screens is not owned by this spec (FR-9000-35).
 
 **Prerequisites**: accent Messing `#E3A857` declared (7eba377), dark app-wide (73ff5f0, #70).
@@ -56,7 +56,7 @@ deferred, not fixed here.
       `.borderedProminent` renders differently under Liquid Glass). For each site and runtime,
       record under this task whether the label is white or near-black, sampled from the capture.
       Downscale with `sips -Z 900` before reading. Note which state reaches `UnlockScreenView:330`
-      and whether site 3 is reachable on the simulator. Store captures in `Design/AppStore/` are
+      and whether site 3 is reachable on the simulator. Store captures in `private/Design/AppStore/` are
       frozen and not touched.
       **2026-09-15, iOS 18.6 (iPad Pro 11-inch M4):** sampled through the T005 assertion rather than
       eight separate captures — the unlock buy button (`UnlockScreenView:276`) renders a **white**

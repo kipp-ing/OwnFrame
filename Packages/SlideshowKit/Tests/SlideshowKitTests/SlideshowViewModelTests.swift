@@ -752,7 +752,7 @@ private func waitUntil(_ condition: @autoclosure () -> Bool) async {
 // MARK: - debugForceArrival (9010 slot 5 live capture — 2026-09-11 handover decision)
 //
 // The live capture rig cannot manufacture a genuine server-side arrival deterministically (see
-// docs/handover-store-slots.md): a pre-populated album has no delta to notice, and choreographing
+// private/docs/handover-store-slots.md): a pre-populated album has no delta to notice, and choreographing
 // a real content change during a test run is impractical. `debugForceArrival` bypasses
 // `RotationReconciler` entirely and publishes a `NewArrival` directly, so the capture rig can
 // force the card over an already-playing REAL photo with no server-side content change and no

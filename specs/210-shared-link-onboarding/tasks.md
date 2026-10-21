@@ -235,7 +235,7 @@ OnboardingKit 190/190. T058: the synchronized folder compiles the catalog into t
 `Localizable.strings` confirmed in the built product), so **no pbxproj edit**. T060: `.onOpenURL` removed — no
 `CFBundleURLTypes` and no associated-domains entitlement exist. T061: the warm-return case landed via a DEBUG seam
 (`--uitest-pending-link-after-background`, `OwnFrame/UITestWarmReturnLinkSeam.swift`, red unit test first); the real
-Safari → Share round trip was **not** driven from XCUITest and stays with T025 (`docs/hitl.md` §6). T062: build,
+Safari → Share round trip was **not** driven from XCUITest and stays with T025 (`private/docs/hitl.md` §6). T062: build,
 `ShareSheetIncomingUITests` 4/4 and the seam tests green on iOS 17.5; the EN/DE confirmation screenshots also wait for
 that round trip. T063/T064 done in the same commit.
 
@@ -246,7 +246,7 @@ that round trip. T063/T064 done in the same commit.
 - [ ] T061 [US2] UITest, **Claude (simulator)**: in `OwnFrameUITests/ShareSheetIncomingUITests.swift`, add a warm-return case. OwnFrame is running, a pending link arrives while it is backgrounded (`--uitest-pending-link` seam, or the App-Group store if the in-memory seam cannot be seeded after launch), and the link is consumed after `app.activate()` (SC-210-02). Then drive a real share round trip on the simulator (Safari → Share → OwnFrame): the confirmation text is visible, Done closes it, and activating OwnFrame picks the link up. If the system share sheet is not drivable from XCUITest, run it by hand on the simulator, record screenshots in `specs/210-shared-link-onboarding/human-test-findings.md`, and leave T025 (device round trip) open.
 - [ ] T062 Verification gate (**Claude**): XcodeBuildMCP `build_sim` of the app scheme (embeds the appex), `test_sim` whole class `ShareSheetIncomingUITests`, `swift test` in OnboardingKit; screenshot the confirmation in EN and DE (downscale with `sips -Z 900` before reading).
 - [x] T063 Facts, **same commit as T059**: `product-facts.yaml` **SRC-07** → `implementation: verified`; remove `mismatch`/`candidate_issue`; add `FR-210-31` to `intent`; refresh `evidence` (new `ShareViewController.swift` lines, `OwnFrameShareExtension/Localizable.xcstrings`, `OwnFrameApp.swift` consume lines, `IncomingLinkSheet.swift`); add a limit that the extension tells the person to open OwnFrame. Run `.claude/scripts/check-facts.py`.
-- [x] T064 Queue the new German string(s) for Jan's review in `docs/hitl.md`; commit with explicit paths; close #65 with the commit reference (`gh` account `kipp-ing`). T025 stays the device item and now also checks the confirmation.
+- [x] T064 Queue the new German string(s) for Jan's review in `private/docs/hitl.md`; commit with explicit paths; close #65 with the commit reference (`gh` account `kipp-ing`). T025 stays the device item and now also checks the confirmation.
 
 **Checkpoint**: sharing a link shows "Open OwnFrame to start" and never pretends to open the app; opening OwnFrame (warm or cold) starts that link.
 

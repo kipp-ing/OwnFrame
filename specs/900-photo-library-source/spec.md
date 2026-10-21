@@ -247,7 +247,7 @@ revoked-while-active → the source errors calmly like a failed Immich source.
   here is a prerequisite, not the delivery.
 - **Naming/positioning follow-through**: settled — the source has one name in app and store,
   "iCloud album" (FR-9000-26), and the store subtitle stayed source-neutral instead of naming
-  iCloud (listing text: `docs/app-store-listing.md`).
+  iCloud (listing text: `private/docs/app-store-listing.md`).
 
 ## Success Criteria *(mandatory)*
 

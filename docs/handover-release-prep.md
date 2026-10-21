@@ -20,7 +20,7 @@ State as of 2026-07-09. Read this first in the next session; the previous handov
   name~~ and ~~description/promo/keywords are not yet pushed~~ — **both resolved 2026-07-26**:
   the iOS **1.1** record (id `49d4c9d6-…`, PREPARE_FOR_SUBMISSION) now carries the current
   name, subtitle, description, promo text, keywords, and What's New in **en-US and de-DE**.
-  Source of truth stays `docs/app-store-listing.md`. Privacy policy is live (ASC links
+  Source of truth stays `private/docs/app-store-listing.md`. Privacy policy is live (ASC links
   `docs/privacy-policy.md` on GitHub; was a 404 until 2026-07-09, now fixed and agreed).
   Contact for anything published: **app@kipp.ing**.
 - **Specs**: three new ones, all committed. `310-slideshow-resilience` (auto-retry +
@@ -56,7 +56,7 @@ feature.json already points there) → then the checklist below. Before every re
 - [ ] Bump `CURRENT_PROJECT_VERSION`, archive + upload (recipe in memory
       `appstore-upload-cli`: `PATH=/usr/bin:$PATH` for exportArchive, never use the session
       scratchpad for archive/export paths).
-- [x] Push listing fields to ASC from `docs/app-store-listing.md`: description, promotional
+- [x] Push listing fields to ASC from `private/docs/app-store-listing.md`: description, promotional
       text, keywords, What's New — these live on `appStoreVersionLocalizations` (now the **1.1**
       version), *not* `appInfoLocalizations`. **Name and subtitle are the exception** — they sit
       on `appInfoLocalizations`, under the app's PREPARE_FOR_SUBMISSION `appInfo`
@@ -73,7 +73,7 @@ feature.json already points there) → then the checklist below. Before every re
 - [x] **Done 2026-07-26** — the `de-DE` ASC localization no longer mirrors the English text.
       Real German copy (subtitle, promo, description, keywords, What's New) is written and
       pushed to 1.1, with terminology matched to the shipped German UI from topic 300. It is
-      recorded under "German listing (de-DE)" in `docs/app-store-listing.md`. (Repo policy is
+      recorded under "German listing (de-DE)" in `private/docs/app-store-listing.md`. (Repo policy is
       unchanged: source, specs and docs stay English; German lives in the String Catalogs, and
       for the store in ASC — the listing doc is the one sanctioned exception, since it *is*
       store copy.)

@@ -119,7 +119,7 @@ proof of the refresh, and the store set depicts it)*.
 
 **Why this priority**: Cosmetic, not core to the resilience story — hence P3, added after the
 2026-09-10 store-presentation session found slot 5 depicting exactly this and needing a real
-capability behind it rather than an invented screen (`docs/handover-store-slots.md`,
+capability behind it rather than an invented screen (`private/docs/handover-store-slots.md`,
 9010 FR-9010-03/-04).
 
 **Independent Test**: With a fake `ImmichAPI` and injected scheduler: start playback, add assets,

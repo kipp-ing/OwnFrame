@@ -386,14 +386,14 @@ bright photo, so the text washes out. **The scrim comes from the soft-glass tier
 `specs/300-slideshow/tasks.md` T005)**, which gives `glassCard` an optional in-shape dark `scrim`
 layer. This card opts into it on every runtime, so there is one helper and one layer, not a second
 hand-rolled fill. **300 T005 lands before T037 or in the same commit.** App target only, so every
-task is **Claude inline**. **Store assets in `Design/AppStore/` are frozen and MUST NOT be
+task is **Claude inline**. **Store assets in `private/Design/AppStore/` are frozen and MUST NOT be
 re-rendered.**
 
 - [x] T035 [US4] Baseline capture (**Claude**): run `OwnFrameUITests/AppStoreScreenshotUITests.swift`
       `testCaptureNewPhotosCard` over the bright beach photo with the seam at
       `SCREENSHOT_CAPTURE_FORCE_ARRIVAL_COUNT=3`, which gives the longest copy, "+3 new photos". Do
       it on the iOS 26 runtime (glass) and on 18.6 (`ultraThinMaterial` fallback). Keep the
-      attachment out of `Design/AppStore/`, downscale it (`sips -Z 900`) before reading, and note the
+      attachment out of `private/Design/AppStore/`, downscale it (`sips -Z 900`) before reading, and note the
       washed-out state under this task. If the test's hard-coded `"1"` has to change for the run,
       do not commit that change.
       **2026-09-15: ran hermetically instead** — `ChromeLegibilityCaptureUITests` (300 T002) captures

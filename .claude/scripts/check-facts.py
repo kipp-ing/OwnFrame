@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check product-facts.yaml (and, when present, Design/AppStore/copy-rules.yaml).
+"""Check product-facts.yaml (and, when present, private/Design/AppStore/copy-rules.yaml).
 
 Fails on:
   - schema violations (unknown verdict/gated/implementation values, duplicate or malformed ids)
@@ -9,8 +9,9 @@ Fails on:
 
 Warns (exit 0, or 1 with --strict) when a file cited as evidence changed since
 `verified_commit`: the fact behind it has to be re-checked against the code.
-In the public mirror (hashes rewritten, store specs excluded) it warns instead of failing
-when `verified_commit` is unknown or an intent id names a spec that is not in the repo.
+Specs are read from `specs/` and, when the private repo is checked out at `private/`, from
+`private/specs/` too. Without that checkout (a plain public clone) it warns instead of failing
+when an intent id names a spec that is not present, or when `verified_commit` is unknown.
 
 Usage: .claude/scripts/check-facts.py [--strict]
 """
@@ -24,7 +25,9 @@ import yaml
 
 ROOT = Path(os.environ.get("OWNFRAME_ROOT", Path(__file__).resolve().parents[2]))
 FACTS = Path(os.environ.get("FACTS_FILE", ROOT / "product-facts.yaml"))
-COPY_RULES = Path(os.environ.get("COPY_RULES_FILE", ROOT / "Design/AppStore/copy-rules.yaml"))
+COPY_RULES = Path(os.environ.get("COPY_RULES_FILE", ROOT / "private/Design/AppStore/copy-rules.yaml"))
+# The private repo (store specs such as 9010) is checked out at private/ when present.
+SPEC_DIRS = (ROOT / "specs", ROOT / "private" / "specs")
 
 VERDICTS = {"does", "does_not", "partial", "deferred", "planned"}
 GATED = {"free", "supporter", "n/a"}
@@ -37,7 +40,7 @@ REQ_RE = re.compile(r"\b(?:FR|SC)-\d{3,4}-\d{2,3}\b")
 
 def spec_requirement_ids():
     ids = set()
-    for spec in (ROOT / "specs").glob("*/spec.md"):
+    for spec in (s for d in SPEC_DIRS for s in d.glob("*/spec.md")):
         ids.update(REQ_RE.findall(spec.read_text(encoding="utf-8")))
     return ids
 
@@ -45,8 +48,8 @@ def spec_requirement_ids():
 def changed_since(commit, paths):
     """Evidence files changed since `commit`, or None when `commit` is not in this history.
 
-    None happens in the public mirror: publish-public.sh rewrites every hash with
-    git-filter-repo, so the private repo's verified_commit never exists there.
+    None happens when the hash comes from another history, e.g. a shallow clone or a hash
+    recorded before the 2026-10-21 repo split.
     """
     if not commit or not paths:
         return set()
@@ -103,8 +106,8 @@ def main():
             for req in REQ_RE.findall(str(ref)):
                 if req not in known_reqs:
                     spec_no = req.split("-")[1]
-                    if not any((ROOT / "specs").glob(f"{spec_no}-*/spec.md")):
-                        # The public mirror excludes some specs (publish-public.sh).
+                    if not any(any(d.glob(f"{spec_no}-*/spec.md")) for d in SPEC_DIRS):
+                        # Store specs live in the private repo, absent from a public clone.
                         warnings.append(f"{fid}: intent {req} unchecked — spec {spec_no} is not in this repo")
                     else:
                         errors.append(f"{fid}: intent {req} is not defined in any spec")
@@ -124,7 +127,7 @@ def main():
     changed = changed_since(doc.get("verified_commit"), evidence_files)
     if changed is None:
         warnings.append(f"verified_commit {doc.get('verified_commit')!r} is not in this history "
-                        "(the public mirror rewrites hashes) — staleness check skipped")
+                        "— staleness check skipped")
     for path in sorted(changed or ()):
         warnings.append(f"re-verify {', '.join(sorted(evidence_files[path]))}: {path} changed since verified_commit")
 

@@ -1,10 +1,10 @@
 """test_check_facts.py — check-facts.py must still run where `verified_commit` is unknown.
 
-Written FIRST per this repo's TDD policy. The public mirror is rebuilt by
-`publish-public.sh` with git-filter-repo, which rewrites every commit hash, so the
-private repo's `verified_commit` never exists there. check-facts.py used to abort with
-"is not a valid commit" in the mirror; it must instead skip only the staleness check,
-say so in a warning, and keep every other check (schema, evidence, intent ids).
+Written FIRST per this repo's TDD policy. Until the 2026-10-21 repo split the public repo
+was a git-filter-repo mirror whose rewritten hashes never contained `verified_commit`, and
+check-facts.py aborted with "is not a valid commit" there. An unknown hash (shallow clone,
+a hash from the pre-split history) must still skip only the staleness check, say so in a
+warning, and keep every other check (schema, evidence, intent ids).
 
 Run with:
 
@@ -69,7 +69,7 @@ class RepoCase(unittest.TestCase):
 
 class CheckFactsCommitTests(RepoCase):
     def test_unknown_commit_skips_staleness_check_with_a_warning(self):
-        result = self.run_check("8315d36")  # not in this history, as in the public mirror
+        result = self.run_check("8315d36")  # not in this history (a pre-split hash)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("staleness check skipped", result.stdout)
         self.assertIn("1 facts, 0 errors", result.stdout)
@@ -93,7 +93,7 @@ class CheckFactsCommitTests(RepoCase):
 
 
 class CheckFactsIntentTests(RepoCase):
-    """The mirror also lacks specs/9010-store-presentation (excluded by publish-public.sh)."""
+    """Store specs (9010) live in the private repo, checked out at private/ when present."""
 
     def head(self) -> str:
         return git(self.root, "rev-parse", "--short", "HEAD")
@@ -106,6 +106,22 @@ class CheckFactsIntentTests(RepoCase):
     def test_unknown_intent_in_a_present_spec_is_still_an_error(self):
         spec = self.root / "specs" / "9010-store-presentation"
         spec.mkdir()
+        (spec / "spec.md").write_text("- **FR-9010-01**: something\n")
+        result = self.run_check(self.head(), '["FR-9010-10"]')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("intent FR-9010-10 is not defined in any spec", result.stdout)
+
+    def test_spec_in_the_nested_private_checkout_is_checked(self):
+        spec = self.root / "private" / "specs" / "9010-store-presentation"
+        spec.mkdir(parents=True)
+        (spec / "spec.md").write_text("- **FR-9010-10**: something\n")
+        result = self.run_check(self.head(), '["FR-9010-10"]')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("unchecked", result.stdout)
+
+    def test_unknown_intent_in_a_private_spec_is_an_error(self):
+        spec = self.root / "private" / "specs" / "9010-store-presentation"
+        spec.mkdir(parents=True)
         (spec / "spec.md").write_text("- **FR-9010-01**: something\n")
         result = self.run_check(self.head(), '["FR-9010-10"]')
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)

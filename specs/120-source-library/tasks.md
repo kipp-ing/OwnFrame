@@ -375,7 +375,7 @@ never concurrently with it. 210 Phase 11 (#71) also changes OnboardingKit and wa
 
 - [x] T045 Verification (**Claude**): `swift test` in OnboardingKit; XcodeBuildMCP `test_sim` whole
       classes `OnboardingResetTests`, `SourceLibraryUITests`, `SettingsUITests`, `AlbumSearchUITests`.
-      Queue the placeholder strings (EN + DE, link + album) for Jan's German review in `docs/hitl.md`.
+      Queue the placeholder strings (EN + DE, link + album) for Jan's German review in `private/docs/hitl.md`.
 - [x] T046 Facts, **same commit as the code they describe**. **SHORTCUT-03** is flipped by 800 T035,
       whose evidence cites T038's function, so nothing for it here. **PRIV-01**: add `FR-120-14` to
       `intent` and the `reset()` deletion lines to `evidence`. **PRIV-02**: touch only if storage
@@ -412,7 +412,7 @@ never concurrently with it. 210 Phase 11 (#71) also changes OnboardingKit and wa
   load drops duplicate/blank-label sources, whose passwords Reset then can't find. Both predate WP2 and
   are recorded on #73.
 - **Live check:** the per-fetch album lookup under a **password-protected** link's `?key=` has no
-  proof yet (the no-password demo link returned 200). Queued in `docs/hitl.md` §1.
+  proof yet (the no-password demo link returned 200). Queued in `private/docs/hitl.md` §1.
 
 **Checkpoint**: no surface outside Settings → Sources shows or returns a host, URL or album id as a
 source name; Reset and remove leave no link password in the Keychain.

@@ -3,10 +3,10 @@
 # verdict:        does | does_not | partial | deferred | planned
 # implementation: verified (build matches the fact) | mismatch (build differs from intent) |
 #                 unverified (not confirmed in code, or needs a device) | n/a (nothing to build)
-# evidence paths are repo-relative; ":n" suffixes are line numbers at commit 8315d36.
+# evidence paths are repo-relative; ":n" suffixes are line numbers at commit bd09966 (= 8315d36 before the 2026-10-21 repo split).
 schema: 1
 updated: 2026-09-16
-verified_commit: 8315d36
+verified_commit: bd09966
 purpose: "OwnFrame turns an iPad or iPhone you already own into a digital photo frame that is easy to set up, needs no fiddling, and picks up new photos from an album on its own. The whole core frame is free; one optional one-time purchase adds extras."
 audience:
   - "People looking for a digital photo frame who have a spare iPad or iPhone (for example an old one in a drawer)"

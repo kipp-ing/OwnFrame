@@ -47,7 +47,7 @@
 //
 //  Use an **iOS 18.6** simulator for these. iOS 26 draws its windowing-system resize grip
 //  into the bottom-right corner of every capture — system chrome that must not reach a store
-//  page. See `docs/presentation-overhaul-plan.md` (AP-4) and `docs/testing.md`.
+//  page. See `private/docs/presentation-overhaul-plan.md` (AP-4) and `docs/testing.md`.
 //
 //  Export the captures afterwards with:
 //

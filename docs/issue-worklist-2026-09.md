@@ -5,7 +5,7 @@ keeps every promise in `product-facts.yaml` and the approved store claims, and t
 [`hitl.md`](hitl.md) done.
 
 Approved plan for the issues left by the 2026-09-13 product-facts pass. One work package (WP) per session, each ending at
-a commit. tvOS issues (#17 #29 #32 #33 #47 #48 #51) stay deferred per CLAUDE.md. **Store captures in `Design/AppStore/`
+a commit. tvOS issues (#17 #29 #32 #33 #47 #48 #51) stay deferred per CLAUDE.md. **Store captures in `private/Design/AppStore/`
 are frozen:** fixes land anyway, and small drift between app and screenshots is accepted.
 
 **Jan's decisions (2026-09-14)**

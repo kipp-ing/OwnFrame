@@ -5,7 +5,7 @@
 > purchase gate is specced, implemented and merged (one **Supporter Unlock**, not the two tiers
 > proposed below, with a real StoreKit 2 adapter in `Packages/PurchaseKit`; only the manual App
 > Store Connect day, `1100/T042`, is left), German localization shipped 2026-07-23 across iOS +
-> tvOS via the String Catalogs, and `docs/app-store-listing.md` carries the unlock copy. Do not
+> tvOS via the String Catalogs, and `private/docs/app-store-listing.md` carries the unlock copy. Do not
 > read the open checkboxes below as current work: start from
 > [`spec-overview.md`](spec-overview.md) and the module spec under `specs/Nxx-*/`.
 
@@ -64,7 +64,7 @@ Next free hundreds-block (`1000` is taken). This is a new module — a new gatin
 paid capability area reads — not an amendment.
 
 **State on 2026-07-19**: no spec, no plan, no tasks, **no StoreKit code of any kind** (no
-`StoreKit` import, no `.storekit` config, no IAP entitlement). `docs/app-store-listing.md` had no
+`StoreKit` import, no `.storekit` config, no IAP entitlement). `private/docs/app-store-listing.md` had no
 IAP section and read as a free app throughout. The legal half of the plan *did* ship — `LICENSE`
 is FSL-1.1-MIT and the README/listing carry the Fair Source line.
 
@@ -86,7 +86,7 @@ the option.
       the gating logic is host-testable without StoreKit — same pattern as `ImmichAPI` and
       `CodeScanning`.~~ **Done** — `StoreClient` + `StubStoreClient` in `Packages/PurchaseKit`,
       with `StoreKitClient` as the real adapter.
-- [ ] ~~Update `docs/app-store-listing.md` (price + IAP)~~ — **done**, the listing carries the
+- [ ] ~~Update `private/docs/app-store-listing.md` (price + IAP)~~ — **done**, the listing carries the
       Supporter Unlock and the ASC IAP-metadata notes. Still open: the live ASC description,
       which says "Open source (MIT)" after the FSL switch — it must ride along with the next
       version's metadata (part of `1100/T042`).

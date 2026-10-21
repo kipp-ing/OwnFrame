@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-04
 
-**Status**: Active — built on feat/710 (PR #10); 40/41 tasks done, live-HA confirmation tracked in docs/manual-verification.md (queued in `docs/hitl.md` §4). FR-710-24 is implemented and merged (PR #49, 2026-07-29). **Amended 2026-09-14** (#64, #69): current-photo metadata and image follow the active source (FR-710-25); tiering note names the single Supporter Unlock.
+**Status**: Active — built on feat/710 (PR #10); 40/41 tasks done, live-HA confirmation tracked in docs/manual-verification.md (queued in `private/docs/hitl.md` §4). FR-710-24 is implemented and merged (PR #49, 2026-07-29). **Amended 2026-09-14** (#64, #69): current-photo metadata and image follow the active source (FR-710-25); tiering note names the single Supporter Unlock.
 
 **Input**: Extends `specs/700-ha-control`. Home Assistant can read and set everything over
 MQTT — all display settings, playback, the active album, and the currently shown photo (image +

@@ -206,7 +206,7 @@ UITests stay green.
 
 ## Phase 7: Device acceptance automation (added 2026-09-25, Jan: "automate what can be")
 
-Seam-free XCUITests that take the automatable half of T021 and the `docs/hitl.md` device
+Seam-free XCUITests that take the automatable half of T021 and the `private/docs/hitl.md` device
 items off the manual list. Class `OwnFrameUITests/DeviceAcceptanceUITests.swift`, gated by
 `TEST_RUNNER_DEVICE_ACCEPT=1` (skips everywhere else, like `DeviceRigConfigUITests`). Each
 test expects a FRESH install (camera + Local Network permission undetermined), so
