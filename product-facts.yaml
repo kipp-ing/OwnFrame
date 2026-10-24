@@ -84,7 +84,7 @@ facts:
       - "Works through the Photos framework, not an iCloud connection."
       - "Apple caps iCloud Shared Album photos at about 2048 px on the long edge (panoramas up to 5400 px); Original quality cannot exceed that."
       - "Display only: no contributing, commenting or uploading to the shared album."
-      - "iOS 27 'upgraded' shared albums may not be visible to the app (unverified); such an album shows a calm 'unavailable' state."
+      - "Below iOS 27, shared albums created on or upgraded to the iOS 27 format are not visible at all (not in Apple Photos either); a saved one that gets upgraded shows a calm 'unavailable' state. Legacy-format albums work on every version; on iOS 27 both formats play (tested 2026-10-24)."
       - "Not available on Apple TV."
     gated: free
     platforms: [ios, ipados]

@@ -10,6 +10,11 @@ the iOS 27 shared-album rebuild as a first-class risk, change-observation latenc
 the iCloud Shared Photo Library free-ride. iOS 17 floor re-confirmed safe (every required API
 is iOS 15 or older).
 
+**Updated**: 2026-10-24 — iOS 27 shared-album behavior tested on real devices (Jan): below
+OS 27, iOS-27-format albums are invisible (Apple Photos too; the invite link asks for iOS 27);
+on iOS 27, OwnFrame plays both legacy and iOS-27-format albums through the existing PhotoKit
+path. Follow-up: a below-27 hint (Roadmap).
+
 **Status**: Implemented + merged to main (2026-07-18) — tasks T001–T036 complete, host + sim
 suites green. Remaining: the real-device / iOS 27-beta gates (SC-900-01/02/04/07), scheduled on
 the shared device day in `docs/manual-verification.md`. *(Was "Deferred — planned for v1.x";
@@ -28,11 +33,13 @@ change, contributing to / commenting on shared albums (display only).
 
 **Shared-album generations**: iOS 27 (fall 2026) rebuilds iCloud Shared Albums — per-album,
 owner-initiated "upgraded" albums gain full resolution and cross-platform sharing, count
-against the owner's iCloud storage, and are invisible to devices below OS 27. Whether upgraded
-albums remain visible to third-party apps through PhotoKit is **unverified** (nothing in the
-iOS 27 release notes or the PhotoKit updates page as of 2026-07-16). This spec targets the
-**legacy** shared-album system, which keeps working with no announced sunset; upgraded-album
-support is Roadmap, gated on a beta verification (SC-900-07).
+against the owner's iCloud storage, and are invisible to devices below OS 27. **Tested
+2026-10-24** (real devices): below OS 27 an iOS-27-format album does not appear at all — not in
+Apple Photos, not in OwnFrame — and its invite link asks for an update to iOS 27; on iOS 27
+OwnFrame sees and plays both legacy and iOS-27-format albums via the existing PhotoKit fetch.
+Legacy albums stay legacy unless the owner upgrades them, and work on every version. A shared
+album created on a device below OS 27 is legacy by construction. The gap is therefore frames
+below OS 27 (e.g. iPads capped at iOS 17/18), which can only ever show legacy albums.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -137,8 +144,8 @@ revoked-while-active → the source errors calmly like a failed Immich source.
   server — current photo persists, skips accumulate calmly, topic-310 retry applies.
 - **Shared-album assets with restricted originals**: display at best available quality; if
   nothing displayable is provided, skip.
-- **Shared album upgraded to the iOS 27 format by its owner**: the album may disappear from
-  legacy shared-album fetches on this device. Treated exactly like a deleted album
+- **Shared album upgraded to the iOS 27 format by its owner**: on a device below OS 27 the
+  album disappears from fetches (tested 2026-10-24); on OS 27 it keeps playing. Treated exactly like a deleted album
   (FR-900-16): calm unavailable state naming the likely cause ("this shared album may have
   been upgraded and is no longer visible to this app"), other sources untouched — never a
   crash, spinner, or silent empty slideshow.
@@ -236,9 +243,11 @@ revoked-while-active → the source errors calmly like a failed Immich source.
 
 ### Roadmap / Deferred (not yet built)
 
-- **Upgraded (iOS 27) shared albums**: support once their third-party PhotoKit exposure is
-  verified on a real beta/release (SC-900-07); until then they surface only as the FR-900-16
-  vanish case. Track each beta cycle.
+- **Hint for iOS-27-format shared albums on devices below OS 27** (next version): on such a
+  device only, the album picker and the FR-900-16 unavailable state say that shared albums
+  created on or upgraded to iOS 27 can't be shown here, and that a legacy album (one not
+  upgraded, or created on a device below iOS 27) works everywhere. No hint on OS 27, where
+  both formats play (tested 2026-10-24). Exact copy goes through `product-facts.yaml` SRC-02.
 - **Photos source on Apple TV**: PhotoKit is typed for tvOS 10+ (including shared albums), but
   what a third-party tvOS app actually sees at runtime is unverified — prototype-first; owned
   by topic 1000's roadmap, built on this spec's source protocol.
@@ -290,8 +299,8 @@ revoked-while-active → the source errors calmly like a failed Immich source.
   (Apple has confirmed there is no distinguishing API) — supporting the photo library as a
   source includes it automatically.
 - Legacy iCloud Shared Albums remain fetchable for the foreseeable future (no announced
-  sunset); the iOS 27 "upgraded" format's third-party visibility is unknown as of 2026-07-16
-  and is treated as a Roadmap gate, not a blocker.
+  sunset); the iOS 27 format is visible to OwnFrame through PhotoKit on OS 27 and invisible
+  below OS 27 (tested 2026-10-24).
 - Enumerating *within* a fetched shared collection needs no extra opt-in; only global
   source-type-based fetches must explicitly include cloud-shared source types (implementation
   detail for the plan, recorded here so it isn't rediscovered the hard way).
